@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, useId } from "vue";
+import DeckCardSplitPrintingModal from "@/pages/Decks/Deck/Modals/DeckCardSplitPrintingModal.vue";
 import DeckCardSwitchPrintingModal from "@/pages/Decks/Deck/Modals/DeckCardSwitchPrintingModal.vue";
 import Icon from "Components/UI/Icon.vue";
 import PopOver from "Components/UI/PopOver.vue";
@@ -23,6 +24,8 @@ const props = defineProps<{
 const popoverId = useId();
 /** Controls visibility of the switch-printing modal. */
 const showSwitchPrintingModal = ref(false);
+/** Controls visibility of the split-printing modal. */
+const showSplitPrintingModal = ref(false);
 /** Close the action popover programmatically. */
 function closePopover(): void {
     const el = document.getElementById(popoverId);
@@ -32,6 +35,11 @@ function closePopover(): void {
 function openSwitchPrinting(): void {
     closePopover();
     showSwitchPrintingModal.value = true;
+}
+/** Close the popover and open the split-printing modal. */
+function openSplitPrinting(): void {
+    closePopover();
+    showSplitPrintingModal.value = true;
 }
 const { canIncrement, increment, decrement, destroy } = useDeckCardActions(
     {
@@ -80,8 +88,8 @@ const { canIncrement, increment, decrement, destroy } = useDeckCardActions(
                     {{ $t("pages.deck.switch_printing.link") }}
                 </button>
             </li>
-            <li>
-                <button type="button" class="popover-list-item">
+            <li v-if="props.quantity > 1">
+                <button type="button" class="popover-list-item" @click="openSplitPrinting">
                     <icon name="copy" :size="1" />
                     {{ $t("pages.deck.split_printing.link") }}
                 </button>
@@ -100,6 +108,14 @@ const { canIncrement, increment, decrement, destroy } = useDeckCardActions(
         :card-id="props.cardId"
         :name="props.name"
         @close="showSwitchPrintingModal = false"
+    />
+    <deck-card-split-printing-modal
+        v-if="showSplitPrintingModal"
+        :deck-id="props.deckId"
+        :card-id="props.cardId"
+        :name="props.name"
+        :quantity="props.quantity"
+        @close="showSplitPrintingModal = false"
     />
 </template>
 

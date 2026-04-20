@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { usePage } from "@inertiajs/vue3";
-import { computed, onBeforeUnmount, onMounted, ref } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import CardFaceImage from "Components/Card/CardFaceImage.vue";
+import NumVisible from "Components/Card/CardSearch/NumVisible.vue";
 import FormGroup from "Components/Form/FormGroup.vue";
 import Switch from "Components/Form/Switch.vue";
 import Modal from "Components/Modal/Modal.vue";
@@ -20,6 +21,8 @@ const props = defineProps<{
     /** Card name, interpolated into the modal title. */
     name: string;
 }>();
+/** Number of printings rendered per scroll batch. */
+const PAGE_SIZE = 20;
 /** True while the printings XHR is in flight. */
 const loading = ref(true);
 /** True when the printings fetch failed. */
@@ -29,9 +32,43 @@ const printings = ref<Printing[]>([]);
 /** When true, only printings the user owns in a non-deckbox container are shown. */
 const onlyCollection = ref(false);
 /** Printings filtered by the current `onlyCollection` toggle. */
-const visiblePrintings = computed<Printing[]>(() =>
+const filteredPrintings = computed<Printing[]>(() =>
     onlyCollection.value ? printings.value.filter(p => p.in_collection) : printings.value
 );
+/** How many printings are currently visible (grows as the user scrolls). */
+const visibleCount = ref(PAGE_SIZE);
+/** The slice of printings currently rendered in the DOM. */
+const visiblePrintings = computed<Printing[]>(() => filteredPrintings.value.slice(0, visibleCount.value));
+/** Ref to the invisible sentinel element that triggers infinite scroll. */
+const sentinel = ref<HTMLElement | null>(null);
+/** Reset visible count whenever the filtered list shrinks/grows (toggle). */
+watch(filteredPrintings, () => {
+    visibleCount.value = PAGE_SIZE;
+});
+let observer: IntersectionObserver | null = null;
+/**
+ * Observe the sentinel element. When it enters the viewport, load the next
+ * batch of printings. The observer is recreated whenever the sentinel mounts.
+ * Uses the modal body as root so inner-scroll intersections are detected.
+ */
+watch(sentinel, el => {
+    observer?.disconnect();
+    if (!el) return;
+    const root = document.getElementById("modal-body");
+    observer = new IntersectionObserver(
+        entries => {
+            // Skip fires while the user hasn't scrolled — the sentinel can
+            // already be inside the modal body's visible area on mount if
+            // the first batch doesn't overflow yet.
+            if (root !== null && root.scrollTop === 0) return;
+            if (entries[0]?.isIntersecting && visibleCount.value < filteredPrintings.value.length) {
+                visibleCount.value = Math.min(visibleCount.value + PAGE_SIZE, filteredPrintings.value.length);
+            }
+        },
+        { root }
+    );
+    observer.observe(el);
+});
 /** AbortController so the in-flight request is cancelled if the modal is unmounted. */
 let abortController: AbortController | null = null;
 onMounted(async () => {
@@ -55,6 +92,7 @@ onMounted(async () => {
 });
 onBeforeUnmount(() => {
     if (abortController) abortController.abort();
+    observer?.disconnect();
 });
 const page = usePage();
 /**
@@ -124,27 +162,35 @@ async function switchPrinting(printing: Printing): Promise<void> {
             <icon name="error" :size="2" />
             <p>{{ $t("pages.deck.switch_printing.error") }}</p>
         </div>
-        <div v-else class="switch-printing__list">
-            <button
-                v-for="printing in visiblePrintings"
-                type="button"
-                :key="printing.id"
-                :class="{ 'switch-printing__list-item--current': printing.is_current }"
-                @click="switchPrinting(printing)"
-            >
-                <card-face-image :card="printing" tooltip-container="#modal-body" />
-                <span
-                    v-if="printing.is_current"
-                    class="switch-printing__current-badge"
-                    :aria-label="$t('pages.deck.switch_printing.currently_selected')"
+        <template v-else>
+            <num-visible
+                v-if="filteredPrintings.length > PAGE_SIZE"
+                :visible-count="Math.min(visibleCount, filteredPrintings.length)"
+                :num-total-results="filteredPrintings.length"
+            />
+            <div class="switch-printing__list">
+                <button
+                    v-for="printing in visiblePrintings"
+                    type="button"
+                    :key="printing.id"
+                    :class="{ 'switch-printing__list-item--current': printing.is_current }"
+                    @click="switchPrinting(printing)"
                 >
-                    <icon name="check" :size="3" />
-                    {{ $t("pages.deck.switch_printing.currently_selected") }}
-                </span>
-                <!--                <span v-if="printing.in_collection">{{ $t("pages.deck.switch_printing.in_collection") }}</span>-->
-                <!--                <span v-else>{{ $t("pages.deck.switch_printing.not_in_collection") }}</span>-->
-            </button>
-        </div>
+                    <card-face-image :card="printing" tooltip-container="#modal-body" />
+                    <span
+                        v-if="printing.is_current"
+                        class="switch-printing__current-badge"
+                        :aria-label="$t('pages.deck.switch_printing.currently_selected')"
+                    >
+                        <icon name="check" :size="3" />
+                        {{ $t("pages.deck.switch_printing.currently_selected") }}
+                    </span>
+                    <!--                <span v-if="printing.in_collection">{{ $t("pages.deck.switch_printing.in_collection") }}</span>-->
+                    <!--                <span v-else>{{ $t("pages.deck.switch_printing.not_in_collection") }}</span>-->
+                </button>
+            </div>
+            <div ref="sentinel" class="switch-printing__sentinel" />
+        </template>
     </modal>
 </template>
 
@@ -162,6 +208,10 @@ async function switchPrinting(printing: Printing): Promise<void> {
 }
 
 .switch-printing {
+    &__sentinel {
+        height: 1px;
+    }
+
     &__list {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
