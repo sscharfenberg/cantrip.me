@@ -56,6 +56,11 @@ $text: (
     "4dp": 5px 5px 10px light-dark(color.adjust(#000, $alpha: -0.43), color.adjust(#fff, $alpha: -0.33))
 );
 
+// colored shadows
+$colored: (
+    "2dp": 5px 5px 8px light-dark(map.get(cg.$brand, "light2", "color"), map.get(cg.$brand, "light1", "color"))
+);
+
 // text outline shadows
 $-s1: map.get(s.$shadows, "outline", "1dp");
 $-s2: map.get(s.$shadows, "outline", "2dp");

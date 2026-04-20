@@ -144,6 +144,7 @@ const previewTarget = ref<PreviewTarget | null>(null);
                             <deck-card-actions-menu
                                 :deck-id="props.deckId"
                                 :card-id="card.id"
+                                :name="card.name"
                                 :quantity="card.quantity"
                                 :is-basic-land="card.is_basic_land"
                                 :max-copies="props.maxCopies"

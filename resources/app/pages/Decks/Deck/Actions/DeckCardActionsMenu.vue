@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { useId } from "vue";
+import { ref, useId } from "vue";
+import DeckCardSwitchPrintingModal from "@/pages/Decks/Deck/Modals/DeckCardSwitchPrintingModal.vue";
 import Icon from "Components/UI/Icon.vue";
 import PopOver from "Components/UI/PopOver.vue";
 import { useDeckCardActions } from "Composables/useDeckCardActions.ts";
@@ -8,6 +9,8 @@ const props = defineProps<{
     deckId: string;
     /** UUID of the deck card entry. */
     cardId: string;
+    /** Card name, shown in the switch-printing modal title. */
+    name: string;
     /** Current number of copies (from server). */
     quantity: number;
     /** Whether this card is a basic land (exempt from copy limits). */
@@ -18,10 +21,17 @@ const props = defineProps<{
     isSingleton: boolean;
 }>();
 const popoverId = useId();
+/** Controls visibility of the switch-printing modal. */
+const showSwitchPrintingModal = ref(false);
 /** Close the action popover programmatically. */
 function closePopover(): void {
     const el = document.getElementById(popoverId);
     if (el !== null) el.hidePopover();
+}
+/** Close the popover and open the switch-printing modal. */
+function openSwitchPrinting(): void {
+    closePopover();
+    showSwitchPrintingModal.value = true;
 }
 const { canIncrement, increment, decrement, destroy } = useDeckCardActions(
     {
@@ -52,7 +62,7 @@ const { canIncrement, increment, decrement, destroy } = useDeckCardActions(
                     @click="decrement"
                     :aria-label="$t('pages.deck.card_quantity.increment')"
                 >
-                    <icon name="subtract" />
+                    <icon name="subtract" :size="1" />
                 </button>
                 <button
                     type="button"
@@ -61,17 +71,36 @@ const { canIncrement, increment, decrement, destroy } = useDeckCardActions(
                     @click="increment"
                     :aria-label="$t('pages.deck.card_quantity.decrement')"
                 >
-                    <icon name="add" />
+                    <icon name="add" :size="1" />
                 </button>
             </li>
             <li>
-                <button type="button" class="popover-list-item popover-list-item--caution" @click="destroy">
+                <button type="button" class="popover-list-item" @click="openSwitchPrinting">
+                    <icon name="card" :size="1" />
+                    {{ $t("pages.deck.switch_printing.link") }}
+                </button>
+            </li>
+            <li>
+                <button type="button" class="popover-list-item">
+                    <icon name="copy" :size="1" />
+                    {{ $t("pages.deck.split_printing.link") }}
+                </button>
+            </li>
+            <li>
+                <button type="button" class="popover-list-item popover-list-item--error" @click="destroy">
                     <icon name="delete" :size="1" />
-                    (Remove all)
+                    {{ $t("pages.deck.card_quantity.destroy") }}
                 </button>
             </li>
         </ul>
     </pop-over>
+    <deck-card-switch-printing-modal
+        v-if="showSwitchPrintingModal"
+        :deck-id="props.deckId"
+        :card-id="props.cardId"
+        :name="props.name"
+        @close="showSwitchPrintingModal = false"
+    />
 </template>
 
 <style lang="scss" scoped>

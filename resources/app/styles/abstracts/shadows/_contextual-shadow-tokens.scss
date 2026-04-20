@@ -27,7 +27,8 @@ $footer: () !default;
 // page tokens
 $pages: (
     "deck": (
-        "name": map.get(shg.$outline, "1dp")
+        "name": map.get(shg.$outline, "1dp"),
+        "switch-printing-hover": map.get(shg.$colored, "2dp")
     )
 ) !default;
 

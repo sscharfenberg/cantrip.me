@@ -710,6 +710,20 @@
                 "decrement": "Remove one card",
                 "destroy": "Remove all"
             },
+            "switch_printing": {
+                "title": "Edition für {card} wechseln",
+                "link": "Edition wechseln",
+                "only_collection_printings": "Zeige nur verfügbare Editionen aus deiner Sammlung",
+                "loading": "Editionen werden geladen…",
+                "error": "Editionen konnten nicht geladen werden.",
+                "in_collection": "In Sammlung",
+                "not_in_collection": "Nicht in Sammlung",
+                "currently_selected": "Aktuell ausgewählt"
+            },
+            "split_printing": {
+                "title": "Editionen aufteilen",
+                "link": "Editionen aufteilen"
+            },
             "no_categories": "Keine Kategorien definiert.",
             "navigation": {
                 "label": "Deck-Navigation",

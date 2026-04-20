@@ -710,6 +710,20 @@
                 "decrement": "Remove one card",
                 "destroy": "Remove all"
             },
+            "switch_printing": {
+                "title": "Switch printing for {card}",
+                "link": "Switch printing",
+                "only_collection_printings": "Only show available printings from your collection",
+                "loading": "Loading printings…",
+                "error": "Could not load printings.",
+                "in_collection": "In collection",
+                "not_in_collection": "Not in collection",
+                "currently_selected": "Currently selected"
+            },
+            "split_printing": {
+                "title": "Split printing",
+                "link": "Split printing"
+            },
             "no_categories": "No categories defined.",
             "navigation": {
                 "label": "Deck navigation",

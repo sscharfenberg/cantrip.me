@@ -2,11 +2,16 @@
 
 namespace App\Http\Controllers\Decks;
 
+use App\Enums\ContainerType;
+use App\Enums\Finish;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Decks\ModifyDeckCardRequest;
+use App\Http\Requests\Decks\ShowDeckCardPrintingsRequest;
 use App\Http\Requests\Decks\StoreDeckCardRequest;
 use App\Http\Requests\Decks\UpdateDeckCardCategoryRequest;
+use App\Http\Requests\Decks\UpdateDeckCardPrintingRequest;
 use App\Http\Requests\Decks\UpdateDeckCardQuantityRequest;
+use App\Models\CardStack;
 use App\Models\Deck;
 use App\Models\DeckCard;
 use App\Models\DefaultCard;
@@ -90,6 +95,21 @@ class DeckCardController extends Controller
     }
 
     /**
+     * Swap the printing shown for a deck card.
+     *
+     * The chosen `default_card_id` must belong to the same oracle card as
+     * the deck card (enforced in the FormRequest). Color identity and
+     * legality are therefore unchanged, so no deck-level recalculation
+     * is needed.
+     */
+    public function updatePrinting(UpdateDeckCardPrintingRequest $request, Deck $deck, DeckCard $deckCard): JsonResponse
+    {
+        $deckCard->update($request->validated());
+
+        return response()->json(status: 204);
+    }
+
+    /**
      * Update a deck card's category assignment.
      *
      * Accepts a nullable `category_id` — null removes the card from any
@@ -100,5 +120,59 @@ class DeckCardController extends Controller
         $deckCard->update($request->validated());
 
         return redirect()->back();
+    }
+
+    /**
+     * List all printings of this deck card's oracle card.
+     *
+     * Each row carries the card image URLs, set + artist + collector number,
+     * and a `in_collection` flag. A printing counts as "in collection" when
+     * the user owns a card stack for that default card that sits in a
+     * non-deckbox container (a null container — unsorted collection — counts).
+     */
+    public function printings(ShowDeckCardPrintingsRequest $request, Deck $deck, DeckCard $deckCard): JsonResponse
+    {
+        $printings = DefaultCard::query()
+            ->with(['set:id,name,code,path', 'artist:id,name'])
+            ->join('sets', 'default_cards.set_id', '=', 'sets.id')
+            ->where('default_cards.oracle_id', $deckCard->oracle_card_id)
+            ->orderBy('sets.released_at', 'desc')
+            ->orderBy('default_cards.id', 'desc')
+            ->select('default_cards.*')
+            ->get();
+
+        $availableIds = CardStack::query()
+            ->leftJoin('containers', 'card_stacks.container_id', '=', 'containers.id')
+            ->where('card_stacks.user_id', $request->user()->id)
+            ->whereIn('card_stacks.default_card_id', $printings->pluck('id')->all())
+            ->where(function ($query): void {
+                $query->whereNull('card_stacks.container_id')
+                    ->orWhere('containers.type', '!=', ContainerType::Deckbox->value);
+            })
+            ->pluck('card_stacks.default_card_id')
+            ->unique()
+            ->flip();
+
+        return response()->json(
+            $printings
+                ->map(fn (DefaultCard $card): array => [
+                    'id' => $card->id,
+                    'name' => $card->name,
+                    'card_image_0' => $card->card_image_0,
+                    'card_image_1' => $card->card_image_1,
+                    'artist' => $card->artist?->name,
+                    'cn' => $card->collector_number,
+                    'finishes' => Finish::labelsFromMask($card->finishes),
+                    'set' => $card->set ? [
+                        'name' => $card->set->name,
+                        'code' => $card->set->code,
+                        'path' => $card->set->path,
+                    ] : null,
+                    'in_collection' => $availableIds->has($card->id),
+                    'is_current' => $card->id === $deckCard->default_card_id,
+                ])
+                ->values()
+                ->all()
+        );
     }
 }

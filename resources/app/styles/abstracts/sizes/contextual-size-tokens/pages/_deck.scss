@@ -35,6 +35,13 @@ $deck: (
         "border": map.get(s.$border, "base"),
         "radius": map.get(s.$radius, "featured")
     ),
+    "switch-printing": (
+        "current": (
+            "padding": 0.5rem 1rem,
+            "gap": 1rem,
+            "radius": map.get(s.$radius, "base")
+        )
+    ),
     "add-card": (
         "results-min": 10rem,
         "gap": 0.25rem,
