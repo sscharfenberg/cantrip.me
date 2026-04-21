@@ -5,15 +5,20 @@ import DeckCardSwitchPrintingModal from "@/pages/Decks/Deck/Modals/DeckCardSwitc
 import Icon from "Components/UI/Icon.vue";
 import PopOver from "Components/UI/PopOver.vue";
 import { useDeckCardActions } from "Composables/useDeckCardActions.ts";
+import type { DeckCardRow } from "Types/deckPage";
 const props = defineProps<{
     /** UUID of the deck this card belongs to. */
     deckId: string;
     /** UUID of the deck card entry. */
     cardId: string;
+    /** UUID of the oracle card — lets copy-limit checks sum across split rows. */
+    oracleCardId: string;
     /** Card name, shown in the switch-printing modal title. */
     name: string;
     /** Current number of copies (from server). */
     quantity: number;
+    /** All deck card rows — passed through so the copy-limit check sums siblings. */
+    cards: DeckCardRow[];
     /** Whether this card is a basic land (exempt from copy limits). */
     isBasicLand: boolean;
     /** Maximum copies allowed by the format (e.g. 4 for constructed, 1 for singleton). */
@@ -45,7 +50,9 @@ const { canIncrement, increment, decrement, destroy } = useDeckCardActions(
     {
         deckId: props.deckId,
         cardId: props.cardId,
+        oracleCardId: props.oracleCardId,
         quantity: () => props.quantity,
+        cards: () => props.cards,
         isBasicLand: props.isBasicLand,
         maxCopies: props.maxCopies,
         isSingleton: props.isSingleton

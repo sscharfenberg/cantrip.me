@@ -721,8 +721,10 @@
                 "currently_selected": "Currently selected"
             },
             "split_printing": {
-                "title": "Split printing",
-                "link": "Split printing"
+                "title": "Split printing for {card}",
+                "link": "Split printing",
+                "assigned": "Assigned",
+                "submit": "Apply split"
             },
             "no_categories": "No categories defined.",
             "navigation": {

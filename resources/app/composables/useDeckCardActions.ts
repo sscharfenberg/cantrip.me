@@ -9,8 +9,16 @@ export interface DeckCardActionParams {
     deckId: string;
     /** UUID of the deck card entry. */
     cardId: string;
+    /** UUID of the oracle card — used to sum quantities across split rows. */
+    oracleCardId: string;
     /** Getter for the server-authoritative quantity (reactive prop). */
     quantity: () => number;
+    /**
+     * Getter for the full deck card list — used to sum sibling rows sharing
+     * the same oracle card. Must be a reactive getter (the same source the
+     * parent uses to render) so the computed updates after split/merge.
+     */
+    cards: () => DeckCardRow[];
     /** Whether this card is a basic land (exempt from copy limits). */
     isBasicLand: boolean;
     /** Maximum copies allowed by the format (e.g. 4, or 1 for singleton). */
@@ -68,11 +76,20 @@ export function useDeckCardActions(
         effectiveQty.value = q;
     });
 
-    /** Whether one more copy can be added. */
+    /**
+     * Whether one more copy can be added.
+     *
+     * Sums sibling rows with the same oracle card (split printings) so the
+     * limit applies to the oracle card in aggregate, not to each row
+     * independently.
+     */
     const canIncrement = computed((): boolean => {
         if (params.isBasicLand) return true;
         if (params.isSingleton) return false;
-        return effectiveQty.value < params.maxCopies;
+        const siblingSum = params.cards()
+            .filter((c) => c.oracle_card_id === params.oracleCardId && c.id !== params.cardId)
+            .reduce((sum, c) => sum + c.quantity, 0);
+        return siblingSum + effectiveQty.value < params.maxCopies;
     });
 
     /** Debounce handle — cleared and reset on every click. */

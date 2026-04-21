@@ -142,6 +142,8 @@ Route::middleware(array_filter(['auth', Features::enabled(Features::emailVerific
         ->name('api.decks.cards.update-category');
     Route::patch('/api/decks/{deck}/cards/{deckCard}/printing', [DeckCardController::class, 'updatePrinting'])
         ->name('api.decks.cards.update-printing');
+    Route::patch('/api/decks/{deck}/cards/{deckCard}/split', [DeckCardController::class, 'split'])
+        ->name('api.decks.cards.split');
     Route::patch('/api/decks/{deck}/cards/{deckCard}/quantity', [DeckCardController::class, 'updateQuantity'])
         ->name('api.decks.cards.update-quantity');
     Route::delete('/api/decks/{deck}/cards/{deckCard}', [DeckCardController::class, 'destroy'])

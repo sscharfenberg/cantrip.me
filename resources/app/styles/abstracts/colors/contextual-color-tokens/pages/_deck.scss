@@ -44,6 +44,15 @@ $deck: (
             "surface-hover": light-dark(map.get(c.$brand, "dark1", "contrast"), map.get(c.$brand, "light1", "contrast"))
         )
     ),
+    "split-printings": (
+        "stepper": (
+            "background": light-dark(
+                    color.adjust(map.get(c.$grey, "black"), $alpha: -0.35),
+                    color.adjust(map.get(c.$grey, "white"), $alpha: -0.25)
+                ),
+            "surface": light-dark(#fff, #000)
+        )
+    ),
     "add": (
         "zone": (
             "background": light-dark(color.adjust(#000, $alpha: -0.5), color.adjust(#000, $alpha: -0.5)),

@@ -144,8 +144,10 @@ const previewTarget = ref<PreviewTarget | null>(null);
                             <deck-card-actions-menu
                                 :deck-id="props.deckId"
                                 :card-id="card.id"
+                                :oracle-card-id="card.oracle_card_id"
                                 :name="card.name"
                                 :quantity="card.quantity"
+                                :cards="props.cards"
                                 :is-basic-land="card.is_basic_land"
                                 :max-copies="props.maxCopies"
                                 :is-singleton="props.isSingleton"

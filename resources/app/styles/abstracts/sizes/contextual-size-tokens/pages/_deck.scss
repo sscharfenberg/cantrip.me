@@ -42,6 +42,16 @@ $deck: (
             "radius": map.get(s.$radius, "base")
         )
     ),
+    "split-printings": (
+        "stepper": (
+            "padding": 0.5rem,
+            "gap": 0.5rem
+        ),
+        "total": (
+            "padding": 0.5rem,
+            "radius": 20px
+        )
+    ),
     "add-card": (
         "results-min": 10rem,
         "gap": 0.25rem,

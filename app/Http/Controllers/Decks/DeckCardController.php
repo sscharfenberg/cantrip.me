@@ -7,6 +7,7 @@ use App\Enums\Finish;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Decks\ModifyDeckCardRequest;
 use App\Http\Requests\Decks\ShowDeckCardPrintingsRequest;
+use App\Http\Requests\Decks\SplitDeckCardRequest;
 use App\Http\Requests\Decks\StoreDeckCardRequest;
 use App\Http\Requests\Decks\UpdateDeckCardCategoryRequest;
 use App\Http\Requests\Decks\UpdateDeckCardPrintingRequest;
@@ -18,6 +19,7 @@ use App\Models\DefaultCard;
 use App\Services\DeckCardService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\DB;
 
 class DeckCardController extends Controller
 {
@@ -67,10 +69,17 @@ class DeckCardController extends Controller
         if ($delta > 0) {
             $oracleCard = $deckCard->oracleCard;
             $currentDeckSize = $deck->deckCards()->sum('quantity');
+            // Sum sibling rows (other printings of the same oracle card in this deck)
+            // so copy limits account for split rows. Without this a singleton could
+            // be incremented past 1 on any single row when split across printings.
+            $siblingSum = $deck->deckCards()
+                ->where('oracle_card_id', $deckCard->oracle_card_id)
+                ->where('id', '!=', $deckCard->id)
+                ->sum('quantity');
 
             $result = $deck->format->rules()->canAddCopy(
                 $oracleCard,
-                $newQuantity - 1,
+                $siblingSum + $newQuantity - 1,
                 $currentDeckSize + $delta - 1,
             );
 
@@ -90,6 +99,46 @@ class DeckCardController extends Controller
         $deckCard->delete();
 
         DeckCardService::recalculateColors($deck);
+
+        return response()->json(status: 204);
+    }
+
+    /**
+     * Split this deck card into multiple rows, one per chosen printing.
+     *
+     * The existing row is mutated to the first split entry (preserving its
+     * id, category, zone, and card_stack_id — typically used for the largest
+     * assignment), and additional rows are inserted for the remaining entries
+     * with matching `zone`, `category_id`, `finish`, and `language`.
+     *
+     * Copy limits cannot be violated because the sum of split quantities is
+     * required by the FormRequest to equal the existing quantity.
+     */
+    public function split(SplitDeckCardRequest $request, Deck $deck, DeckCard $deckCard): JsonResponse
+    {
+        /** @var array<int, array{default_card_id: string, quantity: int}> $splits */
+        $splits = $request->validated()['splits'];
+
+        DB::transaction(function () use ($deckCard, $splits): void {
+            $first = array_shift($splits);
+            $deckCard->update([
+                'default_card_id' => $first['default_card_id'],
+                'quantity' => $first['quantity'],
+            ]);
+
+            foreach ($splits as $entry) {
+                DeckCard::create([
+                    'deck_id' => $deckCard->deck_id,
+                    'oracle_card_id' => $deckCard->oracle_card_id,
+                    'default_card_id' => $entry['default_card_id'],
+                    'category_id' => $deckCard->category_id,
+                    'zone' => $deckCard->zone->value,
+                    'quantity' => $entry['quantity'],
+                    'finish' => $deckCard->finish->value,
+                    'language' => $deckCard->language->value,
+                ]);
+            }
+        });
 
         return response()->json(status: 204);
     }

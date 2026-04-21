@@ -721,8 +721,10 @@
                 "currently_selected": "Aktuell ausgewählt"
             },
             "split_printing": {
-                "title": "Editionen aufteilen",
-                "link": "Editionen aufteilen"
+                "title": "Editionen für {card} aufteilen",
+                "link": "Editionen aufteilen",
+                "assigned": "Zugewiesen",
+                "submit": "Aufteilung übernehmen"
             },
             "no_categories": "Keine Kategorien definiert.",
             "navigation": {
