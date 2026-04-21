@@ -39,7 +39,8 @@ $deck: (
         "current": (
             "padding": 0.5rem 1rem,
             "gap": 1rem,
-            "radius": map.get(s.$radius, "base")
+            "radius": map.get(s.$radius, "base"),
+            "border": map.get(s.$border, "base")
         )
     ),
     "split-printings": (

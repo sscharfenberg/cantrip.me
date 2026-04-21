@@ -1,0 +1,91 @@
+@use "sass:map";
+@use "Abstracts/colors" as c;
+@use "Abstracts/shadows" as sh;
+@use "Abstracts/sizes" as s;
+
+.switch-label .form-group__field {
+    display: flex;
+    align-items: center;
+
+    gap: 1rem;
+}
+
+.split-printing {
+    &__sentinel {
+        height: 1px;
+    }
+
+    &__meta {
+        display: flex;
+        justify-content: space-between;
+
+        margin: 1rem 0;
+        gap: 1rem;
+    }
+
+    &__total {
+        padding: map.get(s.$pages, "deck", "split-printings", "total", "padding");
+        border: map.get(s.$components, "input", "border") solid map.get(c.$components, "input", "border");
+        margin-left: auto;
+
+        background: map.get(c.$state, "info", "background");
+        color: map.get(c.$state, "info", "surface");
+        border-radius: map.get(s.$pages, "deck", "split-printings", "total", "radius");
+
+        text-align: right;
+
+        &--invalid {
+            background-color: map.get(c.$state, "error", "background");
+            color: map.get(c.$state, "error", "surface");
+            border-color: map.get(c.$state, "error", "border");
+        }
+    }
+
+    &__list {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+
+        gap: 1rem;
+    }
+
+    &__item {
+        display: flex;
+        position: relative;
+        flex-direction: column;
+
+        gap: 0.5rem;
+    }
+
+    &__stepper {
+        display: flex;
+        position: absolute;
+        top: 50%;
+        right: 0;
+        left: 0;
+        align-items: center;
+        justify-content: center;
+
+        padding: map.get(s.$pages, "deck", "split-printings", "stepper", "padding");
+        gap: map.get(s.$pages, "deck", "split-printings", "stepper", "gap");
+
+        transform: translateY(-50%);
+
+        background-color: map.get(c.$pages, "deck", "split-printings", "stepper", "background");
+        color: map.get(c.$pages, "deck", "split-printings", "stepper", "surface");
+
+        > span {
+            font-weight: 600;
+            text-shadow: map.get(sh.$pages, "deck", "quantity");
+        }
+    }
+
+    &__overlay {
+        display: flex;
+        position: absolute;
+        inset: 0;
+        align-items: center;
+        justify-content: center;
+
+        background: rgb(0 0 0 / 50%);
+    }
+}

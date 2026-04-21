@@ -79,7 +79,11 @@ onMounted(async () => {
             signal: abortController.signal
         });
         if (response.ok) {
-            printings.value = (await response.json()) as Printing[];
+            const data = (await response.json()) as Printing[];
+            // Pin the current printing to the top so the user sees their
+            // current selection first. Order is frozen for the lifetime of the modal.
+            data.sort((a, b) => Number(b.is_current) - Number(a.is_current));
+            printings.value = data;
         } else {
             error.value = true;
         }
@@ -195,63 +199,13 @@ async function switchPrinting(printing: Printing): Promise<void> {
 </template>
 
 <style lang="scss" scoped>
-@use "sass:map";
-@use "Abstracts/colors" as c;
-@use "Abstracts/shadows" as sh;
-@use "Abstracts/sizes" as s;
-
+/**
+ * other styles are in resources/app/styles/components/deck/_switch-printing.scss
+ */
 .switch-label:deep(.form-group__field) {
     display: flex;
     align-items: center;
 
     gap: 1rem;
-}
-
-.switch-printing {
-    &__sentinel {
-        height: 1px;
-    }
-
-    &__list {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
-
-        gap: 1rem;
-
-        > button {
-            display: flex;
-            position: relative;
-            flex-direction: column;
-
-            padding: 0;
-            border: 0;
-            gap: 0.5rem;
-
-            background-color: transparent;
-
-            &:hover .face-image {
-                box-shadow: map.get(sh.$pages, "deck", "switch-printing-hover");
-
-                cursor: pointer;
-            }
-        }
-    }
-
-    &__current-badge {
-        display: flex;
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        align-items: center;
-
-        padding: map.get(s.$pages, "deck", "switch-printing", "current", "padding");
-        gap: map.get(s.$pages, "deck", "switch-printing", "current", "gap");
-
-        transform: translateX(-50%);
-
-        background: map.get(c.$state, "success", "background");
-        color: map.get(c.$state, "success", "surface");
-        border-radius: map.get(s.$pages, "deck", "switch-printing", "current", "radius");
-    }
 }
 </style>

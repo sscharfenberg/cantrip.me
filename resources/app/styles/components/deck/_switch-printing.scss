@@ -1,0 +1,54 @@
+@use "sass:map";
+@use "Abstracts/colors" as c;
+@use "Abstracts/shadows" as sh;
+@use "Abstracts/sizes" as s;
+
+.switch-printing {
+    &__sentinel {
+        height: 1px;
+    }
+
+    &__list {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+
+        gap: 1rem;
+
+        > button {
+            display: flex;
+            position: relative;
+            flex-direction: column;
+
+            padding: 0;
+            border: 0;
+            gap: 0.5rem;
+
+            background-color: transparent;
+
+            &:hover .face-image {
+                box-shadow: map.get(sh.$pages, "deck", "switch-printing-hover");
+
+                cursor: pointer;
+            }
+        }
+    }
+
+    &__current-badge {
+        display: flex;
+        position: absolute;
+        top: 62.5%;
+        left: 50%;
+        align-items: center;
+
+        padding: map.get(s.$pages, "deck", "switch-printing", "current", "padding");
+        border: map.get(s.$pages, "deck", "switch-printing", "current", "border") solid
+            map.get(c.$state, "success", "border");
+        gap: map.get(s.$pages, "deck", "switch-printing", "current", "gap");
+
+        transform: translateX(-50%);
+
+        background: map.get(c.$state, "success", "background");
+        color: map.get(c.$state, "success", "surface");
+        border-radius: map.get(s.$pages, "deck", "switch-printing", "current", "radius");
+    }
+}
