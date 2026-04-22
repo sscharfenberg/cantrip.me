@@ -696,6 +696,11 @@
                 "explanation_empty": "Erstelle eine neue benutzerdefinierte Gruppe — danach kannst du Karten in diese Gruppe ziehen. Nutze dies für Gruppen wie 'Interaktion', 'Massenentfernung', 'Kartenziehen' usw.",
                 "submit": "Gruppe erstellen"
             },
+            "move_to_group": {
+                "title": "{card} in Gruppe verschieben",
+                "link": "In Gruppe verschieben",
+                "current_label": "Aktuelle Gruppe:"
+            },
             "custom_groups": {
                 "title": "Gruppen verwalten",
                 "link": "Gruppen verwalten",

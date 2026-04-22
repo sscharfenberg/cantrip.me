@@ -71,21 +71,21 @@ const previewTarget = ref<PreviewTarget | null>(null);
 </script>
 
 <template>
-    <div ref="containerRef" class="card-groups">
-        <div v-for="(col, ci) in columns" :key="ci" class="card-groups__column">
+    <div ref="containerRef" class="text-card-groups">
+        <div v-for="(col, ci) in columns" :key="ci" class="text-card-groups__column">
             <template
                 v-for="section in col"
                 :key="section.kind === 'commanders' ? 'cmd' : section.kind === 'group' ? section.group.key : 'new'"
             >
                 <section
                     v-if="section.kind === 'commanders'"
-                    class="card-group"
-                    :class="{ 'card-group--unavailable': dragging }"
+                    class="text-card-group"
+                    :class="{ 'text-card-group--unavailable': dragging }"
                 >
                     <deck-group-headline
                         >{{ $t("pages.deck.commanders") }} ({{ section.commanders.length }})</deck-group-headline
                     >
-                    <ul class="card-group__list">
+                    <ul class="text-card-group__list">
                         <li v-for="commander in section.commanders" :key="commander.oracle_card_id" class="card">
                             <card-image-preview
                                 :src="commander.default_card.card_image_0"
@@ -106,17 +106,17 @@ const previewTarget = ref<PreviewTarget | null>(null);
                 </section>
                 <section
                     v-else-if="section.kind === 'group'"
-                    class="card-group"
+                    class="text-card-group"
                     :class="{
-                        'card-group--unavailable': isUnavailable(section.group)
+                        'text-card-group--unavailable': isUnavailable(section.group)
                     }"
                 >
                     <deck-group-headline>{{ section.group.label }} ({{ section.group.count }})</deck-group-headline>
                     <VueDraggable
                         :model-value="section.group.cards"
                         tag="ul"
-                        class="card-group__list"
-                        :class="{ 'card-group__list--droppable': dragging && !isUnavailable(section.group) }"
+                        class="text-card-group__list"
+                        :class="{ 'text-card-group__list--droppable': dragging && !isUnavailable(section.group) }"
                         handle=".card__drag-handle"
                         :group="groupFor(section.group)"
                         :sort="false"
@@ -143,12 +143,10 @@ const previewTarget = ref<PreviewTarget | null>(null);
                             <mana-cost v-for="(cost, i) in card.mana_cost" :key="i" :mana-cost="cost" />
                             <deck-card-actions-menu
                                 :deck-id="props.deckId"
-                                :card-id="card.id"
-                                :oracle-card-id="card.oracle_card_id"
-                                :name="card.name"
-                                :quantity="card.quantity"
+                                :card="card"
                                 :cards="props.cards"
-                                :is-basic-land="card.is_basic_land"
+                                :categories="props.categories"
+                                :category-name-max="props.categoryNameMax"
                                 :max-copies="props.maxCopies"
                                 :is-singleton="props.isSingleton"
                             />
@@ -157,14 +155,14 @@ const previewTarget = ref<PreviewTarget | null>(null);
                 </section>
                 <section
                     v-else-if="dragging && section.kind === 'create-group'"
-                    class="card-group card-group__drop-target"
+                    class="text-card-group text-card-group__drop-target"
                 >
                     <icon name="add" :size="2" />
                     {{ $t("pages.deck.create_group.link") }}
                     <VueDraggable
                         v-model="dropTargetList"
                         tag="div"
-                        class="card-group__drop-zone"
+                        class="text-card-group__drop-zone"
                         :group="createGroupTarget"
                         ghost-class="card--ghost"
                         @add="onDropToCreateGroup"
@@ -174,12 +172,12 @@ const previewTarget = ref<PreviewTarget | null>(null);
             <!-- Extra drop targets rendered outside the column distribution
                  so that appearing mid-drag doesn't cause a redistribution. -->
             <template v-if="dragging && ci === columns.length - 1">
-                <section v-for="target in dragTargets" :key="target.key" class="card-group">
+                <section v-for="target in dragTargets" :key="target.key" class="text-card-group">
                     <deck-group-headline>{{ target.label }} ({{ target.count }})</deck-group-headline>
                     <VueDraggable
                         :model-value="target.cards"
                         tag="ul"
-                        class="card-group__list card-group__list--droppable"
+                        class="text-card-group__list text-card-group__list--droppable"
                         handle=".card__drag-handle"
                         :group="groupFor(target)"
                         :sort="false"

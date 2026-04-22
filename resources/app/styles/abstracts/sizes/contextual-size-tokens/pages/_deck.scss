@@ -53,6 +53,14 @@ $deck: (
             "radius": 20px
         )
     ),
+    "drag-handle": (
+        "padding": 0.25rem,
+        "radius": 90dvw
+    ),
+    "quantity": (
+        "padding": 0.25rem,
+        "radius": map.get(s.$radius, "base")
+    ),
     "add-card": (
         "results-min": 10rem,
         "gap": 0.25rem,

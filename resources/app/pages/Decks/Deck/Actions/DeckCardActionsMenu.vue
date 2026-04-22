@@ -1,36 +1,37 @@
 <script setup lang="ts">
 import { ref, useId } from "vue";
+import DeckCardMoveToGroupModal from "@/pages/Decks/Deck/Modals/DeckCardMoveToGroupModal.vue";
 import DeckCardSplitPrintingModal from "@/pages/Decks/Deck/Modals/DeckCardSplitPrintingModal.vue";
 import DeckCardSwitchPrintingModal from "@/pages/Decks/Deck/Modals/DeckCardSwitchPrintingModal.vue";
 import Icon from "Components/UI/Icon.vue";
 import PopOver from "Components/UI/PopOver.vue";
 import { useDeckCardActions } from "Composables/useDeckCardActions.ts";
-import type { DeckCardRow } from "Types/deckPage";
+import type { DeckCardRow, DeckCategoryRow } from "Types/deckPage";
 const props = defineProps<{
     /** UUID of the deck this card belongs to. */
     deckId: string;
-    /** UUID of the deck card entry. */
-    cardId: string;
-    /** UUID of the oracle card — lets copy-limit checks sum across split rows. */
-    oracleCardId: string;
-    /** Card name, shown in the switch-printing modal title. */
-    name: string;
-    /** Current number of copies (from server). */
-    quantity: number;
+    /** The full deck card row — forwarded into the move-to-group modal. */
+    card: DeckCardRow;
     /** All deck card rows — passed through so the copy-limit check sums siblings. */
     cards: DeckCardRow[];
-    /** Whether this card is a basic land (exempt from copy limits). */
-    isBasicLand: boolean;
+    /** User-defined categories for the deck — listed as move targets. */
+    categories: DeckCategoryRow[];
+    /** Maximum length for a category name — forwarded to the create-group modal. */
+    categoryNameMax: number;
     /** Maximum copies allowed by the format (e.g. 4 for constructed, 1 for singleton). */
     maxCopies: number;
     /** Whether the format is singleton (max 1 copy of non-basic cards). */
     isSingleton: boolean;
+    /** whether the button should be "medium" or not */
+    isMediumButton?: boolean;
 }>();
 const popoverId = useId();
 /** Controls visibility of the switch-printing modal. */
 const showSwitchPrintingModal = ref(false);
 /** Controls visibility of the split-printing modal. */
 const showSplitPrintingModal = ref(false);
+/** Controls visibility of the move-to-group modal. */
+const showMoveToGroupModal = ref(false);
 /** Close the action popover programmatically. */
 function closePopover(): void {
     const el = document.getElementById(popoverId);
@@ -46,14 +47,19 @@ function openSplitPrinting(): void {
     closePopover();
     showSplitPrintingModal.value = true;
 }
+/** Close the popover and open the move-to-group modal. */
+function openMoveToGroup(): void {
+    closePopover();
+    showMoveToGroupModal.value = true;
+}
 const { canIncrement, increment, decrement, destroy } = useDeckCardActions(
     {
         deckId: props.deckId,
-        cardId: props.cardId,
-        oracleCardId: props.oracleCardId,
-        quantity: () => props.quantity,
+        cardId: props.card.id,
+        oracleCardId: props.card.oracle_card_id,
+        quantity: () => props.card.quantity,
         cards: () => props.cards,
-        isBasicLand: props.isBasicLand,
+        isBasicLand: props.card.is_basic_land,
         maxCopies: props.maxCopies,
         isSingleton: props.isSingleton
     },
@@ -65,7 +71,7 @@ const { canIncrement, increment, decrement, destroy } = useDeckCardActions(
     <pop-over
         icon="more"
         aria-label="Actions"
-        class-string="popover-button--rounded popover-button--tiny"
+        :class-string="`popover-button--rounded${props.isMediumButton ? '' : ' popover-button--tiny'}`"
         :reference="popoverId"
         width="14rem"
     >
@@ -95,10 +101,16 @@ const { canIncrement, increment, decrement, destroy } = useDeckCardActions(
                     {{ $t("pages.deck.switch_printing.link") }}
                 </button>
             </li>
-            <li v-if="props.quantity > 1">
+            <li v-if="props.card.quantity > 1">
                 <button type="button" class="popover-list-item" @click="openSplitPrinting">
                     <icon name="copy" :size="1" />
                     {{ $t("pages.deck.split_printing.link") }}
+                </button>
+            </li>
+            <li>
+                <button type="button" class="popover-list-item" @click="openMoveToGroup">
+                    <icon name="cards" :size="1" />
+                    {{ $t("pages.deck.move_to_group.link") }}
                 </button>
             </li>
             <li>
@@ -112,17 +124,25 @@ const { canIncrement, increment, decrement, destroy } = useDeckCardActions(
     <deck-card-switch-printing-modal
         v-if="showSwitchPrintingModal"
         :deck-id="props.deckId"
-        :card-id="props.cardId"
-        :name="props.name"
+        :card-id="props.card.id"
+        :name="props.card.name"
         @close="showSwitchPrintingModal = false"
     />
     <deck-card-split-printing-modal
         v-if="showSplitPrintingModal"
         :deck-id="props.deckId"
-        :card-id="props.cardId"
-        :name="props.name"
-        :quantity="props.quantity"
+        :card-id="props.card.id"
+        :name="props.card.name"
+        :quantity="props.card.quantity"
         @close="showSplitPrintingModal = false"
+    />
+    <deck-card-move-to-group-modal
+        v-if="showMoveToGroupModal"
+        :deck-id="props.deckId"
+        :card="props.card"
+        :categories="props.categories"
+        :category-name-max="props.categoryNameMax"
+        @close="showMoveToGroupModal = false"
     />
 </template>
 

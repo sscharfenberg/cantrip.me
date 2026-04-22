@@ -53,6 +53,17 @@ $deck: (
             "surface": light-dark(#fff, #000)
         )
     ),
+    "drag-handle": (
+        "background": light-dark(
+                color.adjust(map.get(c.$grey, "infra"), $alpha: -0.25),
+                color.adjust(map.get(c.$grey, "asher"), $alpha: -0.25)
+            ),
+        "surface": light-dark(map.get(c.$grey, "abbey"), map.get(c.$grey, "infra"))
+    ),
+    "quantity": (
+        "background": color.adjust(map.get(c.$grey, "ebony"), $alpha: -0.125),
+        "surface": #fff
+    ),
     "add": (
         "zone": (
             "background": light-dark(color.adjust(#000, $alpha: -0.5), color.adjust(#000, $alpha: -0.5)),

@@ -1,42 +1,83 @@
 <script setup lang="ts">
-import { useDeckGrouping } from "Composables/useDeckGrouping.ts";
+import { ref } from "vue";
+import { useI18n } from "vue-i18n";
+import DeckCardActionsMenu from "@/pages/Decks/Deck/Actions/DeckCardActionsMenu.vue";
+import DeckGroupHeadline from "@/pages/Decks/Deck/Cards/DeckGroupHeadline.vue";
+import FaceImageLazy from "@/pages/Decks/Deck/Cards/FaceImageLazy.vue";
+import Paragraph from "Components/UI/Paragraph.vue";
+import type { DeckCardGroup } from "Composables/useDeckGrouping.ts";
+import { useDeckSections } from "Composables/useDeckSections.ts";
 import type { DeckSort } from "Composables/useDeckSort.ts";
-import type { DeckCardRow, DeckCommander } from "Types/deckPage";
+import type { DeckCardRow, DeckCategoryRow, DeckCommander } from "Types/deckPage";
 const props = defineProps<{
+    /** UUID of the deck. */
+    deckId: string;
     /** Commanders / command zone cards with full oracle + printing data. */
     commanders: DeckCommander[];
     /** All cards in the deck with full oracle + printing data. */
     cards: DeckCardRow[];
+    /** User-defined categories for this deck. */
+    categories: DeckCategoryRow[];
     /** Active sort mode — by mana value or alphabetically by name. */
     sortMode: DeckSort;
+    /** Maximum length for a category name — forwarded to the actions menu. */
+    categoryNameMax: number;
+    /** Maximum copies allowed by the deck's format. */
+    maxCopies: number;
+    /** Whether the deck's format is singleton. */
+    isSingleton: boolean;
 }>();
-const { groups } = useDeckGrouping(
+const { t } = useI18n();
+/** Image view has no drag — category moves happen via the actions menu. */
+const draggedTypeGroup = ref<DeckCardGroup | null>(null);
+const { allGroups } = useDeckSections(
     () => props.cards,
-    () => props.sortMode
+    () => props.commanders,
+    () => props.categories,
+    () => props.sortMode,
+    t,
+    draggedTypeGroup
 );
 </script>
 
 <template>
-    <h2>CardView: Image</h2>
-    <div class="card-groups">
-        <section v-if="commanders.length" class="card-groups__item">
-            <h3>{{ $t("pages.deck.commanders") }} ({{ commanders.length }})</h3>
-            <ul class="card-group__list">
-                <li v-for="commander in commanders" :key="commander.oracle_card_id">
-                    <span class="card__name">{{ commander.name }}</span>
-                    {{ JSON.stringify(commander) }}
-                </li>
+    <div class="image-card-groups">
+        <section v-if="commanders.length" class="image-card-group">
+            <deck-group-headline>{{ $t("pages.deck.commanders") }} ({{ commanders.length }})</deck-group-headline>
+            <ul class="image-card-group__list">
+                <face-image-lazy
+                    v-for="commander in commanders"
+                    :key="commander.oracle_card_id"
+                    :card-image0="commander.default_card.card_image_0"
+                    :card-image1="commander.default_card.card_image_1"
+                    :name="commander.name"
+                />
             </ul>
         </section>
-        <section v-for="group in groups" :key="group.group" class="card-group">
-            <h3>{{ $t(`pages.deck.groups.${group.group}`) }} ({{ group.count }})</h3>
-            <ul class="card-group__list">
-                <li v-for="card in group.cards" :key="card.id">
-                    <span class="card__name">{{ card.name }}</span>
-                    {{ JSON.stringify(card) }}
-                </li>
+        <section v-for="group in allGroups" :key="group.key" class="image-card-group">
+            <deck-group-headline>{{ group.label }} ({{ group.count }})</deck-group-headline>
+            <ul class="image-card-group__list">
+                <face-image-lazy
+                    v-for="card in group.cards"
+                    :key="card.id"
+                    :card-image0="card.default_card.card_image_0"
+                    :card-image1="card.default_card.card_image_1"
+                    :name="card.name"
+                >
+                    <span class="card__qty">{{ card.quantity }}x</span>
+                    <deck-card-actions-menu
+                        :deck-id="props.deckId"
+                        :card="card"
+                        :cards="props.cards"
+                        :categories="props.categories"
+                        :category-name-max="props.categoryNameMax"
+                        :max-copies="props.maxCopies"
+                        :is-singleton="props.isSingleton"
+                        :is-medium-button="true"
+                    />
+                </face-image-lazy>
             </ul>
         </section>
     </div>
-    <p v-if="!groups.length">{{ $t("pages.deck.no_cards") }}</p>
+    <paragraph v-if="!commanders.length && !allGroups.length">{{ $t("pages.deck.no_cards") }}</paragraph>
 </template>

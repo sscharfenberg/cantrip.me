@@ -2,7 +2,7 @@
 @use "Abstracts/colors" as c;
 @use "Abstracts/sizes" as s;
 
-.card-groups {
+.text-card-groups {
     display: flex;
 
     gap: 1rem;
@@ -19,7 +19,7 @@
     }
 }
 
-.card-group {
+.text-card-group {
     &__list {
         display: flex;
         flex-direction: column;

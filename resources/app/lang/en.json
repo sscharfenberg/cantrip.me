@@ -696,6 +696,11 @@
                 "explanation_empty": "Create a new custom group - after this, you can drag cards to this custom group. Use this for groups like 'interaction', 'mass disruption', 'card draw' etc.",
                 "submit": "Create group"
             },
+            "move_to_group": {
+                "title": "Move {card} to group",
+                "link": "Move to group",
+                "current_label": "Current group:"
+            },
             "custom_groups": {
                 "title": "Manage custom groups",
                 "link": "Manage groups",

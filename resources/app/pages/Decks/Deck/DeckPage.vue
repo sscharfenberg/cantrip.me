@@ -45,7 +45,17 @@ const { sortMode } = useDeckSort(props.deck.id);
         :max-copies="deck.max_copies"
         :is-singleton="deck.is_singleton"
     />
-    <card-view-image v-if="viewMode === 'cards'" :commanders="commanders" :cards="cards" :sort-mode="sortMode" />
+    <card-view-image
+        v-if="viewMode === 'cards'"
+        :deck-id="deck.id"
+        :commanders="commanders"
+        :cards="cards"
+        :categories="categories"
+        :sort-mode="sortMode"
+        :category-name-max="categoryNameMax"
+        :max-copies="deck.max_copies"
+        :is-singleton="deck.is_singleton"
+    />
 
     <section>
         <template v-if="deck.default_card_image">
