@@ -7,7 +7,7 @@
     display: flex;
     flex-direction: column;
 
-    gap: 1rem;
+    gap: map.get(s.$pages, "deck", "image-view", "groups-gap");
 }
 
 .image-card-group {
@@ -22,8 +22,8 @@
         grid-template-columns: repeat(2, 1fr);
 
         padding: 0;
-        margin: 0.5rem 0 0;
-        gap: 0.5rem;
+        margin: map.get(s.$pages, "deck", "image-view", "group-gap") 0 0;
+        gap: map.get(s.$pages, "deck", "image-view", "group-gap");
 
         list-style: none;
 
@@ -34,7 +34,7 @@
         .popover {
             position: absolute;
             top: 0;
-            right: 0;
+            left: 0;
         }
 
         .face-image {
@@ -45,7 +45,7 @@
     .card {
         &__qty {
             position: absolute;
-            top: 78.5%;
+            top: 78.5%; // magic numbers .... hard to avoid without recreating all possible mtg card frames.
             left: 50%;
 
             padding: map.get(s.$pages, "deck", "quantity", "padding");

@@ -6,14 +6,18 @@
 @use "Abstracts/colors" as c;
 @use "Abstracts/sizes" as s;
 @use "Abstracts/timings" as ti;
+@use "Abstracts/z-indexes" as z;
 
 .popover-content {
-    position: absolute;
+    position: fixed;
 
     inset: anchor(bottom) anchor(right) auto auto;
-    z-index: 5;
+    z-index: map.get(z.$index, "select");
+
+    overflow-y: auto;
 
     max-width: 50dvw;
+    max-height: calc(100dvh - 2rem);
     padding: map.get(s.$components, "popover", "padding");
     border: 0;
     margin-block-start: 4px;
@@ -23,8 +27,15 @@
     backdrop-filter: blur(12px);
     border-radius: map.get(s.$components, "popover", "radius");
 
+    /**
+     * fallbacks are tried in order — first flip-block (vertical only), then flip-inline (horizontal only),
+     * then the combined flip for corner cases where neither single flip fits.
+     */
     position-anchor: v-bind(reference);
-    position-try-fallbacks: --bottom;
+    position-try-fallbacks:
+        flip-block,
+        flip-inline,
+        flip-block flip-inline;
 
     @media (prefers-reduced-motion: no-preference) {
         opacity: 0;
@@ -94,12 +105,4 @@
     margin: 0;
 
     list-style: none;
-}
-
-@position-try --bottom {
-    inset: unset;
-    right: anchor(right);
-    bottom: anchor(top);
-
-    margin-block: 0 4px;
 }

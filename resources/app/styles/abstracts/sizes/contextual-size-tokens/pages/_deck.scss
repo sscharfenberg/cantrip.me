@@ -66,6 +66,10 @@ $deck: (
         "gap": 0.25rem,
         "radius": map.get(s.$radius, "featured")
     ),
+    "image-view": (
+        "groups-gap": 1rem,
+        "group-gap": 0.5rem
+    ),
     "card-preview": (
         "card-image-max": 24rem,
         "flip-size": 2rem,
