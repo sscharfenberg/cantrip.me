@@ -21,6 +21,11 @@ export interface DeckCardActionParams {
     cards: () => DeckCardRow[];
     /** Whether this card is a basic land (exempt from copy limits). */
     isBasicLand: boolean;
+    /**
+     * Whether this card carries the "a deck can have any number of cards
+     * named" clause (e.g. Rat Colony) — exempt from copy limits and singleton.
+     */
+    isUnlimited: boolean;
     /** Maximum copies allowed by the format (e.g. 4, or 1 for singleton). */
     maxCopies: number;
     /** Whether the format is singleton. */
@@ -85,6 +90,7 @@ export function useDeckCardActions(
      */
     const canIncrement = computed((): boolean => {
         if (params.isBasicLand) return true;
+        if (params.isUnlimited) return true;
         if (params.isSingleton) return false;
         const siblingSum = params.cards()
             .filter((c) => c.oracle_card_id === params.oracleCardId && c.id !== params.cardId)

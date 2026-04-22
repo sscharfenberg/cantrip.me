@@ -60,6 +60,7 @@ const { canIncrement, increment, decrement, destroy } = useDeckCardActions(
         quantity: () => props.card.quantity,
         cards: () => props.cards,
         isBasicLand: props.card.is_basic_land,
+        isUnlimited: props.card.is_unlimited,
         maxCopies: props.maxCopies,
         isSingleton: props.isSingleton
     },

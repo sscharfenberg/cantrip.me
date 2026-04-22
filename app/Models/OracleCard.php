@@ -111,6 +111,26 @@ class OracleCard extends Model
     }
 
     /**
+     * Whether this card's oracle text contains the "a deck can have any number
+     * of cards named" clause — e.g. Rat Colony, Relentless Rats, Shadowborn
+     * Apostle. These cards bypass format copy limits and the singleton rule.
+     *
+     * Requires the `faces` relation to be loaded with the `oracle_text` column.
+     * Cards with a bounded clause ("up to seven cards named Seven Dwarves") do
+     * not match — only the unbounded "any number of" wording counts.
+     */
+    public function hasUnlimitedCopiesRule(): bool
+    {
+        $this->loadMissing('faces');
+
+        $needle = mb_strtolower("a deck can have any number of cards named {$this->name}");
+
+        return $this->faces->contains(fn (OracleCardFace $face): bool => $face->oracle_text !== null
+            && str_contains(mb_strtolower($face->oracle_text), $needle)
+        );
+    }
+
+    /**
      * Restrict the query to cards that are legal (or restricted) in the given format.
      *
      * A card is considered playable when it has a legalities row for the format

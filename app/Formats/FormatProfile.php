@@ -117,6 +117,10 @@ abstract class FormatProfile
             return AddCopyResult::allowed();
         }
 
+        if ($card->hasUnlimitedCopiesRule()) {
+            return AddCopyResult::allowed();
+        }
+
         if ($this->maxCopies() === 1 && $currentCopies >= 1) {
             return AddCopyResult::denied(AddCopyFailure::ViolatesSingleton);
         }

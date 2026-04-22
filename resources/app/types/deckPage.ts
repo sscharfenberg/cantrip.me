@@ -37,6 +37,7 @@ export interface DeckCardRow {
     type_line: string;
     mana_cost: (string | null)[];
     is_basic_land: boolean;
+    is_unlimited: boolean;
     zone: string;
     quantity: number;
     finish: string;
