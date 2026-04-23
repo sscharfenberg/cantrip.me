@@ -678,6 +678,16 @@
             "cards": "Cards in Deck",
             "categories": "Categories",
             "no_cards": "No cards in this deck yet.",
+            "illegal": "This card is illegal in this deck.",
+            "legality": {
+                "title": "{count} legality issue | {count} legality issues",
+                "pool_legality": "{count} cards are not legal in this format.",
+                "copy_limit": "{count} cards exceed the copy limit.",
+                "color_identity": "{count} cards violate the commander's color identity.",
+                "deck_size_min": "Main deck has {current} cards - minimum is {min}.",
+                "deck_size_max": "Main deck has {current} cards - maximum is {max}.",
+                "sideboard_size_max": "Sideboard has {current} cards — maximum is {max}."
+            },
             "groups": {
                 "creature": "Creatures",
                 "planeswalker": "Planeswalkers",

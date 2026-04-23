@@ -159,7 +159,7 @@ async function applySplit(): Promise<void> {
     }
     await new Promise<void>(resolve => {
         router.reload({
-            only: ["cards", "deck"],
+            only: ["cards", "deck", "violations"],
             onFinish: () => resolve()
         });
     });

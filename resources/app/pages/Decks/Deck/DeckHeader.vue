@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import { useI18n } from "vue-i18n";
 import DeckActionsMenu from "@/pages/Decks/Deck/Actions/DeckActionsMenu.vue";
+import DeckLegalityPanel from "@/pages/Decks/Deck/DeckLegalityPanel.vue";
 import ColorIdentity from "Components/Card/ColorIdentity.vue";
 import DeckState from "Components/Deck/DeckState.vue";
 import Badge from "Components/UI/Badge.vue";
 import Icon from "Components/UI/Icon.vue";
 import Paragraph from "Components/UI/Paragraph.vue";
 import VisibilityBadge from "Components/UI/VisibilityBadge.vue";
-import type { DeckCardRow, DeckCategoryRow, DeckMeta } from "Types/deckPage.ts";
+import type { DeckCardRow, DeckCategoryRow, DeckMeta, DeckViolation } from "Types/deckPage.ts";
 defineProps<{
     /** Deck metadata (name, format, state, colors, etc.). */
     deck: DeckMeta;
@@ -19,6 +20,8 @@ defineProps<{
     categories: DeckCategoryRow[];
     /** Maximum length for a category name. */
     categoryNameMax: number;
+    /** Legality violations for this deck — the panel only renders when non-empty. */
+    violations: DeckViolation[];
 }>();
 const { t } = useI18n();
 </script>
@@ -50,6 +53,7 @@ const { t } = useI18n();
             <visibility-badge :visibility="deck.visibility" />
         </div>
         <paragraph v-if="deck.description">{{ deck.description }}</paragraph>
+        <deck-legality-panel v-if="violations.length > 0" :violations="violations" />
     </section>
 </template>
 

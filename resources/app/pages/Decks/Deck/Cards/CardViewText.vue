@@ -140,6 +140,13 @@ const previewTarget = ref<PreviewTarget | null>(null);
                             >
                                 <span class="card__qty">{{ card.quantity }}x </span>{{ card.name }}
                             </card-image-preview>
+                            <icon
+                                v-if="card.is_illegal"
+                                v-tooltip="$t('pages.deck.illegal')"
+                                name="error"
+                                :size="1"
+                                :additional-classes="['card__illegal']"
+                            />
                             <mana-cost v-for="(cost, i) in card.mana_cost" :key="i" :mana-cost="cost" />
                             <deck-card-actions-menu
                                 :deck-id="props.deckId"
@@ -231,6 +238,17 @@ const previewTarget = ref<PreviewTarget | null>(null);
 
     &__qty {
         font-weight: 600;
+    }
+
+    &__illegal {
+        flex-basis: 1.25rem;
+
+        width: 1.25rem;
+        height: 1.25rem;
+
+        background-color: map.get(c.$state, "error", "background");
+        color: map.get(c.$state, "error", "surface");
+        border-radius: 90dvw;
     }
 }
 

@@ -11,6 +11,7 @@ use App\Models\DeckCard;
 use App\Models\DeckCategory;
 use App\Models\OracleCard;
 use App\Services\DeckService;
+use App\Services\DeckValidator;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -116,10 +117,14 @@ class DecksController extends Controller
             'deckCards.oracleCard',
             'commanders.faces:oracle_card_id,face_index,mana_cost',
             'deckCards.oracleCard.faces:oracle_card_id,face_index,type_line,mana_cost,oracle_text',
+            'deckCards.oracleCard.legalities' => fn ($q) => $q->where('format', $deck->format->value),
             'deckCards.defaultCard:id,name,card_image_0,card_image_1,set_id,oracle_id',
             'deckCards.defaultCard.set:id,name,code',
             'categories',
         ]);
+
+        $violations = DeckValidator::validate($deck);
+        $illegalDeckCardIds = DeckValidator::illegalDeckCardIds($violations);
 
         $cardCount = $deck->deckCards->count() + $deck->commanders->count();
         $lastActivity = max(array_filter([
@@ -154,6 +159,7 @@ class DecksController extends Controller
             'mana_cost' => $dc->oracleCard->faces->sortBy('face_index')->pluck('mana_cost')->values()->all(),
             'is_basic_land' => in_array($dc->oracleCard->name, FormatProfile::BASIC_LANDS, true),
             'is_unlimited' => $dc->oracleCard->hasUnlimitedCopiesRule(),
+            'is_illegal' => isset($illegalDeckCardIds[$dc->id]),
             'zone' => $dc->zone->value,
             'quantity' => $dc->quantity,
             'finish' => $dc->finish->value,
@@ -202,6 +208,7 @@ class DecksController extends Controller
             'cards' => $cards,
             'categories' => $categories,
             'categoryNameMax' => DeckCategory::NAME_MAX,
+            'violations' => $violations,
         ]);
     }
 

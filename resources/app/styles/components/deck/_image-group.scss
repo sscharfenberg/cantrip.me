@@ -56,5 +56,20 @@
             color: map.get(c.$pages, "deck", "quantity", "surface");
             border-radius: map.get(s.$pages, "deck", "quantity", "radius");
         }
+
+        &__illegal {
+            position: absolute;
+            top: 0;
+            right: 50%;
+            flex-basis: 1.5rem;
+
+            width: 1.5rem;
+            height: 1.5rem;
+            transform: translateX(50%);
+
+            background-color: map.get(c.$state, "error", "background");
+            color: map.get(c.$state, "error", "surface");
+            border-radius: 90dvw;
+        }
     }
 }

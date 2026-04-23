@@ -38,6 +38,8 @@ export interface DeckCardRow {
     mana_cost: (string | null)[];
     is_basic_land: boolean;
     is_unlimited: boolean;
+    /** True when the card violates a per-card format rule (pool legality, copy limit, color identity). */
+    is_illegal: boolean;
     zone: string;
     quantity: number;
     finish: string;
@@ -52,6 +54,21 @@ export interface DeckCategoryRow {
     id: string;
     name: string;
 }
+
+/**
+ * A single legality violation on the deck.
+ *
+ * Per-card violations (`pool_legality`, `copy_limit`, `color_identity`) carry
+ * the offending deck_card IDs. Deck-level violations (`deck_size_min`,
+ * `deck_size_max`, `sideboard_size_max`) carry the comparison numbers.
+ */
+export type DeckViolation =
+    | { type: "pool_legality"; card_ids: string[] }
+    | { type: "copy_limit"; card_ids: string[] }
+    | { type: "color_identity"; card_ids: string[] }
+    | { type: "deck_size_min"; current: number; min: number }
+    | { type: "deck_size_max"; current: number; max: number }
+    | { type: "sideboard_size_max"; current: number; max: number };
 
 /**
  * One result row returned by the deck card search API.

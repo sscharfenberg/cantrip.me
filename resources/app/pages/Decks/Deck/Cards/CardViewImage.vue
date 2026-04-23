@@ -4,6 +4,7 @@ import { useI18n } from "vue-i18n";
 import DeckCardActionsMenu from "@/pages/Decks/Deck/Actions/DeckCardActionsMenu.vue";
 import DeckGroupHeadline from "@/pages/Decks/Deck/Cards/DeckGroupHeadline.vue";
 import FaceImageLazy from "@/pages/Decks/Deck/Cards/FaceImageLazy.vue";
+import Icon from "Components/UI/Icon.vue";
 import Paragraph from "Components/UI/Paragraph.vue";
 import type { DeckCardGroup } from "Composables/useDeckGrouping.ts";
 import { useDeckSections } from "Composables/useDeckSections.ts";
@@ -65,6 +66,13 @@ const { allGroups } = useDeckSections(
                     :name="card.name"
                 >
                     <span class="card__qty">{{ card.quantity }}x</span>
+                    <icon
+                        v-if="card.is_illegal"
+                        v-tooltip="$t('pages.deck.illegal')"
+                        name="error"
+                        :size="2"
+                        :additional-classes="['card__illegal']"
+                    />
                     <deck-card-actions-menu
                         :deck-id="props.deckId"
                         :card="card"

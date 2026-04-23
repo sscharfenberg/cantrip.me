@@ -58,9 +58,11 @@ const DEBOUNCE_MS = 500;
  * After a successful response the composable updates the Inertia page
  * props in place — mutating the same reactive `cards` array the
  * components reference — so the DOM patches without a full reload.
- * Only destructive actions (delete) trigger a lightweight
- * `router.reload({ only: ["deck"] })` to refresh deck metadata
- * (card count, colors).
+ * Every successful mutation then triggers a lightweight
+ * `router.reload({ only: ["deck", "cards", "violations"] })` so the
+ * server-computed legality (per-card `is_illegal` and the legality panel)
+ * stays in sync; the in-place mutation is what gives instant UI feedback,
+ * and the reload catches up in the background.
  *
  * @param params — card identity, format rules, and a reactive quantity getter.
  * @param closePopover — callback to dismiss the host popover after destructive actions.
@@ -147,12 +149,13 @@ export function useDeckCardActions(
 
         if (data.deleted) {
             spliceCard();
-            router.reload({ only: ["deck"] });
         } else if (data.quantity !== undefined) {
             const cards = page.props.cards as DeckCardRow[];
             const card = cards.find((c) => c.id === params.cardId);
             if (card) card.quantity = data.quantity;
         }
+
+        router.reload({ only: ["deck", "cards", "violations"] });
     }
 
     /** Add one copy (debounced). */
@@ -192,7 +195,7 @@ export function useDeckCardActions(
 
         if (response.ok) {
             spliceCard();
-            router.reload({ only: ["deck"] });
+            router.reload({ only: ["deck", "cards", "violations"] });
         }
     }
 

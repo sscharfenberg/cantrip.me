@@ -67,7 +67,7 @@ async function addCard(result: DeckSearchResult, zone: string): Promise<void> {
             feedbackTimer = setTimeout(() => {
                 feedback.value = null;
             }, 5000);
-            router.reload({ only: ["cards", "deck"] });
+            router.reload({ only: ["cards", "deck", "violations"] });
         }
     } finally {
         adding.value = false;
