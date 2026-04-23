@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { usePage } from "@inertiajs/vue3";
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import CardFaceImage from "Components/Card/CardFaceImage.vue";
 import NumVisible from "Components/Card/CardSearch/NumVisible.vue";
@@ -8,16 +7,15 @@ import Switch from "Components/Form/Switch.vue";
 import Modal from "Components/Modal/Modal.vue";
 import Icon from "Components/UI/Icon.vue";
 import LoadingSpinner from "Components/UI/LoadingSpinner.vue";
-import type { DeckCardDefaultCard, DeckCardRow } from "Types/deckPage";
-import type { DefaultCardImage } from "Types/defaultCardImage";
-/** A printing of the deck card's oracle card, plus whether the user owns a copy in a non-deckbox container and whether it's the current printing. */
-type Printing = DefaultCardImage & { in_collection: boolean; is_current: boolean };
-const emit = defineEmits<{ close: [] }>();
+import type { DeckPrinting } from "Types/defaultCardImage";
+const emit = defineEmits<{
+    close: [];
+    /** Fired when the user picks a new printing — the caller owns the PATCH + any optimistic state updates. */
+    select: [printing: DeckPrinting];
+}>();
 const props = defineProps<{
-    /** UUID of the deck this card belongs to. */
-    deckId: string;
-    /** UUID of the deck card entry. */
-    cardId: string;
+    /** URL of the GET endpoint that returns `DeckPrinting[]`. */
+    printingsUrl: string;
     /** Card name, interpolated into the modal title. */
     name: string;
 }>();
@@ -28,17 +26,17 @@ const loading = ref(true);
 /** True when the printings fetch failed. */
 const error = ref(false);
 /** Printings returned by the API. */
-const printings = ref<Printing[]>([]);
+const printings = ref<DeckPrinting[]>([]);
 /** When true, only printings the user owns in a non-deckbox container are shown. */
 const onlyCollection = ref(false);
 /** Printings filtered by the current `onlyCollection` toggle. */
-const filteredPrintings = computed<Printing[]>(() =>
+const filteredPrintings = computed<DeckPrinting[]>(() =>
     onlyCollection.value ? printings.value.filter(p => p.in_collection) : printings.value
 );
 /** How many printings are currently visible (grows as the user scrolls). */
 const visibleCount = ref(PAGE_SIZE);
 /** The slice of printings currently rendered in the DOM. */
-const visiblePrintings = computed<Printing[]>(() => filteredPrintings.value.slice(0, visibleCount.value));
+const visiblePrintings = computed<DeckPrinting[]>(() => filteredPrintings.value.slice(0, visibleCount.value));
 /** Ref to the invisible sentinel element that triggers infinite scroll. */
 const sentinel = ref<HTMLElement | null>(null);
 /** Reset visible count whenever the filtered list shrinks/grows (toggle). */
@@ -74,12 +72,12 @@ let abortController: AbortController | null = null;
 onMounted(async () => {
     abortController = new AbortController();
     try {
-        const response = await fetch(`/api/decks/${props.deckId}/cards/${props.cardId}/printings`, {
+        const response = await fetch(props.printingsUrl, {
             headers: { Accept: "application/json" },
             signal: abortController.signal
         });
         if (response.ok) {
-            const data = (await response.json()) as Printing[];
+            const data = (await response.json()) as DeckPrinting[];
             // Pin the current printing to the top so the user sees their
             // current selection first. Order is frozen for the lifetime of the modal.
             data.sort((a, b) => Number(b.is_current) - Number(a.is_current));
@@ -90,7 +88,8 @@ onMounted(async () => {
     } catch (e) {
         if (e instanceof DOMException && e.name === "AbortError") return;
         error.value = true;
-    } finally {
+    }
+    finally {
         loading.value = false;
     }
 });
@@ -98,43 +97,14 @@ onBeforeUnmount(() => {
     if (abortController) abortController.abort();
     observer?.disconnect();
 });
-const page = usePage();
 /**
- * Optimistically swap the deck card's printing: update the page's card in
- * place so the UI reflects the change immediately, then PATCH the server.
- * On failure, restore the previous printing.
+ * Bubble the selected printing up to the caller and close. The caller owns
+ * the PATCH + any optimistic state updates — the modal is a pure picker.
  */
-async function switchPrinting(printing: Printing): Promise<void> {
+function pickPrinting(printing: DeckPrinting): void {
     if (printing.is_current) return;
-    printings.value.forEach(p => (p.is_current = p.id === printing.id));
-    const cards = page.props.cards as DeckCardRow[];
-    const card = cards.find(c => c.id === props.cardId);
-    if (!card) {
-        emit("close");
-        return;
-    }
-    const previous: DeckCardDefaultCard = { ...card.default_card };
-    card.default_card = {
-        id: printing.id,
-        name: printing.name,
-        card_image_0: printing.card_image_0,
-        card_image_1: printing.card_image_1,
-        set: printing.set ? { name: printing.set.name, code: printing.set.code } : null
-    };
+    emit("select", printing);
     emit("close");
-    const response = await fetch(`/api/decks/${props.deckId}/cards/${props.cardId}/printing`, {
-        method: "PATCH",
-        headers: {
-            "Content-Type": "application/json",
-            "X-CSRF-TOKEN": page.props.csrfToken as string,
-            Accept: "application/json"
-        },
-        body: JSON.stringify({ default_card_id: printing.id })
-    });
-    if (!response.ok) {
-        const target = cards.find(c => c.id === props.cardId);
-        if (target) target.default_card = previous;
-    }
 }
 </script>
 
@@ -178,7 +148,7 @@ async function switchPrinting(printing: Printing): Promise<void> {
                     type="button"
                     :key="printing.id"
                     :class="{ 'switch-printing__list-item--current': printing.is_current }"
-                    @click="switchPrinting(printing)"
+                    @click="pickPrinting(printing)"
                 >
                     <card-face-image :card="printing" tooltip-container="#modal-body" />
                     <span

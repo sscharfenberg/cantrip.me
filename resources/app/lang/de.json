@@ -688,6 +688,31 @@
                 "deck_size_max": "Das Hauptdeck hat {current} Karten – maximal erlaubt sind {max}.",
                 "sideboard_size_max": "Das Sideboard hat {current} Karten – maximal erlaubt sind {max}."
             },
+            "companion": {
+                "heading": "Gefährte",
+                "add": "Gefährten hinzufügen",
+                "remove": "Entfernen",
+                "generic_error": "Dieser Gefährte konnte nicht gesetzt werden.",
+                "modal": {
+                    "title": "Gefährten wählen"
+                },
+                "disabled": {
+                    "banned": "Dieser Gefährte ist in diesem Format verboten.",
+                    "color_identity": "Außerhalb der Farbidentität der Commander."
+                },
+                "restrictions": {
+                    "gyruda": "Jede Karte im Startdeck hat einen geraden Manabetrag (oder ist ein Land).",
+                    "jegantha": "Keine Karte im Startdeck enthält zwei oder mehr gleiche farbige Manasymbole.",
+                    "kaheera": "Jede Kreatur im Startdeck ist Katze, Elementarwesen, Nachtmahr, Dinosaurier oder Tier.",
+                    "keruga": "Jede Nicht-Land-Karte im Startdeck hat einen Manabetrag von 3 oder mehr.",
+                    "lurrus": "Jede bleibende Karte im Startdeck hat einen Manabetrag von 2 oder weniger.",
+                    "lutri": "Keine Karte außer Standardländern kommt im Startdeck mehrfach vor.",
+                    "obosh": "Jede Nicht-Land-Karte im Startdeck hat einen ungeraden Manabetrag.",
+                    "umori": "Alle Nicht-Land-Karten im Startdeck teilen sich mindestens einen Kartentyp.",
+                    "yorion": "Das Startdeck enthält mindestens 20 Karten mehr als das Minimum.",
+                    "zirda": "Jede bleibende Karte im Startdeck hat eine aktivierte Fähigkeit."
+                }
+            },
             "groups": {
                 "creature": "Kreaturen",
                 "planeswalker": "Planeswalker",

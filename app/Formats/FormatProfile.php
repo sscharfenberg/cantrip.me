@@ -83,6 +83,22 @@ abstract class FormatProfile
         return CompanionPlacement::Sideboard;
     }
 
+    /** Whether the Magic "Companion" keyword mechanic is usable in this format. */
+    public function allowsCompanion(): bool
+    {
+        return true;
+    }
+
+    /**
+     * Oracle names of companions that are format-banned from the companion slot.
+     *
+     * @return array<int, string>
+     */
+    public function bannedAsCompanion(): array
+    {
+        return [];
+    }
+
     /**
      * Pool overlay hook. Return false for cards that are legal per the pivot but
      * should still be excluded (house bans, Canadian Highlander points, etc.).
@@ -157,6 +173,8 @@ abstract class FormatProfile
             'enforcesColorIdentity' => $this->enforcesColorIdentity(),
             'hasSignatureSpell' => $this->hasSignatureSpell(),
             'companionPlacement' => $this->companionPlacement()->value,
+            'allowsCompanion' => $this->allowsCompanion(),
+            'bannedAsCompanion' => $this->bannedAsCompanion(),
         ];
     }
 }

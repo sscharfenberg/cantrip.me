@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { DeckCardRow, DeckMeta } from "Types/deckPage.ts";
+import type { DeckCardRow, DeckCompanion, DeckMeta } from "Types/deckPage.ts";
 import DeckNavigationAdd from "./DeckNavigationAdd.vue";
 import DeckNavigationSort from "./DeckNavigationSort.vue";
 import DeckNavigationView from "./DeckNavigationView.vue";
@@ -8,12 +8,24 @@ defineProps<{
     deck: DeckMeta;
     /** All cards in the deck — forwarded for zone capacity checks. */
     cards: DeckCardRow[];
+    /** Currently-set companion card, or null. */
+    companion: DeckCompanion | null;
+    /** The ten companion roster, shaped for the picker modal. */
+    companionRoster: DeckCompanion[];
+    /** Combined commander color identity, pre-unioned from the commanders list. */
+    commanderColorIdentity: string;
 }>();
 </script>
 
 <template>
     <div :aria-label="$t('pages.deck.navigation.label')" class="deck-navigation">
-        <deck-navigation-add :deck="deck" :cards="cards" />
+        <deck-navigation-add
+            :deck="deck"
+            :cards="cards"
+            :companion="companion"
+            :companion-roster="companionRoster"
+            :commander-color-identity="commanderColorIdentity"
+        />
         <deck-navigation-view :deck="deck" />
         <deck-navigation-sort :deck="deck" />
     </div>

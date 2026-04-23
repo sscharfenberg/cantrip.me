@@ -27,4 +27,14 @@ class OathbreakerProfile extends CommanderProfile
     {
         return true;
     }
+
+    public function allowsCompanion(): bool
+    {
+        return false;
+    }
+
+    public function bannedAsCompanion(): array
+    {
+        return [];
+    }
 }

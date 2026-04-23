@@ -4,17 +4,20 @@ import { useI18n } from "vue-i18n";
 import DeckCardActionsMenu from "@/pages/Decks/Deck/Actions/DeckCardActionsMenu.vue";
 import DeckGroupHeadline from "@/pages/Decks/Deck/Cards/DeckGroupHeadline.vue";
 import FaceImageLazy from "@/pages/Decks/Deck/Cards/FaceImageLazy.vue";
+import CompanionSection from "@/pages/Decks/Deck/Companion/CompanionSection.vue";
 import Icon from "Components/UI/Icon.vue";
 import Paragraph from "Components/UI/Paragraph.vue";
 import type { DeckCardGroup } from "Composables/useDeckGrouping.ts";
 import { useDeckSections } from "Composables/useDeckSections.ts";
 import type { DeckSort } from "Composables/useDeckSort.ts";
-import type { DeckCardRow, DeckCategoryRow, DeckCommander } from "Types/deckPage";
+import type { DeckCardRow, DeckCategoryRow, DeckCommander, DeckCompanion, DeckMeta } from "Types/deckPage";
 const props = defineProps<{
-    /** UUID of the deck. */
-    deckId: string;
+    /** Full deck meta (for companion capabilities + format flags). */
+    deck: DeckMeta;
     /** Commanders / command zone cards with full oracle + printing data. */
     commanders: DeckCommander[];
+    /** Currently-set companion card, or null. */
+    companion: DeckCompanion | null;
     /** All cards in the deck with full oracle + printing data. */
     cards: DeckCardRow[];
     /** User-defined categories for this deck. */
@@ -34,6 +37,7 @@ const draggedTypeGroup = ref<DeckCardGroup | null>(null);
 const { allGroups } = useDeckSections(
     () => props.cards,
     () => props.commanders,
+    () => props.companion,
     () => props.categories,
     () => props.sortMode,
     t,
@@ -55,6 +59,10 @@ const { allGroups } = useDeckSections(
                 />
             </ul>
         </section>
+        <section v-if="companion" class="image-card-group">
+            <deck-group-headline>{{ $t("pages.deck.companion.heading") }}</deck-group-headline>
+            <companion-section :deck-id="deck.id" :companion="companion" variant="image" />
+        </section>
         <section v-for="group in allGroups" :key="group.key" class="image-card-group">
             <deck-group-headline>{{ group.label }} ({{ group.count }})</deck-group-headline>
             <ul class="image-card-group__list">
@@ -74,7 +82,7 @@ const { allGroups } = useDeckSections(
                         :additional-classes="['card__illegal']"
                     />
                     <deck-card-actions-menu
-                        :deck-id="props.deckId"
+                        :deck-id="props.deck.id"
                         :card="card"
                         :cards="props.cards"
                         :categories="props.categories"

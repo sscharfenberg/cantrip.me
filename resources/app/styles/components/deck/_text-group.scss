@@ -31,6 +31,38 @@
         gap: map.get(s.$pages, "deck", "group", "gap");
 
         list-style: none;
+
+        > .card {
+            display: flex;
+            align-items: center;
+
+            padding: map.get(s.$pages, "deck", "card", "padding");
+            border: map.get(s.$pages, "deck", "card", "border") solid map.get(c.$pages, "deck", "card", "border");
+            gap: map.get(s.$pages, "deck", "card", "gap");
+
+            background-color: map.get(c.$pages, "deck", "card", "background");
+            color: map.get(c.$pages, "deck", "card", "surface");
+            border-radius: map.get(s.$pages, "deck", "card", "radius");
+
+            &__drag-handle {
+                cursor: move;
+            }
+
+            &__qty {
+                font-weight: 600;
+            }
+        }
+
+        .card__illegal {
+            flex-basis: 1rem;
+
+            width: 1rem;
+            height: 1rem;
+
+            background-color: map.get(c.$state, "error", "background");
+            color: map.get(c.$state, "error", "surface");
+            border-radius: 90dvw;
+        }
     }
 
     &__drop-target {

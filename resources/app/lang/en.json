@@ -688,6 +688,31 @@
                 "deck_size_max": "Main deck has {current} cards - maximum is {max}.",
                 "sideboard_size_max": "Sideboard has {current} cards — maximum is {max}."
             },
+            "companion": {
+                "heading": "Companion",
+                "add": "Add companion",
+                "remove": "Remove",
+                "generic_error": "The companion could not be set.",
+                "modal": {
+                    "title": "Choose a companion"
+                },
+                "disabled": {
+                    "banned": "Banned as a companion in this format.",
+                    "color_identity": "Outside the commanders' color identity."
+                },
+                "restrictions": {
+                    "gyruda": "Each card in your starting deck has an even mana value (or is a land).",
+                    "jegantha": "No card in your starting deck has two or more of the same colored mana symbol.",
+                    "kaheera": "Each creature in your starting deck is a Cat, Elemental, Nightmare, Dinosaur, or Beast.",
+                    "keruga": "Each nonland card in your starting deck has mana value 3 or greater.",
+                    "lurrus": "Each permanent card in your starting deck has mana value 2 or less.",
+                    "lutri": "Your starting deck contains no more than one of each card other than basic lands.",
+                    "obosh": "Each nonland card in your starting deck has an odd mana value.",
+                    "umori": "All nonland cards in your starting deck share at least one card type.",
+                    "yorion": "Your starting deck contains at least 20 more cards than its minimum size.",
+                    "zirda": "Each permanent card in your starting deck has an activated ability."
+                }
+            },
             "groups": {
                 "creature": "Creatures",
                 "planeswalker": "Planeswalkers",

@@ -3,7 +3,7 @@ import { computed, toValue } from "vue";
 import { compareCards, useDeckGrouping } from "Composables/useDeckGrouping.ts";
 import type { DeckCardGroup } from "Composables/useDeckGrouping.ts";
 import type { DeckSort } from "Composables/useDeckSort.ts";
-import type { DeckCardRow, DeckCategoryRow, DeckCommander } from "Types/deckPage";
+import type { DeckCardRow, DeckCategoryRow, DeckCommander, DeckCompanion } from "Types/deckPage";
 
 /**
  * A unified card group — either a default type group or a custom category.
@@ -35,6 +35,7 @@ export interface CardSection {
  */
 export type Section =
     | { kind: "commanders"; commanders: DeckCommander[] }
+    | { kind: "companion"; companion: DeckCompanion }
     | { kind: "group"; group: CardSection }
     | { kind: "create-group" };
 
@@ -67,6 +68,7 @@ export type UseDeckSectionsReturn = {
  *
  * @param cards - All deck cards.
  * @param commanders - Command zone cards.
+ * @param companion - The deck's "Companion" keyword card, or null when not set.
  * @param categories - User-defined categories.
  * @param sortMode - Active sort mode within groups.
  * @param translate - i18n translate function for default group labels.
@@ -75,6 +77,7 @@ export type UseDeckSectionsReturn = {
 export function useDeckSections(
     cards: MaybeRefOrGetter<DeckCardRow[]>,
     commanders: MaybeRefOrGetter<DeckCommander[]>,
+    companion: MaybeRefOrGetter<DeckCompanion | null>,
     categories: MaybeRefOrGetter<DeckCategoryRow[]>,
     sortMode: MaybeRefOrGetter<DeckSort>,
     translate: (key: string) => string,
@@ -131,6 +134,10 @@ export function useDeckSections(
         const cmds = toValue(commanders);
         if (cmds.length > 0) {
             result.push({ kind: "commanders", commanders: cmds });
+        }
+        const cmp = toValue(companion);
+        if (cmp !== null) {
+            result.push({ kind: "companion", companion: cmp });
         }
         for (const group of allGroups.value) {
             result.push({ kind: "group", group });

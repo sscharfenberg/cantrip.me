@@ -50,8 +50,8 @@ const symbols = computed(() => {
     vertical-align: -0.125em;
 
     &__symbol {
-        width: 1.25rem;
-        height: 1.25rem;
+        width: 1rem;
+        height: 1rem;
     }
 }
 </style>

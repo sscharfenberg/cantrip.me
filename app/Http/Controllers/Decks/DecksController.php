@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Decks;
 
+use App\Companions\CompanionRegistry;
 use App\Enums\CardFormat;
 use App\Formats\FormatProfile;
 use App\Http\Controllers\Controller;
@@ -120,11 +121,64 @@ class DecksController extends Controller
             'deckCards.oracleCard.legalities' => fn ($q) => $q->where('format', $deck->format->value),
             'deckCards.defaultCard:id,name,card_image_0,card_image_1,set_id,oracle_id',
             'deckCards.defaultCard.set:id,name,code',
+            'companion.faces:oracle_card_id,face_index,type_line,mana_cost,oracle_text',
+            'companionDefaultCard:id,oracle_id,card_image_0,card_image_1',
             'categories',
         ]);
 
         $violations = DeckValidator::validate($deck);
         $illegalDeckCardIds = DeckValidator::illegalDeckCardIds($violations);
+
+        $profile = $deck->format->rules();
+        $allowsCompanion = $profile->allowsCompanion();
+        $rosterOracles = $allowsCompanion ? CompanionRegistry::all() : collect();
+        $rosterDefaults = $rosterOracles->isEmpty()
+            ? collect()
+            : DB::table('default_cards')
+                ->join('sets', 'sets.id', '=', 'default_cards.set_id')
+                ->whereIn('default_cards.oracle_id', $rosterOracles->pluck('id'))
+                ->orderByDesc('sets.released_at')
+                ->get(['default_cards.id', 'default_cards.oracle_id', 'default_cards.card_image_0', 'default_cards.card_image_1'])
+                ->groupBy('oracle_id')
+                ->map(fn ($group) => $group->first());
+
+        $companionRoster = $rosterOracles->map(fn (OracleCard $oracle) => [
+            'oracle_card_id' => $oracle->id,
+            'name' => $oracle->name,
+            'color_identity' => $oracle->color_identity,
+            'cmc' => $oracle->cmc,
+            'mana_cost' => $oracle->faces->sortBy('face_index')->pluck('mana_cost')->values()->all(),
+            'default_card' => [
+                'id' => $rosterDefaults[$oracle->id]->id ?? null,
+                'card_image_0' => $rosterDefaults[$oracle->id]->card_image_0 ?? null,
+                'card_image_1' => $rosterDefaults[$oracle->id]->card_image_1 ?? null,
+            ],
+        ])->values();
+
+        $companion = null;
+        if ($deck->companion !== null) {
+            $companionOracle = $deck->companion;
+            $companionDefault = $deck->companionDefaultCard
+                ?? $rosterDefaults[$companionOracle->id]
+                ?? DB::table('default_cards')
+                    ->join('sets', 'sets.id', '=', 'default_cards.set_id')
+                    ->where('default_cards.oracle_id', $companionOracle->id)
+                    ->orderByDesc('sets.released_at')
+                    ->first(['default_cards.id', 'default_cards.card_image_0', 'default_cards.card_image_1']);
+
+            $companion = [
+                'oracle_card_id' => $companionOracle->id,
+                'name' => $companionOracle->name,
+                'color_identity' => $companionOracle->color_identity,
+                'cmc' => $companionOracle->cmc,
+                'mana_cost' => $companionOracle->faces->sortBy('face_index')->pluck('mana_cost')->values()->all(),
+                'default_card' => [
+                    'id' => $companionDefault->id ?? null,
+                    'card_image_0' => $companionDefault->card_image_0 ?? null,
+                    'card_image_1' => $companionDefault->card_image_1 ?? null,
+                ],
+            ];
+        }
 
         $cardCount = $deck->deckCards->count() + $deck->commanders->count();
         $lastActivity = max(array_filter([
@@ -194,10 +248,13 @@ class DecksController extends Controller
                 'colors' => $deck->colors,
                 'bracket' => $deck->bracket,
                 'card_count' => $cardCount,
-                'max_deck_size' => $deck->format->rules()->maxDeckSize(),
-                'max_sideboard_size' => $deck->format->rules()->maxSideboardSize(),
-                'max_copies' => $deck->format->rules()->maxCopies(),
-                'is_singleton' => $deck->format->rules()->maxCopies() === 1,
+                'max_deck_size' => $profile->maxDeckSize(),
+                'max_sideboard_size' => $profile->maxSideboardSize(),
+                'max_copies' => $profile->maxCopies(),
+                'is_singleton' => $profile->maxCopies() === 1,
+                'enforces_color_identity' => $profile->enforcesColorIdentity(),
+                'allows_companion' => $allowsCompanion,
+                'banned_as_companion' => $profile->bannedAsCompanion(),
                 'last_activity' => $lastActivity,
                 'default_card_image' => $deck->defaultCard ? [
                     'card_image_0' => $deck->defaultCard->card_image_0,
@@ -205,6 +262,8 @@ class DecksController extends Controller
                 ] : null,
             ],
             'commanders' => $commanders,
+            'companion' => $companion,
+            'companionRoster' => $companionRoster,
             'cards' => $cards,
             'categories' => $categories,
             'categoryNameMax' => DeckCategory::NAME_MAX,

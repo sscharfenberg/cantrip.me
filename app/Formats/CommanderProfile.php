@@ -51,4 +51,9 @@ class CommanderProfile extends FormatProfile
     {
         return CompanionPlacement::Outside;
     }
+
+    public function bannedAsCompanion(): array
+    {
+        return ['Lutri, the Spellchaser'];
+    }
 }

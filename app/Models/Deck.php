@@ -40,6 +40,8 @@ class Deck extends Model
         'bracket',
         'default_card_id',
         'container_id',
+        'companion_oracle_card_id',
+        'companion_default_card_id',
     ];
 
     protected function casts(): array
@@ -94,6 +96,28 @@ class Deck extends Model
             ->using(Commander::class)
             ->withPivot('default_card_id', 'is_partner')
             ->withTimestamps();
+    }
+
+    /**
+     * The Magic "Companion" keyword card selected for this deck (Lurrus, Yorion, …).
+     *
+     * Distinct from command-zone partner pairings stored on the `commanders` pivot.
+     *
+     * @return BelongsTo<OracleCard, Deck>
+     */
+    public function companion(): BelongsTo
+    {
+        return $this->belongsTo(OracleCard::class, 'companion_oracle_card_id');
+    }
+
+    /**
+     * The specific printing chosen for the companion (for display).
+     *
+     * @return BelongsTo<DefaultCard, Deck>
+     */
+    public function companionDefaultCard(): BelongsTo
+    {
+        return $this->belongsTo(DefaultCard::class, 'companion_default_card_id');
     }
 
     /**

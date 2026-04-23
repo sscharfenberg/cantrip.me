@@ -4,6 +4,7 @@ import { VueDraggable } from "vue-draggable-plus";
 import { useI18n } from "vue-i18n";
 import DeckCardActionsMenu from "@/pages/Decks/Deck/Actions/DeckCardActionsMenu.vue";
 import DeckGroupHeadline from "@/pages/Decks/Deck/Cards/DeckGroupHeadline.vue";
+import CompanionSection from "@/pages/Decks/Deck/Companion/CompanionSection.vue";
 import DeckAddGroupModal from "@/pages/Decks/Deck/Modals/DeckAddGroupModal.vue";
 import DeckCardPreviewModal from "@/pages/Decks/Deck/Modals/DeckCardPreviewModal.vue";
 import CardImagePreview from "Components/Card/CardImagePreview.vue";
@@ -13,7 +14,7 @@ import { useDeckCardDrag } from "Composables/useDeckCardDrag.ts";
 import { useDeckSections } from "Composables/useDeckSections.ts";
 import type { DeckSort } from "Composables/useDeckSort.ts";
 import { useResponsiveColumns } from "Composables/useResponsiveColumns.ts";
-import type { DeckCardRow, DeckCategoryRow, DeckCommander } from "Types/deckPage";
+import type { DeckCardRow, DeckCategoryRow, DeckCommander, DeckCompanion, DeckMeta } from "Types/deckPage";
 /** Shape of the data needed by the preview modal. */
 interface PreviewTarget {
     name: string;
@@ -21,10 +22,12 @@ interface PreviewTarget {
     cardImage1: string | null;
 }
 const props = defineProps<{
-    /** UUID of the deck. */
-    deckId: string;
+    /** Full deck meta (for companion capabilities + format flags). */
+    deck: DeckMeta;
     /** Commanders / command zone cards with full oracle + printing data. */
     commanders: DeckCommander[];
+    /** Currently-set companion card, or null. */
+    companion: DeckCompanion | null;
     /** All cards in the deck with full oracle + printing data. */
     cards: DeckCardRow[];
     /** User-defined categories for this deck. */
@@ -52,18 +55,19 @@ const {
     droppedCard,
     onDropToCreateGroup,
     onDropToGroup
-} = useDeckCardDrag(props.deckId, () => props.cards);
+} = useDeckCardDrag(props.deck.id, () => props.cards);
 const { sections, dragTargets } = useDeckSections(
     () => props.cards,
     () => props.commanders,
+    () => props.companion,
     () => props.categories,
     () => props.sortMode,
     t,
     draggedTypeGroup
 );
 const { containerRef, columns } = useResponsiveColumns(sections, {
-    minColWidth: 256,
-    maxColumns: 4,
+    minColWidth: 320,
+    maxColumns: 3,
     colGap: 16
 });
 /** The card currently shown in the preview modal, or null when hidden. */
@@ -75,7 +79,15 @@ const previewTarget = ref<PreviewTarget | null>(null);
         <div v-for="(col, ci) in columns" :key="ci" class="text-card-groups__column">
             <template
                 v-for="section in col"
-                :key="section.kind === 'commanders' ? 'cmd' : section.kind === 'group' ? section.group.key : 'new'"
+                :key="
+                    section.kind === 'commanders'
+                        ? 'cmd'
+                        : section.kind === 'companion'
+                          ? 'cmp'
+                          : section.kind === 'group'
+                            ? section.group.key
+                            : 'new'
+                "
             >
                 <section
                     v-if="section.kind === 'commanders'"
@@ -103,6 +115,19 @@ const previewTarget = ref<PreviewTarget | null>(null);
                             <mana-cost v-for="(cost, i) in commander.mana_cost" :key="i" :mana-cost="cost" />
                         </li>
                     </ul>
+                </section>
+                <section
+                    v-else-if="section.kind === 'companion'"
+                    class="text-card-group"
+                    :class="{ 'text-card-group--unavailable': dragging }"
+                >
+                    <deck-group-headline>{{ $t("pages.deck.companion.heading") }}</deck-group-headline>
+                    <companion-section
+                        :deck-id="deck.id"
+                        :companion="section.companion"
+                        variant="text"
+                        @preview="target => (previewTarget = target)"
+                    />
                 </section>
                 <section
                     v-else-if="section.kind === 'group'"
@@ -149,7 +174,7 @@ const previewTarget = ref<PreviewTarget | null>(null);
                             />
                             <mana-cost v-for="(cost, i) in card.mana_cost" :key="i" :mana-cost="cost" />
                             <deck-card-actions-menu
-                                :deck-id="props.deckId"
+                                :deck-id="props.deck.id"
                                 :card="card"
                                 :cards="props.cards"
                                 :categories="props.categories"
@@ -198,7 +223,7 @@ const previewTarget = ref<PreviewTarget | null>(null);
     <p v-if="!columns.length">{{ $t("pages.deck.no_cards") }}</p>
     <deck-add-group-modal
         v-if="showCreateGroupModal && droppedCard"
-        :deck-id="props.deckId"
+        :deck-id="props.deck.id"
         :card="droppedCard"
         :category-name-max="props.categoryNameMax"
         @close="
@@ -216,42 +241,11 @@ const previewTarget = ref<PreviewTarget | null>(null);
 </template>
 
 <style lang="scss" scoped>
-@use "sass:map";
-@use "Abstracts/colors" as c;
-@use "Abstracts/sizes" as s;
-
-.card {
-    display: flex;
-    align-items: center;
-
-    padding: map.get(s.$pages, "deck", "card", "padding");
-    border: map.get(s.$pages, "deck", "card", "border") solid map.get(c.$pages, "deck", "card", "border");
-    gap: map.get(s.$pages, "deck", "card", "gap");
-
-    background-color: map.get(c.$pages, "deck", "card", "background");
-    color: map.get(c.$pages, "deck", "card", "surface");
-    border-radius: map.get(s.$pages, "deck", "card", "radius");
-
-    &__drag-handle {
-        cursor: move;
-    }
-
-    &__qty {
-        font-weight: 600;
-    }
-
-    &__illegal {
-        flex-basis: 1.25rem;
-
-        width: 1.25rem;
-        height: 1.25rem;
-
-        background-color: map.get(c.$state, "error", "background");
-        color: map.get(c.$state, "error", "surface");
-        border-radius: 90dvw;
-    }
-}
-
+// Override CardImagePreview's own scoped padding default. Lives here (not in
+// _text-group.scss) because that partial is inside @layer components, which
+// always loses to CardImagePreview's own unlayered scoped style regardless of
+// specificity. :deep() reaches CompanionSection too, which is rendered inside
+// this component.
 :deep(.card-preview__trigger) {
     flex-grow: 1;
 

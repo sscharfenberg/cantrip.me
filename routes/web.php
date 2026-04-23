@@ -10,6 +10,7 @@ use App\Http\Controllers\CurrencyController;
 use App\Http\Controllers\Decks\DeckCardController;
 use App\Http\Controllers\Decks\DeckCardSearchController;
 use App\Http\Controllers\Decks\DeckCategoryController;
+use App\Http\Controllers\Decks\DeckCompanionController;
 use App\Http\Controllers\Decks\DecksController;
 use App\Http\Controllers\GuestController;
 use App\Http\Controllers\LocaleController;
@@ -150,6 +151,14 @@ Route::middleware(array_filter(['auth', Features::enabled(Features::emailVerific
         ->name('api.decks.cards.destroy');
     Route::delete('/api/decks/{deck}/categories/{deckCategory}', [DeckCategoryController::class, 'destroy'])
         ->name('api.decks.categories.destroy');
+    Route::patch('/api/decks/{deck}/companion', [DeckCompanionController::class, 'store'])
+        ->name('api.decks.companion.store');
+    Route::delete('/api/decks/{deck}/companion', [DeckCompanionController::class, 'destroy'])
+        ->name('api.decks.companion.destroy');
+    Route::get('/api/decks/{deck}/companion/printings', [DeckCompanionController::class, 'printings'])
+        ->name('api.decks.companion.printings');
+    Route::patch('/api/decks/{deck}/companion/printing', [DeckCompanionController::class, 'updatePrinting'])
+        ->name('api.decks.companion.update-printing');
 
 });
 

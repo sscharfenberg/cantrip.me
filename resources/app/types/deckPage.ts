@@ -18,6 +18,16 @@ export interface DeckCommander {
     default_card: DeckCommanderDefaultCard;
 }
 
+/** A Magic "Companion" keyword card attached to the deck. */
+export interface DeckCompanion {
+    oracle_card_id: string;
+    name: string;
+    color_identity: string | null;
+    cmc: number;
+    mana_cost: (string | null)[];
+    default_card: DeckCommanderDefaultCard;
+}
+
 /** Default card (specific printing) attached to a deck card. */
 export interface DeckCardDefaultCard {
     id: string | null;
@@ -101,6 +111,10 @@ export interface DeckMeta {
     max_sideboard_size: number;
     max_copies: number;
     is_singleton: boolean;
+    enforces_color_identity: boolean;
+    allows_companion: boolean;
+    /** Oracle names of companions banned in this format (e.g. Lutri in Commander). */
+    banned_as_companion: string[];
     last_activity: string;
     default_card_image: {
         card_image_0: string | null;

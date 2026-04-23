@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { usePage } from "@inertiajs/vue3";
 import { ref, useId } from "vue";
 import DeckCardMoveToGroupModal from "@/pages/Decks/Deck/Modals/DeckCardMoveToGroupModal.vue";
 import DeckCardSplitPrintingModal from "@/pages/Decks/Deck/Modals/DeckCardSplitPrintingModal.vue";
@@ -6,7 +7,8 @@ import DeckCardSwitchPrintingModal from "@/pages/Decks/Deck/Modals/DeckCardSwitc
 import Icon from "Components/UI/Icon.vue";
 import PopOver from "Components/UI/PopOver.vue";
 import { useDeckCardActions } from "Composables/useDeckCardActions.ts";
-import type { DeckCardRow, DeckCategoryRow } from "Types/deckPage";
+import type { DeckCardDefaultCard, DeckCardRow, DeckCategoryRow } from "Types/deckPage";
+import type { DeckPrinting } from "Types/defaultCardImage";
 const props = defineProps<{
     /** UUID of the deck this card belongs to. */
     deckId: string;
@@ -66,6 +68,38 @@ const { canIncrement, increment, decrement, destroy } = useDeckCardActions(
     },
     closePopover
 );
+const page = usePage();
+/**
+ * Optimistically swap the deck card's printing: update the page's card in
+ * place so the UI reflects the change immediately, then PATCH the server.
+ * On failure, restore the previous printing.
+ */
+async function switchPrinting(printing: DeckPrinting): Promise<void> {
+    const cards = page.props.cards as DeckCardRow[];
+    const card = cards.find(c => c.id === props.card.id);
+    if (!card) return;
+    const previous: DeckCardDefaultCard = { ...card.default_card };
+    card.default_card = {
+        id: printing.id,
+        name: printing.name,
+        card_image_0: printing.card_image_0,
+        card_image_1: printing.card_image_1,
+        set: printing.set ? { name: printing.set.name, code: printing.set.code } : null
+    };
+    const response = await fetch(`/api/decks/${props.deckId}/cards/${props.card.id}/printing`, {
+        method: "PATCH",
+        headers: {
+            "Content-Type": "application/json",
+            "X-CSRF-TOKEN": page.props.csrfToken as string,
+            Accept: "application/json"
+        },
+        body: JSON.stringify({ default_card_id: printing.id })
+    });
+    if (!response.ok) {
+        const target = cards.find(c => c.id === props.card.id);
+        if (target) target.default_card = previous;
+    }
+}
 </script>
 
 <template>
@@ -124,9 +158,9 @@ const { canIncrement, increment, decrement, destroy } = useDeckCardActions(
     </pop-over>
     <deck-card-switch-printing-modal
         v-if="showSwitchPrintingModal"
-        :deck-id="props.deckId"
-        :card-id="props.card.id"
+        :printings-url="`/api/decks/${props.deckId}/cards/${props.card.id}/printings`"
         :name="props.card.name"
+        @select="switchPrinting"
         @close="showSwitchPrintingModal = false"
     />
     <deck-card-split-printing-modal

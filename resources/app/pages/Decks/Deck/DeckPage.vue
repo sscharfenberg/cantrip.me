@@ -1,18 +1,31 @@
 <script setup lang="ts">
 import { Head } from "@inertiajs/vue3";
+import { computed } from "vue";
 import CardViewImage from "@/pages/Decks/Deck/Cards/CardViewImage.vue";
 import CardViewText from "@/pages/Decks/Deck/Cards/CardViewText.vue";
 import DeckHeader from "@/pages/Decks/Deck/DeckHeader.vue";
 import DeckNavigation from "@/pages/Decks/Deck/Navigation/DeckNavigation.vue";
+import { combineCI } from "@/utils/colorIdentity";
 import { useBreadcrumbs } from "Composables/useBreadcrumbs.ts";
 import { useDeckSort } from "Composables/useDeckSort.ts";
 import { useDeckView } from "Composables/useDeckView.ts";
-import type { DeckCardRow, DeckCategoryRow, DeckCommander, DeckMeta, DeckViolation } from "Types/deckPage";
+import type {
+    DeckCardRow,
+    DeckCategoryRow,
+    DeckCommander,
+    DeckCompanion,
+    DeckMeta,
+    DeckViolation,
+} from "Types/deckPage";
 const props = defineProps<{
     /** Deck metadata (name, format, state, colors, etc.). */
     deck: DeckMeta;
     /** Commanders / command zone cards with full oracle + printing data. */
     commanders: DeckCommander[];
+    /** Currently-set companion card, or null. */
+    companion: DeckCompanion | null;
+    /** The ten companion roster, shaped for the picker modal. */
+    companionRoster: DeckCompanion[];
     /** All cards in the deck with full oracle + printing data. */
     cards: DeckCardRow[];
     /** User-defined categories for this deck. */
@@ -28,6 +41,8 @@ setBreadcrumbs([{ labelKey: "pages.decks.link", href: "/decks", icon: "deck" }, 
 const { viewMode } = useDeckView(props.deck.id);
 /** Effective deck sort mode — localStorage override for this deck, or the user's default. */
 const { sortMode } = useDeckSort(props.deck.id);
+/** Combined commander color identity — shared by navigation and both card views. */
+const commanderColorIdentity = computed(() => combineCI(props.commanders.map((c) => c.color_identity)));
 </script>
 
 <template>
@@ -42,11 +57,18 @@ const { sortMode } = useDeckSort(props.deck.id);
         :category-name-max="categoryNameMax"
         :violations="violations"
     />
-    <deck-navigation :deck="deck" :cards="cards" />
+    <deck-navigation
+        :deck="deck"
+        :cards="cards"
+        :companion="companion"
+        :companion-roster="companionRoster"
+        :commander-color-identity="commanderColorIdentity"
+    />
     <card-view-text
         v-if="viewMode === 'text'"
-        :deck-id="deck.id"
+        :deck="deck"
         :commanders="commanders"
+        :companion="companion"
         :cards="cards"
         :categories="categories"
         :sort-mode="sortMode"
@@ -56,8 +78,9 @@ const { sortMode } = useDeckSort(props.deck.id);
     />
     <card-view-image
         v-if="viewMode === 'cards'"
-        :deck-id="deck.id"
+        :deck="deck"
         :commanders="commanders"
+        :companion="companion"
         :cards="cards"
         :categories="categories"
         :sort-mode="sortMode"
