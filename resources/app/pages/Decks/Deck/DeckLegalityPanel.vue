@@ -2,13 +2,34 @@
 import { computed } from "vue";
 import Accordion from "Components/UI/Accordion.vue";
 import Icon from "Components/UI/Icon.vue";
-import type { DeckViolation } from "Types/deckPage";
+import type { DeckCardRow, DeckViolation } from "Types/deckPage";
 const props = defineProps<{
     /** All legality violations for the deck. */
     violations: DeckViolation[];
+    /** All cards in the deck — used to resolve offending card_ids to names. */
+    cards: DeckCardRow[];
 }>();
 /** Total number of violations — used in the panel header. */
 const count = computed(() => props.violations.length);
+/** deck_card id → card name lookup. */
+const cardNames = computed(() => {
+    const map: Record<string, string> = {};
+    for (const card of props.cards) {
+        map[card.id] = card.name;
+    }
+    return map;
+});
+/** Deduplicated, comma-joined card names for a per-card violation. */
+const violationNames = (cardIds: string[]): string => {
+    const names = new Set<string>();
+    for (const id of cardIds) {
+        const name = cardNames.value[id];
+        if (name) {
+            names.add(name);
+        }
+    }
+    return [...names].join(", ");
+};
 </script>
 
 <template>
@@ -29,11 +50,16 @@ const count = computed(() => props.violations.length);
                     <icon name="error" :size="1" :additional-classes="['legality-panel__icon']" />
                     <span>
                         <template v-if="'card_ids' in violation">
-                            <i18n-t :keypath="`pages.deck.legality.${violation.type}`" scope="global">
+                            <i18n-t
+                                :keypath="`pages.deck.legality.${violation.type}`"
+                                scope="global"
+                                :plural="violation.card_ids.length"
+                            >
                                 <template #count
                                     ><strong>{{ violation.card_ids.length }}</strong></template
                                 >
                             </i18n-t>
+                            <span class="legality-panel__names">{{ violationNames(violation.card_ids) }}</span>
                         </template>
                         <template v-else-if="violation.type === 'deck_size_min'">
                             <i18n-t keypath="pages.deck.legality.deck_size_min" scope="global">
@@ -105,6 +131,14 @@ const count = computed(() => props.violations.length);
         > span {
             padding-top: 0.25em;
         }
+    }
+
+    &__names {
+        opacity: 0.8;
+
+        margin-left: 0.25rem;
+
+        font-style: italic;
     }
 }
 </style>

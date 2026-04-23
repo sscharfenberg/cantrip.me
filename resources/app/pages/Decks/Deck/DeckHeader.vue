@@ -53,7 +53,7 @@ const { t } = useI18n();
             <visibility-badge :visibility="deck.visibility" />
         </div>
         <paragraph v-if="deck.description">{{ deck.description }}</paragraph>
-        <deck-legality-panel v-if="violations.length > 0" :violations="violations" />
+        <deck-legality-panel v-if="violations.length > 0" :violations="violations" :cards="cards" />
     </section>
 </template>
 

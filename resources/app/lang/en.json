@@ -681,9 +681,9 @@
             "illegal": "This card is illegal in this deck.",
             "legality": {
                 "title": "{count} legality issue | {count} legality issues",
-                "pool_legality": "{count} cards are not legal in this format.",
-                "copy_limit": "{count} cards exceed the copy limit.",
-                "color_identity": "{count} cards violate the commander's color identity.",
+                "pool_legality": "{count} card is not legal in this format. | {count} cards are not legal in this format.",
+                "copy_limit": "{count} card exceeds the copy limit. | {count} cards exceed the copy limit.",
+                "color_identity": "{count} card violates the commander's color identity. | {count} cards violate the commander's color identity.",
                 "deck_size_min": "Main deck has {current} cards - minimum is {min}.",
                 "deck_size_max": "Main deck has {current} cards - maximum is {max}.",
                 "sideboard_size_max": "Sideboard has {current} cards — maximum is {max}."
