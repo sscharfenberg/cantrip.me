@@ -256,7 +256,7 @@ class DeckCardSearchServiceTest extends TestCase
 
         $this->assertNotEmpty($results);
         foreach ($results as $card) {
-            $this->assertSame('lea', $card['printing']['set_code']);
+            $this->assertSame('lea', $card['printing']['set']['code']);
         }
         $this->assertSame('Sol Ring', $results[0]['name']);
     }
@@ -272,8 +272,8 @@ class DeckCardSearchServiceTest extends TestCase
         );
 
         $this->assertNotEmpty($results);
-        $this->assertSame('269', $results[0]['printing']['collector_number']);
-        $this->assertSame('lea', $results[0]['printing']['set_code']);
+        $this->assertSame('269', $results[0]['printing']['cn']);
+        $this->assertSame('lea', $results[0]['printing']['set']['code']);
         $this->assertSame('Sol Ring', $results[0]['name']);
     }
 
@@ -313,7 +313,6 @@ class DeckCardSearchServiceTest extends TestCase
         $results = DeckCardSearchService::searchPrintingsForDeck(
             $deck,
             'black lotus set:lea',
-            DeckCardSearchService::DEFAULT_LIMIT,
             true,
         );
 
@@ -331,7 +330,6 @@ class DeckCardSearchServiceTest extends TestCase
         $results = DeckCardSearchService::searchPrintingsForDeck(
             $deck,
             'lightning bolt',
-            DeckCardSearchService::DEFAULT_LIMIT,
             true,
         );
 
@@ -360,6 +358,9 @@ class DeckCardSearchServiceTest extends TestCase
         $this->assertArrayHasKey('id', $printing);
         $this->assertArrayHasKey('card_image_0', $printing);
         $this->assertArrayHasKey('card_image_1', $printing);
-        $this->assertSame('lea', $printing['set_code']);
+        $this->assertArrayHasKey('cn', $printing);
+        $this->assertArrayHasKey('finishes', $printing);
+        $this->assertArrayHasKey('set', $printing);
+        $this->assertSame('lea', $printing['set']['code']);
     }
 }
