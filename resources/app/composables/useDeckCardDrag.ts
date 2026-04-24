@@ -30,8 +30,8 @@ export type UseDeckCardDragReturn = {
     droppedCard: Ref<DeckCardRow | null>;
     /** Called when a card is dropped on the "create new group" target. */
     onDropToCreateGroup: () => void;
-    /** Called when a card is dropped onto a group (custom category or matching default). */
-    onDropToGroup: (evt: { item: HTMLElement }, categoryId: string | null) => void;
+    /** Called when a card is dropped onto a group (custom category, matching default, or sideboard). */
+    onDropToGroup: (evt: { item: HTMLElement }, categoryId: string | null, zone: "main" | "side") => void;
 };
 
 /**
@@ -89,11 +89,13 @@ export function useDeckCardDrag(
 
     /**
      * Check whether a section should be visually dimmed during a drag.
-     * Custom categories are always valid targets. Default groups are only
-     * valid when their type matches the dragged card's type.
+     * Custom categories and the sideboard are always valid targets. Default
+     * type groups are only valid when their type matches the dragged card's
+     * type, so a creature card doesn't try to drop into the "Lands" group.
      */
     function isUnavailable(section: CardSection): boolean {
         if (!dragging.value) return false;
+        if (section.zone === "side") return false;
         if (section.categoryId) return false;
         return section.key !== draggedTypeGroup.value;
     }
@@ -104,14 +106,15 @@ export function useDeckCardDrag(
      * `pull: "clone"` prevents SortableJS from mutating the source array —
      * the real move happens server-side via the PATCH in `onDropToGroup`.
      *
-     * For default groups, `put` is a function that checks the dragged card's
-     * type at drop time, ensuring only type-matching cards are accepted.
+     * Sideboard and custom categories accept any card. Default type groups
+     * use a `put` callback that checks the dragged card's type at drop time,
+     * so only type-matching cards land there.
      */
     function groupFor(section: CardSection) {
         return {
             name: "deck-cards",
             pull: "clone" as const,
-            put: section.categoryId
+            put: section.zone === "side" || section.categoryId
                 ? true
                 : (_to: unknown, _from: unknown, dragEl: HTMLElement) => {
                       const card = findCard(dragEl);
@@ -147,16 +150,22 @@ export function useDeckCardDrag(
     }
 
     /**
-     * Persist a category change via Inertia PATCH. Passing `category_id: null`
+     * Persist a category / zone change via Inertia PATCH. `categoryId: null`
      * removes the card from any custom category, returning it to its default
-     * type group.
+     * type group. `zone` flips between main and sideboard — dropping onto the
+     * sideboard sends the card to the side zone, dropping back onto any main
+     * group returns it to main. The backend no-ops when nothing changed.
      */
-    function onDropToGroup(evt: { item: HTMLElement }, categoryId: string | null): void {
+    function onDropToGroup(evt: { item: HTMLElement }, categoryId: string | null, zone: "main" | "side"): void {
         dragging.value = false;
         draggedTypeGroup.value = null;
         const cardId = evt.item.dataset.cardId;
         if (!cardId) return;
-        router.patch(`/api/decks/${deckId}/cards/${cardId}/category`, { category_id: categoryId }, { preserveScroll: true });
+        router.patch(
+            `/api/decks/${deckId}/cards/${cardId}/category`,
+            { category_id: categoryId, zone },
+            { preserveScroll: true },
+        );
     }
 
     return {

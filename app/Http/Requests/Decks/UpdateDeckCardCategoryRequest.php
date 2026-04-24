@@ -2,9 +2,11 @@
 
 namespace App\Http\Requests\Decks;
 
+use App\Enums\DeckZone;
 use App\Models\Deck;
 use App\Models\DeckCard;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class UpdateDeckCardCategoryRequest extends FormRequest
 {
@@ -24,12 +26,17 @@ class UpdateDeckCardCategoryRequest extends FormRequest
     }
 
     /**
+     * Accepts an optional `zone` alongside the category so drag+drop to
+     * the sideboard bucket can flip main↔side in one call. When absent
+     * the controller leaves the zone untouched.
+     *
      * @return array<string, array<mixed>>
      */
     public function rules(): array
     {
         return [
             'category_id' => ['nullable', 'uuid', 'exists:deck_categories,id'],
+            'zone' => ['sometimes', Rule::enum(DeckZone::class)],
         ];
     }
 }

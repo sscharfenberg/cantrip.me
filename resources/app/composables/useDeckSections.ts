@@ -15,7 +15,10 @@ import type { DeckCardRow, DeckCategoryRow, DeckCommander, DeckCompanion } from 
  * user-defined category stored in `deck_categories`.
  */
 export interface CardSection {
-    /** Group identifier — a {@link DeckCardGroup} for defaults, `cat-{uuid}` for categories. */
+    /**
+     * Group identifier — a {@link DeckCardGroup} for defaults, `cat-{uuid}`
+     * for categories, the literal `"side"` for the sideboard bucket.
+     */
     key: string;
     /** Display label — i18n-resolved for defaults, raw name for categories. */
     label: string;
@@ -25,6 +28,13 @@ export interface CardSection {
     count: number;
     /** Non-null for custom categories — used as the drop target category ID. */
     categoryId: string | null;
+    /**
+     * Deck zone the cards in this group belong to. `main` for every type
+     * group and custom category (those only hold main-deck cards); `side`
+     * for the single sideboard group that aggregates every sideboarded
+     * card regardless of card type.
+     */
+    zone: "main" | "side";
 }
 
 /**
@@ -85,8 +95,11 @@ export function useDeckSections(
     translate: (key: string) => string,
     draggedTypeGroup: Ref<DeckCardGroup | null>
 ): UseDeckSectionsReturn {
+    // Only main-zone, uncategorised cards flow into the default type groups.
+    // Sideboard cards go to the dedicated `side` bucket below, regardless of
+    // their type line; custom categories only hold main-zone cards.
     const { groups: typeGroups } = useDeckGrouping(
-        () => toValue(cards).filter(c => c.category_id === null),
+        () => toValue(cards).filter(c => c.zone !== "side" && c.category_id === null),
         sortMode
     );
 
@@ -100,6 +113,7 @@ export function useDeckSections(
                 cards: g.cards,
                 count: g.count,
                 categoryId: null,
+                zone: "main",
             });
         }
 
@@ -108,10 +122,17 @@ export function useDeckSections(
         const allCategories = toValue(categories);
 
         for (const cat of allCategories) {
-            catBuckets.set(cat.id, { key: `cat-${cat.id}`, label: cat.name, cards: [], count: 0, categoryId: cat.id });
+            catBuckets.set(cat.id, {
+                key: `cat-${cat.id}`,
+                label: cat.name,
+                cards: [],
+                count: 0,
+                categoryId: cat.id,
+                zone: "main",
+            });
         }
         for (const card of allCards) {
-            if (card.category_id === null) continue;
+            if (card.zone === "side" || card.category_id === null) continue;
             const bucket = catBuckets.get(card.category_id);
             if (bucket) {
                 bucket.cards.push(card);
@@ -128,6 +149,20 @@ export function useDeckSections(
         }
 
         result.sort((a, b) => a.label.localeCompare(b.label));
+
+        // Sideboard always comes last (after type groups and custom
+        // categories), even when empty, so it's a persistent drop target
+        // the user can drag cards onto to move them to the sideboard.
+        const sideCards = allCards.filter(c => c.zone === "side").sort(comparator);
+        result.push({
+            key: "side",
+            label: translate("pages.deck.groups.side"),
+            cards: sideCards,
+            count: sideCards.reduce((sum, c) => sum + c.quantity, 0),
+            categoryId: null,
+            zone: "side",
+        });
+
         return result;
     });
 
@@ -166,14 +201,14 @@ export function useDeckSections(
         for (const cat of toValue(categories)) {
             const key = `cat-${cat.id}`;
             if (!presentKeys.has(key)) {
-                targets.push({ key, label: cat.name, cards: [], count: 0, categoryId: cat.id });
+                targets.push({ key, label: cat.name, cards: [], count: 0, categoryId: cat.id, zone: "main" });
             }
         }
 
         // Placeholder default type group when all cards of that type are
         // in custom categories (so the group doesn't appear in allGroups).
         if (!presentKeys.has(dtg)) {
-            targets.push({ key: dtg, label: translate(`pages.deck.groups.${dtg}`), cards: [], count: 0, categoryId: null });
+            targets.push({ key: dtg, label: translate(`pages.deck.groups.${dtg}`), cards: [], count: 0, categoryId: null, zone: "main" });
         }
 
         targets.sort((a, b) => a.label.localeCompare(b.label));

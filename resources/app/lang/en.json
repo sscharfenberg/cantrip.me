@@ -734,7 +734,8 @@
                 "instant": "Instants",
                 "sorcery": "Sorceries",
                 "land": "Lands",
-                "other": "Other"
+                "other": "Other",
+                "side": "Sideboard"
             },
             "create_group": {
                 "title": "Create new group",

@@ -146,7 +146,7 @@ const previewTarget = ref<PreviewTarget | null>(null);
                         ghost-class="card--ghost"
                         @start="onDragStart"
                         @end="onDragEnd"
-                        @add="(evt: { item: HTMLElement }) => onDropToGroup(evt, section.group.categoryId)"
+                        @add="(evt: { item: HTMLElement }) => onDropToGroup(evt, section.group.categoryId, section.group.zone)"
                     >
                         <li v-for="card in section.group.cards" :key="card.id" :data-card-id="card.id" class="card">
                             <span class="card__drag-handle"><icon name="drag" :size="1" /></span>
@@ -197,7 +197,7 @@ const previewTarget = ref<PreviewTarget | null>(null);
                         :group="groupFor(target)"
                         :sort="false"
                         ghost-class="card--ghost"
-                        @add="(evt: { item: HTMLElement }) => onDropToGroup(evt, target.categoryId)"
+                        @add="(evt: { item: HTMLElement }) => onDropToGroup(evt, target.categoryId, target.zone)"
                     />
                 </section>
                 <section class="text-card-group text-card-group__drop-target">

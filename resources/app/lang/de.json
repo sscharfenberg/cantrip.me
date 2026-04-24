@@ -734,7 +734,8 @@
                 "instant": "Spontanzauber",
                 "sorcery": "Hexereien",
                 "land": "Länder",
-                "other": "Sonstige"
+                "other": "Sonstige",
+                "side": "Sideboard"
             },
             "create_group": {
                 "title": "Neue Gruppe erstellen",
