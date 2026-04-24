@@ -65,8 +65,12 @@ export interface DeckCategoryRow {
     name: string;
 }
 
-/** i18n suffix identifying which companion's rule was broken. */
-export type CompanionMessageKey =
+/**
+ * i18n suffix identifying which per-card companion rule was broken. Yorion
+ * is excluded — its violation type is `companion_size_restriction` and
+ * always maps to the `yorion` message.
+ */
+export type PerCardCompanionKey =
     | "gyruda"
     | "jegantha"
     | "kaheera"
@@ -75,17 +79,15 @@ export type CompanionMessageKey =
     | "lutri"
     | "obosh"
     | "umori"
-    | "yorion"
     | "zirda";
 
 /**
  * A single legality violation on the deck.
  *
- * Per-card violations (`pool_legality`, `copy_limit`, `color_identity`, and
- * most `companion_restriction` flavors) carry the offending deck_card IDs.
- * Deck-level violations (`deck_size_min`, `deck_size_max`,
- * `sideboard_size_max`, Yorion's `companion_restriction`) carry the
- * comparison numbers.
+ * Per-card violations (`pool_legality`, `copy_limit`, `color_identity`,
+ * `companion_restriction`) carry the offending deck_card IDs. Deck-level
+ * violations (`deck_size_min`, `deck_size_max`, `sideboard_size_max`,
+ * `companion_size_restriction` for Yorion) carry the comparison numbers.
  */
 export type DeckViolation =
     | { type: "pool_legality"; card_ids: string[] }
@@ -94,8 +96,8 @@ export type DeckViolation =
     | { type: "deck_size_min"; current: number; min: number }
     | { type: "deck_size_max"; current: number; max: number }
     | { type: "sideboard_size_max"; current: number; max: number }
-    | { type: "companion_restriction"; message_key: CompanionMessageKey; card_ids: string[] }
-    | { type: "companion_restriction"; message_key: "yorion"; current: number; min: number };
+    | { type: "companion_restriction"; message_key: PerCardCompanionKey; card_ids: string[] }
+    | { type: "companion_size_restriction"; message_key: "yorion"; current: number; min: number };
 
 /**
  * One result row returned by the deck card search API.

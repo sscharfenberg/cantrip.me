@@ -87,7 +87,7 @@ final class DeckValidator
             ];
         }
 
-        $companionViolation = self::companionRestrictionViolation($deck);
+        $companionViolation = self::companionRestrictionViolation($deck, $violations);
         if ($companionViolation !== null) {
             $violations[] = $companionViolation;
         }
@@ -98,14 +98,21 @@ final class DeckValidator
     /**
      * Run the current companion's deckbuilding restriction, if any.
      *
-     * Returns the violation payload keyed by the companion's `messageKey()`
-     * so the frontend can render a per-companion message. Yields `null`
-     * when the deck has no companion, the companion is not one of the ten
-     * known ones, or the restriction is satisfied.
+     * Per-card variants emit as `companion_restriction` with `card_ids`; the
+     * size-based Yorion variant emits as `companion_size_restriction` with
+     * `current`/`min`. The two distinct `type` values keep the frontend
+     * discriminated union unambiguous.
      *
+     * Per-card card IDs are deduplicated against IDs already reported by
+     * other per-card violations (pool_legality, copy_limit, color_identity).
+     * A card that is banned in the format is already called out there, and
+     * showing it again under the companion rule is noise. If every offending
+     * ID is already reported elsewhere, the companion violation is dropped.
+     *
+     * @param  array<int, array{type: string, card_ids?: array<int, string>}>  $priorViolations
      * @return array{type: string, message_key: string, card_ids?: array<int, string>, current?: int, min?: int}|null
      */
-    private static function companionRestrictionViolation(Deck $deck): ?array
+    private static function companionRestrictionViolation(Deck $deck, array $priorViolations): ?array
     {
         if ($deck->companion === null) {
             return null;
@@ -121,7 +128,30 @@ final class DeckValidator
             return null;
         }
 
-        return ['type' => 'companion_restriction', 'message_key' => $profile->messageKey()] + $result;
+        if (! isset($result['card_ids'])) {
+            return ['type' => 'companion_size_restriction', 'message_key' => $profile->messageKey()] + $result;
+        }
+
+        $alreadyReported = [];
+        foreach ($priorViolations as $violation) {
+            foreach ($violation['card_ids'] ?? [] as $id) {
+                $alreadyReported[$id] = true;
+            }
+        }
+
+        $filtered = array_values(array_filter(
+            $result['card_ids'],
+            fn (string $id): bool => ! isset($alreadyReported[$id]),
+        ));
+        if ($filtered === []) {
+            return null;
+        }
+
+        return [
+            'type' => 'companion_restriction',
+            'message_key' => $profile->messageKey(),
+            'card_ids' => $filtered,
+        ];
     }
 
     /**

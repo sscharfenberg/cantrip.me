@@ -84,9 +84,7 @@ const previewTarget = ref<PreviewTarget | null>(null);
                         ? 'cmd'
                         : section.kind === 'companion'
                           ? 'cmp'
-                          : section.kind === 'group'
-                            ? section.group.key
-                            : 'new'
+                          : section.group.key
                 "
             >
                 <section
@@ -185,21 +183,6 @@ const previewTarget = ref<PreviewTarget | null>(null);
                         </li>
                     </VueDraggable>
                 </section>
-                <section
-                    v-else-if="dragging && section.kind === 'create-group'"
-                    class="text-card-group text-card-group__drop-target"
-                >
-                    <icon name="add" :size="2" />
-                    {{ $t("pages.deck.create_group.link") }}
-                    <VueDraggable
-                        v-model="dropTargetList"
-                        tag="div"
-                        class="text-card-group__drop-zone"
-                        :group="createGroupTarget"
-                        ghost-class="card--ghost"
-                        @add="onDropToCreateGroup"
-                    />
-                </section>
             </template>
             <!-- Extra drop targets rendered outside the column distribution
                  so that appearing mid-drag doesn't cause a redistribution. -->
@@ -215,6 +198,18 @@ const previewTarget = ref<PreviewTarget | null>(null);
                         :sort="false"
                         ghost-class="card--ghost"
                         @add="(evt: { item: HTMLElement }) => onDropToGroup(evt, target.categoryId)"
+                    />
+                </section>
+                <section class="text-card-group text-card-group__drop-target">
+                    <icon name="add" :size="2" />
+                    {{ $t("pages.deck.create_group.link") }}
+                    <VueDraggable
+                        v-model="dropTargetList"
+                        tag="div"
+                        class="text-card-group__drop-zone"
+                        :group="createGroupTarget"
+                        ghost-class="card--ghost"
+                        @add="onDropToCreateGroup"
                     />
                 </section>
             </template>

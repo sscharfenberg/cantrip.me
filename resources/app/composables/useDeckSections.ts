@@ -30,14 +30,15 @@ export interface CardSection {
  * Discriminated union for visual sections in the column layout.
  *
  * Commanders sit outside the drag system (no dragging in/out). The
- * `create-group` variant only appears while a drag is in progress,
- * giving the user a drop target to spawn a new custom category.
+ * "new group" drop target is intentionally NOT a Section variant — it
+ * would claim a column slot while not dragging and leave that slot
+ * visibly empty. Instead the template renders it outside the column
+ * distribution, alongside {@link dragTargets}, only during a drag.
  */
 export type Section =
     | { kind: "commanders"; commanders: DeckCommander[] }
     | { kind: "companion"; companion: DeckCompanion }
-    | { kind: "group"; group: CardSection }
-    | { kind: "create-group" };
+    | { kind: "group"; group: CardSection };
 
 /** Return type of {@link useDeckSections}. */
 export type UseDeckSectionsReturn = {
@@ -142,11 +143,6 @@ export function useDeckSections(
         for (const group of allGroups.value) {
             result.push({ kind: "group", group });
         }
-        // Always present in the layout so that starting a drag doesn't
-        // trigger a column redistribution (which would destroy the active
-        // VueDraggable instance and swallow the @end event). Visibility
-        // is controlled via v-if in the template instead.
-        result.push({ kind: "create-group" });
         return result;
     });
 
