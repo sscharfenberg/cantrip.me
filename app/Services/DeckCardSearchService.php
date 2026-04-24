@@ -39,6 +39,8 @@ final class DeckCardSearchService
 {
     public const DEFAULT_LIMIT = 20;
 
+    public const PRINTINGS_LIMIT = 60;
+
     /**
      * Oracle-level search — returns up to $limit distinct oracle cards,
      * each with its newest printing resolved.
@@ -203,6 +205,7 @@ final class DeckCardSearchService
 
         return $query
             ->select('default_cards.id', 'default_cards.oracle_id', 'default_cards.name', 'default_cards.card_image_0', 'default_cards.card_image_1', 'default_cards.collector_number', 'default_cards.finishes', 'default_cards.artist_id', 'default_cards.set_id', 'default_cards.searchable_name')
+            ->limit(self::PRINTINGS_LIMIT)
             ->get()
             ->map(fn (DefaultCard $card): array => [
                 'oracle_id' => $card->oracle_id,

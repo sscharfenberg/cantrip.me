@@ -56,6 +56,7 @@ const showCompanionModal = ref(false);
 <style lang="scss" scoped>
 .deck-navigation-add {
     display: flex;
+    flex-wrap: wrap;
 
     gap: 1rem;
 }
