@@ -22,6 +22,11 @@ const emit = defineEmits<{
 /** The printing id of the card currently showing the zone picker. */
 const pickingZoneFor = ref<string | null>(null);
 
+/**
+ * Handle a click on a result card. When both zones have room we show the
+ * inline zone picker overlay; otherwise we add directly to whichever zone
+ * still accepts cards. No-ops while a prior add is still in flight.
+ */
 function onCardClick(result: DeckSearchResult) {
     if (props.adding || !result.printing) return;
     if (props.canAddToMain && props.canAddToSide) {
@@ -33,6 +38,7 @@ function onCardClick(result: DeckSearchResult) {
     }
 }
 
+/** Dismiss the zone picker and emit the add with the chosen zone. */
 function pickZone(result: DeckSearchResult, zone: string) {
     pickingZoneFor.value = null;
     emit("add", result, zone);

@@ -27,6 +27,7 @@ defineProps<{
     table: TableResponse<CollectionCardStackRow>;
     canCreateNewContainer: boolean;
 }>();
+/** Dismiss the container-actions popover. */
 const closePopover = () => {
     const dialog = document.getElementById(refId);
     if (dialog !== null) dialog.hidePopover();

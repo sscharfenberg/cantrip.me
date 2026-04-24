@@ -35,7 +35,13 @@ const onLocaleChange = async () => {
         }
     });
 };
+/** Resolve a locale code to the bundled flag SVG URL (Vite-rewritten at build). */
 const flagSrc = (lang: string): string => new URL(`../../../../assets/flags/${lang}.svg`, import.meta.url).href;
+/**
+ * Endonym label for a locale — always rendered in the target language (not
+ * the current UI language) so users recognise their native-tongue entry in
+ * the language menu regardless of the app's current locale.
+ */
 const localeLabel = (lang: string): string =>
     [
         { locale: "en", label: "English language" },

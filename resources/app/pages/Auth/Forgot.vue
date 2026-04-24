@@ -18,6 +18,7 @@ const types = [
     { value: "name", label: "pages.forgot.type.username", checked: false, icon: "account" }
 ];
 const type = ref(types.find(type => type.checked)?.value ?? "password");
+/** Switch between the password-reset and username-reminder request types. */
 const onChange = (ev: { target: { value: string } }) => {
     type.value = ev.target.value;
 };

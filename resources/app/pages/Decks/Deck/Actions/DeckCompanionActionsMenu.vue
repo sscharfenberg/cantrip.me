@@ -17,14 +17,21 @@ const popoverId = useId();
 const page = usePage();
 const removing = ref(false);
 const showSwitchPrintingModal = ref(false);
+/** Dismiss the popover menu via the native popover API. */
 function closePopover(): void {
     const el = document.getElementById(popoverId);
     if (el !== null) el.hidePopover();
 }
+/** Close the menu and open the switch-printing modal. */
 function openSwitchPrinting(): void {
     closePopover();
     showSwitchPrintingModal.value = true;
 }
+/**
+ * Remove the companion from the deck. `removing` guards against double-
+ * submits while the DELETE is in flight; cleared once the Inertia reload
+ * finishes so the button re-enables only after the UI reflects the new state.
+ */
 async function removeCompanion(): Promise<void> {
     if (removing.value) return;
     removing.value = true;
@@ -47,6 +54,7 @@ async function removeCompanion(): Promise<void> {
         },
     });
 }
+/** Swap the companion's display printing (its `default_card_id`). */
 async function switchPrinting(printing: DeckPrinting): Promise<void> {
     const response = await fetch(`/api/decks/${props.deckId}/companion/printing`, {
         method: "PATCH",

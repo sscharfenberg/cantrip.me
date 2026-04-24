@@ -25,7 +25,7 @@ watch(
     },
     { immediate: true }
 );
-// map toast types to icon names
+/** Map a toast severity level to its icon asset name. */
 function iconName(type: ToastType): string {
     switch (type) {
         case "success":

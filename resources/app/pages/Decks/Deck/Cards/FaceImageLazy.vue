@@ -17,6 +17,10 @@ const loaded = ref(false);
 const flipped = ref(false);
 /** True while the flip animation is running (prevents rapid double-clicks). */
 const animating = ref(false);
+/**
+ * Toggle between the front and back face. Guarded by `animating` so rapid
+ * clicks during the CSS flip transition don't stack state changes.
+ */
 function onFlip(): void {
     if (animating.value) return;
     animating.value = true;

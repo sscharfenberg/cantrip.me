@@ -19,6 +19,7 @@ export const COMPANION_NAMES = [
     "Zirda, the Dawnwaker",
 ] as const;
 
+/** True when the given oracle name is one of the ten Companion cards. */
 export function isCompanionCard(name: string): boolean {
     return (COMPANION_NAMES as readonly string[]).includes(name);
 }

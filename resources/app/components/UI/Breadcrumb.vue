@@ -7,6 +7,10 @@ import { useBreadcrumbs } from "Composables/useBreadcrumbs";
 const { t } = useI18n();
 const { crumbs } = useBreadcrumbs();
 
+/**
+ * Resolve a breadcrumb's displayed text: prefer the raw `label` if set,
+ * otherwise translate `labelKey` with any supplied interpolation params.
+ */
 function resolveLabel(crumb: (typeof crumbs.value)[number]): string {
     return crumb.label ?? t(crumb.labelKey ?? "", crumb.params ?? {});
 }

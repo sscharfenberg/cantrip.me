@@ -35,6 +35,7 @@ function onToggle(event: Event) {
         emit("close");
     }
 }
+/** Dismiss the popover when Escape is pressed (keyboard accessibility). */
 function onKeydown(event: KeyboardEvent) {
     if (event.key === "Escape") {
         popoverRef.value?.hidePopover();

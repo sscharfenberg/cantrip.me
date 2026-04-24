@@ -38,6 +38,12 @@ const tiles = computed<Tile[]>(() =>
         return { card, disabledReason: reason };
     })
 );
+/**
+ * Persist the chosen companion on the deck. On 422 the backend returns
+ * field errors — the first one becomes an inline error message. On success
+ * the Inertia partial reload refreshes deck + companion state before
+ * closing the modal.
+ */
 const pickCompanion = async (card: DeckCompanion): Promise<void> => {
     if (processing.value) return;
     processing.value = true;

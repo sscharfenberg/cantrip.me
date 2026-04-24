@@ -8,6 +8,7 @@ import type { Container } from "Types/container.ts";
 import type { ContainerListItem } from "Types/containerListItem.ts";
 import DeleteContainerModal from "./DeleteContainerModal.vue";
 import PruneContainerModal from "./PruneContainerModal.vue";
+/** Dismiss the container-menu popover after an action is chosen. */
 const closePopover = () => {
     const dialog = document.getElementById(refId);
     if (dialog !== null) dialog.hidePopover();

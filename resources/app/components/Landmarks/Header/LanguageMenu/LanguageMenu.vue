@@ -7,6 +7,7 @@ import LanguageMenuItem from "./LanguageMenuItem.vue";
 const page = usePage();
 const { locale } = useI18n();
 const supportedLocales = computed(() => page.props.supportedLocales);
+/** Dismiss the language menu popover after a language has been chosen. */
 const onClose = () => {
     const dialog = document.getElementById("languageMenu");
     if (dialog !== null) dialog.hidePopover();

@@ -31,6 +31,7 @@ const codeTypes = [
     { value: "2fa", label: "pages.login.2fa.toggle.2fa", checked: !showRecoveryCode.value },
     { value: "recovery", label: "pages.login.2fa.toggle.recovery", checked: showRecoveryCode.value }
 ];
+/** Flip between 2FA TOTP code and recovery code input based on the toggle. */
 const onCodeTypeChange = (event: Event) => {
     const value = (event.target as HTMLInputElement | null)?.value;
     showRecoveryCode.value = value === "recovery";

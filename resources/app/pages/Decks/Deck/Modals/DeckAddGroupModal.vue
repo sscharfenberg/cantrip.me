@@ -23,6 +23,7 @@ const inputRef = ref<HTMLInputElement | null>(null);
 onMounted(() => {
     nextTick(() => inputRef.value?.focus());
 });
+/** POST the new category name and close the modal on success. */
 const submit = () => {
     form.post(`/decks/${props.deckId}/categories`, {
         onSuccess: () => emit("close")

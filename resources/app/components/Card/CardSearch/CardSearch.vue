@@ -61,6 +61,10 @@ if (props.initialCard) {
     refValue.value = props.initialCard.id;
 }
 const searchInput = useTemplateRef<HTMLInputElement>("searchInput");
+/**
+ * Clear the current selection, notify the parent, and re-focus the search
+ * input on the next tick so the user can immediately start typing again.
+ */
 function onClearAndFocus() {
     onClearSelection();
     emit("cleared");

@@ -8,6 +8,7 @@ defineProps<{
     icon?: string;
 }>();
 const emit = defineEmits(["change"]);
+/** Forward the native change event to the parent form group. */
 const onChange = (ev: Event) => emit("change", ev);
 </script>
 

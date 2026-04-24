@@ -12,6 +12,7 @@ const password = ref("");
 const passwordRef = ref<HTMLInputElement | null>(null);
 onMounted(() => passwordRef.value?.focus());
 const { processing, passwordError, deleteAccount } = useDeleteAccount();
+/** Submit the current password to the delete-account endpoint. */
 const onSubmit = () => deleteAccount(password.value);
 </script>
 
