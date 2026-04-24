@@ -122,16 +122,27 @@ abstract class CompanionProfile
         return array_keys($subtypes);
     }
 
+    /**
+     * True when any face of the card carries the Land card type. Dual-type
+     * cards like Dryad Arbor (Land Creature) count as lands here.
+     */
     protected function isLand(OracleCard $card): bool
     {
         return in_array('Land', $this->cardTypes($card), true);
     }
 
+    /**
+     * True when any face's card types include a permanent type (see
+     * {@see self::PERMANENT_TYPES}). Instants and sorceries return false.
+     */
     protected function isPermanent(OracleCard $card): bool
     {
         return array_intersect(self::PERMANENT_TYPES, $this->cardTypes($card)) !== [];
     }
 
+    /**
+     * True when any face of the card is a Creature.
+     */
     protected function isCreature(OracleCard $card): bool
     {
         return in_array('Creature', $this->cardTypes($card), true);

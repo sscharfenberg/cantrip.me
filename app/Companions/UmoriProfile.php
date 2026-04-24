@@ -15,11 +15,22 @@ use App\Models\Deck;
  */
 final class UmoriProfile extends CompanionProfile
 {
+    /**
+     * {@inheritDoc}
+     */
     public function messageKey(): string
     {
         return 'umori';
     }
 
+    /**
+     * Compute the running intersection of card types across all nonland
+     * cards in the main deck. If it collapses to empty, report every
+     * nonland deck_card row — the user needs to pick a shared type and
+     * pruning which cards "are wrong" depends on that choice.
+     *
+     * A deck with zero nonland cards is vacuously legal.
+     */
     public function validate(Deck $deck): ?array
     {
         $mainCards = $this->mainDeckCards($deck);

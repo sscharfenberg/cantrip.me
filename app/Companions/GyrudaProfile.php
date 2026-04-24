@@ -7,14 +7,27 @@ use App\Models\Deck;
 /**
  * Gyruda, Doom of Depths — "Each card in your starting deck has an even
  * converted mana cost or is a land."
+ *
+ * Uses `oracle_cards.cmc` directly (Scryfall's pre-computed mana value), so
+ * split cards get the combined value and MDFCs the front face — both matching
+ * the official deckbuilding reading of "mana value" for this restriction.
  */
 final class GyrudaProfile extends CompanionProfile
 {
+    /**
+     * {@inheritDoc}
+     */
     public function messageKey(): string
     {
         return 'gyruda';
     }
 
+    /**
+     * Flag every non-land main-deck card whose mana value is odd. A mana
+     * value of 0 (typical for lands or cards like Ancestral Vision when
+     * reduced) is even and therefore passes — but the land short-circuit
+     * runs first anyway.
+     */
     public function validate(Deck $deck): ?array
     {
         $ids = [];

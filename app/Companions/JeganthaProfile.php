@@ -23,11 +23,19 @@ use App\Models\OracleCard;
  */
 final class JeganthaProfile extends CompanionProfile
 {
+    /**
+     * {@inheritDoc}
+     */
     public function messageKey(): string
     {
         return 'jegantha';
     }
 
+    /**
+     * Flag each main-deck card whose mana cost on any face has two or more
+     * of the same colored mana symbol (hybrid and phyrexian pips counting
+     * as their colored components).
+     */
     public function validate(Deck $deck): ?array
     {
         $ids = [];
@@ -40,6 +48,11 @@ final class JeganthaProfile extends CompanionProfile
         return $ids === [] ? null : ['card_ids' => $ids];
     }
 
+    /**
+     * True when any single face of the card breaks the rule. Faces are
+     * checked independently so a split card with `{R}` on one half and
+     * `{R}` on the other still passes.
+     */
     private function violates(OracleCard $card): bool
     {
         foreach ($this->manaCosts($card) as $cost) {
@@ -51,6 +64,12 @@ final class JeganthaProfile extends CompanionProfile
         return false;
     }
 
+    /**
+     * Tally colored-pip occurrences on one face's mana cost. Hybrid `{W/U}`
+     * contributes to both W and U; phyrexian `{W/P}` and monocolored
+     * hybrid `{2/W}` each contribute to their single colored component.
+     * Any count above 1 trips the rule.
+     */
     private function faceViolates(string $manaCost): bool
     {
         $counts = ['W' => 0, 'U' => 0, 'B' => 0, 'R' => 0, 'G' => 0];

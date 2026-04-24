@@ -14,11 +14,18 @@ use App\Models\Deck;
  */
 final class LurrusProfile extends CompanionProfile
 {
+    /**
+     * {@inheritDoc}
+     */
     public function messageKey(): string
     {
         return 'lurrus';
     }
 
+    /**
+     * Flag every permanent card in the main deck with mana value 3 or more.
+     * Non-permanents (Instant, Sorcery) are skipped entirely.
+     */
     public function validate(Deck $deck): ?array
     {
         $ids = [];

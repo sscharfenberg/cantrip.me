@@ -43,11 +43,18 @@ final class ZirdaProfile extends CompanionProfile
         'Fortify',
     ];
 
+    /**
+     * {@inheritDoc}
+     */
     public function messageKey(): string
     {
         return 'zirda';
     }
 
+    /**
+     * Flag each permanent card that lacks a detectable activated ability.
+     * Non-permanents (Instant, Sorcery) are skipped.
+     */
     public function validate(Deck $deck): ?array
     {
         $ids = [];
@@ -65,6 +72,12 @@ final class ZirdaProfile extends CompanionProfile
         return $ids === [] ? null : ['card_ids' => $ids];
     }
 
+    /**
+     * True when the card exposes an activated ability via printed cost (a
+     * surviving `:` after reminder-text removal) or via one of the known
+     * activated keyword abilities. See the class docblock for why the two
+     * passes are both needed.
+     */
     private function hasActivatedAbility(OracleCard $card): bool
     {
         $text = $this->oracleText($card);

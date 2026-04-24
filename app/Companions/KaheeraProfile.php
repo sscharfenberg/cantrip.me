@@ -14,13 +14,22 @@ use App\Models\Deck;
  */
 final class KaheeraProfile extends CompanionProfile
 {
+    /** Creature subtypes Kaheera's restriction accepts. */
     private const ALLOWED_TRIBES = ['Cat', 'Elemental', 'Nightmare', 'Dinosaur', 'Beast'];
 
+    /**
+     * {@inheritDoc}
+     */
     public function messageKey(): string
     {
         return 'kaheera';
     }
 
+    /**
+     * Flag each creature card whose subtypes (across all faces) include none
+     * of the allowed tribes. Non-creatures are skipped; a land-creature like
+     * Dryad Arbor is still checked as a creature.
+     */
     public function validate(Deck $deck): ?array
     {
         $ids = [];

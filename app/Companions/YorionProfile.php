@@ -14,11 +14,20 @@ use App\Models\Deck;
  */
 final class YorionProfile extends CompanionProfile
 {
+    /**
+     * {@inheritDoc}
+     */
     public function messageKey(): string
     {
         return 'yorion';
     }
 
+    /**
+     * Sum main-deck copies (respecting `quantity`), add commanders when the
+     * format uses them, compare against `minDeckSize() + 20`. Returns the
+     * `current/min` pair when short so the legality panel can render the
+     * concrete numbers.
+     */
     public function validate(Deck $deck): ?array
     {
         $profile = $deck->format->rules();
