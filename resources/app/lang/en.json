@@ -686,7 +686,19 @@
                 "color_identity": "{count} card violates the commander's color identity. | {count} cards violate the commander's color identity.",
                 "deck_size_min": "Main deck has {current} cards - minimum is {min}.",
                 "deck_size_max": "Main deck has {current} cards - maximum is {max}.",
-                "sideboard_size_max": "Sideboard has {current} cards — maximum is {max}."
+                "sideboard_size_max": "Sideboard has {current} cards — maximum is {max}.",
+                "companion_restriction": {
+                    "gyruda": "{count} card violates Gyruda's restriction (even mana value or land). | {count} cards violate Gyruda's restriction (even mana value or land).",
+                    "jegantha": "{count} card violates Jegantha's restriction (no repeated colored mana symbol). | {count} cards violate Jegantha's restriction (no repeated colored mana symbol).",
+                    "kaheera": "{count} creature is not one of Kaheera's allowed tribes (Cat, Elemental, Nightmare, Dinosaur, Beast). | {count} creatures are not one of Kaheera's allowed tribes (Cat, Elemental, Nightmare, Dinosaur, Beast).",
+                    "keruga": "{count} card violates Keruga's restriction (mana value 3+ or land). | {count} cards violate Keruga's restriction (mana value 3+ or land).",
+                    "lurrus": "{count} permanent card exceeds Lurrus's mana value 2 limit. | {count} permanent cards exceed Lurrus's mana value 2 limit.",
+                    "lutri": "{count} card violates Lutri's singleton restriction. | {count} cards violate Lutri's singleton restriction.",
+                    "obosh": "{count} card violates Obosh's restriction (odd mana value or land). | {count} cards violate Obosh's restriction (odd mana value or land).",
+                    "umori": "{count} nonland card breaks Umori's shared-type restriction. | {count} nonland cards break Umori's shared-type restriction.",
+                    "yorion": "Yorion requires at least {min} cards in your starting deck — your deck has {current}.",
+                    "zirda": "{count} permanent card has no activated ability (Zirda). | {count} permanent cards have no activated ability (Zirda)."
+                }
             },
             "companion": {
                 "heading": "Companion",

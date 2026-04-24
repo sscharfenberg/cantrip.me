@@ -49,7 +49,34 @@ const violationNames = (cardIds: string[]): string => {
                 <li v-for="(violation, index) in violations" :key="index" class="legality-panel__row">
                     <icon name="error" :size="1" :additional-classes="['legality-panel__icon']" />
                     <span>
-                        <template v-if="'card_ids' in violation">
+                        <template v-if="violation.type === 'companion_restriction'">
+                            <template v-if="'card_ids' in violation">
+                                <i18n-t
+                                    :keypath="`pages.deck.legality.companion_restriction.${violation.message_key}`"
+                                    scope="global"
+                                    :plural="violation.card_ids.length"
+                                >
+                                    <template #count
+                                        ><strong>{{ violation.card_ids.length }}</strong></template
+                                    >
+                                </i18n-t>
+                                <span class="legality-panel__names">{{ violationNames(violation.card_ids) }}</span>
+                            </template>
+                            <template v-else>
+                                <i18n-t
+                                    keypath="pages.deck.legality.companion_restriction.yorion"
+                                    scope="global"
+                                >
+                                    <template #current
+                                        ><strong>{{ violation.current }}</strong></template
+                                    >
+                                    <template #min
+                                        ><strong>{{ violation.min }}</strong></template
+                                    >
+                                </i18n-t>
+                            </template>
+                        </template>
+                        <template v-else-if="'card_ids' in violation">
                             <i18n-t
                                 :keypath="`pages.deck.legality.${violation.type}`"
                                 scope="global"

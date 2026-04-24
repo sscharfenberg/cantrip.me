@@ -49,4 +49,27 @@ final class CompanionRegistry
     {
         return in_array($card->name, self::NAMES, true);
     }
+
+    /**
+     * Return the validation profile for the given companion oracle card.
+     *
+     * Null when the card is not one of the ten companions (defensive — callers
+     * should already have confirmed via {@see isCompanion()}).
+     */
+    public static function profileFor(OracleCard $card): ?CompanionProfile
+    {
+        return match ($card->name) {
+            'Gyruda, Doom of Depths' => new GyrudaProfile,
+            'Jegantha, the Wellspring' => new JeganthaProfile,
+            'Kaheera, the Orphanguard' => new KaheeraProfile,
+            'Keruga, the Macrosage' => new KerugaProfile,
+            'Lurrus of the Dream-Den' => new LurrusProfile,
+            'Lutri, the Spellchaser' => new LutriProfile,
+            'Obosh, the Preypiercer' => new OboshProfile,
+            'Umori, the Collector' => new UmoriProfile,
+            'Yorion, Sky Nomad' => new YorionProfile,
+            'Zirda, the Dawnwaker' => new ZirdaProfile,
+            default => null,
+        };
+    }
 }

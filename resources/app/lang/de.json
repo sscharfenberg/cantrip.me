@@ -686,7 +686,19 @@
                 "color_identity": "{count} Karte verletzt die Farbidentität des Commanders. | {count} Karten verletzen die Farbidentität des Commanders.",
                 "deck_size_min": "Das Hauptdeck hat {current} Karten – mindestens erforderlich sind {min}.",
                 "deck_size_max": "Das Hauptdeck hat {current} Karten – maximal erlaubt sind {max}.",
-                "sideboard_size_max": "Das Sideboard hat {current} Karten – maximal erlaubt sind {max}."
+                "sideboard_size_max": "Das Sideboard hat {current} Karten – maximal erlaubt sind {max}.",
+                "companion_restriction": {
+                    "gyruda": "{count} Karte verletzt Gyrudas Einschränkung (gerade Manakosten oder Land). | {count} Karten verletzen Gyrudas Einschränkung (gerade Manakosten oder Land).",
+                    "jegantha": "{count} Karte verletzt Jeganthas Einschränkung (kein farbiges Mana-Symbol mehrfach). | {count} Karten verletzen Jeganthas Einschränkung (kein farbiges Mana-Symbol mehrfach).",
+                    "kaheera": "{count} Kreatur gehört nicht zu Kaheeras erlaubten Stämmen (Katze, Elementarwesen, Albtraum, Dinosaurier, Bestie). | {count} Kreaturen gehören nicht zu Kaheeras erlaubten Stämmen (Katze, Elementarwesen, Albtraum, Dinosaurier, Bestie).",
+                    "keruga": "{count} Karte verletzt Kerugas Einschränkung (Manakosten 3+ oder Land). | {count} Karten verletzen Kerugas Einschränkung (Manakosten 3+ oder Land).",
+                    "lurrus": "{count} bleibende Karte überschreitet Lurrus' Manakosten-Limit von 2. | {count} bleibende Karten überschreiten Lurrus' Manakosten-Limit von 2.",
+                    "lutri": "{count} Karte verletzt Lutris Singleton-Einschränkung. | {count} Karten verletzen Lutris Singleton-Einschränkung.",
+                    "obosh": "{count} Karte verletzt Oboshs Einschränkung (ungerade Manakosten oder Land). | {count} Karten verletzen Oboshs Einschränkung (ungerade Manakosten oder Land).",
+                    "umori": "{count} Nicht-Land-Karte bricht Umoris gemeinsamer-Kartentyp-Einschränkung. | {count} Nicht-Land-Karten brechen Umoris gemeinsamer-Kartentyp-Einschränkung.",
+                    "yorion": "Yorion benötigt mindestens {min} Karten im Startdeck — dein Deck hat {current}.",
+                    "zirda": "{count} bleibende Karte hat keine aktivierte Fähigkeit (Zirda). | {count} bleibende Karten haben keine aktivierte Fähigkeit (Zirda)."
+                }
             },
             "companion": {
                 "heading": "Gefährte",

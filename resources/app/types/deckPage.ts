@@ -65,12 +65,27 @@ export interface DeckCategoryRow {
     name: string;
 }
 
+/** i18n suffix identifying which companion's rule was broken. */
+export type CompanionMessageKey =
+    | "gyruda"
+    | "jegantha"
+    | "kaheera"
+    | "keruga"
+    | "lurrus"
+    | "lutri"
+    | "obosh"
+    | "umori"
+    | "yorion"
+    | "zirda";
+
 /**
  * A single legality violation on the deck.
  *
- * Per-card violations (`pool_legality`, `copy_limit`, `color_identity`) carry
- * the offending deck_card IDs. Deck-level violations (`deck_size_min`,
- * `deck_size_max`, `sideboard_size_max`) carry the comparison numbers.
+ * Per-card violations (`pool_legality`, `copy_limit`, `color_identity`, and
+ * most `companion_restriction` flavors) carry the offending deck_card IDs.
+ * Deck-level violations (`deck_size_min`, `deck_size_max`,
+ * `sideboard_size_max`, Yorion's `companion_restriction`) carry the
+ * comparison numbers.
  */
 export type DeckViolation =
     | { type: "pool_legality"; card_ids: string[] }
@@ -78,7 +93,9 @@ export type DeckViolation =
     | { type: "color_identity"; card_ids: string[] }
     | { type: "deck_size_min"; current: number; min: number }
     | { type: "deck_size_max"; current: number; max: number }
-    | { type: "sideboard_size_max"; current: number; max: number };
+    | { type: "sideboard_size_max"; current: number; max: number }
+    | { type: "companion_restriction"; message_key: CompanionMessageKey; card_ids: string[] }
+    | { type: "companion_restriction"; message_key: "yorion"; current: number; min: number };
 
 /**
  * One result row returned by the deck card search API.

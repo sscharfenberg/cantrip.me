@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Companions\CompanionRegistry;
 use App\Enums\CardLegality;
 use App\Enums\DeckZone;
 use App\Formats\FormatProfile;
@@ -86,7 +87,41 @@ final class DeckValidator
             ];
         }
 
+        $companionViolation = self::companionRestrictionViolation($deck);
+        if ($companionViolation !== null) {
+            $violations[] = $companionViolation;
+        }
+
         return $violations;
+    }
+
+    /**
+     * Run the current companion's deckbuilding restriction, if any.
+     *
+     * Returns the violation payload keyed by the companion's `messageKey()`
+     * so the frontend can render a per-companion message. Yields `null`
+     * when the deck has no companion, the companion is not one of the ten
+     * known ones, or the restriction is satisfied.
+     *
+     * @return array{type: string, message_key: string, card_ids?: array<int, string>, current?: int, min?: int}|null
+     */
+    private static function companionRestrictionViolation(Deck $deck): ?array
+    {
+        if ($deck->companion === null) {
+            return null;
+        }
+
+        $profile = CompanionRegistry::profileFor($deck->companion);
+        if ($profile === null) {
+            return null;
+        }
+
+        $result = $profile->validate($deck);
+        if ($result === null) {
+            return null;
+        }
+
+        return ['type' => 'companion_restriction', 'message_key' => $profile->messageKey()] + $result;
     }
 
     /**
