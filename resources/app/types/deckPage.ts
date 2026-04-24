@@ -112,6 +112,14 @@ export interface DeckSearchResult {
     name: string;
     cmc: number;
     color_identity: string | null;
+    /**
+     * True when adding this card would break the deck's current companion
+     * restriction. Soft signal — the add is not blocked, the frontend just
+     * renders a warning badge. Always `false` (or absent) when the deck has
+     * no companion, and always `false` for Lutri/Umori/Yorion profiles for
+     * now (they need deck-state and haven't been wired through).
+     */
+    violates_companion?: boolean;
     printing: DefaultCardImage | null;
 }
 

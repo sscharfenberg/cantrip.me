@@ -48,6 +48,11 @@ final class JeganthaProfile extends CompanionProfile
         return $ids === [] ? null : ['card_ids' => $ids];
     }
 
+    public function failsAddingCard(Deck $deck, OracleCard $card): bool
+    {
+        return $this->violates($card);
+    }
+
     /**
      * True when any single face of the card breaks the rule. Faces are
      * checked independently so a split card with `{R}` on one half and

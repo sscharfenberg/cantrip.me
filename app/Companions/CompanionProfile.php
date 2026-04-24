@@ -55,6 +55,20 @@ abstract class CompanionProfile
     abstract public function validate(Deck $deck): ?array;
 
     /**
+     * True when adding the given card to the deck would break this
+     * companion's rule. Used for the pre-add soft-warning badge in the
+     * card search modal. Deck-size-only rules (Yorion) always return
+     * false — adding a card only helps a too-small deck. Deck-state
+     * rules (Lutri, Umori) currently return the default false — they
+     * would need extra deck relations eager-loaded; revisit if the
+     * warning proves useful for the others first.
+     */
+    public function failsAddingCard(Deck $deck, OracleCard $card): bool
+    {
+        return false;
+    }
+
+    /**
      * All deck_cards in the main zone.
      *
      * @return Collection<int, DeckCard>

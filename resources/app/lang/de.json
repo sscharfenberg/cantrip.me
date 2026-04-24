@@ -709,7 +709,7 @@
                     "title": "Gefährten wählen"
                 },
                 "disabled": {
-                    "banned": "Dieser Gefährte ist in diesem Format verboten.",
+                    "banned": "Als Gefährte in {format} verboten.",
                     "color_identity": "Außerhalb der Farbidentität der Commander."
                 },
                 "restrictions": {
@@ -799,7 +799,8 @@
                 "include_non_legal": "Nicht legale Karten einschließen",
                 "submit": "Suchen",
                 "no_results": "Keine Karten gefunden.",
-                "added": "{name} zum {zone} hinzugefügt."
+                "added": "{name} zum {zone} hinzugefügt.",
+                "companion_warning": "Diese Karte würde die Einschränkung deines Gefährten brechen."
             },
             "quick_add": {
                 "label": "Quick add"
@@ -993,6 +994,7 @@
             "background_tooltip": "Hintergrund wählen — du kannst einen Hintergrund als zweiten Commander auswählen",
             "include_rule0": "Einschließlich Rule 0 / nicht-legale Commander",
             "selected": "Ausgewählter Commander",
+            "is_also_companion_hint": "{name} ist außerdem eine „Gefährten\"-Karte. Als Commander zählt sie nicht automatisch als dein Gefährte — du kannst trotzdem einen separaten Gefährten zu diesem Deck hinzufügen.",
             "change": "Ändern",
             "change_commander_and_partner": "Commander und Partner ändern",
             "change_commander_and_friends_forever": "Commander und Freund ändern",

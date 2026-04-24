@@ -1,7 +1,8 @@
 import type { ComputedRef, MaybeRefOrGetter, Ref } from "vue";
 import { computed, toValue } from "vue";
-import { compareCards, useDeckGrouping } from "Composables/useDeckGrouping.ts";
-import type { DeckCardGroup } from "Composables/useDeckGrouping.ts";
+import { compareCards } from "@/utils/deckGrouping";
+import type { DeckCardGroup } from "@/utils/deckGrouping";
+import { useDeckGrouping } from "Composables/useDeckGrouping.ts";
 import type { DeckSort } from "Composables/useDeckSort.ts";
 import type { DeckCardRow, DeckCategoryRow, DeckCommander, DeckCompanion } from "Types/deckPage";
 

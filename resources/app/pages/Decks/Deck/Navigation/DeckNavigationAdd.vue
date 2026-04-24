@@ -44,6 +44,7 @@ const showCompanionModal = ref(false);
         <add-companion-modal
             v-if="showCompanionModal"
             :deck-id="deck.id"
+            :format="deck.format"
             :roster="companionRoster"
             :banned-as-companion="deck.banned_as_companion"
             :enforces-color-identity="deck.enforces_color_identity"

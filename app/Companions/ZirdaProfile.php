@@ -72,6 +72,11 @@ final class ZirdaProfile extends CompanionProfile
         return $ids === [] ? null : ['card_ids' => $ids];
     }
 
+    public function failsAddingCard(Deck $deck, OracleCard $card): bool
+    {
+        return $this->isPermanent($card) && ! $this->hasActivatedAbility($card);
+    }
+
     /**
      * True when the card exposes an activated ability via printed cost (a
      * surviving `:` after reminder-text removal) or via one of the known

@@ -59,7 +59,7 @@ const {
 const { sections, dragTargets } = useDeckSections(
     () => props.cards,
     () => props.commanders,
-    () => props.companion,
+    () => (props.deck.allows_companion ? props.companion : null),
     () => props.categories,
     () => props.sortMode,
     t,

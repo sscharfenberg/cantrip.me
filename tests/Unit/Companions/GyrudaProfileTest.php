@@ -36,4 +36,18 @@ class GyrudaProfileTest extends TestCase
 
         $this->assertSame(['card_ids' => [$offending->id]], $result);
     }
+
+    #[Test]
+    public function fails_adding_nonland_with_odd_cmc(): void
+    {
+        $profile = new GyrudaProfile;
+        $deck = $this->makeDeck([]);
+        $bolt = $this->makeOracleCard('Lightning Bolt', 1.0, 'Instant');
+        $counter = $this->makeOracleCard('Counterspell', 2.0, 'Instant');
+        $land = $this->makeOracleCard('Plains', 0.0, 'Basic Land — Plains');
+
+        $this->assertTrue($profile->failsAddingCard($deck, $bolt));
+        $this->assertFalse($profile->failsAddingCard($deck, $counter));
+        $this->assertFalse($profile->failsAddingCard($deck, $land));
+    }
 }

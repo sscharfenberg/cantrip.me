@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref, useTemplateRef, watch } from "vue";
+import { isCompanionCard } from "@/utils/companionNames";
 import SearchSyntax from "Components/Card/SearchSyntax.vue";
 import type { CommanderResult } from "Components/Deck/ShowCommanderOverview.vue";
 import ShowCommanderOverview from "Components/Deck/ShowCommanderOverview.vue";
@@ -195,6 +196,14 @@ const clearCompanion = async () => {
 };
 /** True while any API request (commander or companion) is in flight. */
 const processing = computed(() => loading.value || companionLoading.value);
+/**
+ * True when the picked commander is one of the ten "Companion" keyword cards.
+ * Used to surface a helper note clarifying that using one as commander does
+ * NOT make it your companion — a separate companion may still be attached.
+ */
+const commanderIsCompanionCard = computed(
+    () => selected.value !== null && isCompanionCard(selected.value.name)
+);
 /** True when a commander has been selected. Partner/background/partner-with are all optional. */
 const canSubmit = computed(() => !!selected.value);
 /** Emit the confirmed command zone and close the modal. */
@@ -215,6 +224,9 @@ const onConfirm = () => {
                         <show-commander-overview tooltip-container="#modal" :card="selected" />
                     </div>
                 </form-group>
+                <paragraph v-if="commanderIsCompanionCard">
+                    {{ $t("components.commander_picker.is_also_companion_hint", { name: selected.name }) }}
+                </paragraph>
                 <form-group>
                     <button type="button" class="btn-default" @click="clearSelection">
                         <icon name="register" />

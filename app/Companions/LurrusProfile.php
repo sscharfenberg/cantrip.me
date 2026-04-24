@@ -3,6 +3,7 @@
 namespace App\Companions;
 
 use App\Models\Deck;
+use App\Models\OracleCard;
 
 /**
  * Lurrus of the Dream-Den — "Each permanent card in your starting deck has
@@ -41,5 +42,10 @@ final class LurrusProfile extends CompanionProfile
         }
 
         return $ids === [] ? null : ['card_ids' => $ids];
+    }
+
+    public function failsAddingCard(Deck $deck, OracleCard $card): bool
+    {
+        return $this->isPermanent($card) && (float) $card->cmc > 2.0;
     }
 }

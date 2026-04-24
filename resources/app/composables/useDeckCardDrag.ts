@@ -1,8 +1,8 @@
 import { router } from "@inertiajs/vue3";
 import type { Ref } from "vue";
 import { ref } from "vue";
-import { resolveGroup } from "Composables/useDeckGrouping.ts";
-import type { DeckCardGroup } from "Composables/useDeckGrouping.ts";
+import { resolveGroup } from "@/utils/deckGrouping";
+import type { DeckCardGroup } from "@/utils/deckGrouping";
 import type { CardSection } from "Composables/useDeckSections.ts";
 import type { DeckCardRow } from "Types/deckPage";
 

@@ -3,6 +3,7 @@
 namespace App\Companions;
 
 use App\Models\Deck;
+use App\Models\OracleCard;
 
 /**
  * Gyruda, Doom of Depths — "Each card in your starting deck has an even
@@ -43,5 +44,10 @@ final class GyrudaProfile extends CompanionProfile
         }
 
         return $ids === [] ? null : ['card_ids' => $ids];
+    }
+
+    public function failsAddingCard(Deck $deck, OracleCard $card): bool
+    {
+        return ! $this->isLand($card) && ((int) $card->cmc) % 2 !== 0;
     }
 }

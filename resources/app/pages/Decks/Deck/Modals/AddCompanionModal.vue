@@ -8,6 +8,8 @@ import type { DeckCompanion } from "Types/deckPage";
 const emit = defineEmits<{ close: [] }>();
 const props = defineProps<{
     deckId: string;
+    /** Deck format key (e.g. "commander") — used to name the format in banned tooltips. */
+    format: string;
     roster: DeckCompanion[];
     bannedAsCompanion: string[];
     enforcesColorIdentity: boolean;
@@ -27,7 +29,9 @@ const tiles = computed<Tile[]>(() =>
     props.roster.map((card) => {
         let reason: string | null = null;
         if (props.bannedAsCompanion.includes(card.name)) {
-            reason = t("pages.deck.companion.disabled.banned");
+            reason = t("pages.deck.companion.disabled.banned", {
+                format: t(`enums.card_formats.${props.format}`),
+            });
         } else if (props.enforcesColorIdentity && !isSubsetCI(card.color_identity, props.commanderColorIdentity)) {
             reason = t("pages.deck.companion.disabled.color_identity");
         }

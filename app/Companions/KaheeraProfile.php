@@ -3,6 +3,7 @@
 namespace App\Companions;
 
 use App\Models\Deck;
+use App\Models\OracleCard;
 
 /**
  * Kaheera, the Orphanguard — "Each creature card in your starting deck is a
@@ -45,5 +46,11 @@ final class KaheeraProfile extends CompanionProfile
         }
 
         return $ids === [] ? null : ['card_ids' => $ids];
+    }
+
+    public function failsAddingCard(Deck $deck, OracleCard $card): bool
+    {
+        return $this->isCreature($card)
+            && array_intersect(self::ALLOWED_TRIBES, $this->subtypes($card)) === [];
     }
 }

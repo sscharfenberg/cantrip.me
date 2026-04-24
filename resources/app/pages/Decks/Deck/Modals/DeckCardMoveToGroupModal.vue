@@ -3,10 +3,10 @@ import { router } from "@inertiajs/vue3";
 import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import DeckAddGroupModal from "@/pages/Decks/Deck/Modals/DeckAddGroupModal.vue";
+import { resolveGroup } from "@/utils/deckGrouping";
 import Modal from "Components/Modal/Modal.vue";
 import Icon from "Components/UI/Icon.vue";
 import Paragraph from "Components/UI/Paragraph.vue";
-import { resolveGroup } from "Composables/useDeckGrouping.ts";
 import type { DeckCardRow, DeckCategoryRow } from "Types/deckPage";
 const emit = defineEmits<{ close: [] }>();
 const props = defineProps<{

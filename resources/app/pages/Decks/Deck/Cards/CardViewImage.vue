@@ -5,9 +5,9 @@ import DeckCardActionsMenu from "@/pages/Decks/Deck/Actions/DeckCardActionsMenu.
 import DeckGroupHeadline from "@/pages/Decks/Deck/Cards/DeckGroupHeadline.vue";
 import FaceImageLazy from "@/pages/Decks/Deck/Cards/FaceImageLazy.vue";
 import CompanionSection from "@/pages/Decks/Deck/Companion/CompanionSection.vue";
+import type { DeckCardGroup } from "@/utils/deckGrouping";
 import Icon from "Components/UI/Icon.vue";
 import Paragraph from "Components/UI/Paragraph.vue";
-import type { DeckCardGroup } from "Composables/useDeckGrouping.ts";
 import { useDeckSections } from "Composables/useDeckSections.ts";
 import type { DeckSort } from "Composables/useDeckSort.ts";
 import type { DeckCardRow, DeckCategoryRow, DeckCommander, DeckCompanion, DeckMeta } from "Types/deckPage";
@@ -59,7 +59,7 @@ const { allGroups } = useDeckSections(
                 />
             </ul>
         </section>
-        <section v-if="companion" class="image-card-group">
+        <section v-if="deck.allows_companion && companion" class="image-card-group">
             <deck-group-headline>{{ $t("pages.deck.companion.heading") }}</deck-group-headline>
             <companion-section :deck-id="deck.id" :companion="companion" variant="image" />
         </section>

@@ -3,6 +3,7 @@ import { computed, onUnmounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import CardFaceImage from "Components/Card/CardFaceImage.vue";
 import NumVisible from "Components/Card/CardSearch/NumVisible.vue";
+import Icon from "Components/UI/Icon.vue";
 import type { DeckSearchResult } from "Types/deckPage.ts";
 
 const { t } = useI18n();
@@ -85,6 +86,13 @@ onUnmounted(() => observer?.disconnect());
             @click="onCardClick(result)"
         >
             <card-face-image v-if="result.printing" :card="result.printing" interactive tooltip-container="#modal" />
+            <span
+                v-if="result.violates_companion"
+                v-tooltip="{ content: t('pages.deck.add.companion_warning'), container: '#modal' }"
+                class="card-add-results__companion-warning"
+            >
+                <icon name="warning" :size="2" />
+            </span>
             <div v-if="pickingZoneFor === result.printing?.id" class="card-add-results__zone-picker">
                 <button type="button" @click.stop="pickZone(result, 'main')">
                     {{ t("enums.zone.main") }}
@@ -164,6 +172,28 @@ onUnmounted(() => observer?.disconnect());
 
     &__sentinel {
         height: 1px;
+    }
+
+    // Soft-warning badge anchored to the top-right corner of the card face
+    // when `violates_companion` is set. Non-blocking — the user can still
+    // add the card (maybe they plan to swap companions after).
+    &__companion-warning {
+        display: flex;
+        position: absolute;
+        top: 0.25rem;
+        right: 0.25rem;
+        z-index: map.get(z.$index, "select");
+        align-items: center;
+        justify-content: center;
+
+        width: 1.75rem;
+        height: 1.75rem;
+
+        background-color: map.get(c.$state, "warning", "background");
+        color: map.get(c.$state, "warning", "surface");
+        border-radius: 50%;
+
+        pointer-events: auto;
     }
 }
 

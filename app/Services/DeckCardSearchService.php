@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Companions\CompanionRegistry;
 use App\Enums\Finish;
 use App\Models\Deck;
 use App\Models\DefaultCard;
@@ -183,6 +184,18 @@ final class DeckCardSearchService
             return [];
         }
 
+        // Resolve the companion's profile once (if any). Each result is
+        // probed against `failsAddingCard()` so the frontend can render a
+        // soft warning badge on cards that would break the rule.
+        $deck->loadMissing('companion');
+        $companionProfile = $deck->companion !== null
+            ? CompanionRegistry::profileFor($deck->companion)
+            : null;
+
+        $oracleSelect = $companionProfile !== null
+            ? ['oracle:id,name,cmc,color_identity', 'oracle.faces:oracle_card_id,face_index,type_line,mana_cost,oracle_text']
+            : ['oracle:id,name,cmc,color_identity'];
+
         $query = DefaultCard::query()
             ->whereHas('oracle', function (Builder $q) use ($deck, $includeNonLegal): void {
                 if (! $includeNonLegal) {
@@ -190,7 +203,7 @@ final class DeckCardSearchService
                 }
                 self::applyColorIdentityFilter($q, $deck);
             })
-            ->with(['set:id,name,code,path', 'oracle:id,name,cmc,color_identity', 'artist:id,name']);
+            ->with(array_merge(['set:id,name,code,path', 'artist:id,name'], $oracleSelect));
 
         if ($parsed['set_code']) {
             $query->whereHas('set', fn (Builder $q) => $q->where('code', $parsed['set_code']));
@@ -212,6 +225,9 @@ final class DeckCardSearchService
                 'name' => $card->oracle?->name ?? $card->name,
                 'cmc' => (float) ($card->oracle?->cmc ?? 0),
                 'color_identity' => $card->oracle?->color_identity,
+                'violates_companion' => $companionProfile !== null
+                    && $card->oracle !== null
+                    && $companionProfile->failsAddingCard($deck, $card->oracle),
                 'printing' => [
                     'id' => $card->id,
                     'name' => $card->name,

@@ -3,6 +3,7 @@
 namespace App\Companions;
 
 use App\Models\Deck;
+use App\Models\OracleCard;
 
 /**
  * Obosh, the Preypiercer — "Each card in your starting deck has an odd
@@ -40,5 +41,10 @@ final class OboshProfile extends CompanionProfile
         }
 
         return $ids === [] ? null : ['card_ids' => $ids];
+    }
+
+    public function failsAddingCard(Deck $deck, OracleCard $card): bool
+    {
+        return ! $this->isLand($card) && ((int) $card->cmc) % 2 !== 1;
     }
 }

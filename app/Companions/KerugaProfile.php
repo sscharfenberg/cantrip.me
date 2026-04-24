@@ -3,6 +3,7 @@
 namespace App\Companions;
 
 use App\Models\Deck;
+use App\Models\OracleCard;
 
 /**
  * Keruga, the Macrosage — "Each card in your starting deck has converted mana
@@ -42,5 +43,10 @@ final class KerugaProfile extends CompanionProfile
         }
 
         return $ids === [] ? null : ['card_ids' => $ids];
+    }
+
+    public function failsAddingCard(Deck $deck, OracleCard $card): bool
+    {
+        return ! $this->isLand($card) && (float) $card->cmc < 3.0;
     }
 }

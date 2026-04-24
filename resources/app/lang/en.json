@@ -709,7 +709,7 @@
                     "title": "Choose a companion"
                 },
                 "disabled": {
-                    "banned": "Banned as a companion in this format.",
+                    "banned": "Banned as a companion in {format}.",
                     "color_identity": "Outside the commanders' color identity."
                 },
                 "restrictions": {
@@ -799,7 +799,8 @@
                 "include_non_legal": "Include non-legal cards",
                 "submit": "Search",
                 "no_results": "No cards match your search.",
-                "added": "{name} added to {zone}."
+                "added": "{name} added to {zone}.",
+                "companion_warning": "Adding this card would break your companion's deckbuilding restriction."
             },
             "quick_add": {
                 "label": "Quick add"
@@ -993,6 +994,7 @@
             "background_tooltip": "Choose a Background — you can select a Background as a second commander",
             "include_rule0": "Include Rule 0 / non-legal commanders",
             "selected": "Selected commander",
+            "is_also_companion_hint": "{name} is also a \"Companion\" card. Using it as commander does not make it your companion — you can still attach a separate companion to this deck.",
             "change": "Change",
             "change_commander_and_partner": "Change commander and partner",
             "change_commander_and_friends_forever": "Change commander and friend",
