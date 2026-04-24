@@ -157,8 +157,8 @@ final class DeckCardSearchService
      *
      * Honors `set:` / `cn:` tokens from the query so the user can pin
      * results to a specific printing. When `$includeNonLegal` is true,
-     * the format-legality filter is dropped but color identity is still
-     * enforced — this is the escape hatch for Rule 0 / kitchen table play.
+     * both the format-legality filter AND the color-identity filter are
+     * dropped — it's the full Rule 0 / kitchen-table escape hatch.
      *
      * @return array<int, array{
      *     oracle_id: string,
@@ -198,9 +198,10 @@ final class DeckCardSearchService
 
         $query = DefaultCard::query()
             ->whereHas('oracle', function (Builder $q) use ($deck, $includeNonLegal): void {
-                if (! $includeNonLegal) {
-                    $q->legalIn($deck->format);
+                if ($includeNonLegal) {
+                    return;
                 }
+                $q->legalIn($deck->format);
                 self::applyColorIdentityFilter($q, $deck);
             })
             ->with(array_merge(['set:id,name,code,path', 'artist:id,name'], $oracleSelect));

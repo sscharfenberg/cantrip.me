@@ -322,10 +322,11 @@ class DeckCardSearchServiceTest extends TestCase
     }
 
     #[Test]
-    public function printings_include_non_legal_still_enforces_color_identity(): void
+    public function printings_include_non_legal_also_drops_color_identity(): void
     {
-        // Flag drops only legality. A mono-white Commander deck must still
-        // not see Lightning Bolt even with include_non_legal=true.
+        // `include_non_legal` is the full Rule-0 escape hatch: both legality
+        // and color-identity filters are dropped. A mono-white Commander
+        // deck with the flag on should surface Lightning Bolt.
         $deck = $this->makeDeck(CardFormat::Commander, 'W');
         $results = DeckCardSearchService::searchPrintingsForDeck(
             $deck,
@@ -334,7 +335,7 @@ class DeckCardSearchServiceTest extends TestCase
         );
 
         $names = array_column($results, 'name');
-        $this->assertNotContains('Lightning Bolt', $names);
+        $this->assertContains('Lightning Bolt', $names);
     }
 
     #[Test]
