@@ -81,6 +81,12 @@ return [
     |
     */
 
-    'attributes' => [],
+    'attributes' => [
+        'commander_id' => 'commander',
+        'signature_spell_id' => 'signature spell',
+        'companion_id' => 'companion',
+        'deck_name' => 'deck name',
+        'deck_description' => 'deck description',
+    ],
 
 ];

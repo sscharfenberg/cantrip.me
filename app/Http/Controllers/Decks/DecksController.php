@@ -82,13 +82,30 @@ class DecksController extends Controller
     public function store(Request $request): RedirectResponse
     {
         precognitive(function () use ($request) {
+            // Resolve the format's profile once so "is a commander required?"
+            // stays centralised in the format rules rather than a hardcoded
+            // list of format names here. New commander-like formats added to
+            // CardFormat automatically inherit the required-field behavior.
+            $format = CardFormat::tryFrom((string) $request->input('format', ''));
+            $profile = $format?->rules();
+            $requiresCommander = $profile !== null && $profile->requiresCommander();
+            $requiresSignatureSpell = $requiresCommander && $profile->hasSignatureSpell();
+
             $request->validate([
                 'format' => ['required', 'string', Rule::enum(CardFormat::class)],
                 'deck_name' => ['required', 'string', 'max:'.Deck::NAME_MAX],
                 'deck_description' => ['nullable', 'string', 'max:'.Deck::DESCRIPTION_MAX],
-                'commander_id' => ['nullable', 'string', Rule::exists(OracleCard::class, 'id')],
+                'commander_id' => [
+                    $requiresCommander ? 'required' : 'nullable',
+                    'string',
+                    Rule::exists(OracleCard::class, 'id'),
+                ],
                 'companion_id' => ['nullable', 'string', Rule::exists(OracleCard::class, 'id')],
-                'signature_spell_id' => ['nullable', 'string', Rule::exists(OracleCard::class, 'id')],
+                'signature_spell_id' => [
+                    $requiresSignatureSpell ? 'required' : 'nullable',
+                    'string',
+                    Rule::exists(OracleCard::class, 'id'),
+                ],
             ]);
         });
 

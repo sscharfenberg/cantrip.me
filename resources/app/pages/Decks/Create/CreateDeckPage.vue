@@ -64,6 +64,17 @@ watch(selectedFormat, () => {
     companion.value = null;
     signatureSpell.value = null;
 });
+/**
+ * True when the selected format requires a commander / Oathbreaker but the
+ * user hasn't picked one yet. Used to disable the submit button and (once
+ * the server has validated) to surface the error inline.
+ */
+const commanderMissing = computed(
+    () => !!selectedCapabilities.value?.requiresCommander && !commander.value
+);
+const signatureSpellMissing = computed(
+    () => !!selectedCapabilities.value?.hasSignatureSpell && !signatureSpell.value
+);
 const { setBreadcrumbs } = useBreadcrumbs();
 setBreadcrumbs([{ labelKey: "pages.decks.link", href: "/decks" }, { labelKey: "pages.create_deck.link" }]);
 </script>
@@ -108,13 +119,16 @@ setBreadcrumbs([{ labelKey: "pages.decks.link", href: "/decks" }, { labelKey: "p
                 </div>
                 <input type="hidden" name="commander_id" :value="commander.id" />
             </form-group>
-            <form-group v-if="signatureSpell" :label="$t('components.oathbreaker_picker.selected_spell')" :validated="true">
+            <form-group v-if="signatureSpell" :label="$t('components.oathbreaker_picker.selected_spell')" :required="true" :validated="true">
                 <div class="commander-picker__commander commander-picker__commander--selected">
                     <show-commander-overview :card="signatureSpell" />
                 </div>
                 <input type="hidden" name="signature_spell_id" :value="signatureSpell.id" />
             </form-group>
-            <form-group>
+            <form-group
+                :error="errors.commander_id ?? errors.signature_spell_id ?? ''"
+                :invalid="!!errors.commander_id || !!errors.signature_spell_id"
+            >
                 <button type="button" class="btn-default" @click="oathbreakerPickerOpen = true">
                     <icon name="register" />
                     {{ $t(commander ? "pages.create_deck.oathbreaker.change" : "pages.create_deck.oathbreaker.choose") }}
@@ -143,7 +157,7 @@ setBreadcrumbs([{ labelKey: "pages.decks.link", href: "/decks" }, { labelKey: "p
                 </div>
                 <input type="hidden" name="companion_id" :value="companion.id" />
             </form-group>
-            <form-group>
+            <form-group :error="errors.commander_id ?? ''" :invalid="!!errors.commander_id">
                 <button type="button" class="btn-default" @click="commanderPickerOpen = true">
                     <icon name="register" />
                     {{ $t(commander ? "pages.create_deck.commander.change" : "pages.create_deck.commander.choose") }}
@@ -189,7 +203,11 @@ setBreadcrumbs([{ labelKey: "pages.decks.link", href: "/decks" }, { labelKey: "p
             </div>
         </form-group>
         <form-group>
-            <button type="submit" class="btn-primary" :disabled="processing">
+            <button
+                type="submit"
+                class="btn-primary"
+                :disabled="processing || commanderMissing || signatureSpellMissing"
+            >
                 <icon name="save" />{{ $t("pages.create_deck.submit") }}
             </button>
         </form-group>
