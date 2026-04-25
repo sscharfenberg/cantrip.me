@@ -6,6 +6,7 @@ use App\Companions\CompanionRegistry;
 use App\Enums\CardFormat;
 use App\Formats\FormatProfile;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Decks\DeleteDeckRequest;
 use App\Http\Requests\Decks\ShowDeckRequest;
 use App\Models\Deck;
 use App\Models\DeckCard;
@@ -64,6 +65,12 @@ class DecksController extends Controller
                 'colors' => $deck->colors,
                 'card_count' => (int) $deck->card_count,
                 'last_activity' => $deck->last_activity,
+                // Non-destructive flags: the delete-confirm modal uses these
+                // to decide whether to prompt (deck has content worth losing)
+                // or delete immediately (deck is effectively empty).
+                'has_description' => $deck->description !== null && $deck->description !== '',
+                'has_image' => $deck->default_card_id !== null,
+                'has_companion' => $deck->companion_oracle_card_id !== null,
             ])->values());
 
         return Inertia::render('Decks/Decks', [
@@ -304,5 +311,23 @@ class DecksController extends Controller
             'nameMax' => Deck::NAME_MAX,
             'descriptionMax' => Deck::DESCRIPTION_MAX,
         ]);
+    }
+
+    /**
+     * Delete the deck and all its dependent rows.
+     *
+     * Commanders, deck_cards and deck_categories cascade on FK delete, so a
+     * single `$deck->delete()` wipes the deck and all its attached content.
+     * Authorisation (owner check) is handled by {@see DeleteDeckRequest}.
+     */
+    public function destroy(DeleteDeckRequest $request, Deck $deck): RedirectResponse
+    {
+        $name = $deck->name;
+        $deck->delete();
+
+        $request->session()->flash('message', __('auth.deck_deleted', ['name' => $name]));
+        $request->session()->flash('type', 'success');
+
+        return redirect(route('decks'));
     }
 }

@@ -659,6 +659,13 @@
                 "unarchive": "Wiederherstellen",
                 "set_planned": "Als geplant markieren",
                 "set_built": "Als fertig markieren"
+            },
+            "delete": {
+                "title": "Deck {name} löschen?",
+                "question": "Möchtest du dieses Deck wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.",
+                "warning": "Das Deck und alle enthaltenen Daten — Karten, Gefährte, Beschreibung und eigenes Deck-Bild — werden unwiderruflich gelöscht.",
+                "aff": "Ja, löschen",
+                "neg": "Nein, abbrechen"
             }
         },
         "deck": {

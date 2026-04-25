@@ -40,6 +40,7 @@ const { allGroups } = useDeckSections(
     () => props.companion,
     () => props.categories,
     () => props.sortMode,
+    () => props.deck.max_sideboard_size > 0,
     t,
     draggedTypeGroup
 );

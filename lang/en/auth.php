@@ -32,5 +32,6 @@ return [
     'container_deleted' => 'Container ":name" has been deleted.',
     'container_pruned' => ':count cards have been removed from ":name".',
     'deck_created' => 'Deck ":name" has been created.',
+    'deck_deleted' => 'Deck ":name" has been deleted.',
 
 ];

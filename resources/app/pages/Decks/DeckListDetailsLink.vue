@@ -1,25 +1,52 @@
 <script setup lang="ts">
-import { Link } from "@inertiajs/vue3";
-import { useId } from "vue";
+import { Link, router } from "@inertiajs/vue3";
+import { computed, ref, useId } from "vue";
 import { useI18n } from "vue-i18n";
+import DeleteDeckModal from "@/pages/Decks/Deck/Modals/DeleteDeckModal.vue";
 import type { DeckRow } from "@/pages/Decks/Decks.vue";
+import { hasDeletableContent } from "@/utils/deleteDeck";
+import type { DeleteDeckTarget } from "@/utils/deleteDeck";
 import ColorIdentity from "Components/Card/ColorIdentity.vue";
 import DeckState from "Components/Deck/DeckState.vue";
 import Icon from "Components/UI/Icon.vue";
 import PopOver from "Components/UI/PopOver.vue";
 import VisibilityBadge from "Components/UI/VisibilityBadge.vue";
 import { useFormatting } from "Composables/useFormatting.ts";
-defineProps<{
+const props = defineProps<{
     /** A single deck row from the controller. */
     deck: DeckRow;
 }>();
 const { t } = useI18n();
 const { formatDateTime } = useFormatting();
 const popoverId = useId();
+/** Controls the confirm-delete modal. */
+const showDeleteModal = ref(false);
+/** Adapter from this page's `DeckRow` shape to the modal's `DeleteDeckTarget`. */
+const deleteTarget = computed<DeleteDeckTarget>(() => ({
+    id: props.deck.id,
+    name: props.deck.name,
+    cardCount: props.deck.card_count,
+    hasCompanion: props.deck.has_companion,
+    hasDescription: props.deck.has_description,
+    hasImage: props.deck.has_image
+}));
 /** Close the action popover programmatically. */
 function closePopover(): void {
     const dialog = document.getElementById(popoverId);
     if (dialog !== null) dialog.hidePopover();
+}
+/**
+ * Delete button handler. Skips the confirm prompt entirely for "empty"
+ * decks — no cards, no companion, no description, no custom image — and
+ * fires the DELETE directly. Anything worth losing opens the modal first.
+ */
+function onDeleteClick(): void {
+    closePopover();
+    if (hasDeletableContent(deleteTarget.value)) {
+        showDeleteModal.value = true;
+        return;
+    }
+    router.delete(`/decks/${props.deck.id}`);
 }
 </script>
 
@@ -82,7 +109,7 @@ function closePopover(): void {
                     </button>
                 </li>
                 <li>
-                    <button class="popover-list-item popover-list-item--error" @click="closePopover">
+                    <button class="popover-list-item popover-list-item--error" @click.prevent="onDeleteClick">
                         <icon name="delete" :size="1" />
                         {{ t("pages.decks.actions.delete") }}
                     </button>
@@ -90,6 +117,7 @@ function closePopover(): void {
             </ul>
         </pop-over>
     </Link>
+    <delete-deck-modal v-if="showDeleteModal" :target="deleteTarget" @close="showDeleteModal = false" />
 </template>
 
 <style lang="scss" scoped>

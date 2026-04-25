@@ -52,6 +52,7 @@ const commanderColorIdentity = computed(() => combineCI(props.commanders.map((c)
     <deck-header
         :deck="deck"
         :has-commanders="commanders.length > 0"
+        :companion="companion"
         :cards="cards"
         :categories="categories"
         :category-name-max="categoryNameMax"

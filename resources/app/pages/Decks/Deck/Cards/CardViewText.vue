@@ -62,6 +62,7 @@ const { sections, dragTargets } = useDeckSections(
     () => (props.deck.allows_companion ? props.companion : null),
     () => props.categories,
     () => props.sortMode,
+    () => props.deck.max_sideboard_size > 0,
     t,
     draggedTypeGroup
 );

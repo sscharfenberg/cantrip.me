@@ -16,6 +16,12 @@ export interface DeckRow {
     colors: string | null;
     card_count: number;
     last_activity: string;
+    /** True when the deck has a non-empty description. */
+    has_description: boolean;
+    /** True when the deck has a custom hero/banner card set. */
+    has_image: boolean;
+    /** True when a "Companion" keyword card is attached to the deck. */
+    has_companion: boolean;
 }
 
 const props = defineProps<{

@@ -78,11 +78,23 @@ export type UseDeckSectionsReturn = {
  * VueDraggable instance and swallows the `@end` event. Extra drop targets
  * that only appear during a drag are returned separately via `dragTargets`.
  *
+ * Sideboard visibility:
+ *  - Format disallows a sideboard (`allowsSideboard === false`, e.g.
+ *    Commander / Gladiator): never rendered.
+ *  - Has at least one side-zone card: rendered as a regular group at the
+ *    end of the column distribution.
+ *  - Empty + drag in progress: rendered in `dragTargets` (outside the
+ *    column distribution, just before the create-group drop zone) so the
+ *    user can drag a card into a fresh sideboard without the column
+ *    layout reflowing mid-drag.
+ *  - Empty + no drag: hidden.
+ *
  * @param cards - All deck cards.
  * @param commanders - Command zone cards.
  * @param companion - The deck's "Companion" keyword card, or null when not set.
  * @param categories - User-defined categories.
  * @param sortMode - Active sort mode within groups.
+ * @param allowsSideboard - True when the format allows any sideboard at all.
  * @param translate - i18n translate function for default group labels.
  * @param draggedTypeGroup - Ref to the type group of the card being dragged.
  */
@@ -92,6 +104,7 @@ export function useDeckSections(
     companion: MaybeRefOrGetter<DeckCompanion | null>,
     categories: MaybeRefOrGetter<DeckCategoryRow[]>,
     sortMode: MaybeRefOrGetter<DeckSort>,
+    allowsSideboard: MaybeRefOrGetter<boolean>,
     translate: (key: string) => string,
     draggedTypeGroup: Ref<DeckCardGroup | null>
 ): UseDeckSectionsReturn {
@@ -150,18 +163,23 @@ export function useDeckSections(
 
         result.sort((a, b) => a.label.localeCompare(b.label));
 
-        // Sideboard always comes last (after type groups and custom
-        // categories), even when empty, so it's a persistent drop target
-        // the user can drag cards onto to move them to the sideboard.
-        const sideCards = allCards.filter(c => c.zone === "side").sort(comparator);
-        result.push({
-            key: "side",
-            label: translate("pages.deck.groups.side"),
-            cards: sideCards,
-            count: sideCards.reduce((sum, c) => sum + c.quantity, 0),
-            categoryId: null,
-            zone: "side",
-        });
+        // Sideboard joins the column distribution only when the format
+        // allows it AND it actually has cards. The empty-but-allowed case
+        // is handled by `dragTargets` so it appears next to the create-
+        // group drop zone during a drag without reflowing columns.
+        if (toValue(allowsSideboard)) {
+            const sideCards = allCards.filter(c => c.zone === "side").sort(comparator);
+            if (sideCards.length > 0) {
+                result.push({
+                    key: "side",
+                    label: translate("pages.deck.groups.side"),
+                    cards: sideCards,
+                    count: sideCards.reduce((sum, c) => sum + c.quantity, 0),
+                    categoryId: null,
+                    zone: "side",
+                });
+            }
+        }
 
         return result;
     });
@@ -212,6 +230,22 @@ export function useDeckSections(
         }
 
         targets.sort((a, b) => a.label.localeCompare(b.label));
+
+        // Empty sideboard appears here (outside the column distribution)
+        // only while a drag is in progress, and only when the format
+        // allows a sideboard at all. Appended after the alphabetical sort
+        // so it visually sits right before the create-group drop zone.
+        if (toValue(allowsSideboard) && !presentKeys.has("side")) {
+            targets.push({
+                key: "side",
+                label: translate("pages.deck.groups.side"),
+                cards: [],
+                count: 0,
+                categoryId: null,
+                zone: "side",
+            });
+        }
+
         return targets;
     });
 

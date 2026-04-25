@@ -8,12 +8,14 @@ import Badge from "Components/UI/Badge.vue";
 import Icon from "Components/UI/Icon.vue";
 import Paragraph from "Components/UI/Paragraph.vue";
 import VisibilityBadge from "Components/UI/VisibilityBadge.vue";
-import type { DeckCardRow, DeckCategoryRow, DeckMeta, DeckViolation } from "Types/deckPage.ts";
+import type { DeckCardRow, DeckCategoryRow, DeckCompanion, DeckMeta, DeckViolation } from "Types/deckPage.ts";
 defineProps<{
     /** Deck metadata (name, format, state, colors, etc.). */
     deck: DeckMeta;
     /** hasCommanders **/
     hasCommanders: boolean;
+    /** Currently-set companion card, or null — forwarded to the actions menu. */
+    companion: DeckCompanion | null;
     /** All cards in the deck. */
     cards: DeckCardRow[];
     /** User-defined categories for this deck. */
@@ -32,6 +34,7 @@ const { t } = useI18n();
             {{ deck.name.toUpperCase() }}
             <deck-actions-menu
                 :deck="deck"
+                :companion="companion"
                 :cards="cards"
                 :categories="categories"
                 :category-name-max="categoryNameMax"
