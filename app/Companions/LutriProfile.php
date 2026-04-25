@@ -31,15 +31,15 @@ final class LutriProfile extends CompanionProfile
      */
     public function validate(Deck $deck): ?array
     {
-        $mainCards = $this->mainDeckCards($deck);
+        $startingCards = $this->startingDeckCards($deck);
 
         $totals = [];
-        foreach ($mainCards as $deckCard) {
+        foreach ($startingCards as $deckCard) {
             $totals[$deckCard->oracle_card_id] = ($totals[$deckCard->oracle_card_id] ?? 0) + $deckCard->quantity;
         }
 
         $ids = [];
-        foreach ($mainCards as $deckCard) {
+        foreach ($startingCards as $deckCard) {
             if (($totals[$deckCard->oracle_card_id] ?? 0) <= 1) {
                 continue;
             }

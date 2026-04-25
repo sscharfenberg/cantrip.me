@@ -34,7 +34,7 @@ final class KaheeraProfile extends CompanionProfile
     public function validate(Deck $deck): ?array
     {
         $ids = [];
-        foreach ($this->mainDeckCards($deck) as $deckCard) {
+        foreach ($this->startingDeckCards($deck) as $deckCard) {
             $oracle = $deckCard->oracleCard;
             if (! $this->isCreature($oracle)) {
                 continue;

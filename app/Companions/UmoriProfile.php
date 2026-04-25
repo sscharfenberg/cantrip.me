@@ -25,19 +25,19 @@ final class UmoriProfile extends CompanionProfile
 
     /**
      * Compute the running intersection of card types across all nonland
-     * cards in the main deck. If it collapses to empty, report every
-     * nonland deck_card row — the user needs to pick a shared type and
-     * pruning which cards "are wrong" depends on that choice.
+     * cards in main deck + sideboard. If it collapses to empty, report
+     * every nonland deck_card row — the user needs to pick a shared type
+     * and pruning which cards "are wrong" depends on that choice.
      *
      * A deck with zero nonland cards is vacuously legal.
      */
     public function validate(Deck $deck): ?array
     {
-        $mainCards = $this->mainDeckCards($deck);
+        $startingCards = $this->startingDeckCards($deck);
 
         $nonlandDeckCards = [];
         $shared = null;
-        foreach ($mainCards as $deckCard) {
+        foreach ($startingCards as $deckCard) {
             $oracle = $deckCard->oracleCard;
             if ($this->isLand($oracle)) {
                 continue;
@@ -55,7 +55,7 @@ final class UmoriProfile extends CompanionProfile
         }
 
         $ids = [];
-        foreach ($this->mainDeckCards($deck) as $deckCard) {
+        foreach ($startingCards as $deckCard) {
             if ($this->isLand($deckCard->oracleCard)) {
                 continue;
             }

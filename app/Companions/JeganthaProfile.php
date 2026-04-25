@@ -39,7 +39,7 @@ final class JeganthaProfile extends CompanionProfile
     public function validate(Deck $deck): ?array
     {
         $ids = [];
-        foreach ($this->mainDeckCards($deck) as $deckCard) {
+        foreach ($this->startingDeckCards($deck) as $deckCard) {
             if ($this->violates($deckCard->oracleCard)) {
                 $ids[] = $deckCard->id;
             }

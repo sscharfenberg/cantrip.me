@@ -3,6 +3,7 @@
 namespace Tests\Unit\Companions;
 
 use App\Companions\GyrudaProfile;
+use App\Enums\DeckZone;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
@@ -35,6 +36,21 @@ class GyrudaProfileTest extends TestCase
         $result = (new GyrudaProfile)->validate($deck);
 
         $this->assertSame(['card_ids' => [$offending->id]], $result);
+    }
+
+    #[Test]
+    public function flags_sideboard_card_too(): void
+    {
+        // Sideboard cards are part of the post-sideboard starting deck,
+        // so companion restrictions apply to them as well.
+        $bolt = $this->makeOracleCard('Lightning Bolt', 1.0, 'Instant');
+        $sideOffender = $this->makeDeckCard($bolt, zone: DeckZone::Side);
+        $deck = $this->makeDeck([
+            $this->makeDeckCard($this->makeOracleCard('Counterspell', 2.0, 'Instant')),
+            $sideOffender,
+        ]);
+
+        $this->assertSame(['card_ids' => [$sideOffender->id]], (new GyrudaProfile)->validate($deck));
     }
 
     #[Test]

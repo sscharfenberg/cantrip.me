@@ -31,7 +31,7 @@ final class KerugaProfile extends CompanionProfile
     public function validate(Deck $deck): ?array
     {
         $ids = [];
-        foreach ($this->mainDeckCards($deck) as $deckCard) {
+        foreach ($this->startingDeckCards($deck) as $deckCard) {
             $oracle = $deckCard->oracleCard;
             if ($this->isLand($oracle)) {
                 continue;

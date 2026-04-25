@@ -69,7 +69,33 @@ abstract class CompanionProfile
     }
 
     /**
-     * All deck_cards in the main zone.
+     * Deck cards that companion deckbuilding restrictions apply to —
+     * main deck **and** sideboard.
+     *
+     * Per MTR, a companion's "starting deck" requirement must hold in
+     * every game of a match: any card swapped in via the sideboard
+     * post-game-1 becomes part of game-2's starting deck, so it has to
+     * satisfy the restriction too. We therefore lint maindeck + sideboard
+     * together for every per-card profile (Gyruda, Keruga, Obosh,
+     * Lurrus, Kaheera, Jegantha, Zirda, Lutri, Umori).
+     *
+     * Yorion's deck-size check is a separate concern — see
+     * {@see mainDeckCards()}.
+     *
+     * @return Collection<int, DeckCard>
+     */
+    protected function startingDeckCards(Deck $deck): Collection
+    {
+        return $deck->deckCards->filter(
+            fn (DeckCard $deckCard): bool => $deckCard->zone === DeckZone::Main
+                || $deckCard->zone === DeckZone::Side
+        )->values();
+    }
+
+    /**
+     * Deck cards in the main zone only — used by Yorion's "deck size at
+     * least minDeckSize + 20" check, which counts the maindeck (sideboard
+     * doesn't add to starting-deck size, since sideboarding is a 1:1 swap).
      *
      * @return Collection<int, DeckCard>
      */
