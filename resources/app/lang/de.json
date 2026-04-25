@@ -756,6 +756,10 @@
                 "link": "In Gruppe verschieben",
                 "current_label": "Aktuelle Gruppe:"
             },
+            "move_zone": {
+                "to_side": "1 in Sideboard verschieben",
+                "to_main": "1 in Hauptdeck verschieben"
+            },
             "custom_groups": {
                 "title": "Gruppen verwalten",
                 "link": "Gruppen verwalten",

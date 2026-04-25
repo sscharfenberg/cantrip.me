@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { usePage } from "@inertiajs/vue3";
 import { ref, useId } from "vue";
 import DeckCardMoveToGroupModal from "@/pages/Decks/Deck/Modals/DeckCardMoveToGroupModal.vue";
 import DeckCardSplitPrintingModal from "@/pages/Decks/Deck/Modals/DeckCardSplitPrintingModal.vue";
@@ -7,8 +6,7 @@ import DeckCardSwitchPrintingModal from "@/pages/Decks/Deck/Modals/DeckCardSwitc
 import Icon from "Components/UI/Icon.vue";
 import PopOver from "Components/UI/PopOver.vue";
 import { useDeckCardActions } from "Composables/useDeckCardActions.ts";
-import type { DeckCardDefaultCard, DeckCardRow, DeckCategoryRow } from "Types/deckPage";
-import type { DeckPrinting } from "Types/defaultCardImage";
+import type { DeckCardRow, DeckCategoryRow } from "Types/deckPage";
 const props = defineProps<{
     /** UUID of the deck this card belongs to. */
     deckId: string;
@@ -54,7 +52,7 @@ function openMoveToGroup(): void {
     closePopover();
     showMoveToGroupModal.value = true;
 }
-const { canIncrement, increment, decrement, destroy } = useDeckCardActions(
+const { canIncrement, increment, decrement, destroy, moveZone, switchPrinting } = useDeckCardActions(
     {
         deckId: props.deckId,
         cardId: props.card.id,
@@ -68,38 +66,6 @@ const { canIncrement, increment, decrement, destroy } = useDeckCardActions(
     },
     closePopover
 );
-const page = usePage();
-/**
- * Optimistically swap the deck card's printing: update the page's card in
- * place so the UI reflects the change immediately, then PATCH the server.
- * On failure, restore the previous printing.
- */
-async function switchPrinting(printing: DeckPrinting): Promise<void> {
-    const cards = page.props.cards as DeckCardRow[];
-    const card = cards.find(c => c.id === props.card.id);
-    if (!card) return;
-    const previous: DeckCardDefaultCard = { ...card.default_card };
-    card.default_card = {
-        id: printing.id,
-        name: printing.name,
-        card_image_0: printing.card_image_0,
-        card_image_1: printing.card_image_1,
-        set: printing.set ? { name: printing.set.name, code: printing.set.code } : null
-    };
-    const response = await fetch(`/api/decks/${props.deckId}/cards/${props.card.id}/printing`, {
-        method: "PATCH",
-        headers: {
-            "Content-Type": "application/json",
-            "X-CSRF-TOKEN": page.props.csrfToken as string,
-            Accept: "application/json"
-        },
-        body: JSON.stringify({ default_card_id: printing.id })
-    });
-    if (!response.ok) {
-        const target = cards.find(c => c.id === props.card.id);
-        if (target) target.default_card = previous;
-    }
-}
 </script>
 
 <template>
@@ -142,10 +108,22 @@ async function switchPrinting(printing: DeckPrinting): Promise<void> {
                     {{ $t("pages.deck.split_printing.link") }}
                 </button>
             </li>
-            <li>
+            <li v-if="props.card.zone !== 'side'">
                 <button type="button" class="popover-list-item" @click="openMoveToGroup">
                     <icon name="cards" :size="1" />
                     {{ $t("pages.deck.move_to_group.link") }}
+                </button>
+            </li>
+            <li v-if="props.card.zone !== 'side'">
+                <button type="button" class="popover-list-item" @click="moveZone('side')">
+                    <icon name="sideboard" :size="1" />
+                    {{ $t("pages.deck.move_zone.to_side") }}
+                </button>
+            </li>
+            <li v-else>
+                <button type="button" class="popover-list-item" @click="moveZone('main')">
+                    <icon name="deck" :size="1" />
+                    {{ $t("pages.deck.move_zone.to_main") }}
                 </button>
             </li>
             <li>

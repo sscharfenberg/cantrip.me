@@ -73,10 +73,21 @@ createInertiaApp({
 /******************************************************************************
  * Inertia router
  *****************************************************************************/
+/**
+ * True for Inertia partial reloads (`router.reload({ only: [...] })`).
+ * Partial reloads refresh a subset of page props in place — they aren't
+ * navigations — so we skip the global `navigating` flag and the progress
+ * bar for them. Otherwise the breadcrumb (`v-show="!navigating"`) would
+ * hide and unhide on every in-place refresh, causing a visible page jerk.
+ */
+const isPartialReload = (event: { detail: { visit: { only: string[] } } }): boolean =>
+    event.detail.visit.only.length > 0;
+
 router.on("start", event => {
     if (!event.detail.visit.preserveState) {
         useBreadcrumbs().setBreadcrumbs([]);
     }
+    if (isPartialReload(event)) return;
     useNavigation().navigating.value = true;
     timeout = setTimeout(() => startProgress(progressBarSettings), 250);
 });
@@ -86,6 +97,7 @@ router.on("progress", event => {
     }
 });
 router.on("finish", event => {
+    if (isPartialReload(event)) return;
     useNavigation().navigating.value = false;
     clearTimeout(timeout);
     if (doesProgressBarExist() && event.detail.visit.completed) {

@@ -5,6 +5,7 @@ namespace App\Http\Requests\Decks;
 use App\Enums\DeckZone;
 use App\Models\Deck;
 use App\Models\DeckCard;
+use Closure;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -30,12 +31,32 @@ class UpdateDeckCardCategoryRequest extends FormRequest
      * the sideboard bucket can flip main↔side in one call. When absent
      * the controller leaves the zone untouched.
      *
+     * Sideboard cards cannot be assigned to a custom category — the UI
+     * hides the "Move to Group" action for them, so reaching this path
+     * with a non-null `category_id` while the resulting zone is `side`
+     * means the request was tampered with. Plain 422 is enough; no
+     * end-user-facing message is needed.
+     *
      * @return array<string, array<mixed>>
      */
     public function rules(): array
     {
         return [
-            'category_id' => ['nullable', 'uuid', 'exists:deck_categories,id'],
+            'category_id' => [
+                'nullable',
+                'uuid',
+                'exists:deck_categories,id',
+                function (string $attribute, mixed $value, Closure $fail): void {
+                    if ($value === null) {
+                        return;
+                    }
+                    $deckCard = $this->route('deckCard');
+                    $effectiveZone = $this->input('zone', $deckCard?->zone->value);
+                    if ($effectiveZone === DeckZone::Side->value) {
+                        $fail('Sideboard cards cannot be assigned to a custom group.');
+                    }
+                },
+            ],
             'zone' => ['sometimes', Rule::enum(DeckZone::class)],
         ];
     }

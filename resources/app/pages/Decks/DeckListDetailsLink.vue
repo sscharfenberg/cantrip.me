@@ -72,42 +72,6 @@ function onDeleteClick(): void {
             width="14rem"
         >
             <ul class="popover-list">
-                <li v-if="deck.visibility === 'private'">
-                    <button class="popover-list-item" @click="closePopover">
-                        <icon name="visibility-on" :size="1" />
-                        {{ t("pages.decks.actions.set_public") }}
-                    </button>
-                </li>
-                <li v-else>
-                    <button class="popover-list-item" @click="closePopover">
-                        <icon name="visibility-off" :size="1" />
-                        {{ t("pages.decks.actions.set_private") }}
-                    </button>
-                </li>
-                <li v-if="deck.state !== 'planned'">
-                    <button class="popover-list-item" @click="closePopover">
-                        <icon name="edit" :size="1" />
-                        {{ t("pages.decks.actions.set_planned") }}
-                    </button>
-                </li>
-                <li v-if="deck.state !== 'built'">
-                    <button class="popover-list-item" @click="closePopover">
-                        <icon name="check" :size="1" />
-                        {{ t("pages.decks.actions.set_built") }}
-                    </button>
-                </li>
-                <li v-if="deck.state !== 'archived'">
-                    <button class="popover-list-item" @click="closePopover">
-                        <icon name="storage" :size="1" />
-                        {{ t("pages.decks.actions.archive") }}
-                    </button>
-                </li>
-                <li v-else>
-                    <button class="popover-list-item" @click="closePopover">
-                        <icon name="storage" :size="1" />
-                        {{ t("pages.decks.actions.unarchive") }}
-                    </button>
-                </li>
                 <li>
                     <button class="popover-list-item popover-list-item--error" @click.prevent="onDeleteClick">
                         <icon name="delete" :size="1" />

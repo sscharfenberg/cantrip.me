@@ -6,6 +6,7 @@ use App\Enums\ContainerType;
 use App\Enums\Finish;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Decks\ModifyDeckCardRequest;
+use App\Http\Requests\Decks\MoveDeckCardZoneRequest;
 use App\Http\Requests\Decks\ShowDeckCardPrintingsRequest;
 use App\Http\Requests\Decks\SplitDeckCardRequest;
 use App\Http\Requests\Decks\StoreDeckCardRequest;
@@ -101,6 +102,86 @@ class DeckCardController extends Controller
         DeckCardService::recalculateColors($deck);
 
         return response()->json(status: 204);
+    }
+
+    /**
+     * Move one copy of this deck card to the opposite zone.
+     *
+     * Decrements the source row by one (deletes the row when the resulting
+     * quantity is zero) and merges the moved copy into the target zone.
+     *
+     * "Matching" target rows share the same oracle card, printing, finish
+     * and language, and carry no category. The query collects every such
+     * row in the target zone, sums their quantities, deletes all but the
+     * first, and writes the combined-plus-one quantity back to the
+     * survivor. This both absorbs the moved copy AND consolidates any
+     * pre-existing fragmented rows in the target zone (e.g. from add-card
+     * flows that don't auto-merge) into a single row. The survivor keeps
+     * its `card_stack_id`; any duplicates' `card_stack_id` is lost when
+     * those rows are deleted.
+     *
+     * The new/incremented row never carries a category (sideboard rows
+     * can't have one, and main rows landing here via "move from
+     * sideboard" weren't categorised either).
+     *
+     * Colors are zone-agnostic so no recalculation is needed.
+     *
+     * Returns the post-move identity of both rows so the frontend can
+     * apply the change in place — synthesising the target row from the
+     * source's already-rendered data when it didn't exist yet — instead
+     * of having to reload the full `cards` prop.
+     */
+    public function moveZone(MoveDeckCardZoneRequest $request, Deck $deck, DeckCard $deckCard): JsonResponse
+    {
+        $targetZone = $request->validated()['zone'];
+
+        $result = DB::transaction(function () use ($deck, $deckCard, $targetZone): array {
+            $matches = DeckCard::query()
+                ->where('deck_id', $deck->id)
+                ->where('oracle_card_id', $deckCard->oracle_card_id)
+                ->where('default_card_id', $deckCard->default_card_id)
+                ->where('zone', $targetZone)
+                ->where('finish', $deckCard->finish->value)
+                ->where('language', $deckCard->language->value)
+                ->whereNull('category_id')
+                ->orderBy('created_at')
+                ->get();
+
+            if ($matches->isNotEmpty()) {
+                $target = $matches->shift();
+                $extra = (int) $matches->sum('quantity');
+                foreach ($matches as $duplicate) {
+                    $duplicate->delete();
+                }
+                $target->update(['quantity' => $target->quantity + $extra + 1]);
+            } else {
+                $target = DeckCard::create([
+                    'deck_id' => $deck->id,
+                    'oracle_card_id' => $deckCard->oracle_card_id,
+                    'default_card_id' => $deckCard->default_card_id,
+                    'zone' => $targetZone,
+                    'quantity' => 1,
+                    'finish' => $deckCard->finish->value,
+                    'language' => $deckCard->language->value,
+                    'category_id' => null,
+                ]);
+            }
+
+            $sourceQuantity = $deckCard->quantity - 1;
+            if ($sourceQuantity <= 0) {
+                $deckCard->delete();
+            } else {
+                $deckCard->update(['quantity' => $sourceQuantity]);
+            }
+
+            return [
+                'source_quantity' => max(0, $sourceQuantity),
+                'target_id' => $target->id,
+                'target_quantity' => $target->quantity,
+            ];
+        });
+
+        return response()->json($result);
     }
 
     /**

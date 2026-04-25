@@ -756,6 +756,10 @@
                 "link": "Move to group",
                 "current_label": "Current group:"
             },
+            "move_zone": {
+                "to_side": "Move 1 to sideboard",
+                "to_main": "Move 1 to mainboard"
+            },
             "custom_groups": {
                 "title": "Manage custom groups",
                 "link": "Manage groups",

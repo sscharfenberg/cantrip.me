@@ -1,7 +1,8 @@
 import { router, usePage } from "@inertiajs/vue3";
 import type { ComputedRef } from "vue";
 import { computed, ref, watch } from "vue";
-import type { DeckCardRow } from "Types/deckPage";
+import type { DeckCardDefaultCard, DeckCardRow } from "Types/deckPage";
+import type { DeckPrinting } from "Types/defaultCardImage";
 
 /** Parameters for {@link useDeckCardActions}. */
 export interface DeckCardActionParams {
@@ -42,6 +43,10 @@ export type UseDeckCardActionsReturn = {
     decrement: () => void;
     /** Remove the card entirely, regardless of quantity. */
     destroy: () => Promise<void>;
+    /** Move one copy of this card to the opposite zone (main ↔ side). */
+    moveZone: (targetZone: "main" | "side") => Promise<void>;
+    /** Optimistically swap the card's printing in place; rolls back on failure. */
+    switchPrinting: (printing: DeckPrinting) => Promise<void>;
 };
 
 /** Milliseconds to wait after the last click before flushing the delta. */
@@ -199,5 +204,132 @@ export function useDeckCardActions(
         }
     }
 
-    return { canIncrement, increment, decrement, destroy };
+    /**
+     * Move one copy of the card to the opposite zone. Flushes any pending
+     * quantity delta first so the source row's server-side quantity is
+     * authoritative before the move runs.
+     *
+     * Avoids the visible "jerk" that comes from a `cards` reload (every
+     * row reactively rebinds, and the brand-new target row pops in at its
+     * sorted position once the round trip completes). Instead the response
+     * carries the post-move identities, the target is mutated/synthesised
+     * locally — synth rows clone the source's oracle/printing data, only
+     * `id` / `zone` / `quantity` / `category_id` differ — and only
+     * `violations` is reloaded so the legality panel stays current. Per-
+     * card `is_illegal` flags may briefly lag for zone-sensitive rules
+     * (companion restrictions); the next `cards`-reloading action catches
+     * up.
+     */
+    async function moveZone(targetZone: "main" | "side"): Promise<void> {
+        if (flushTimer !== null) {
+            clearTimeout(flushTimer);
+            await flush();
+        }
+        closePopover();
+
+        const response = await fetch(
+            `/api/decks/${params.deckId}/cards/${params.cardId}/move-zone`,
+            {
+                method: "PATCH",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRF-TOKEN": page.props.csrfToken as string,
+                    Accept: "application/json",
+                },
+                body: JSON.stringify({ zone: targetZone }),
+            },
+        );
+        if (!response.ok) return;
+
+        const data = (await response.json()) as {
+            source_quantity: number;
+            target_id: string;
+            target_quantity: number;
+        };
+
+        const cards = page.props.cards as DeckCardRow[];
+        const source = cards.find((c) => c.id === params.cardId);
+        if (source === undefined) return;
+
+        // Apply target updates first — synthesis needs the source's data,
+        // and we may about to splice the source row off the list below.
+        const survivor = cards.find((c) => c.id === data.target_id);
+        if (survivor !== undefined) {
+            // Server merged the moved copy into `data.target_id` and
+            // potentially absorbed other matching rows in the target zone.
+            // Mirror that locally: write the new quantity onto the
+            // survivor and splice any sibling rows that share the same
+            // mergeable identity (no category, no specific card_stack).
+            survivor.quantity = data.target_quantity;
+            for (let i = cards.length - 1; i >= 0; i--) {
+                const c = cards[i];
+                if (
+                    c.id !== data.target_id
+                    && c.zone === targetZone
+                    && c.oracle_card_id === source.oracle_card_id
+                    && c.default_card.id === source.default_card.id
+                    && c.category_id === null
+                    && c.finish === source.finish
+                    && c.language === source.language
+                ) {
+                    cards.splice(i, 1);
+                }
+            }
+        } else {
+            // No matching target row pre-existed; synthesise from source.
+            cards.push({
+                ...source,
+                id: data.target_id,
+                zone: targetZone,
+                quantity: data.target_quantity,
+                category_id: null,
+            });
+        }
+
+        if (data.source_quantity === 0) {
+            spliceCard();
+        } else {
+            source.quantity = data.source_quantity;
+        }
+
+        router.reload({ only: ["violations"] });
+    }
+
+    /**
+     * Optimistically swap the deck card's printing: update the page's card
+     * in place so the UI reflects the change immediately, then PATCH the
+     * server. On failure, restore the previous printing. No reload — color
+     * identity and legality are unchanged when only the printing shifts.
+     */
+    async function switchPrinting(printing: DeckPrinting): Promise<void> {
+        const cards = page.props.cards as DeckCardRow[];
+        const card = cards.find((c) => c.id === params.cardId);
+        if (card === undefined) return;
+        const previous: DeckCardDefaultCard = { ...card.default_card };
+        card.default_card = {
+            id: printing.id,
+            name: printing.name,
+            card_image_0: printing.card_image_0,
+            card_image_1: printing.card_image_1,
+            set: printing.set ? { name: printing.set.name, code: printing.set.code } : null,
+        };
+        const response = await fetch(
+            `/api/decks/${params.deckId}/cards/${params.cardId}/printing`,
+            {
+                method: "PATCH",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRF-TOKEN": page.props.csrfToken as string,
+                    Accept: "application/json",
+                },
+                body: JSON.stringify({ default_card_id: printing.id }),
+            },
+        );
+        if (!response.ok) {
+            const target = cards.find((c) => c.id === params.cardId);
+            if (target !== undefined) target.default_card = previous;
+        }
+    }
+
+    return { canIncrement, increment, decrement, destroy, moveZone, switchPrinting };
 }
