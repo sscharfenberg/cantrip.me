@@ -7,6 +7,7 @@ use App\Models\Deck;
 use App\Models\DefaultCard;
 use App\Models\OracleCard;
 use App\Models\User;
+use Illuminate\Support\Facades\DB;
 
 class DeckService
 {
@@ -183,64 +184,84 @@ class DeckService
     public static function createDeck(User $user, array $data): Deck
     {
         $format = CardFormat::from($data['format']);
-        $profile = $format->rules();
-
-        $commanderOracleId = $data['commander_id'] ?? null;
-        $companionOracleId = $data['companion_id'] ?? null;
-        $signatureSpellOracleId = $data['signature_spell_id'] ?? null;
-
-        // Validate command zone cards against format rules.
-        if ($profile->requiresCommander() && $commanderOracleId) {
-            if ($profile->hasSignatureSpell()) {
-                abort_unless(self::isLegalOathbreaker($commanderOracleId, $format), 422, 'Invalid planeswalker.');
-
-                if ($signatureSpellOracleId) {
-                    abort_unless(
-                        self::isLegalSignatureSpell($signatureSpellOracleId, $commanderOracleId, $format),
-                        422,
-                        'Invalid signature spell.',
-                    );
-                }
-            } else {
-                abort_unless(self::isLegalCommander($commanderOracleId, $format), 422, 'Invalid commander.');
-
-                if ($companionOracleId) {
-                    abort_unless(
-                        self::isLegalCompanion($companionOracleId, $commanderOracleId, $format),
-                        422,
-                        'Invalid companion.',
-                    );
-                }
-            }
-        }
-
-        // Derive initial colors from the combined color identity of all command zone cards.
-        $colors = null;
-        $commandZoneIds = array_filter([$commanderOracleId, $companionOracleId, $signatureSpellOracleId]);
-        if ($commandZoneIds) {
-            $identities = OracleCard::whereIn('id', $commandZoneIds)->pluck('color_identity');
-            $merged = collect($identities)
-                ->filter()
-                ->flatMap(fn (string $ci) => str_split($ci))
-                ->unique()
-                ->sort(fn (string $a, string $b) => array_search($a, ['W', 'U', 'B', 'R', 'G']) - array_search($b, ['W', 'U', 'B', 'R', 'G']))
-                ->implode('');
-            $colors = $merged ?: null;
-        }
 
         $deck = Deck::create([
             'user_id' => $user->id,
             'name' => $data['deck_name'],
             'description' => $data['deck_description'] ?? null,
             'format' => $format,
-            'colors' => $colors,
+            'colors' => null,
         ]);
 
-        // Attach command zone cards.
-        if ($profile->requiresCommander() && $commanderOracleId) {
+        self::setCommandZone(
+            $deck,
+            $data['commander_id'] ?? null,
+            $data['companion_id'] ?? null,
+            $data['signature_spell_id'] ?? null,
+        );
+
+        return $deck;
+    }
+
+    /**
+     * Replace the deck's command zone with the given oracle cards.
+     *
+     * Validates legality + pairing against the deck's format, detaches every
+     * existing commander pivot row, attaches the new ones (commander +
+     * optional partner-type companion or signature spell), and recomputes
+     * the deck's `colors` from the combined color identity of the new
+     * command zone. Wrapped in a transaction so a partial failure rolls
+     * back cleanly.
+     *
+     * No-op for formats that don't use a command zone (early-returns when
+     * `requiresCommander()` is false). The deck's Magic-keyword companion
+     * (`companion_oracle_card_id`) is intentionally left alone — that's a
+     * separate slot from the partner-type companion attached via the
+     * `commanders` pivot.
+     */
+    public static function setCommandZone(
+        Deck $deck,
+        ?string $commanderOracleId,
+        ?string $companionOracleId,
+        ?string $signatureSpellOracleId,
+    ): void {
+        $format = $deck->format;
+        $profile = $format->rules();
+
+        if (! $profile->requiresCommander() || $commanderOracleId === null) {
+            return;
+        }
+
+        // Validate command zone cards against format rules.
+        if ($profile->hasSignatureSpell()) {
+            abort_unless(self::isLegalOathbreaker($commanderOracleId, $format), 422, 'Invalid planeswalker.');
+
+            if ($signatureSpellOracleId) {
+                abort_unless(
+                    self::isLegalSignatureSpell($signatureSpellOracleId, $commanderOracleId, $format),
+                    422,
+                    'Invalid signature spell.',
+                );
+            }
+        } else {
+            abort_unless(self::isLegalCommander($commanderOracleId, $format), 422, 'Invalid commander.');
+
+            if ($companionOracleId) {
+                abort_unless(
+                    self::isLegalCompanion($companionOracleId, $commanderOracleId, $format),
+                    422,
+                    'Invalid companion.',
+                );
+            }
+        }
+
+        DB::transaction(function () use ($deck, $profile, $commanderOracleId, $companionOracleId, $signatureSpellOracleId): void {
+            // Wipe any existing command zone before attaching the new one
+            // so partner/spell flips between formats don't leave stragglers.
+            $deck->commanders()->detach();
+
             $commanderDefault = self::newestDefaultCard($commanderOracleId);
             abort_unless($commanderDefault !== null, 422, 'No printing found for commander.');
-
             $deck->commanders()->attach($commanderOracleId, [
                 'default_card_id' => $commanderDefault->id,
                 'is_partner' => false,
@@ -249,7 +270,6 @@ class DeckService
             if ($profile->hasSignatureSpell() && $signatureSpellOracleId) {
                 $spellDefault = self::newestDefaultCard($signatureSpellOracleId);
                 abort_unless($spellDefault !== null, 422, 'No printing found for signature spell.');
-
                 $deck->commanders()->attach($signatureSpellOracleId, [
                     'default_card_id' => $spellDefault->id,
                     'is_partner' => true,
@@ -257,14 +277,24 @@ class DeckService
             } elseif ($companionOracleId) {
                 $companionDefault = self::newestDefaultCard($companionOracleId);
                 abort_unless($companionDefault !== null, 422, 'No printing found for companion.');
-
                 $deck->commanders()->attach($companionOracleId, [
                     'default_card_id' => $companionDefault->id,
                     'is_partner' => true,
                 ]);
             }
-        }
 
-        return $deck;
+            // Derive deck colors from the combined color identity of the
+            // new command zone. Per-card legality (color_identity) is
+            // recomputed downstream by DeckValidator on the next page load.
+            $commandZoneIds = array_filter([$commanderOracleId, $companionOracleId, $signatureSpellOracleId]);
+            $identities = OracleCard::whereIn('id', $commandZoneIds)->pluck('color_identity');
+            $merged = collect($identities)
+                ->filter()
+                ->flatMap(fn (string $ci) => str_split($ci))
+                ->unique()
+                ->sort(fn (string $a, string $b) => array_search($a, ['W', 'U', 'B', 'R', 'G']) - array_search($b, ['W', 'U', 'B', 'R', 'G']))
+                ->implode('');
+            $deck->update(['colors' => $merged ?: null]);
+        });
     }
 }

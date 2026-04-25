@@ -784,6 +784,9 @@
                 "not_in_collection": "Not in collection",
                 "currently_selected": "Currently selected"
             },
+            "change_commander": {
+                "link": "Change command zone"
+            },
             "split_printing": {
                 "title": "Split printing for {card}",
                 "link": "Split printing",

@@ -3,11 +3,13 @@
 namespace App\Http\Controllers\Decks;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Decks\ChangeDeckCommandZoneRequest;
 use App\Http\Requests\Decks\ShowDeckCommanderPrintingsRequest;
 use App\Http\Requests\Decks\UpdateDeckCommanderPrintingRequest;
 use App\Models\Deck;
 use App\Models\OracleCard;
 use App\Services\DeckPrintingsService;
+use App\Services\DeckService;
 use Illuminate\Http\JsonResponse;
 
 /**
@@ -53,6 +55,31 @@ class DeckCommanderController extends Controller
         $deck->commanders()->updateExistingPivot($oracleCard->id, [
             'default_card_id' => $request->validated()['default_card_id'],
         ]);
+
+        return response()->json(status: 204);
+    }
+
+    /**
+     * Replace the deck's entire command zone with a new commander (and
+     * optional partner-type companion or signature spell, depending on
+     * format). Existing commanders are detached, the new ones attached,
+     * and the deck's combined-color-identity `colors` field is recomputed.
+     *
+     * Per-card legality (color identity, format pool) is server-recomputed
+     * on the next deck-page render — the user will see freshly illegal
+     * cards highlighted via the existing legality panel without any
+     * additional plumbing here.
+     */
+    public function change(ChangeDeckCommandZoneRequest $request, Deck $deck): JsonResponse
+    {
+        $validated = $request->validated();
+
+        DeckService::setCommandZone(
+            $deck,
+            $validated['commander_id'],
+            $validated['companion_id'] ?? null,
+            $validated['signature_spell_id'] ?? null,
+        );
 
         return response()->json(status: 204);
     }

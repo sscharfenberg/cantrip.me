@@ -63,6 +63,7 @@ const { allGroups } = useDeckSections(
                         :deck-id="deck.id"
                         :oracle-card-id="commander.oracle_card_id"
                         :commander-name="commander.name"
+                        :format="deck.format"
                         :is-medium-button="true"
                     />
                 </face-image-lazy>

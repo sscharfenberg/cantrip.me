@@ -784,6 +784,9 @@
                 "not_in_collection": "Nicht in Sammlung",
                 "currently_selected": "Aktuell ausgewählt"
             },
+            "change_commander": {
+                "link": "Kommandozone ändern"
+            },
             "split_printing": {
                 "title": "Editionen für {card} aufteilen",
                 "link": "Editionen aufteilen",

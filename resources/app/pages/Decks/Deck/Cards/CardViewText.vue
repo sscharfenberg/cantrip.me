@@ -117,6 +117,7 @@ const previewTarget = ref<PreviewTarget | null>(null);
                                 :deck-id="deck.id"
                                 :oracle-card-id="commander.oracle_card_id"
                                 :commander-name="commander.name"
+                                :format="deck.format"
                             />
                         </li>
                     </ul>

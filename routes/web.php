@@ -166,6 +166,8 @@ Route::middleware(array_filter(['auth', Features::enabled(Features::emailVerific
         ->name('api.decks.commander.printings');
     Route::patch('/api/decks/{deck}/commander/{oracleCard}/printing', [DeckCommanderController::class, 'updatePrinting'])
         ->name('api.decks.commander.update-printing');
+    Route::patch('/api/decks/{deck}/commander', [DeckCommanderController::class, 'change'])
+        ->name('api.decks.commander.change');
     Route::patch('/api/decks/{deck}/companion/printing', [DeckCompanionController::class, 'updatePrinting'])
         ->name('api.decks.companion.update-printing');
 
