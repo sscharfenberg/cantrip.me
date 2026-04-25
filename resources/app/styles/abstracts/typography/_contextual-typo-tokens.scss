@@ -29,7 +29,8 @@ $pages: (
         "format-title": map.get(t.$font, "headline")
     ),
     "deck": (
-        "name": map.get(t.$font, "headline")
+        "name": map.get(t.$font, "headline"),
+        "companion": map.get(t.$font, "headline")
     )
 ) !default;
 

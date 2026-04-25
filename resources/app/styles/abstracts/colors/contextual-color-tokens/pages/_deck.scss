@@ -18,6 +18,18 @@ $deck: (
                 color.adjust(map.get(c.$grey, "charcoal"), $alpha: -0.25)
             )
     ),
+    "companion": (
+        "background": light-dark(
+                color.adjust(map.get(c.$grey, "astral"), $alpha: -0.25),
+                color.adjust(map.get(c.$grey, "bunker"), $alpha: -0.25)
+            ),
+        "background-hover": light-dark(
+                color.adjust(map.get(c.$grey, "white"), $alpha: -0.25),
+                color.adjust(map.get(c.$grey, "black"), $alpha: -0.25)
+            ),
+        "surface": light-dark(map.get(c.$grey, "ebony"), map.get(c.$grey, "astral")),
+        "surface-hover": light-dark(#000, #fff)
+    ),
     "group": (
         "headline": (
             "surface": light-dark(map.get(c.$brand, "dark1", "color"), map.get(c.$brand, "light1", "color")),

@@ -87,7 +87,7 @@ const pickCompanion = async (card: DeckCompanion): Promise<void> => {
                 class="companion-picker__tile"
                 :class="{ 'companion-picker__tile--disabled': tile.disabledReason }"
                 :disabled="!!tile.disabledReason || processing"
-                v-tooltip="tile.disabledReason ?? ''"
+                v-tooltip="tile.disabledReason ? { content: tile.disabledReason, container: '#modal' } : null"
                 @click="pickCompanion(tile.card)"
             >
                 <img
@@ -109,13 +109,16 @@ const pickCompanion = async (card: DeckCompanion): Promise<void> => {
 
 <style lang="scss" scoped>
 @use "Abstracts/colors" as c;
+@use "Abstracts/sizes" as s;
+@use "Abstracts/timings" as ti;
+@use "Abstracts/typography" as t;
 @use "sass:map";
 
 .companion-picker {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
 
-    gap: 1rem;
+    gap: map.get(s.$pages, "deck", "companion", "gap");
 
     @media (width >= 64rem) {
         grid-template-columns: repeat(5, 1fr);
@@ -125,22 +128,30 @@ const pickCompanion = async (card: DeckCompanion): Promise<void> => {
         display: flex;
         flex-direction: column;
 
-        padding: 0.5rem;
-        border: 1px solid transparent;
+        padding: map.get(s.$pages, "deck", "companion", "gap");
+        border: map.get(s.$pages, "deck", "companion", "border") solid transparent;
         gap: 0.5rem;
 
-        background: transparent;
-        border-radius: 0.5rem;
+        background-color: map.get(c.$pages, "deck", "companion", "background");
+        color: map.get(c.$pages, "deck", "companion", "surface");
+        border-radius: map.get(s.$pages, "deck", "companion", "radius");
 
         text-align: left;
 
         cursor: pointer;
+
+        transition:
+            background-color map.get(ti.$timings, "fast") linear,
+            color map.get(ti.$timings, "fast") linear,
+            border-color map.get(ti.$timings, "fast") linear;
 
         &--disabled {
             opacity: 0.45;
         }
 
         &:hover:not(:disabled) {
+            background-color: map.get(c.$pages, "deck", "companion", "background-hover");
+            color: map.get(c.$pages, "deck", "companion", "surface-hover");
             border-color: map.get(c.$state, "info", "border");
         }
 
@@ -155,7 +166,8 @@ const pickCompanion = async (card: DeckCompanion): Promise<void> => {
     }
 
     &__name {
-        font-weight: bold;
+        font-family: map.get(t.$pages, "deck", "companion");
+        font-weight: 600;
     }
 
     &__restriction {
