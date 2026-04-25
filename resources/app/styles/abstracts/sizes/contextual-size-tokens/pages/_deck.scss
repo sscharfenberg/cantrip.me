@@ -9,6 +9,12 @@ $deck: (
         "radius": map.get(s.$radius, "featured"),
         "name": 2rem
     ),
+    "legality": (
+        "radius": map.get(s.$border, "featured"),
+        "gap": 0.25rem,
+        "padding": 0.25rem,
+        "row-gap": 0.5rem
+    ),
     "card": (
         "border": map.get(s.$border, "base"),
         "padding": 0.125rem 0.25rem,

@@ -709,7 +709,7 @@
             },
             "companion": {
                 "heading": "Companion",
-                "add": "Add companion",
+                "add": "Companion",
                 "remove": "Remove",
                 "generic_error": "The companion could not be set.",
                 "modal": {
@@ -824,12 +824,15 @@
         "create_deck": {
             "title": "Create deck",
             "link": "Create deck",
+            "edit_title": "Update deck settings",
+            "edit_link": "Edit settings",
             "commander": {
                 "choose": "Choose command zone",
                 "change": "Change command zone",
                 "search": "Search for commander"
             },
             "submit": "Save deck",
+            "edit_submit": "Save changes",
             "oathbreaker": {
                 "choose": "Choose Oathbreaker & Signature Spell",
                 "change": "Change Oathbreaker & Signature Spell"

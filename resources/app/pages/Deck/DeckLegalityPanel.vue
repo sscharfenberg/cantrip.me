@@ -126,11 +126,13 @@ const violationNames = (cardIds: string[]): string => {
 @use "Abstracts/sizes" as s;
 
 .legality-panel {
+    border-radius: map.get(s.$pages, "deck", "legality", "radius");
+
     &__head {
         display: flex;
         align-items: center;
 
-        gap: 0.5rem;
+        gap: map.get(s.$pages, "deck", "legality", "row-gap");
     }
 
     &__list {
@@ -139,7 +141,7 @@ const violationNames = (cardIds: string[]): string => {
 
         padding: 0;
         margin: 0;
-        gap: 0.25rem;
+        gap: map.get(s.$pages, "deck", "legality", "gap");
 
         list-style: none;
     }
@@ -148,17 +150,17 @@ const violationNames = (cardIds: string[]): string => {
         display: flex;
         align-items: center;
 
-        gap: 0.5rem;
+        gap: map.get(s.$pages, "deck", "legality", "row-gap");
 
         > span {
-            padding-top: 0.25em;
+            padding-top: map.get(s.$pages, "deck", "legality", "padding");
         }
     }
 
     &__names {
         opacity: 0.8;
 
-        margin-left: 0.25rem;
+        margin-left: map.get(s.$pages, "deck", "legality", "padding");
 
         font-style: italic;
     }

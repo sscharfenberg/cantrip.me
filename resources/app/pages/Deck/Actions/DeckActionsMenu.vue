@@ -56,6 +56,11 @@ function openCreateGroup(): void {
     closePopover();
     showCreateGroupModal.value = true;
 }
+/** Navigate to the deck-settings edit page. */
+function onEditSettings(): void {
+    closePopover();
+    router.visit(`/decks/${props.deck.id}/edit`);
+}
 /**
  * Delete button handler. Skips the confirm prompt for an effectively-empty
  * deck and fires the DELETE directly. Same UX as the deck-list link.
@@ -79,6 +84,12 @@ function onDeleteClick(): void {
         width="14rem"
     >
         <ul class="popover-list">
+            <li>
+                <button class="popover-list-item" @click="onEditSettings">
+                    <icon name="edit" :size="1" />
+                    {{ $t("pages.create_deck.edit_link") }}
+                </button>
+            </li>
             <li>
                 <button class="popover-list-item" @click="openCreateGroup">
                     <icon name="add" :size="1" />

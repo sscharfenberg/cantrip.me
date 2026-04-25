@@ -16,8 +16,10 @@ const props = withDefaults(
         sort?: boolean;
         max?: string;
         clearable?: boolean;
+        /** When true, the trigger button + clear button are disabled. */
+        disabled?: boolean;
     }>(),
-    { sort: true, max: "100%", clearable: true }
+    { sort: true, max: "100%", clearable: true, disabled: false }
 );
 // Falls back to the i18n default when no placeholder prop is provided.
 const effectivePlaceholder = computed(() => props.placeholder ?? t("components.select.placeholder"));
@@ -130,6 +132,7 @@ onUnmounted(() => {
             :aria-expanded="menuOpen"
             :aria-controls="listboxId"
             aria-haspopup="listbox"
+            :disabled="disabled"
             @click.prevent="toggleMenu"
         >
             <span v-if="selectedValue">{{ selectedLabel }}</span>
@@ -137,7 +140,7 @@ onUnmounted(() => {
             <span class="form-select__caret" aria-hidden="true" />
         </button>
         <button
-            v-if="selectedValue && clearable"
+            v-if="selectedValue && clearable && !disabled"
             type="button"
             class="form-select__clear"
             :style="{ 'position-anchor': buttonAnchorName }"

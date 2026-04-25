@@ -12,6 +12,7 @@ use App\Models\Deck;
 use App\Models\DeckCard;
 use App\Models\DeckCategory;
 use App\Models\OracleCard;
+use App\Services\CommandZoneService;
 use App\Services\DeckService;
 use App\Services\DeckValidator;
 use Illuminate\Http\RedirectResponse;
@@ -305,11 +306,143 @@ class DecksController extends Controller
             $capabilities[$format->value] = $format->rules()->toArray();
         }
 
-        return Inertia::render('Decks/Create/CreateDeckPage', [
+        return Inertia::render('Deck/Create/CreateEditDeckPage', [
+            'mode' => 'create',
             'formats' => array_column(CardFormat::cases(), 'value'),
             'capabilities' => $capabilities,
             'nameMax' => Deck::NAME_MAX,
             'descriptionMax' => Deck::DESCRIPTION_MAX,
+        ]);
+    }
+
+    /**
+     * Persist edited deck settings.
+     *
+     * Format is locked in edit mode (the form's MonoSelect is disabled);
+     * even if the request carries a different format we ignore it and
+     * keep the deck's existing one. Name and description update directly.
+     * The command zone is delegated to {@see DeckService::setCommandZone}
+     * — but only when something actually changed there, so users who
+     * edited only the name/description don't get their commander's
+     * chosen printing reset to the newest one.
+     */
+    public function update(Request $request, Deck $deck): RedirectResponse
+    {
+        abort_unless($deck->user_id === $request->user()->id, 403);
+
+        precognitive(function () use ($request, $deck): void {
+            $profile = $deck->format->rules();
+            $requiresCommander = $profile->requiresCommander();
+            $requiresSignatureSpell = $requiresCommander && $profile->hasSignatureSpell();
+
+            $request->validate([
+                'deck_name' => ['required', 'string', 'max:'.Deck::NAME_MAX],
+                'deck_description' => ['nullable', 'string', 'max:'.Deck::DESCRIPTION_MAX],
+                'commander_id' => [
+                    $requiresCommander ? 'required' : 'nullable',
+                    'string',
+                    Rule::exists(OracleCard::class, 'id'),
+                ],
+                'companion_id' => ['nullable', 'string', Rule::exists(OracleCard::class, 'id')],
+                'signature_spell_id' => [
+                    $requiresSignatureSpell ? 'required' : 'nullable',
+                    'string',
+                    Rule::exists(OracleCard::class, 'id'),
+                ],
+            ]);
+        });
+
+        $deck->update([
+            'name' => $request->input('deck_name'),
+            'description' => $request->input('deck_description'),
+        ]);
+
+        // Compare the requested command zone against the current pivot rows
+        // and only re-set when something differs. setCommandZone() detaches
+        // every existing commander and re-attaches with the newest default
+        // card — calling it for a no-op edit would silently overwrite a
+        // printing choice the user made elsewhere.
+        $newCommanderId = $request->input('commander_id');
+        $newCompanionId = $request->input('companion_id');
+        $newSignatureSpellId = $request->input('signature_spell_id');
+
+        $deck->load('commanders');
+        $profile = $deck->format->rules();
+        $currentCommander = $deck->commanders->firstWhere('pivot.is_partner', false)?->id;
+        $currentPartner = $deck->commanders->firstWhere('pivot.is_partner', true)?->id;
+        $currentCompanion = $profile->hasSignatureSpell() ? null : $currentPartner;
+        $currentSpell = $profile->hasSignatureSpell() ? $currentPartner : null;
+
+        if (
+            $newCommanderId !== $currentCommander
+            || $newCompanionId !== $currentCompanion
+            || $newSignatureSpellId !== $currentSpell
+        ) {
+            DeckService::setCommandZone($deck, $newCommanderId, $newCompanionId, $newSignatureSpellId);
+        }
+
+        $request->session()->flash('message', __('auth.deck_updated', ['name' => $deck->name]));
+        $request->session()->flash('type', 'success');
+
+        return redirect(route('decks.show', $deck));
+    }
+
+    /**
+     * Display the deck-settings edit page — same Vue component as the
+     * create flow, just rendered in `mode: "edit"` with the deck's current
+     * values pre-filled (name, description, format, command-zone cards).
+     *
+     * The format option in the form is rendered as disabled when in edit
+     * mode (changing format on an existing deck would invalidate every
+     * card and isn't supported yet); changing the command zone uses the
+     * same picker modals as the create flow.
+     *
+     * Commanders are routed through {@see CommandZoneService::mapCommanderCard}
+     * so the pre-fill payload matches the `CommanderResult` shape the rest
+     * of the form already understands.
+     */
+    public function edit(ShowDeckRequest $request, Deck $deck): Response
+    {
+        $deck->load([
+            'commanders.faces:oracle_card_id,face_index,type_line,mana_cost,oracle_text',
+        ]);
+
+        $profile = $deck->format->rules();
+
+        $commander = null;
+        $companion = null;
+        $signatureSpell = null;
+        foreach ($deck->commanders as $oracle) {
+            $shaped = CommandZoneService::mapCommanderCard($oracle);
+            if (! $oracle->pivot->is_partner) {
+                $commander = $shaped;
+            } elseif ($profile->hasSignatureSpell()) {
+                $signatureSpell = $shaped;
+            } else {
+                $companion = $shaped;
+            }
+        }
+
+        $capabilities = [];
+        foreach (CardFormat::cases() as $format) {
+            $capabilities[$format->value] = $format->rules()->toArray();
+        }
+
+        return Inertia::render('Deck/Create/CreateEditDeckPage', [
+            'mode' => 'edit',
+            'formats' => array_column(CardFormat::cases(), 'value'),
+            'capabilities' => $capabilities,
+            'nameMax' => Deck::NAME_MAX,
+            'descriptionMax' => Deck::DESCRIPTION_MAX,
+            'existingDeck' => [
+                'id' => $deck->id,
+                'name' => $deck->name,
+                'description' => $deck->description,
+                'format' => $deck->format->value,
+                'commander' => $commander,
+                'companion' => $companion,
+                'signatureSpell' => $signatureSpell,
+            ],
         ]);
     }
 

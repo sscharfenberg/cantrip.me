@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Form, Head } from "@inertiajs/vue3";
-import { computed, nextTick, ref, useTemplateRef, watch } from "vue";
+import { computed, nextTick, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import DeckFormatCapabilities from "Components/Deck/DeckFormatCapabilities.vue";
 import type { CommanderResult } from "Components/Deck/ShowCommanderOverview.vue";
@@ -10,20 +10,47 @@ import MonoSelect from "Components/Form/Select/MonoSelect.vue";
 import Headline from "Components/UI/Headline.vue";
 import Icon from "Components/UI/Icon.vue";
 import { useBreadcrumbs } from "Composables/useBreadcrumbs.ts";
-import type { FormatCapabilities } from "Types/formatCapabilities";
+import type { FormatCapabilities } from "Types/formatCapabilities.ts";
 import CommanderCommandZonePickerModal from "./CommanderCommandZonePickerModal.vue";
 import OathbreakerCommandZonePickerModal from "./OathbreakerCommandZonePickerModal.vue";
-const props = defineProps<{
-    formats: string[];
-    capabilities: Record<string, FormatCapabilities>;
-    nameMax: number;
-    descriptionMax: number;
-}>();
+/** Server-rendered shape for "edit existing deck" mode. */
+export interface ExistingDeck {
+    id: string;
+    name: string;
+    description: string | null;
+    format: string;
+    commander: CommanderResult | null;
+    companion: CommanderResult | null;
+    signatureSpell: CommanderResult | null;
+}
+const props = withDefaults(
+    defineProps<{
+        /**
+         * "create" renders an empty form pointed at `POST /decks/add`; "edit"
+         * pre-fills from `existingDeck` and (eventually) submits to a PATCH
+         * endpoint. The form structure is identical between the two modes.
+         */
+        mode?: "create" | "edit";
+        formats: string[];
+        capabilities: Record<string, FormatCapabilities>;
+        nameMax: number;
+        descriptionMax: number;
+        /** Current deck values when `mode === "edit"`. Ignored in create mode. */
+        existingDeck?: ExistingDeck | null;
+    }>(),
+    { mode: "create", existingDeck: null }
+);
 const { t } = useI18n();
+/** True when the page is editing an existing deck rather than creating one. */
+const isEdit = computed(() => props.mode === "edit");
 /** CardFormat options formatted for MonoSelect: `{ value, label }` pairs with translated labels. */
 const formatOptions = computed(() => props.formats.map(value => ({ value, label: t(`enums.card_formats.${value}`) })));
-/** Currently selected deck format. */
-const selectedFormat = ref("");
+/**
+ * Currently selected deck format. Initialised from `existingDeck.format` in
+ * edit mode so the watcher below doesn't fire on mount and clear the
+ * pre-filled command zone.
+ */
+const selectedFormat = ref(props.existingDeck?.format ?? "");
 /** Capabilities for the currently selected format, or null if none selected. */
 const selectedCapabilities = computed<FormatCapabilities | null>(
     () => props.capabilities[selectedFormat.value] ?? null
@@ -32,18 +59,24 @@ const selectedCapabilities = computed<FormatCapabilities | null>(
 const commanderPickerOpen = ref(false);
 /** Whether the oathbreaker picker modal is open. */
 const oathbreakerPickerOpen = ref(false);
-/** Confirmed commander from the picker modal. */
-const commander = ref<CommanderResult | null>(null);
-/** Confirmed companion (partner or background) from the picker modal (may be null). */
-const companion = ref<CommanderResult | null>(null);
-/** Confirmed signature spell from the oathbreaker picker modal (may be null). */
-const signatureSpell = ref<CommanderResult | null>(null);
-/** Reference to the deck name input element. */
-const deckNameInput = useTemplateRef<HTMLInputElement>("deckNameInput");
+/** Confirmed commander — pre-filled from the existing deck in edit mode. */
+const commander = ref<CommanderResult | null>(props.existingDeck?.commander ?? null);
+/** Confirmed partner-type companion (partner / background / friends-forever / …). */
+const companion = ref<CommanderResult | null>(props.existingDeck?.companion ?? null);
+/** Confirmed Oathbreaker signature spell. */
+const signatureSpell = ref<CommanderResult | null>(props.existingDeck?.signatureSpell ?? null);
+/**
+ * Local refs back the name + description inputs so they survive Inertia
+ * re-renders. Without this, `:value="existingDeck?.name"` is a one-way
+ * bind that snaps the DOM back to the prop after every precognition
+ * validate, silently reverting whatever the user just typed.
+ */
+const deckName = ref(props.existingDeck?.name ?? "");
+const deckDescription = ref(props.existingDeck?.description ?? "");
 /** Pre-fill the deck name with the commander's name when the field is empty. */
 const prefillDeckName = (name: string) => {
-    if (deckNameInput.value && !deckNameInput.value.value.trim()) {
-        deckNameInput.value.value = name;
+    if (!deckName.value.trim()) {
+        deckName.value = name;
     }
 };
 /** Store the confirmed commander and optional companion from the picker modal. */
@@ -58,7 +91,12 @@ const onOathbreakerConfirmed = (pw: CommanderResult, spell: CommanderResult) => 
     signatureSpell.value = spell;
     prefillDeckName(pw.name);
 };
-/** Clear command zone when format changes — legality may differ. */
+/**
+ * Clear command zone when format changes — legality may differ. In edit
+ * mode the format select is rendered as disabled, so this watcher won't
+ * fire from user interaction; it's still wired up to keep the create flow
+ * (where the format genuinely changes) working.
+ */
 watch(selectedFormat, () => {
     commander.value = null;
     companion.value = null;
@@ -69,25 +107,34 @@ watch(selectedFormat, () => {
  * user hasn't picked one yet. Used to disable the submit button and (once
  * the server has validated) to surface the error inline.
  */
-const commanderMissing = computed(
-    () => !!selectedCapabilities.value?.requiresCommander && !commander.value
-);
-const signatureSpellMissing = computed(
-    () => !!selectedCapabilities.value?.hasSignatureSpell && !signatureSpell.value
-);
+const commanderMissing = computed(() => !!selectedCapabilities.value?.requiresCommander && !commander.value);
+const signatureSpellMissing = computed(() => !!selectedCapabilities.value?.hasSignatureSpell && !signatureSpell.value);
 const { setBreadcrumbs } = useBreadcrumbs();
-setBreadcrumbs([{ labelKey: "pages.decks.link", href: "/decks" }, { labelKey: "pages.create_deck.link" }]);
+setBreadcrumbs(
+    isEdit.value && props.existingDeck
+        ? [
+              { labelKey: "pages.decks.link", href: "/decks" },
+              { label: props.existingDeck.name, href: `/decks/${props.existingDeck.id}` },
+              { labelKey: "pages.create_deck.edit_link" },
+          ]
+        : [{ labelKey: "pages.decks.link", href: "/decks" }, { labelKey: "pages.create_deck.link" }]
+);
 </script>
 
 <template>
     <Head>
-        <title>{{ $t("pages.create_deck.title") }}</title>
+        <title>{{ isEdit ? $t("pages.create_deck.edit_title") : $t("pages.create_deck.title") }}</title>
     </Head>
     <headline>
         <icon name="deck" :size="3" />
-        {{ $t("pages.create_deck.title") }}
+        {{ isEdit ? $t("pages.create_deck.edit_title") : $t("pages.create_deck.title") }}
     </headline>
-    <Form class="form" action="/decks/add" method="post" #default="{ errors, processing, validating, valid, validate }">
+    <Form
+        class="form"
+        :action="isEdit && existingDeck ? `/decks/${existingDeck.id}` : '/decks/add'"
+        :method="isEdit ? 'patch' : 'post'"
+        #default="{ errors, processing, validating, valid, validate }"
+    >
         <form-group
             :label="$t('form.fields.format')"
             :required="true"
@@ -99,6 +146,7 @@ setBreadcrumbs([{ labelKey: "pages.decks.link", href: "/decks" }, { labelKey: "p
             <mono-select
                 :options="formatOptions"
                 :selected="selectedFormat"
+                :disabled="isEdit"
                 @change="
                     selectedFormat = $event;
                     nextTick(() => validate('format'));
@@ -113,13 +161,23 @@ setBreadcrumbs([{ labelKey: "pages.decks.link", href: "/decks" }, { labelKey: "p
         </form-group>
         <!-- Oathbreaker: planeswalker + signature spell -->
         <template v-if="selectedCapabilities?.requiresCommander && selectedCapabilities?.hasSignatureSpell">
-            <form-group v-if="commander" :label="$t('components.oathbreaker_picker.selected_planeswalker')" :required="true" :validated="true">
+            <form-group
+                v-if="commander"
+                :label="$t('components.oathbreaker_picker.selected_planeswalker')"
+                :required="true"
+                :validated="true"
+            >
                 <div class="commander-picker__commander commander-picker__commander--selected">
                     <show-commander-overview :card="commander" />
                 </div>
                 <input type="hidden" name="commander_id" :value="commander.id" />
             </form-group>
-            <form-group v-if="signatureSpell" :label="$t('components.oathbreaker_picker.selected_spell')" :required="true" :validated="true">
+            <form-group
+                v-if="signatureSpell"
+                :label="$t('components.oathbreaker_picker.selected_spell')"
+                :required="true"
+                :validated="true"
+            >
                 <div class="commander-picker__commander commander-picker__commander--selected">
                     <show-commander-overview :card="signatureSpell" />
                 </div>
@@ -131,7 +189,9 @@ setBreadcrumbs([{ labelKey: "pages.decks.link", href: "/decks" }, { labelKey: "p
             >
                 <button type="button" class="btn-default" @click="oathbreakerPickerOpen = true">
                     <icon name="register" />
-                    {{ $t(commander ? "pages.create_deck.oathbreaker.change" : "pages.create_deck.oathbreaker.choose") }}
+                    {{
+                        $t(commander ? "pages.create_deck.oathbreaker.change" : "pages.create_deck.oathbreaker.choose")
+                    }}
                 </button>
             </form-group>
         </template>
@@ -175,7 +235,7 @@ setBreadcrumbs([{ labelKey: "pages.decks.link", href: "/decks" }, { labelKey: "p
             addon-icon="container-name"
         >
             <input
-                ref="deckNameInput"
+                v-model="deckName"
                 type="text"
                 name="deck_name"
                 id="deck_name"
@@ -195,6 +255,7 @@ setBreadcrumbs([{ labelKey: "pages.decks.link", href: "/decks" }, { labelKey: "p
             <div class="form-input__textarea-addon"><icon name="text" /></div>
             <div class="form-input form-input__textarea">
                 <textarea
+                    v-model="deckDescription"
                     name="deck_description"
                     id="deck_description"
                     :maxlength="props.descriptionMax"
@@ -208,7 +269,8 @@ setBreadcrumbs([{ labelKey: "pages.decks.link", href: "/decks" }, { labelKey: "p
                 class="btn-primary"
                 :disabled="processing || commanderMissing || signatureSpellMissing"
             >
-                <icon name="save" />{{ $t("pages.create_deck.submit") }}
+                <icon name="save" />
+                {{ isEdit ? $t("pages.create_deck.edit_submit") : $t("pages.create_deck.submit") }}
             </button>
         </form-group>
     </Form>

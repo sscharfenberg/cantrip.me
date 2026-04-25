@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref, useTemplateRef, watch } from "vue";
-import { isCompanionCard } from "@/utils/companionNames";
+import { isCompanionCard } from "@/utils/companionNames.ts";
 import SearchSyntax from "Components/Card/SearchSyntax.vue";
 import type { CommanderResult } from "Components/Deck/ShowCommanderOverview.vue";
 import ShowCommanderOverview from "Components/Deck/ShowCommanderOverview.vue";

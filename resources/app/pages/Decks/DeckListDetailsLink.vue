@@ -36,6 +36,15 @@ function closePopover(): void {
     if (dialog !== null) dialog.hidePopover();
 }
 /**
+ * Navigate to the edit-settings page. Programmatic visit instead of a
+ * nested `<Link>` because the entire row is wrapped in an Inertia
+ * `<Link>` already and an `<a>` inside another `<a>` is invalid HTML.
+ */
+function onEditClick(): void {
+    closePopover();
+    router.visit(`/decks/${props.deck.id}/edit`);
+}
+/**
  * Delete button handler. Skips the confirm prompt entirely for "empty"
  * decks — no cards, no companion, no description, no custom image — and
  * fires the DELETE directly. Anything worth losing opens the modal first.
@@ -72,6 +81,12 @@ function onDeleteClick(): void {
             width="14rem"
         >
             <ul class="popover-list">
+                <li>
+                    <button class="popover-list-item" @click.prevent="onEditClick">
+                        <icon name="edit" :size="1" />
+                        {{ t("pages.create_deck.edit_link") }}
+                    </button>
+                </li>
                 <li>
                     <button class="popover-list-item popover-list-item--error" @click.prevent="onDeleteClick">
                         <icon name="delete" :size="1" />

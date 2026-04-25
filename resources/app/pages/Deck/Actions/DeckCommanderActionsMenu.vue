@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { router, usePage } from "@inertiajs/vue3";
 import { computed, ref, useId } from "vue";
-import CommanderCommandZonePickerModal from "@/pages/Decks/Create/CommanderCommandZonePickerModal.vue";
-import OathbreakerCommandZonePickerModal from "@/pages/Decks/Create/OathbreakerCommandZonePickerModal.vue";
+import CommanderCommandZonePickerModal from "@/pages/Deck/Create/CommanderCommandZonePickerModal.vue";
+import OathbreakerCommandZonePickerModal from "@/pages/Deck/Create/OathbreakerCommandZonePickerModal.vue";
 import type { CommanderResult } from "Components/Deck/ShowCommanderOverview.vue";
 import Icon from "Components/UI/Icon.vue";
 import PopOver from "Components/UI/PopOver.vue";

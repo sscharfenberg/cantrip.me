@@ -708,8 +708,8 @@
                 }
             },
             "companion": {
-                "heading": "Gefährte",
-                "add": "Gefährten hinzufügen",
+                "heading": "Companion",
+                "add": "Companion",
                 "remove": "Entfernen",
                 "generic_error": "Dieser Gefährte konnte nicht gesetzt werden.",
                 "modal": {
@@ -824,12 +824,15 @@
         "create_deck": {
             "title": "Deck erstellen",
             "link": "Deck erstellen",
+            "edit_title": "Deck-Einstellungen bearbeiten",
+            "edit_link": "Einstellungen bearbeiten",
             "commander": {
                 "choose": "Command Zone auswählen",
                 "change": "Command Zone ändern",
                 "search": "Commander suchen"
             },
             "submit": "Save deck",
+            "edit_submit": "Änderungen speichern",
             "oathbreaker": {
                 "choose": "Oathbreaker & Signaturzauber wählen",
                 "change": "Oathbreaker & Signaturzauber ändern"
