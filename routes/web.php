@@ -10,6 +10,7 @@ use App\Http\Controllers\CurrencyController;
 use App\Http\Controllers\Decks\DeckCardController;
 use App\Http\Controllers\Decks\DeckCardSearchController;
 use App\Http\Controllers\Decks\DeckCategoryController;
+use App\Http\Controllers\Decks\DeckCommanderController;
 use App\Http\Controllers\Decks\DeckCompanionController;
 use App\Http\Controllers\Decks\DecksController;
 use App\Http\Controllers\GuestController;
@@ -161,6 +162,10 @@ Route::middleware(array_filter(['auth', Features::enabled(Features::emailVerific
         ->name('api.decks.companion.destroy');
     Route::get('/api/decks/{deck}/companion/printings', [DeckCompanionController::class, 'printings'])
         ->name('api.decks.companion.printings');
+    Route::get('/api/decks/{deck}/commander/{oracleCard}/printings', [DeckCommanderController::class, 'printings'])
+        ->name('api.decks.commander.printings');
+    Route::patch('/api/decks/{deck}/commander/{oracleCard}/printing', [DeckCommanderController::class, 'updatePrinting'])
+        ->name('api.decks.commander.update-printing');
     Route::patch('/api/decks/{deck}/companion/printing', [DeckCompanionController::class, 'updatePrinting'])
         ->name('api.decks.companion.update-printing');
 

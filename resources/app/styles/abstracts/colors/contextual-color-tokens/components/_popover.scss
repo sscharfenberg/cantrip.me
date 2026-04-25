@@ -4,21 +4,18 @@
 
 $popover: (
     "background": light-dark(
-            color.adjust(map.get(c.$grey, "astral"), $alpha: -0.5),
-            color.adjust(map.get(c.$grey, "ebony"), $alpha: -0.5)
+            color.adjust(map.get(c.$grey, "white"), $alpha: -0.125),
+            color.adjust(map.get(c.$grey, "black"), $alpha: -0.125)
         ),
     "item-background": light-dark(
-            color.adjust(map.get(c.$grey, "infra"), $alpha: -0.5),
-            color.adjust(map.get(c.$grey, "abbey"), $alpha: -0.5)
+            color.adjust(map.get(c.$grey, "infra"), $alpha: -0.25),
+            color.adjust(map.get(c.$grey, "bunker"), $alpha: -0.25)
         ),
-    "item-background-hover": light-dark(map.get(c.$grey, "white"), map.get(c.$grey, "black")),
-    "item-background-selected": light-dark(map.get(c.$brand, "light1", "color"), map.get(c.$brand, "dark1", "color")),
-    "item-surfcace-selected": light-dark(
-            map.get(c.$brand, "light1", "contrast"),
-            map.get(c.$brand, "dark1", "contrast")
-        ),
+    "item-background-hover": light-dark(map.get(c.$brand, "light2", "color"), map.get(c.$brand, "dark2", "color")),
+    "item-background-selected": light-dark(map.get(c.$brand, "light1", "color"), map.get(c.$brand, "dark1", "contrast")),
+    "item-surface-selected": light-dark(map.get(c.$brand, "light1", "contrast"), map.get(c.$brand, "dark1", "color")),
     "item-surface": light-dark(map.get(c.$grey, "ebony"), map.get(c.$grey, "astral")),
-    "item-surface-hover": light-dark(map.get(c.$grey, "ebony"), map.get(c.$grey, "astral")),
+    "item-surface-hover": light-dark(map.get(c.$brand, "light2", "contrast"), map.get(c.$brand, "dark2", "contrast")),
     "border-from": light-dark(map.get(c.$grey, "iron"), map.get(c.$grey, "asher")),
     "border-to": light-dark(map.get(c.$grey, "fog"), map.get(c.$grey, "abbey")),
     "button": (

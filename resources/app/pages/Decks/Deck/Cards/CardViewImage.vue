@@ -2,6 +2,7 @@
 import { ref } from "vue";
 import { useI18n } from "vue-i18n";
 import DeckCardActionsMenu from "@/pages/Decks/Deck/Actions/DeckCardActionsMenu.vue";
+import DeckCommanderActionsMenu from "@/pages/Decks/Deck/Actions/DeckCommanderActionsMenu.vue";
 import DeckGroupHeadline from "@/pages/Decks/Deck/Cards/DeckGroupHeadline.vue";
 import FaceImageLazy from "@/pages/Decks/Deck/Cards/FaceImageLazy.vue";
 import CompanionSection from "@/pages/Decks/Deck/Companion/CompanionSection.vue";
@@ -57,7 +58,14 @@ const { allGroups } = useDeckSections(
                     :card-image0="commander.default_card.card_image_0"
                     :card-image1="commander.default_card.card_image_1"
                     :name="commander.name"
-                />
+                >
+                    <deck-commander-actions-menu
+                        :deck-id="deck.id"
+                        :oracle-card-id="commander.oracle_card_id"
+                        :commander-name="commander.name"
+                        :is-medium-button="true"
+                    />
+                </face-image-lazy>
             </ul>
         </section>
         <section v-if="deck.allows_companion && companion" class="image-card-group">
