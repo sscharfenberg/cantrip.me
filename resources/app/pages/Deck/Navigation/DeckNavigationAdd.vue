@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { ref } from "vue";
-import AddCompanionModal from "@/pages/Decks/Deck/Modals/AddCompanionModal.vue";
-import CardAddModal from "@/pages/Decks/Deck/Modals/CardAddModal.vue";
 import Icon from "Components/UI/Icon.vue";
 import type { DeckCardRow, DeckCompanion, DeckMeta } from "Types/deckPage.ts";
+import AddCompanionModal from "../Modals/AddCompanionModal.vue";
+import CardAddModal from "../Modals/CardAddModal.vue";
 defineProps<{
     /** Deck metadata (name, format, state, colors, etc.). */
     deck: DeckMeta;

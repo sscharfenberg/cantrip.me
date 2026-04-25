@@ -261,7 +261,7 @@ class DecksController extends Controller
             'name' => $cat->name,
         ])->values();
 
-        return Inertia::render('Decks/Deck/DeckPage', [
+        return Inertia::render('Deck/DeckPage', [
             'deck' => [
                 'id' => $deck->id,
                 'name' => $deck->name,

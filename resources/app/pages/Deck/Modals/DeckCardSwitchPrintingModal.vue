@@ -7,7 +7,7 @@ import Switch from "Components/Form/Switch.vue";
 import Modal from "Components/Modal/Modal.vue";
 import Icon from "Components/UI/Icon.vue";
 import LoadingSpinner from "Components/UI/LoadingSpinner.vue";
-import type { DeckPrinting } from "Types/defaultCardImage";
+import type { DeckPrinting } from "Types/defaultCardImage.ts";
 const emit = defineEmits<{
     close: [];
     /** Fired when the user picks a new printing — the caller owns the PATCH + any optimistic state updates. */
@@ -88,8 +88,7 @@ onMounted(async () => {
     } catch (e) {
         if (e instanceof DOMException && e.name === "AbortError") return;
         error.value = true;
-    }
-    finally {
+    } finally {
         loading.value = false;
     }
 });

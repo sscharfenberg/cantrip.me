@@ -38,20 +38,8 @@ function onFlip() {
                 :class="{ 'deck-card-preview__card--flipped': flipped }"
                 @transitionend="animating = false"
             >
-                <img
-                    v-if="cardImage0"
-                    :src="cardImage0"
-                    :alt="name"
-                    loading="lazy"
-                    class="deck-card-preview__front"
-                />
-                <img
-                    v-if="cardImage1"
-                    :src="cardImage1"
-                    :alt="name"
-                    loading="lazy"
-                    class="deck-card-preview__back"
-                />
+                <img v-if="cardImage0" :src="cardImage0" :alt="name" loading="lazy" class="deck-card-preview__front" />
+                <img v-if="cardImage1" :src="cardImage1" :alt="name" loading="lazy" class="deck-card-preview__back" />
                 <button v-if="cardImage1" type="button" class="deck-card-preview__flip" @click.stop="onFlip">
                     <icon name="flip" />
                 </button>

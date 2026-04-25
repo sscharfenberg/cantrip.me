@@ -1,7 +1,5 @@
 <script setup lang="ts">
 import { useI18n } from "vue-i18n";
-import DeckActionsMenu from "@/pages/Decks/Deck/Actions/DeckActionsMenu.vue";
-import DeckLegalityPanel from "@/pages/Decks/Deck/DeckLegalityPanel.vue";
 import ColorIdentity from "Components/Card/ColorIdentity.vue";
 import DeckState from "Components/Deck/DeckState.vue";
 import Badge from "Components/UI/Badge.vue";
@@ -9,6 +7,8 @@ import Icon from "Components/UI/Icon.vue";
 import Paragraph from "Components/UI/Paragraph.vue";
 import VisibilityBadge from "Components/UI/VisibilityBadge.vue";
 import type { DeckCardRow, DeckCategoryRow, DeckCompanion, DeckMeta, DeckViolation } from "Types/deckPage.ts";
+import DeckActionsMenu from "./Actions/DeckActionsMenu.vue";
+import DeckLegalityPanel from "./DeckLegalityPanel.vue";
 defineProps<{
     /** Deck metadata (name, format, state, colors, etc.). */
     deck: DeckMeta;

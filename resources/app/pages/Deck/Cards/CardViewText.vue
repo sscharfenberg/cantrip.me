@@ -2,12 +2,12 @@
 import { ref } from "vue";
 import { VueDraggable } from "vue-draggable-plus";
 import { useI18n } from "vue-i18n";
-import DeckCardActionsMenu from "@/pages/Decks/Deck/Actions/DeckCardActionsMenu.vue";
-import DeckCommanderActionsMenu from "@/pages/Decks/Deck/Actions/DeckCommanderActionsMenu.vue";
-import DeckGroupHeadline from "@/pages/Decks/Deck/Cards/DeckGroupHeadline.vue";
-import CompanionSection from "@/pages/Decks/Deck/Companion/CompanionSection.vue";
-import DeckAddGroupModal from "@/pages/Decks/Deck/Modals/DeckAddGroupModal.vue";
-import DeckCardPreviewModal from "@/pages/Decks/Deck/Modals/DeckCardPreviewModal.vue";
+import DeckCardActionsMenu from "@/pages/Deck/Actions/DeckCardActionsMenu.vue";
+import DeckCommanderActionsMenu from "@/pages/Deck/Actions/DeckCommanderActionsMenu.vue";
+import DeckAddGroupModal from "@/pages/Deck/Modals/DeckAddGroupModal.vue";
+import DeckCardPreviewModal from "@/pages/Deck/Modals/DeckCardPreviewModal.vue";
+import DeckCompanionSection from "@/pages/Deck/Sections/DeckCompanionSection.vue";
+import DeckGroupHeadline from "@/pages/Deck/Sections/DeckGroupHeadline.vue";
 import CardImagePreview from "Components/Card/CardImagePreview.vue";
 import ManaCost from "Components/Card/ManaCost.vue";
 import Icon from "Components/UI/Icon.vue";
@@ -15,7 +15,7 @@ import { useDeckCardDrag } from "Composables/useDeckCardDrag.ts";
 import { useDeckSections } from "Composables/useDeckSections.ts";
 import type { DeckSort } from "Composables/useDeckSort.ts";
 import { useResponsiveColumns } from "Composables/useResponsiveColumns.ts";
-import type { DeckCardRow, DeckCategoryRow, DeckCommander, DeckCompanion, DeckMeta } from "Types/deckPage";
+import type { DeckCardRow, DeckCategoryRow, DeckCommander, DeckCompanion, DeckMeta } from "Types/deckPage.ts";
 /** Shape of the data needed by the preview modal. */
 interface PreviewTarget {
     name: string;
@@ -81,13 +81,7 @@ const previewTarget = ref<PreviewTarget | null>(null);
         <div v-for="(col, ci) in columns" :key="ci" class="text-card-groups__column">
             <template
                 v-for="section in col"
-                :key="
-                    section.kind === 'commanders'
-                        ? 'cmd'
-                        : section.kind === 'companion'
-                          ? 'cmp'
-                          : section.group.key
-                "
+                :key="section.kind === 'commanders' ? 'cmd' : section.kind === 'companion' ? 'cmp' : section.group.key"
             >
                 <section
                     v-if="section.kind === 'commanders'"
@@ -128,7 +122,7 @@ const previewTarget = ref<PreviewTarget | null>(null);
                     :class="{ 'text-card-group--unavailable': dragging }"
                 >
                     <deck-group-headline>{{ $t("pages.deck.companion.heading") }}</deck-group-headline>
-                    <companion-section
+                    <deck-companion-section
                         :deck-id="deck.id"
                         :companion="section.companion"
                         variant="text"
@@ -154,7 +148,10 @@ const previewTarget = ref<PreviewTarget | null>(null);
                         ghost-class="card--ghost"
                         @start="onDragStart"
                         @end="onDragEnd"
-                        @add="(evt: { item: HTMLElement }) => onDropToGroup(evt, section.group.categoryId, section.group.zone)"
+                        @add="
+                            (evt: { item: HTMLElement }) =>
+                                onDropToGroup(evt, section.group.categoryId, section.group.zone)
+                        "
                     >
                         <li v-for="card in section.group.cards" :key="card.id" :data-card-id="card.id" class="card">
                             <span class="card__drag-handle"><icon name="drag" :size="1" /></span>
@@ -247,7 +244,7 @@ const previewTarget = ref<PreviewTarget | null>(null);
 // Override CardImagePreview's own scoped padding default. Lives here (not in
 // _text-group.scss) because that partial is inside @layer components, which
 // always loses to CardImagePreview's own unlayered scoped style regardless of
-// specificity. :deep() reaches CompanionSection too, which is rendered inside
+// specificity. :deep() reaches DeckCompanionSection too, which is rendered inside
 // this component.
 :deep(.card-preview__trigger) {
     flex-grow: 1;

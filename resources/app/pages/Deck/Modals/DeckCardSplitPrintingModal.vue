@@ -8,7 +8,7 @@ import Switch from "Components/Form/Switch.vue";
 import Modal from "Components/Modal/Modal.vue";
 import Icon from "Components/UI/Icon.vue";
 import LoadingSpinner from "Components/UI/LoadingSpinner.vue";
-import type { DefaultCardImage } from "Types/defaultCardImage";
+import type { DefaultCardImage } from "Types/defaultCardImage.ts";
 /** A printing of the deck card's oracle card, plus collection/current flags. */
 type Printing = DefaultCardImage & { in_collection: boolean; is_current: boolean };
 const emit = defineEmits<{ close: [] }>();

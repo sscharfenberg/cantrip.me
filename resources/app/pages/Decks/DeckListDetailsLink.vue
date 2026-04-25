@@ -2,7 +2,7 @@
 import { Link, router } from "@inertiajs/vue3";
 import { computed, ref, useId } from "vue";
 import { useI18n } from "vue-i18n";
-import DeleteDeckModal from "@/pages/Decks/Deck/Modals/DeleteDeckModal.vue";
+import DeleteDeckModal from "@/pages/Deck/Modals/DeleteDeckModal.vue";
 import type { DeckRow } from "@/pages/Decks/Decks.vue";
 import { hasDeletableContent } from "@/utils/deleteDeck";
 import type { DeleteDeckTarget } from "@/utils/deleteDeck";

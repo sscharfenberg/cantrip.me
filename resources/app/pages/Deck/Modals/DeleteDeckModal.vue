@@ -7,16 +7,13 @@ import FormLegend from "Components/Form/FormLegend.vue";
 import Modal from "Components/Modal/Modal.vue";
 import Icon from "Components/UI/Icon.vue";
 import LoadingSpinner from "Components/UI/LoadingSpinner.vue";
-
 /** @emits close — Fired after successful deletion or when the user cancels. */
 const emit = defineEmits<{ close: [] }>();
 /** @props target — Minimal deck info: id + name for the request and heading. */
 const props = defineProps<{ target: DeleteDeckTarget }>();
-
 const { t } = useI18n();
 /** True while the DELETE request is in flight. */
 const processing = ref(false);
-
 /**
  * Issue the DELETE. The controller flashes a success message and redirects
  * to the deck-list page, so no explicit reload is needed here — the Inertia

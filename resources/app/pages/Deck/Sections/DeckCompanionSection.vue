@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import DeckCompanionActionsMenu from "@/pages/Decks/Deck/Actions/DeckCompanionActionsMenu.vue";
-import FaceImageLazy from "@/pages/Decks/Deck/Cards/FaceImageLazy.vue";
 import CardImagePreview from "Components/Card/CardImagePreview.vue";
 import ManaCost from "Components/Card/ManaCost.vue";
-import type { DeckCompanion } from "Types/deckPage";
+import type { DeckCompanion } from "Types/deckPage.ts";
+import DeckCompanionActionsMenu from "../Actions/DeckCompanionActionsMenu.vue";
+import FaceImageLazy from "../Cards/FaceImageLazy.vue";
 interface PreviewTarget {
     name: string;
     cardImage0: string | null;
@@ -37,7 +37,7 @@ defineProps<{
                     emit('preview', {
                         name: companion.name,
                         cardImage0: companion.default_card.card_image_0,
-                        cardImage1: companion.default_card.card_image_1,
+                        cardImage1: companion.default_card.card_image_1
                     })
                 "
             >

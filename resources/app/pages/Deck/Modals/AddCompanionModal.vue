@@ -2,9 +2,9 @@
 import { router, usePage } from "@inertiajs/vue3";
 import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
-import { isSubsetCI } from "@/utils/colorIdentity";
+import { isSubsetCI } from "@/utils/colorIdentity.ts";
 import Modal from "Components/Modal/Modal.vue";
-import type { DeckCompanion } from "Types/deckPage";
+import type { DeckCompanion } from "Types/deckPage.ts";
 const emit = defineEmits<{ close: [] }>();
 const props = defineProps<{
     deckId: string;
@@ -26,11 +26,11 @@ interface Tile {
     disabledReason: string | null;
 }
 const tiles = computed<Tile[]>(() =>
-    props.roster.map((card) => {
+    props.roster.map(card => {
         let reason: string | null = null;
         if (props.bannedAsCompanion.includes(card.name)) {
             reason = t("pages.deck.companion.disabled.banned", {
-                format: t(`enums.card_formats.${props.format}`),
+                format: t(`enums.card_formats.${props.format}`)
             });
         } else if (props.enforcesColorIdentity && !isSubsetCI(card.color_identity, props.commanderColorIdentity)) {
             reason = t("pages.deck.companion.disabled.color_identity");
@@ -53,9 +53,9 @@ const pickCompanion = async (card: DeckCompanion): Promise<void> => {
         headers: {
             "Content-Type": "application/json",
             "X-CSRF-TOKEN": page.props.csrfToken as string,
-            Accept: "application/json",
+            Accept: "application/json"
         },
-        body: JSON.stringify({ oracle_card_id: card.oracle_card_id }),
+        body: JSON.stringify({ oracle_card_id: card.oracle_card_id })
     });
     if (response.status === 422) {
         const data = (await response.json()) as { errors?: Record<string, string[]> };
@@ -71,7 +71,7 @@ const pickCompanion = async (card: DeckCompanion): Promise<void> => {
     }
     router.reload({
         only: ["deck", "companion"],
-        onFinish: () => emit("close"),
+        onFinish: () => emit("close")
     });
 };
 </script>

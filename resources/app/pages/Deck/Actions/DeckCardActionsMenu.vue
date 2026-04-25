@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { ref, useId } from "vue";
-import DeckCardMoveToGroupModal from "@/pages/Decks/Deck/Modals/DeckCardMoveToGroupModal.vue";
-import DeckCardSplitPrintingModal from "@/pages/Decks/Deck/Modals/DeckCardSplitPrintingModal.vue";
-import DeckCardSwitchPrintingModal from "@/pages/Decks/Deck/Modals/DeckCardSwitchPrintingModal.vue";
 import Icon from "Components/UI/Icon.vue";
 import PopOver from "Components/UI/PopOver.vue";
 import { useDeckCardActions } from "Composables/useDeckCardActions.ts";
-import type { DeckCardRow, DeckCategoryRow } from "Types/deckPage";
+import type { DeckCardRow, DeckCategoryRow } from "Types/deckPage.ts";
+import DeckCardMoveToGroupModal from "../Modals/DeckCardMoveToGroupModal.vue";
+import DeckCardSplitPrintingModal from "../Modals/DeckCardSplitPrintingModal.vue";
+import DeckCardSwitchPrintingModal from "../Modals/DeckCardSwitchPrintingModal.vue";
 const props = defineProps<{
     /** UUID of the deck this card belongs to. */
     deckId: string;

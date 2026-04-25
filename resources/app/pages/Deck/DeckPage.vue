@@ -1,11 +1,7 @@
 <script setup lang="ts">
 import { Head } from "@inertiajs/vue3";
 import { computed } from "vue";
-import CardViewImage from "@/pages/Decks/Deck/Cards/CardViewImage.vue";
-import CardViewText from "@/pages/Decks/Deck/Cards/CardViewText.vue";
-import DeckHeader from "@/pages/Decks/Deck/DeckHeader.vue";
-import DeckNavigation from "@/pages/Decks/Deck/Navigation/DeckNavigation.vue";
-import { combineCI } from "@/utils/colorIdentity";
+import { combineCI } from "@/utils/colorIdentity.ts";
 import { useBreadcrumbs } from "Composables/useBreadcrumbs.ts";
 import { useDeckSort } from "Composables/useDeckSort.ts";
 import { useDeckView } from "Composables/useDeckView.ts";
@@ -15,8 +11,12 @@ import type {
     DeckCommander,
     DeckCompanion,
     DeckMeta,
-    DeckViolation,
-} from "Types/deckPage";
+    DeckViolation
+} from "Types/deckPage.ts";
+import CardViewImage from "./Cards/CardViewImage.vue";
+import CardViewText from "./Cards/CardViewText.vue";
+import DeckHeader from "./DeckHeader.vue";
+import DeckNavigation from "./Navigation/DeckNavigation.vue";
 const props = defineProps<{
     /** Deck metadata (name, format, state, colors, etc.). */
     deck: DeckMeta;
@@ -42,7 +42,7 @@ const { viewMode } = useDeckView(props.deck.id);
 /** Effective deck sort mode — localStorage override for this deck, or the user's default. */
 const { sortMode } = useDeckSort(props.deck.id);
 /** Combined commander color identity — shared by navigation and both card views. */
-const commanderColorIdentity = computed(() => combineCI(props.commanders.map((c) => c.color_identity)));
+const commanderColorIdentity = computed(() => combineCI(props.commanders.map(c => c.color_identity)));
 </script>
 
 <template>

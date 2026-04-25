@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { router, usePage } from "@inertiajs/vue3";
 import { ref, useId } from "vue";
-import DeckCardSwitchPrintingModal from "@/pages/Decks/Deck/Modals/DeckCardSwitchPrintingModal.vue";
 import Icon from "Components/UI/Icon.vue";
 import PopOver from "Components/UI/PopOver.vue";
-import type { DeckPrinting } from "Types/defaultCardImage";
+import type { DeckPrinting } from "Types/defaultCardImage.ts";
+import DeckCardSwitchPrintingModal from "../Modals/DeckCardSwitchPrintingModal.vue";
 const props = defineProps<{
     /** UUID of the deck. */
     deckId: string;
@@ -40,8 +40,8 @@ async function removeCompanion(): Promise<void> {
         method: "DELETE",
         headers: {
             "X-CSRF-TOKEN": page.props.csrfToken as string,
-            Accept: "application/json",
-        },
+            Accept: "application/json"
+        }
     });
     if (!response.ok) {
         removing.value = false;
@@ -51,7 +51,7 @@ async function removeCompanion(): Promise<void> {
         only: ["deck", "companion"],
         onFinish: () => {
             removing.value = false;
-        },
+        }
     });
 }
 /** Swap the companion's display printing (its `default_card_id`). */
@@ -61,9 +61,9 @@ async function switchPrinting(printing: DeckPrinting): Promise<void> {
         headers: {
             "Content-Type": "application/json",
             "X-CSRF-TOKEN": page.props.csrfToken as string,
-            Accept: "application/json",
+            Accept: "application/json"
         },
-        body: JSON.stringify({ default_card_id: printing.id }),
+        body: JSON.stringify({ default_card_id: printing.id })
     });
     if (response.ok) {
         router.reload({ only: ["deck", "companion"] });

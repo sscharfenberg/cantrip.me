@@ -1,17 +1,17 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { useI18n } from "vue-i18n";
-import DeckCardActionsMenu from "@/pages/Decks/Deck/Actions/DeckCardActionsMenu.vue";
-import DeckCommanderActionsMenu from "@/pages/Decks/Deck/Actions/DeckCommanderActionsMenu.vue";
-import DeckGroupHeadline from "@/pages/Decks/Deck/Cards/DeckGroupHeadline.vue";
-import FaceImageLazy from "@/pages/Decks/Deck/Cards/FaceImageLazy.vue";
-import CompanionSection from "@/pages/Decks/Deck/Companion/CompanionSection.vue";
-import type { DeckCardGroup } from "@/utils/deckGrouping";
+import DeckCardActionsMenu from "@/pages/Deck/Actions/DeckCardActionsMenu.vue";
+import DeckCommanderActionsMenu from "@/pages/Deck/Actions/DeckCommanderActionsMenu.vue";
+import FaceImageLazy from "@/pages/Deck/Cards/FaceImageLazy.vue";
+import DeckCompanionSection from "@/pages/Deck/Sections/DeckCompanionSection.vue";
+import DeckGroupHeadline from "@/pages/Deck/Sections/DeckGroupHeadline.vue";
+import type { DeckCardGroup } from "@/utils/deckGrouping.ts";
 import Icon from "Components/UI/Icon.vue";
 import Paragraph from "Components/UI/Paragraph.vue";
 import { useDeckSections } from "Composables/useDeckSections.ts";
 import type { DeckSort } from "Composables/useDeckSort.ts";
-import type { DeckCardRow, DeckCategoryRow, DeckCommander, DeckCompanion, DeckMeta } from "Types/deckPage";
+import type { DeckCardRow, DeckCategoryRow, DeckCommander, DeckCompanion, DeckMeta } from "Types/deckPage.ts";
 const props = defineProps<{
     /** Full deck meta (for companion capabilities + format flags). */
     deck: DeckMeta;
@@ -71,7 +71,7 @@ const { allGroups } = useDeckSections(
         </section>
         <section v-if="deck.allows_companion && companion" class="image-card-group">
             <deck-group-headline>{{ $t("pages.deck.companion.heading") }}</deck-group-headline>
-            <companion-section :deck-id="deck.id" :companion="companion" variant="image" />
+            <deck-companion-section :deck-id="deck.id" :companion="companion" variant="image" />
         </section>
         <section v-for="group in allGroups" :key="group.key" class="image-card-group">
             <deck-group-headline>{{ group.label }} ({{ group.count }})</deck-group-headline>

@@ -2,12 +2,12 @@
 import { router } from "@inertiajs/vue3";
 import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
-import DeckAddGroupModal from "@/pages/Decks/Deck/Modals/DeckAddGroupModal.vue";
-import { resolveGroup } from "@/utils/deckGrouping";
+import { resolveGroup } from "@/utils/deckGrouping.ts";
 import Modal from "Components/Modal/Modal.vue";
 import Icon from "Components/UI/Icon.vue";
 import Paragraph from "Components/UI/Paragraph.vue";
-import type { DeckCardRow, DeckCategoryRow } from "Types/deckPage";
+import type { DeckCardRow, DeckCategoryRow } from "Types/deckPage.ts";
+import DeckAddGroupModal from "./DeckAddGroupModal.vue";
 const emit = defineEmits<{ close: [] }>();
 const props = defineProps<{
     /** UUID of the deck this card belongs to. */

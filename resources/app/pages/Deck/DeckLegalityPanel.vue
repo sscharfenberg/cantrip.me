@@ -2,7 +2,7 @@
 import { computed } from "vue";
 import Accordion from "Components/UI/Accordion.vue";
 import Icon from "Components/UI/Icon.vue";
-import type { DeckCardRow, DeckViolation } from "Types/deckPage";
+import type { DeckCardRow, DeckViolation } from "Types/deckPage.ts";
 const props = defineProps<{
     /** All legality violations for the deck. */
     violations: DeckViolation[];

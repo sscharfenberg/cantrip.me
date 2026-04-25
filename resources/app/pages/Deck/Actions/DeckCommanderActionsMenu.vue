@@ -3,11 +3,11 @@ import { router, usePage } from "@inertiajs/vue3";
 import { computed, ref, useId } from "vue";
 import CommanderCommandZonePickerModal from "@/pages/Decks/Create/CommanderCommandZonePickerModal.vue";
 import OathbreakerCommandZonePickerModal from "@/pages/Decks/Create/OathbreakerCommandZonePickerModal.vue";
-import DeckCardSwitchPrintingModal from "@/pages/Decks/Deck/Modals/DeckCardSwitchPrintingModal.vue";
 import type { CommanderResult } from "Components/Deck/ShowCommanderOverview.vue";
 import Icon from "Components/UI/Icon.vue";
 import PopOver from "Components/UI/PopOver.vue";
-import type { DeckPrinting } from "Types/defaultCardImage";
+import type { DeckPrinting } from "Types/defaultCardImage.ts";
+import DeckCardSwitchPrintingModal from "../Modals/DeckCardSwitchPrintingModal.vue";
 const props = defineProps<{
     /** UUID of the deck. */
     deckId: string;
@@ -47,18 +47,15 @@ function openChangeCommander(): void {
  * shows without dragging the rest of the page through a full refresh.
  */
 async function switchPrinting(printing: DeckPrinting): Promise<void> {
-    const response = await fetch(
-        `/api/decks/${props.deckId}/commander/${props.oracleCardId}/printing`,
-        {
-            method: "PATCH",
-            headers: {
-                "Content-Type": "application/json",
-                "X-CSRF-TOKEN": page.props.csrfToken as string,
-                Accept: "application/json",
-            },
-            body: JSON.stringify({ default_card_id: printing.id }),
+    const response = await fetch(`/api/decks/${props.deckId}/commander/${props.oracleCardId}/printing`, {
+        method: "PATCH",
+        headers: {
+            "Content-Type": "application/json",
+            "X-CSRF-TOKEN": page.props.csrfToken as string,
+            Accept: "application/json"
         },
-    );
+        body: JSON.stringify({ default_card_id: printing.id })
+    });
     if (response.ok) {
         router.reload({ only: ["deck", "commanders"] });
     }
@@ -71,10 +68,7 @@ async function switchPrinting(printing: DeckPrinting): Promise<void> {
  * `is_illegal` flags, `violations` for the legality panel, `deck` for the
  * combined colors badge, `commanders` for the command zone display).
  */
-async function changeCommander(
-    commander: CommanderResult,
-    second: CommanderResult | null,
-): Promise<void> {
+async function changeCommander(commander: CommanderResult, second: CommanderResult | null): Promise<void> {
     const body: Record<string, string> = { commander_id: commander.id };
     if (second !== null) {
         body[isOathbreaker.value ? "signature_spell_id" : "companion_id"] = second.id;
@@ -84,9 +78,9 @@ async function changeCommander(
         headers: {
             "Content-Type": "application/json",
             "X-CSRF-TOKEN": page.props.csrfToken as string,
-            Accept: "application/json",
+            Accept: "application/json"
         },
-        body: JSON.stringify(body),
+        body: JSON.stringify(body)
     });
     if (response.ok) {
         router.reload({ only: ["deck", "commanders", "cards", "violations"] });

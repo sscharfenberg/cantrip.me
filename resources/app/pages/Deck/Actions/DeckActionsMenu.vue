@@ -2,14 +2,14 @@
 import { router } from "@inertiajs/vue3";
 import { computed, ref, useId } from "vue";
 import { useI18n } from "vue-i18n";
-import DeckAddGroupModal from "@/pages/Decks/Deck/Modals/DeckAddGroupModal.vue";
-import DeleteDeckModal from "@/pages/Decks/Deck/Modals/DeleteDeckModal.vue";
-import { hasDeletableContent } from "@/utils/deleteDeck";
-import type { DeleteDeckTarget } from "@/utils/deleteDeck";
+import { hasDeletableContent } from "@/utils/deleteDeck.ts";
+import type { DeleteDeckTarget } from "@/utils/deleteDeck.ts";
 import Icon from "Components/UI/Icon.vue";
 import PopOver from "Components/UI/PopOver.vue";
 import type { DeckCardRow, DeckCategoryRow, DeckCompanion, DeckMeta } from "Types/deckPage.ts";
+import DeckAddGroupModal from "../Modals/DeckAddGroupModal.vue";
 import DeckCustomGroupsModal from "../Modals/DeckCustomGroupsModal.vue";
+import DeleteDeckModal from "../Modals/DeleteDeckModal.vue";
 const props = defineProps<{
     /** Deck metadata (name, format, state, colors, etc.). */
     deck: DeckMeta;
