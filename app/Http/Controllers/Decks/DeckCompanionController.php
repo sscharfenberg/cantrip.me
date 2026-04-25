@@ -8,6 +8,7 @@ use App\Http\Requests\Decks\SetDeckCompanionPrintingRequest;
 use App\Http\Requests\Decks\SetDeckCompanionRequest;
 use App\Http\Requests\Decks\ShowDeckCompanionPrintingsRequest;
 use App\Models\Deck;
+use App\Services\DeckCardService;
 use App\Services\DeckPrintingsService;
 use App\Services\DeckService;
 use Illuminate\Http\JsonResponse;
@@ -19,6 +20,12 @@ class DeckCompanionController extends Controller
      *
      * Auto-selects the newest printing so the frontend can display a
      * specific card image without a round-trip printing picker.
+     *
+     * For non-commander formats the companion contributes its own colored
+     * mana symbols to the deck's `colors` field — recalculation is run
+     * after the update so a freshly attached companion expands the badge
+     * accordingly. Commander-family formats short-circuit inside the
+     * service (their colors come from the command zone).
      */
     public function store(SetDeckCompanionRequest $request, Deck $deck): JsonResponse
     {
@@ -29,6 +36,8 @@ class DeckCompanionController extends Controller
             'companion_oracle_card_id' => $oracleCardId,
             'companion_default_card_id' => $newest?->id,
         ]);
+
+        DeckCardService::recalculateColors($deck);
 
         return response()->json([
             'companion_oracle_card_id' => $deck->companion_oracle_card_id,
@@ -67,6 +76,9 @@ class DeckCompanionController extends Controller
 
     /**
      * Clear the deck's companion (oracle + printing).
+     *
+     * Recalculates `colors` after the clear so a removed companion that was
+     * widening the deck's color set drops back out of the badge.
      */
     public function destroy(RemoveDeckCompanionRequest $request, Deck $deck): JsonResponse
     {
@@ -74,6 +86,8 @@ class DeckCompanionController extends Controller
             'companion_oracle_card_id' => null,
             'companion_default_card_id' => null,
         ]);
+
+        DeckCardService::recalculateColors($deck);
 
         return response()->json(['companion_oracle_card_id' => null]);
     }

@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Deck;
+use App\Models\OracleCardFace;
 
 /**
  * Manages deck card operations that affect the deck itself.
@@ -28,6 +29,12 @@ final class DeckCardService
      * in the *mana cost* of each card's faces. Hybrid `{W/U}`, phyrexian
      * `{G/P}`, and monocolored hybrid `{2/W}` all contribute their colored
      * component(s); colorless / generic / variable symbols are ignored.
+     *
+     * The deck's "Companion" keyword card (if any) is also folded in here:
+     * for non-commander formats the companion sits outside the deck list
+     * but is still considered part of the deck for color purposes (you'd
+     * be casting it, after all). Commander formats short-circuit above so
+     * companion-stack and command-zone don't fight for the same field.
      */
     public static function recalculateColors(Deck $deck): void
     {
@@ -38,10 +45,17 @@ final class DeckCardService
         $manaCosts = $deck->deckCards()
             ->join('oracle_card_faces', 'deck_cards.oracle_card_id', '=', 'oracle_card_faces.oracle_card_id')
             ->pluck('oracle_card_faces.mana_cost')
-            ->filter()
             ->all();
 
-        $colors = self::extractColorsFromManaCosts($manaCosts);
+        if ($deck->companion_oracle_card_id !== null) {
+            $companionCosts = OracleCardFace::query()
+                ->where('oracle_card_id', $deck->companion_oracle_card_id)
+                ->pluck('mana_cost')
+                ->all();
+            $manaCosts = array_merge($manaCosts, $companionCosts);
+        }
+
+        $colors = self::extractColorsFromManaCosts(array_filter($manaCosts));
 
         $deck->update(['colors' => $colors === '' ? null : $colors]);
     }
