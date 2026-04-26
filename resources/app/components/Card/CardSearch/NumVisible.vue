@@ -1,8 +1,10 @@
 <script setup lang="ts">
+import { useFormatting } from "Composables/useFormatting.ts";
 defineProps<{
     visibleCount: number;
     numTotalResults: number;
 }>();
+const { formatDecimals } = useFormatting();
 </script>
 
 <template>
@@ -10,10 +12,10 @@ defineProps<{
         <span class="results__count">
             <i18n-t keypath="card.search.showing" scope="global">
                 <template #visible
-                    ><strong>{{ visibleCount }}</strong></template
+                    ><strong>{{ formatDecimals(visibleCount) }}</strong></template
                 >
                 <template #total
-                    ><strong>{{ numTotalResults }}</strong></template
+                    ><strong>{{ formatDecimals(numTotalResults) }}</strong></template
                 >
             </i18n-t>
         </span>

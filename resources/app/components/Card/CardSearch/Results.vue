@@ -3,6 +3,10 @@ import { computed, onUnmounted, ref, watch } from "vue";
 import NumVisible from "Components/Card/CardSearch/NumVisible.vue";
 const props = defineProps<{
     results: T[];
+    /** Total matches the server found (may exceed `results.length` because the
+     *  server caps the returned page). Used by `NumVisible` to show e.g.
+     *  "20 of 10,535" when the user is browsing a partial slice. */
+    totalResults: number;
 }>();
 const emit = defineEmits<{
     change: [card: T];
@@ -50,9 +54,9 @@ onUnmounted(() => observer?.disconnect());
 <template>
     <div class="results-wrapper">
         <num-visible
-            v-if="results.length > PAGE_SIZE"
+            v-if="totalResults > PAGE_SIZE"
             :visible-count="visibleCount"
-            :num-total-results="results.length"
+            :num-total-results="totalResults"
         />
         <ul class="results">
             <li

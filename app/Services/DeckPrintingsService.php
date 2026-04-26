@@ -52,13 +52,23 @@ final class DeckPrintingsService
         string $oracleCardId,
         ?string $currentDefaultCardId,
     ): array {
+        // Single query: join sets (needed for ORDER BY released_at + payload
+        // columns) and artists. We *don't* `with(['set'])` on top of the join
+        // because that would issue a second query for the same set rows we
+        // already have in scope; the joined `set_*` columns are mapped
+        // directly into the printing payload below.
         $printings = DefaultCard::query()
-            ->with(['set:id,name,code,path', 'artist:id,name'])
+            ->with(['artist:id,name'])
             ->join('sets', 'default_cards.set_id', '=', 'sets.id')
             ->where('default_cards.oracle_id', $oracleCardId)
             ->orderBy('sets.released_at', 'desc')
             ->orderBy('default_cards.id', 'desc')
-            ->select('default_cards.*')
+            ->select(
+                'default_cards.*',
+                'sets.name as set_name',
+                'sets.code as set_code',
+                'sets.path as set_path'
+            )
             ->get();
 
         $availableIds = CardStack::query()
@@ -82,10 +92,10 @@ final class DeckPrintingsService
                 'artist' => $card->artist?->name,
                 'cn' => $card->collector_number,
                 'finishes' => Finish::labelsFromMask($card->finishes),
-                'set' => $card->set ? [
-                    'name' => $card->set->name,
-                    'code' => $card->set->code,
-                    'path' => $card->set->path,
+                'set' => $card->set_code !== null ? [
+                    'name' => $card->set_name,
+                    'code' => $card->set_code,
+                    'path' => $card->set_path,
                 ] : null,
                 'in_collection' => $availableIds->has($card->id),
                 'is_current' => $card->id === $currentDefaultCardId,

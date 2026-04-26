@@ -45,6 +45,7 @@ const emit = defineEmits<{
 const {
     searchQuery,
     results,
+    totalResults,
     processing,
     selectedCard,
     refValue,
@@ -99,7 +100,12 @@ function onClearAndFocus() {
             <search-syntax />
         </template>
     </form-group>
-    <Results v-if="results.length > 0" :results="results as T[]" @change="onCardSelected">
+    <Results
+        v-if="results.length > 0"
+        :results="results as T[]"
+        :total-results="totalResults"
+        @change="onCardSelected"
+    >
         <template #result="{ card }">
             <slot name="result" :card="card as T" />
         </template>

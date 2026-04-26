@@ -41,7 +41,7 @@ final class DeckCardSearchService
 {
     public const DEFAULT_LIMIT = 20;
 
-    public const PRINTINGS_LIMIT = 60;
+    public const PRINTINGS_LIMIT = 100;
 
     /**
      * Upper bound on the number of oracle cards considered in phase 1 of

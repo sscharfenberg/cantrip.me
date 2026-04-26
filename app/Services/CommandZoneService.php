@@ -4,13 +4,37 @@ namespace App\Services;
 
 use App\Enums\CardFormat;
 use App\Models\OracleCard;
+use App\Models\OracleCardFace;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 
 class CommandZoneService
 {
     /**
+     * Final result count returned to the caller. The frontend renders all
+     * results in one batch, so 50 keeps the picker scannable.
+     */
+    private const RESULT_LIMIT = 50;
+
+    /**
+     * Candidate pool size before face-based PHP filters reduce it to
+     * RESULT_LIMIT. Sized generously so even after dropping the non-commanders
+     * (most matches), 50 valid commanders remain. Empirical worst case:
+     * generic terms like "the" hit ~145 oracles via name+legality; we want
+     * comfortable headroom above that.
+     */
+    private const CANDIDATE_LIMIT = 500;
+
+    /**
      * Search for cards that can be a commander (or companion).
+     *
+     * Two-phase: SQL applies only the cheap, indexed predicates (name,
+     * legality, exclude, set), then PHP filters on the eager-loaded `faces`
+     * for the commander/partner/companion checks. The previous shape ran a
+     * stack of `whereHas('faces', LIKE …)` correlated subqueries against
+     * `oracle_card_faces` for every candidate, which dominated the cost on
+     * generic terms (~620ms for "the"). Doing those checks once in PHP on
+     * the already-loaded faces collection is consistently fast.
      *
      * @param  array{name_segments: string[], normalized_name_segments: string[], set_code: string|null, collector_number: string|null}  $parsed
      * @param  array{rule0: bool, partner: bool, friends_forever: bool, doctors_companion: bool, background: bool, partner_type: string|null, exclude: string|null}  $filters
@@ -37,69 +61,103 @@ class CommandZoneService
         // Rule 0: skip commander-legality and format-legality filters when the user opts in.
         if (! $filters['rule0']) {
             $query->legalIn($format);
-
-            // Background search has its own type-line filter — skip the commander constraint.
-            if (! $filters['background']) {
-                // Must qualify as a commander: front face is a legendary creature,
-                // or any face explicitly says "can be your commander".
-                $query->where(function (Builder $q): void {
-                    $q->whereHas('faces', function (Builder $fq): void {
-                        $fq->where('face_index', 0)
-                            ->where('type_line', 'like', '%Legendary%')
-                            ->whereNotNull('power')
-                            ->whereNotNull('toughness');
-                    })->orWhereHas('faces', function (Builder $fq): void {
-                        $fq->where('oracle_text', 'like', '%can be your commander%');
-                    });
-                });
-            }
-        }
-
-        // When searching for a partner, only return cards with a partner keyword.
-        if ($filters['partner']) {
-            $query->whereHas('faces', function (Builder $fq): void {
-                $fq->where('oracle_text', 'regexp', '\\bPartner\\b|Legendary partner');
-            });
-        }
-
-        // When searching for a Doctor's companion, only return cards with that keyword.
-        if ($filters['doctors_companion']) {
-            $query->whereHas('faces', function (Builder $fq): void {
-                $fq->where('oracle_text', 'like', '%Doctor\'s companion%');
-            });
-        }
-
-        // When searching for a "Friends forever" partner, only return other "Friends forever" cards.
-        if ($filters['friends_forever']) {
-            $query->whereHas('faces', function (Builder $fq): void {
-                $fq->where('oracle_text', 'like', '%Friends forever%');
-            });
-        }
-
-        // When searching for a background, only return cards with the Background subtype.
-        if ($filters['background']) {
-            $query->whereHas('faces', function (Builder $fq): void {
-                $fq->where('type_line', 'like', '%Background%');
-            });
-        }
-
-        // When searching for a typed partner (e.g. "Partner—Survivors"), only return
-        // cards whose oracle text contains the same "Partner—<type>" tag.
-        if ($filters['partner_type']) {
-            $type = $filters['partner_type'];
-            $query->whereHas('faces', function (Builder $fq) use ($type): void {
-                $fq->where('oracle_text', 'like', "%Partner—$type%");
-            });
         }
 
         self::applyNameRanking($query, $parsed['normalized_name_segments']);
 
-        return $query->select('id', 'name', 'color_identity')
-            ->with(['faces' => fn ($q) => $q->select('oracle_card_id', 'face_index', 'mana_cost', 'type_line', 'oracle_text')
+        $candidates = $query->select('id', 'name', 'color_identity')
+            ->with(['faces' => fn ($q) => $q->select('oracle_card_id', 'face_index', 'mana_cost', 'type_line', 'oracle_text', 'power', 'toughness', 'loyalty')
                 ->orderBy('face_index')])
-            ->limit(50)
-            ->get()
+            ->limit(self::CANDIDATE_LIMIT)
+            ->get();
+
+        return $candidates
+            ->filter(fn (OracleCard $card) => self::passesCommanderFilters($card, $filters))
+            ->take(self::RESULT_LIMIT)
+            ->values()
             ->map(fn (OracleCard $card) => self::mapCommanderCard($card));
+    }
+
+    /**
+     * Check every face-based commander/companion/background/partner filter
+     * against the in-memory `faces` collection of one candidate. Same
+     * semantics as the previous SQL `whereHas` chain.
+     */
+    private static function passesCommanderFilters(OracleCard $card, array $filters): bool
+    {
+        // Background search has its own type-line filter — skip the
+        // commander qualification check there. Rule 0 also skips it.
+        if (! $filters['rule0'] && ! $filters['background'] && ! self::qualifiesAsCommander($card)) {
+            return false;
+        }
+        if ($filters['partner'] && ! self::hasPartnerKeyword($card)) {
+            return false;
+        }
+        if ($filters['doctors_companion'] && ! self::hasOracleTextContains($card, "Doctor's companion")) {
+            return false;
+        }
+        if ($filters['friends_forever'] && ! self::hasOracleTextContains($card, 'Friends forever')) {
+            return false;
+        }
+        if ($filters['background'] && ! self::hasTypeLineContains($card, 'Background')) {
+            return false;
+        }
+        if ($filters['partner_type'] && ! self::hasOracleTextContains($card, "Partner—{$filters['partner_type']}")) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Front face is a legendary creature (has power+toughness) OR any face
+     * carries the explicit "can be your commander" override.
+     */
+    private static function qualifiesAsCommander(OracleCard $card): bool
+    {
+        $front = $card->faces->firstWhere('face_index', 0);
+        $isLegendaryCreature = $front instanceof OracleCardFace
+            && str_contains((string) $front->type_line, 'Legendary')
+            && $front->power !== null
+            && $front->toughness !== null;
+        if ($isLegendaryCreature) {
+            return true;
+        }
+
+        return $card->faces->contains(
+            fn (OracleCardFace $face) => str_contains((string) $face->oracle_text, 'can be your commander')
+        );
+    }
+
+    /**
+     * Match the SQL `oracle_text REGEXP '\bPartner\b|Legendary partner'` —
+     * the `\b` word-boundary excludes "Partner—X" / "Partner with X" forms,
+     * which have their own filters and shouldn't fall through to plain
+     * Partner.
+     */
+    private static function hasPartnerKeyword(OracleCard $card): bool
+    {
+        return $card->faces->contains(function (OracleCardFace $face): bool {
+            $text = (string) $face->oracle_text;
+
+            return preg_match('/\bPartner\b|Legendary partner/', $text) === 1;
+        });
+    }
+
+    /** Any face's `oracle_text` contains the given substring (case-sensitive, like the SQL LIKE). */
+    private static function hasOracleTextContains(OracleCard $card, string $needle): bool
+    {
+        return $card->faces->contains(
+            fn (OracleCardFace $face) => str_contains((string) $face->oracle_text, $needle)
+        );
+    }
+
+    /** Any face's `type_line` contains the given substring. */
+    private static function hasTypeLineContains(OracleCard $card, string $needle): bool
+    {
+        return $card->faces->contains(
+            fn (OracleCardFace $face) => str_contains((string) $face->type_line, $needle)
+        );
     }
 
     /**
@@ -131,6 +189,9 @@ class CommandZoneService
 
     /**
      * Search for Oathbreaker command-zone cards (planeswalker or signature spell).
+     *
+     * Same two-phase strategy as {@see searchCommanders}: SQL handles
+     * name + legality + cheap predicates; PHP handles the type-line check.
      *
      * @param  array{name_segments: string[], normalized_name_segments: string[], set_code: string|null, collector_number: string|null}|null  $parsed
      */
@@ -167,44 +228,59 @@ class CommandZoneService
             $query->legalIn($format);
         }
 
-        if ($type === 'planeswalker') {
-            $query->whereHas('faces', function (Builder $fq): void {
-                $fq->where('face_index', 0)
-                    ->where('type_line', 'like', '%Planeswalker%')
-                    ->whereNotNull('loyalty');
-            });
-        } else {
-            // Signature spell: instant or sorcery on the front face only.
-            $query->whereHas('faces', function (Builder $fq): void {
-                $fq->where('face_index', 0)
-                    ->where(function (Builder $q): void {
-                        $q->where('type_line', 'like', '%Instant%')
-                            ->orWhere('type_line', 'like', '%Sorcery%');
+        // Color identity check on signature spells: must be a subset of the
+        // planeswalker's identity. Cheap on the indexed column, so it stays
+        // in SQL.
+        if ($type === 'spell' && $colorIdentity !== null) {
+            foreach (['W', 'U', 'B', 'R', 'G'] as $color) {
+                if (! str_contains($colorIdentity, $color)) {
+                    $query->where(function (Builder $q) use ($color): void {
+                        $q->whereNull('color_identity')
+                            ->orWhere('color_identity', 'not like', "%$color%");
                     });
-            });
-
-            // Color identity must be a subset of the planeswalker's color identity.
-            if ($colorIdentity !== null) {
-                $allColors = ['W', 'U', 'B', 'R', 'G'];
-                foreach ($allColors as $color) {
-                    if (! str_contains($colorIdentity, $color)) {
-                        $query->where(function (Builder $q) use ($color): void {
-                            $q->whereNull('color_identity')
-                                ->orWhere('color_identity', 'not like', "%$color%");
-                        });
-                    }
                 }
             }
         }
 
         self::applyNameRanking($query, $parsed['normalized_name_segments']);
 
-        return $query->select('id', 'name', 'color_identity')
-            ->with(['faces' => fn ($q) => $q->select('oracle_card_id', 'face_index', 'mana_cost', 'type_line', 'oracle_text')
+        $candidates = $query->select('id', 'name', 'color_identity')
+            ->with(['faces' => fn ($q) => $q->select('oracle_card_id', 'face_index', 'mana_cost', 'type_line', 'oracle_text', 'power', 'toughness', 'loyalty')
                 ->orderBy('face_index')])
-            ->limit(50)
-            ->get()
+            ->limit(self::CANDIDATE_LIMIT)
+            ->get();
+
+        $matches = $candidates->filter(fn (OracleCard $card) => $type === 'planeswalker'
+            ? self::isFrontFacePlaneswalker($card)
+            : self::isFrontFaceInstantOrSorcery($card)
+        );
+
+        return $matches
+            ->take(self::RESULT_LIMIT)
+            ->values()
             ->map(fn (OracleCard $card) => self::mapCommanderCard($card));
+    }
+
+    /** Front face is a Planeswalker with loyalty (i.e. an actual walker, not a "is also" card). */
+    private static function isFrontFacePlaneswalker(OracleCard $card): bool
+    {
+        $front = $card->faces->firstWhere('face_index', 0);
+
+        return $front instanceof OracleCardFace
+            && str_contains((string) $front->type_line, 'Planeswalker')
+            && $front->loyalty !== null;
+    }
+
+    /** Front face is an Instant or Sorcery — the signature-spell type rule. */
+    private static function isFrontFaceInstantOrSorcery(OracleCard $card): bool
+    {
+        $front = $card->faces->firstWhere('face_index', 0);
+        if (! $front instanceof OracleCardFace) {
+            return false;
+        }
+        $type = (string) $front->type_line;
+
+        return str_contains($type, 'Instant') || str_contains($type, 'Sorcery');
     }
 
     /**

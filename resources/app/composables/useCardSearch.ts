@@ -1,11 +1,21 @@
 import { ref, watch } from "vue";
 
+/** Server response shape for paged card-search endpoints. `total` is the
+ *  number of matches before the server-side cap is applied, so the UI can
+ *  show "20 of 10,535" even when only the first 100 are returned. */
+interface CardSearchResponse<T> {
+    total: number;
+    results: T[];
+}
+
 /** Reactive state and helpers for a debounced card search against a JSON API endpoint. */
 export function useCardSearch<T>(endpoint: string) {
     /** The current text in the search input, bound via v-model. */
     const searchQuery = ref("");
-    /** Card results returned by the search endpoint. */
+    /** Card results returned by the search endpoint (capped server-side). */
     const results = ref<T[]>([]);
+    /** Total matches the server found before applying its result cap. */
+    const totalResults = ref(0);
     /** True while a search XHR is in flight. */
     const processing = ref(false);
     /** The currently selected card result. */
@@ -25,6 +35,7 @@ export function useCardSearch<T>(endpoint: string) {
     async function searchCards(query: string) {
         if (!query.trim()) {
             results.value = [];
+            totalResults.value = 0;
             return;
         }
         if (abortController) abortController.abort();
@@ -35,8 +46,11 @@ export function useCardSearch<T>(endpoint: string) {
                 signal: abortController.signal
             });
             if (response.ok) {
-                const data = await response.json();
-                if (data) results.value = data;
+                const data = (await response.json()) as CardSearchResponse<T>;
+                if (data) {
+                    results.value = data.results ?? [];
+                    totalResults.value = data.total ?? data.results?.length ?? 0;
+                }
             }
         } catch (e) {
             if (e instanceof DOMException && e.name === "AbortError") return;
@@ -50,6 +64,7 @@ export function useCardSearch<T>(endpoint: string) {
         selectedCard.value = card;
         refValue.value = (card as Record<string, unknown>).id as string;
         results.value = [];
+        totalResults.value = 0;
     }
 
     /** Called when the user clicks "Change selection". */
@@ -68,6 +83,7 @@ export function useCardSearch<T>(endpoint: string) {
     return {
         searchQuery,
         results,
+        totalResults,
         processing,
         selectedCard,
         refValue,
