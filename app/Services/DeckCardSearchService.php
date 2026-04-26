@@ -8,6 +8,7 @@ use App\Models\Deck;
 use App\Models\DefaultCard;
 use App\Models\OracleCard;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -41,6 +42,15 @@ final class DeckCardSearchService
     public const DEFAULT_LIMIT = 20;
 
     public const PRINTINGS_LIMIT = 60;
+
+    /**
+     * Upper bound on the number of oracle cards considered in phase 1 of
+     * {@see searchPrintingsForDeck}. Each oracle has a handful of printings,
+     * so 200 oracles maps to ~1–2k printings — comfortably above the 60-row
+     * PRINTINGS_LIMIT, while keeping the IN(…) clause small enough that
+     * MariaDB picks the FK index over a hash join.
+     */
+    public const ORACLE_PREFILTER_LIMIT = 200;
 
     /**
      * Oracle-level search — returns up to $limit distinct oracle cards,
@@ -192,58 +202,117 @@ final class DeckCardSearchService
             ? CompanionRegistry::profileFor($deck->companion)
             : null;
 
-        $oracleSelect = $companionProfile !== null
-            ? ['oracle:id,name,cmc,color_identity', 'oracle.faces:oracle_card_id,face_index,type_line,mana_cost,oracle_text']
-            : ['oracle:id,name,cmc,color_identity'];
+        // Two-phase search to avoid the `LIKE '%term%'` running on the much
+        // larger default_cards table (the leading wildcard prevents any
+        // index from helping, so a direct query forced a full table scan
+        // followed by per-row EXISTS evaluation — multi-second for common
+        // terms like "face").
+        //
+        // Phase 1: filter on oracle_cards. CardNameNormalizer runs on both
+        // import paths (OracleCardsService, DefaultCardsService) using the
+        // same pipeline, so an oracle whose searchable_name matches always
+        // has matching printings — and oracle_cards is ~30k rows, so even
+        // a leading-wildcard scan completes in milliseconds. We pull the
+        // full oracle row (and faces, when a companion is set) so phase 2
+        // doesn't need to re-fetch it as an eager load on each printing.
+        $oracleQuery = OracleCard::query();
+        if (! $includeNonLegal) {
+            $oracleQuery->legalIn($deck->format);
+            self::applyColorIdentityFilter($oracleQuery, $deck);
+        }
+        self::applyNameSegments($oracleQuery, 'oracle_cards.searchable_name', $parsed['normalized_name_segments']);
+        if ($companionProfile !== null) {
+            $oracleQuery->with('faces:oracle_card_id,face_index,type_line,mana_cost,oracle_text');
+        }
 
-        $query = DefaultCard::query()
-            ->whereHas('oracle', function (Builder $q) use ($deck, $includeNonLegal): void {
-                if ($includeNonLegal) {
-                    return;
-                }
-                $q->legalIn($deck->format);
-                self::applyColorIdentityFilter($q, $deck);
-            })
-            ->with(array_merge(['set:id,name,code,path', 'artist:id,name'], $oracleSelect));
+        /** @var Collection<string, OracleCard> $oraclesById */
+        $oraclesById = $oracleQuery
+            ->limit(self::ORACLE_PREFILTER_LIMIT)
+            ->get(['oracle_cards.id', 'oracle_cards.name', 'oracle_cards.cmc', 'oracle_cards.color_identity'])
+            ->keyBy('id');
+
+        if ($oraclesById->isEmpty()) {
+            return [];
+        }
+
+        // Phase 2: load printings for those oracle ids via the query builder
+        // with explicit joins to `sets` and `artists`, bypassing Eloquent
+        // hydration entirely. A 60-row result set means we'd otherwise be
+        // building 60 DefaultCard models + their `set` and `artist` relations,
+        // which dominates the request's PHP time once the SQL is fast. The
+        // result mapping resolves name/cmc/color_identity from the phase-1
+        // OracleCard map (still Eloquent — small, and faces are needed for
+        // the companion-violation probe).
+        $query = DB::table('default_cards')
+            ->leftJoin('sets', 'sets.id', '=', 'default_cards.set_id')
+            ->leftJoin('artists', 'artists.id', '=', 'default_cards.artist_id')
+            ->whereIn('default_cards.oracle_id', $oraclesById->keys());
 
         if ($parsed['set_code']) {
-            $query->whereHas('set', fn (Builder $q) => $q->where('code', $parsed['set_code']));
+            $query->where('sets.code', $parsed['set_code']);
         }
 
         if ($parsed['collector_number']) {
-            $query->where('collector_number', $parsed['collector_number']);
+            $query->where('default_cards.collector_number', $parsed['collector_number']);
         }
 
-        self::applyNameSegments($query, 'default_cards.searchable_name', $parsed['normalized_name_segments']);
-        self::applyNameRanking($query, 'default_cards.searchable_name', 'default_cards.name', $parsed['normalized_name_segments']);
+        $first = $parsed['normalized_name_segments'][0] ?? null;
+        if ($first !== null) {
+            $query->orderByRaw(
+                'CASE
+                    WHEN default_cards.searchable_name = ? THEN 0
+                    WHEN default_cards.searchable_name LIKE ? THEN 1
+                    ELSE 2
+                END',
+                [$first, $first.'%']
+            );
+        }
+        $query->orderByRaw('CHAR_LENGTH(default_cards.name)')->orderBy('default_cards.name');
 
-        return $query
-            ->select('default_cards.id', 'default_cards.oracle_id', 'default_cards.name', 'default_cards.card_image_0', 'default_cards.card_image_1', 'default_cards.collector_number', 'default_cards.finishes', 'default_cards.artist_id', 'default_cards.set_id', 'default_cards.searchable_name')
+        $rows = $query
             ->limit(self::PRINTINGS_LIMIT)
-            ->get()
-            ->map(fn (DefaultCard $card): array => [
-                'oracle_id' => $card->oracle_id,
-                'name' => $card->oracle?->name ?? $card->name,
-                'cmc' => (float) ($card->oracle?->cmc ?? 0),
-                'color_identity' => $card->oracle?->color_identity,
-                'violates_companion' => $companionProfile !== null
-                    && $card->oracle !== null
-                    && $companionProfile->failsAddingCard($deck, $card->oracle),
-                'printing' => [
-                    'id' => $card->id,
-                    'name' => $card->name,
-                    'card_image_0' => $card->card_image_0,
-                    'card_image_1' => $card->card_image_1,
-                    'artist' => $card->artist?->name,
-                    'cn' => $card->collector_number,
-                    'finishes' => Finish::labelsFromMask($card->finishes),
-                    'set' => $card->set ? [
-                        'name' => $card->set->name,
-                        'code' => $card->set->code,
-                        'path' => $card->set->path,
-                    ] : null,
-                ],
-            ])
+            ->get([
+                'default_cards.id',
+                'default_cards.oracle_id',
+                'default_cards.name as printing_name',
+                'default_cards.card_image_0',
+                'default_cards.card_image_1',
+                'default_cards.collector_number',
+                'default_cards.finishes',
+                'sets.name as set_name',
+                'sets.code as set_code',
+                'sets.path as set_path',
+                'artists.name as artist_name',
+            ]);
+
+        return $rows
+            ->map(function (object $row) use ($oraclesById, $companionProfile, $deck): array {
+                $oracle = $oraclesById->get($row->oracle_id);
+
+                return [
+                    'oracle_id' => $row->oracle_id,
+                    'name' => $oracle?->name ?? $row->printing_name,
+                    'cmc' => (float) ($oracle?->cmc ?? 0),
+                    'color_identity' => $oracle?->color_identity,
+                    'violates_companion' => $companionProfile !== null
+                        && $oracle !== null
+                        && $companionProfile->failsAddingCard($deck, $oracle),
+                    'printing' => [
+                        'id' => $row->id,
+                        'name' => $row->printing_name,
+                        'card_image_0' => $row->card_image_0,
+                        'card_image_1' => $row->card_image_1,
+                        'artist' => $row->artist_name,
+                        'cn' => $row->collector_number,
+                        'finishes' => Finish::labelsFromMask((int) $row->finishes),
+                        'set' => $row->set_code !== null ? [
+                            'name' => $row->set_name,
+                            'code' => $row->set_code,
+                            'path' => $row->set_path,
+                        ] : null,
+                    ],
+                ];
+            })
             ->all();
     }
 
