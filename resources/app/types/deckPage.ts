@@ -1,3 +1,4 @@
+import type { DefaultCardArtCrop } from "Types/defaultCardArtCrop.ts";
 import type { DefaultCardImage } from "Types/defaultCardImage.ts";
 
 /** Default card image attached to a commander. */
@@ -143,8 +144,6 @@ export interface DeckMeta {
     /** Oracle names of companions banned in this format (e.g. Lutri in Commander). */
     banned_as_companion: string[];
     last_activity: string;
-    default_card_image: {
-        card_image_0: string | null;
-        card_image_1: string | null;
-    } | null;
+    /** Deck hero / banner art — the chosen printing's art crop, or null. */
+    hero_card: DefaultCardArtCrop | null;
 }

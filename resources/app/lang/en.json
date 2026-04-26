@@ -836,6 +836,14 @@
             "oathbreaker": {
                 "choose": "Choose Oathbreaker & Signature Spell",
                 "change": "Change Oathbreaker & Signature Spell"
+            },
+            "hero_image": {
+                "label": "Deck hero image",
+                "select": "Select deck hero image",
+                "change": "Change hero image",
+                "modal_title": "Choose deck hero image",
+                "explanation": "Pick one of the cards from your deck. Its art will be shown as the deck's banner image at the top of the deck detail page. Click a card below to choose it.",
+                "loading": "Loading cards…"
             }
         },
         "add_cards": {

@@ -2,6 +2,7 @@
 import { Form, Head } from "@inertiajs/vue3";
 import { computed, nextTick, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
+import type { DeckHeroCardOption } from "@/pages/Deck/Modals/DeckHeroImagePickerModal.vue";
 import DeckFormatCapabilities from "Components/Deck/DeckFormatCapabilities.vue";
 import type { CommanderResult } from "Components/Deck/ShowCommanderOverview.vue";
 import ShowCommanderOverview from "Components/Deck/ShowCommanderOverview.vue";
@@ -12,6 +13,7 @@ import Icon from "Components/UI/Icon.vue";
 import { useBreadcrumbs } from "Composables/useBreadcrumbs.ts";
 import type { FormatCapabilities } from "Types/formatCapabilities.ts";
 import CommanderCommandZonePickerModal from "./CommanderCommandZonePickerModal.vue";
+import DeckHeroImagePicker from "./DeckHeroImagePicker.vue";
 import OathbreakerCommandZonePickerModal from "./OathbreakerCommandZonePickerModal.vue";
 /** Server-rendered shape for "edit existing deck" mode. */
 export interface ExistingDeck {
@@ -22,6 +24,10 @@ export interface ExistingDeck {
     commander: CommanderResult | null;
     companion: CommanderResult | null;
     signatureSpell: CommanderResult | null;
+    /** Distinct printings present in the deck, used by the hero-image picker. */
+    cards: DeckHeroCardOption[];
+    /** Currently chosen deck hero image (one of `cards`), or null. */
+    heroCard: DeckHeroCardOption | null;
 }
 const props = withDefaults(
     defineProps<{
@@ -73,6 +79,13 @@ const signatureSpell = ref<CommanderResult | null>(props.existingDeck?.signature
  */
 const deckName = ref(props.existingDeck?.name ?? "");
 const deckDescription = ref(props.existingDeck?.description ?? "");
+/**
+ * The deck card the user picked as the deck's hero image. Pre-filled from
+ * the server-rendered `existingDeck.heroCard` so the current banner shows
+ * up immediately when entering edit mode. Submitted to the backend as a
+ * hidden `default_card_id` field on the form.
+ */
+const selectedHeroCard = ref<DeckHeroCardOption | null>(props.existingDeck?.heroCard ?? null);
 /** Pre-fill the deck name with the commander's name when the field is empty. */
 const prefillDeckName = (name: string) => {
     if (!deckName.value.trim()) {
@@ -263,6 +276,17 @@ setBreadcrumbs(
                 />
             </div>
         </form-group>
+        <!-- Hero image picker is edit-only, and only useful once there are
+             at least two cards to choose from — with one card the answer is
+             trivial and with zero there's nothing to pick. -->
+        <template v-if="isEdit && existingDeck && existingDeck.cards.length >= 2">
+            <deck-hero-image-picker
+                v-model="selectedHeroCard"
+                :deck-id="existingDeck.id"
+                :cards="existingDeck.cards"
+            />
+            <input type="hidden" name="default_card_id" :value="selectedHeroCard?.id ?? ''" />
+        </template>
         <form-group>
             <button
                 type="submit"

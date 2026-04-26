@@ -5,7 +5,13 @@ import Icon from "Components/UI/Icon.vue";
 <template>
     <div class="modal-dialog__header">
         <h3 class="modal-dialog__title"><slot /></h3>
-        <button class="btn-close" @click="$emit('close')" :aria-label="$t('modal.close')" tabindex="-1">
+        <button
+            type="button"
+            class="btn-close"
+            @click="$emit('close')"
+            :aria-label="$t('modal.close')"
+            tabindex="-1"
+        >
             <span>{{ $t("modal.close") }}</span>
             <icon name="close" :size="1" />
         </button>

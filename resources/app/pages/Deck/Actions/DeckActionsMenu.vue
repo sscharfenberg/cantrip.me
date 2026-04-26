@@ -30,8 +30,8 @@ const showDeleteModal = ref(false);
 /**
  * Adapter from this page's deck-detail props to the shared modal target.
  * `card_count` on `DeckMeta` is the controller-computed combined count
- * (deck cards + commanders), and `default_card_image !== null` mirrors
- * the `has_image` flag the deck-list payload exposes.
+ * (deck cards + commanders), and `hero_card !== null` mirrors the
+ * `has_image` flag the deck-list payload exposes.
  */
 const deleteTarget = computed<DeleteDeckTarget>(() => ({
     id: props.deck.id,
@@ -39,7 +39,7 @@ const deleteTarget = computed<DeleteDeckTarget>(() => ({
     cardCount: props.deck.card_count,
     hasCompanion: props.companion !== null,
     hasDescription: props.deck.description !== null && props.deck.description !== "",
-    hasImage: props.deck.default_card_image !== null
+    hasImage: props.deck.hero_card !== null
 }));
 /** Close the action popover programmatically. */
 function closePopover(): void {

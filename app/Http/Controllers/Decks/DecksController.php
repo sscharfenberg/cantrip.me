@@ -11,6 +11,7 @@ use App\Http\Requests\Decks\ShowDeckRequest;
 use App\Models\Deck;
 use App\Models\DeckCard;
 use App\Models\DeckCategory;
+use App\Models\DefaultCard;
 use App\Models\OracleCard;
 use App\Services\CommandZoneService;
 use App\Services\DeckService;
@@ -137,7 +138,9 @@ class DecksController extends Controller
     public function show(ShowDeckRequest $request, Deck $deck): Response
     {
         $deck->load([
-            'defaultCard:id,card_image_0,card_image_1',
+            'defaultCard:id,name,art_crop,artist_id,set_id',
+            'defaultCard.set:id,name,code,path',
+            'defaultCard.artist:id,name',
             'commanders.defaults' => fn ($q) => $q
                 ->select('id', 'oracle_id', 'card_image_0', 'card_image_1'),
             'deckCards.oracleCard',
@@ -281,9 +284,16 @@ class DecksController extends Controller
                 'allows_companion' => $allowsCompanion,
                 'banned_as_companion' => $profile->bannedAsCompanion(),
                 'last_activity' => $lastActivity,
-                'default_card_image' => $deck->defaultCard ? [
-                    'card_image_0' => $deck->defaultCard->card_image_0,
-                    'card_image_1' => $deck->defaultCard->card_image_1,
+                'hero_card' => $deck->defaultCard ? [
+                    'id' => $deck->defaultCard->id,
+                    'name' => $deck->defaultCard->name,
+                    'art_crop' => $deck->defaultCard->art_crop,
+                    'artist' => $deck->defaultCard->artist?->name,
+                    'set' => $deck->defaultCard->set ? [
+                        'name' => $deck->defaultCard->set->name,
+                        'code' => $deck->defaultCard->set->code,
+                        'path' => $deck->defaultCard->set->path,
+                    ] : null,
                 ] : null,
             ],
             'commanders' => $commanders,
@@ -349,12 +359,36 @@ class DecksController extends Controller
                     'string',
                     Rule::exists(OracleCard::class, 'id'),
                 ],
+                // Hero image: must be a default_card_id attached to this
+                // deck in any role — main + sideboard, command zone, or
+                // companion — so users can't point the banner at a
+                // printing the deck doesn't actually carry.
+                'default_card_id' => [
+                    'nullable',
+                    'string',
+                    function (string $attribute, mixed $value, \Closure $fail) use ($deck): void {
+                        $valid = DeckCard::query()
+                            ->where('deck_id', $deck->id)
+                            ->where('default_card_id', $value)
+                            ->exists()
+                            || DB::table('commanders')
+                                ->where('deck_id', $deck->id)
+                                ->where('default_card_id', $value)
+                                ->exists()
+                            || $deck->companion_default_card_id === $value;
+
+                        if (! $valid) {
+                            $fail("The selected {$attribute} is invalid.");
+                        }
+                    },
+                ],
             ]);
         });
 
         $deck->update([
             'name' => $request->input('deck_name'),
             'description' => $request->input('deck_description'),
+            'default_card_id' => $request->input('default_card_id') ?: null,
         ]);
 
         // Compare the requested command zone against the current pivot rows
@@ -405,6 +439,10 @@ class DecksController extends Controller
     {
         $deck->load([
             'commanders.faces:oracle_card_id,face_index,type_line,mana_cost,oracle_text',
+            'deckCards:id,deck_id,default_card_id',
+            'defaultCard:id,name,art_crop,artist_id,set_id',
+            'defaultCard.set:id,name,code,path',
+            'defaultCard.artist:id,name',
         ]);
 
         $profile = $deck->format->rules();
@@ -422,6 +460,46 @@ class DecksController extends Controller
                 $companion = $shaped;
             }
         }
+
+        // Card options for the deck-hero-image picker — every printing
+        // attached to the deck in any role:
+        //   - deck cards (mainboard + sideboard, both live on `deck_cards`)
+        //   - commanders / partners / oathbreakers / signature spells
+        //     (all stored on the `commanders` pivot's `default_card_id`)
+        //   - the companion (`decks.companion_default_card_id`)
+        // Loaded as one bulk query to avoid the per-row defaults eager-load
+        // ballooning when commanders' oracles have many printings, then
+        // shaped as DefaultCardArtCrop on the frontend so ArtCropImage can
+        // render the thumbnail directly.
+        $shapeArtCrop = fn (DefaultCard $card) => [
+            'id' => $card->id,
+            'name' => $card->name,
+            'art_crop' => $card->art_crop,
+            'artist' => $card->artist?->name,
+            'set' => $card->set ? [
+                'name' => $card->set->name,
+                'code' => $card->set->code,
+                'path' => $card->set->path,
+            ] : null,
+        ];
+
+        $optionIds = collect()
+            ->merge($deck->deckCards->pluck('default_card_id'))
+            ->merge($deck->commanders->pluck('pivot.default_card_id'))
+            ->push($deck->companion_default_card_id)
+            ->filter()
+            ->unique()
+            ->values();
+
+        $cardOptions = DefaultCard::query()
+            ->with(['set:id,name,code,path', 'artist:id,name'])
+            ->whereIn('id', $optionIds)
+            ->get(['id', 'name', 'art_crop', 'artist_id', 'set_id'])
+            ->map($shapeArtCrop)
+            ->values()
+            ->all();
+
+        $heroCard = $deck->defaultCard ? $shapeArtCrop($deck->defaultCard) : null;
 
         $capabilities = [];
         foreach (CardFormat::cases() as $format) {
@@ -442,6 +520,8 @@ class DecksController extends Controller
                 'commander' => $commander,
                 'companion' => $companion,
                 'signatureSpell' => $signatureSpell,
+                'cards' => $cardOptions,
+                'heroCard' => $heroCard,
             ],
         ]);
     }

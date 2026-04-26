@@ -5,7 +5,10 @@
 $deck: (
     "meta": (
         "background": light-dark(color.adjust(#fff, $alpha: -0.5), color.adjust(#000, $alpha: -0.5)),
+        "hero-tint": light-dark(map.get(c.$brand, "light1", "color"), map.get(c.$brand, "dark1", "color")),
         "surface": light-dark(map.get(c.$grey, "abbey"), map.get(c.$grey, "fog")),
+        "badge-background": light-dark(#fff, #000),
+        "badge-surface": light-dark(map.get(c.$grey, "abbey"), map.get(c.$grey, "fog")),
         "border-from": light-dark(map.get(c.$grey, "slate"), map.get(c.$grey, "asher")),
         "border-to": light-dark(map.get(c.$grey, "fog"), map.get(c.$grey, "bunker")),
         "name": light-dark(map.get(c.$grey, "infra"), map.get(c.$grey, "bunker"))

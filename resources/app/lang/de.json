@@ -836,6 +836,14 @@
             "oathbreaker": {
                 "choose": "Oathbreaker & Signaturzauber wählen",
                 "change": "Oathbreaker & Signaturzauber ändern"
+            },
+            "hero_image": {
+                "label": "Deck-Bannerbild",
+                "select": "Bannerbild auswählen",
+                "change": "Bannerbild ändern",
+                "modal_title": "Deck-Bannerbild wählen",
+                "explanation": "Wähle eine Karte aus deinem Deck aus. Ihre Illustration wird oben auf der Deck-Detailseite als Banner angezeigt. Klicke unten auf eine Karte, um sie auszuwählen.",
+                "loading": "Karten werden geladen…"
             }
         },
         "add_cards": {

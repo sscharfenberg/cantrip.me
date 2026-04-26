@@ -57,6 +57,7 @@ const commanderColorIdentity = computed(() => combineCI(props.commanders.map(c =
         :categories="categories"
         :category-name-max="categoryNameMax"
         :violations="violations"
+        :hero-art-crop="deck.hero_card?.art_crop ?? null"
     />
     <deck-navigation
         :deck="deck"
@@ -90,19 +91,4 @@ const commanderColorIdentity = computed(() => combineCI(props.commanders.map(c =
         :is-singleton="deck.is_singleton"
     />
 
-    <section>
-        <template v-if="deck.default_card_image">
-            <h3>Default Card Image</h3>
-            <img
-                v-if="deck.default_card_image.card_image_0"
-                :src="deck.default_card_image.card_image_0"
-                :alt="deck.name"
-            />
-            <img
-                v-if="deck.default_card_image.card_image_1"
-                :src="deck.default_card_image.card_image_1"
-                :alt="deck.name"
-            />
-        </template>
-    </section>
 </template>
