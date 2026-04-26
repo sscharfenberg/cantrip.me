@@ -173,7 +173,7 @@
                     "explanation": "Scryfall ist das Rückgrat aller MtG community websites."
                 }
             },
-            "collection_stats": {
+            "site_stats": {
                 "title": "cantrip.me Daten",
                 "cards": {
                     "title": "Karten gesamt",
@@ -183,9 +183,13 @@
                     "title": "Container",
                     "explanation": "Die Anzahl von Containern die in cantrip.me erfasst wurden."
                 },
+                "decks": {
+                    "title": "Decks",
+                    "explanation": "Die Anzahl von Decks die in cantrip.me gebaut wurden."
+                },
                 "worth": {
-                    "title": "Gesamtwert",
-                    "explanation": "Der Gesamtwert der Karten die in cantrip.me erfasst wurden."
+                    "title": "Sammlungen Gesamtwert",
+                    "explanation": "Der Gesamtwert der Karten die in cantrip.me Sammlungen erfasst wurden."
                 }
             }
         },

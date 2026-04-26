@@ -17,7 +17,7 @@ defineProps<{
         artCrops: { num: number; size: number };
         cardImages: { num: number; size: number };
     };
-    collectionStats: { totalCards: number; containers: number; totalPrice: number };
+    siteStats: { totalCards: number; containers: number; decks: number; totalPrice: number };
 }>();
 </script>
 
@@ -97,33 +97,43 @@ defineProps<{
             <template #explanation>{{ $t("pages.welcome.scryfall_stats.scryfall.explanation") }}</template>
         </stats-item>
     </stats>
-    <template v-if="collectionStats.totalCards > 0 || collectionStats.containers > 0 || collectionStats.totalPrice > 0">
+    <template
+        v-if="siteStats.totalCards > 0 || siteStats.containers > 0 || siteStats.decks > 0 || siteStats.totalPrice > 0"
+    >
         <br />
-        <headline :size="3">{{ $t("pages.welcome.collection_stats.title") }}</headline>
+        <headline :size="3">{{ $t("pages.welcome.site_stats.title") }}</headline>
         <stats>
-            <stats-item v-if="collectionStats.totalCards > 0">
-                <template #title>{{ $t("pages.welcome.collection_stats.cards.title") }}</template>
+            <stats-item v-if="siteStats.totalCards > 0">
+                <template #title>{{ $t("pages.welcome.site_stats.cards.title") }}</template>
                 <template #icon>
                     <img src="/symbol/2-W.svg" alt="tap symbol" class="icon medium" />
                 </template>
-                <template #value>{{ formatDecimals(collectionStats.totalCards) }}</template>
-                <template #explanation>{{ $t("pages.welcome.collection_stats.cards.explanation") }}</template>
+                <template #value>{{ formatDecimals(siteStats.totalCards) }}</template>
+                <template #explanation>{{ $t("pages.welcome.site_stats.cards.explanation") }}</template>
             </stats-item>
-            <stats-item v-if="collectionStats.containers > 0">
-                <template #title>{{ $t("pages.welcome.collection_stats.containers.title") }}</template>
+            <stats-item v-if="siteStats.containers > 0">
+                <template #title>{{ $t("pages.welcome.site_stats.containers.title") }}</template>
                 <template #icon>
                     <img src="/symbol/B-G-P.svg" alt="tap symbol" class="icon medium" />
                 </template>
-                <template #value>{{ formatDecimals(collectionStats.containers) }}</template>
-                <template #explanation>{{ $t("pages.welcome.collection_stats.containers.explanation") }}</template>
+                <template #value>{{ formatDecimals(siteStats.containers) }}</template>
+                <template #explanation>{{ $t("pages.welcome.site_stats.containers.explanation") }}</template>
             </stats-item>
-            <stats-item v-if="collectionStats.totalPrice > 0">
-                <template #title>{{ $t("pages.welcome.collection_stats.worth.title") }}</template>
+            <stats-item v-if="siteStats.totalPrice > 0">
+                <template #title>{{ $t("pages.welcome.site_stats.worth.title") }}</template>
                 <template #icon>
                     <img src="/symbol/S.svg" alt="tap symbol" class="icon medium" />
                 </template>
-                <template #value>{{ formatPrice(collectionStats.totalPrice) }}</template>
-                <template #explanation>{{ $t("pages.welcome.collection_stats.worth.explanation") }}</template>
+                <template #value>{{ formatPrice(siteStats.totalPrice) }}</template>
+                <template #explanation>{{ $t("pages.welcome.site_stats.worth.explanation") }}</template>
+            </stats-item>
+            <stats-item v-if="siteStats.decks > 0">
+                <template #title>{{ $t("pages.welcome.site_stats.decks.title") }}</template>
+                <template #icon>
+                    <img src="/symbol/A.svg" alt="tap symbol" class="icon medium" />
+                </template>
+                <template #value>{{ formatDecimals(siteStats.decks) }}</template>
+                <template #explanation>{{ $t("pages.welcome.site_stats.decks.explanation") }}</template>
             </stats-item>
         </stats>
     </template>

@@ -8,10 +8,10 @@ use App\Models\Artist;
 use App\Models\BulkData;
 use App\Models\CardStack;
 use App\Models\Container;
+use App\Models\Deck;
 use App\Models\DefaultCard;
 use App\Models\OracleCard;
 use App\Models\Set;
-use App\Models\Symbol;
 use App\Services\ContainerService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -66,7 +66,7 @@ class WelcomeController extends Controller
             ?? Currency::Eur;
         $unitPriceSql = ContainerService::unitPriceSql($currency);
 
-        $collectionStats = CardStack::query()
+        $siteStats = CardStack::query()
             ->join('default_cards', 'card_stacks.default_card_id', '=', 'default_cards.id')
             ->selectRaw('COALESCE(SUM(card_stacks.amount), 0) as total_cards')
             ->selectRaw("COALESCE(SUM(card_stacks.amount * ({$unitPriceSql})), 0) as total_price")
@@ -87,11 +87,12 @@ class WelcomeController extends Controller
                 'artCrops' => $this->getArtCropStats(),
                 'cardImages' => $this->getCardImageStats(),
             ],
-            'collectionStats' => [
-                'totalCards' => (int) $collectionStats->total_cards,
+            'siteStats' => [
+                'totalCards' => (int) $siteStats->total_cards,
                 'containers' => Container::count(),
-                'totalPrice' => (float) $collectionStats->total_price,
-            ]
+                'decks' => Deck::count(),
+                'totalPrice' => (float) $siteStats->total_price,
+            ],
         ]);
     }
 }

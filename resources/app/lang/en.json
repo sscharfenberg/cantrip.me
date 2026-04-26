@@ -173,7 +173,7 @@
                     "explanation": "Scryfall is the backbone of all MtG community websites."
                 }
             },
-            "collection_stats": {
+            "site_stats": {
                 "title": "cantrip.me data",
                 "cards": {
                     "title": "Total cards",
@@ -183,8 +183,12 @@
                     "title": "Containers",
                     "explanation": "The number of containers organized in cantrip.me."
                 },
+                "decks": {
+                    "title": "Decks",
+                    "explanation": "The number of decks built in cantrip.me."
+                },
                 "worth": {
-                    "title": "Total worth",
+                    "title": "Collection total worth",
                     "explanation": "The total worth of cards organized in cantrip.me collections."
                 }
             }
