@@ -27,12 +27,5 @@ return [
     'two_factor_activated' => 'Two-factor authentication has been activated.',
     'two_factor_deactivated' => 'Two-factor authentication has been deactivated.',
     'account_deleted' => 'Your account has been deleted - you\'re welcome back any time.',
-    'container_created' => 'Container ":name" has been created.',
-    'container_updated' => 'Container ":name" has been updated.',
-    'container_deleted' => 'Container ":name" has been deleted.',
-    'container_pruned' => ':count cards have been removed from ":name".',
-    'deck_created' => 'Deck ":name" has been created.',
-    'deck_updated' => 'Deck ":name" has been updated.',
-    'deck_deleted' => 'Deck ":name" has been deleted.',
 
 ];

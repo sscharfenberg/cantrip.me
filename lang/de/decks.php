@@ -16,6 +16,11 @@ return [
 
     'category_created' => 'Neue Gruppe ":group" für das Deck ":deck" erstellt.',
 
+    'deck_created' => 'Deck ":name" wurde erstellt.',
+    'deck_updated' => 'Deck ":name" wurde aktualisiert.',
+    'deck_deleted' => 'Deck ":name" wurde gelöscht.',
+    'deck_hero_changed' => 'Bannerbild des Decks ":name" wurde auf ":card" geändert.',
+
     'companion' => [
         'errors' => [
             'not_allowed_in_format' => 'Gefährten sind in diesem Format nicht erlaubt.',

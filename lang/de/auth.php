@@ -27,12 +27,5 @@ return [
     'two_factor_activated' => 'Die Zwei-Faktor-Authentifizierung wurde aktiviert.',
     'two_factor_deactivated' => 'Die Zwei-Faktor-Authentifizierung wurde deaktiviert.',
     'account_deleted' => 'Dein Benutzerkonto wurde gelöscht - du bist jederzeit willkommen zurückzukehren.',
-    'container_created' => 'Container ":name" wurde erstellt.',
-    'container_updated' => 'Container ":name" wurde aktualisiert.',
-    'container_deleted' => 'Container ":name" wurde gelöscht.',
-    'container_pruned' => ':count Karten wurden aus ":name" entfernt.',
-    'deck_created' => 'Deck ":name" wurde erstellt.',
-    'deck_updated' => 'Deck ":name" wurde aktualisiert.',
-    'deck_deleted' => 'Deck ":name" wurde gelöscht.',
 
 ];

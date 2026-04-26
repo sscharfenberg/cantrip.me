@@ -12,5 +12,9 @@ return [
     'cards_mass_moved' => ':number cards moved from \':source\' to \':target\'.',
     'collection_deleted' => 'Your collection has been deleted.',
     'unsorted' => 'Unsorted',
+    'container_created' => 'Container ":name" has been created.',
+    'container_updated' => 'Container ":name" has been updated.',
+    'container_deleted' => 'Container ":name" has been deleted.',
+    'container_pruned' => ':count cards have been removed from ":name".',
 
 ];

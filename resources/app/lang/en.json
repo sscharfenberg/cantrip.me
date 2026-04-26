@@ -760,6 +760,9 @@
                 "to_side": "Move 1 to sideboard",
                 "to_main": "Move 1 to mainboard"
             },
+            "use_as_hero": {
+                "link": "Use as hero image"
+            },
             "custom_groups": {
                 "title": "Manage custom groups",
                 "link": "Manage groups",

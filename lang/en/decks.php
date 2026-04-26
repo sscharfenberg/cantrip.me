@@ -16,6 +16,11 @@ return [
 
     'category_created' => 'Created new group ":group" for the deck ":deck".',
 
+    'deck_created' => 'Deck ":name" has been created.',
+    'deck_updated' => 'Deck ":name" has been updated.',
+    'deck_deleted' => 'Deck ":name" has been deleted.',
+    'deck_hero_changed' => 'Changed hero image of deck ":name" to ":card".',
+
     'companion' => [
         'errors' => [
             'not_allowed_in_format' => 'Companions are not allowed in this format.',

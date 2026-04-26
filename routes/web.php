@@ -134,6 +134,8 @@ Route::middleware(array_filter(['auth', Features::enabled(Features::emailVerific
     Route::patch('/decks/{deck}', [DecksController::class, 'update'])
         ->middleware([HandleControllerPrecognitiveRequest::class])
         ->name('decks.update');
+    Route::patch('/decks/{deck}/cards/{deckCard}/use-as-hero', [DecksController::class, 'setHeroImage'])
+        ->name('decks.set-hero-image');
     Route::delete('/decks/{deck}', [DecksController::class, 'destroy'])
         ->name('decks.destroy');
     Route::get('/api/decks/{deck}/card-search/oracle', [DeckCardSearchController::class, 'oracle'])

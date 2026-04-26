@@ -90,7 +90,7 @@ class ContainerController extends Controller
             'container_name', 'container_description', 'container_type', 'container_type_other', 'container_image', 'container_visibility',
         ]));
 
-        $request->session()->flash('message', __('auth.container_created', ['name' => $container->name]));
+        $request->session()->flash('message', __('collection.container_created', ['name' => $container->name]));
         $request->session()->flash('type', 'success');
 
         return redirect(route('containers'));
@@ -139,7 +139,7 @@ class ContainerController extends Controller
             'container_name', 'container_description', 'container_type', 'container_type_other', 'container_image', 'container_visibility',
         ]));
 
-        $request->session()->flash('message', __('auth.container_updated', ['name' => $container->name]));
+        $request->session()->flash('message', __('collection.container_updated', ['name' => $container->name]));
         $request->session()->flash('type', 'success');
 
         return redirect(route('container.show', $container));
@@ -173,7 +173,7 @@ class ContainerController extends Controller
     {
         $name = ContainerService::deleteContainer($request->user(), $container);
 
-        $request->session()->flash('message', __('auth.container_deleted', ['name' => $name]));
+        $request->session()->flash('message', __('collection.container_deleted', ['name' => $name]));
         $request->session()->flash('type', 'success');
 
         return redirect(route('containers'));
@@ -188,7 +188,7 @@ class ContainerController extends Controller
     {
         $result = ContainerService::pruneContainer($request->user(), $container);
 
-        $request->session()->flash('message', __('auth.container_pruned', [
+        $request->session()->flash('message', __('collection.container_pruned', [
             'count' => $result['count'],
             'name' => $result['name'],
         ]));

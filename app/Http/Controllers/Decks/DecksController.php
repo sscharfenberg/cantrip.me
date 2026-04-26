@@ -7,6 +7,7 @@ use App\Enums\CardFormat;
 use App\Formats\FormatProfile;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Decks\DeleteDeckRequest;
+use App\Http\Requests\Decks\SetDeckHeroImageRequest;
 use App\Http\Requests\Decks\ShowDeckRequest;
 use App\Models\Deck;
 use App\Models\DeckCard;
@@ -122,7 +123,7 @@ class DecksController extends Controller
             'format', 'deck_name', 'deck_description', 'commander_id', 'companion_id', 'signature_spell_id',
         ]));
 
-        $request->session()->flash('message', __('auth.deck_created', ['name' => $deck->name]));
+        $request->session()->flash('message', __('decks.deck_created', ['name' => $deck->name]));
         $request->session()->flash('type', 'success');
 
         return redirect(route('decks.show', $deck));
@@ -434,7 +435,7 @@ class DecksController extends Controller
             DeckService::setCommandZone($deck, $newCommanderId, $newCompanionId, $newSignatureSpellId);
         }
 
-        $request->session()->flash('message', __('auth.deck_updated', ['name' => $deck->name]));
+        $request->session()->flash('message', __('decks.deck_updated', ['name' => $deck->name]));
         $request->session()->flash('type', 'success');
 
         return redirect(route('decks.show', $deck));
@@ -546,6 +547,30 @@ class DecksController extends Controller
     }
 
     /**
+     * Set the deck's hero/banner image to a given deck card's printing.
+     *
+     * Triggered from the per-card actions menu — a one-click way to swap
+     * the banner art without going through the full edit-deck form. The
+     * deck's `default_card_id` is updated to the deck card's chosen
+     * printing; deck-card-belongs-to-deck and ownership checks live in
+     * {@see SetDeckHeroImageRequest::authorize}.
+     */
+    public function setHeroImage(SetDeckHeroImageRequest $request, Deck $deck, DeckCard $deckCard): RedirectResponse
+    {
+        $deckCard->loadMissing('defaultCard:id,name');
+
+        $deck->update(['default_card_id' => $deckCard->default_card_id]);
+
+        $request->session()->flash('message', __('decks.deck_hero_changed', [
+            'name' => $deck->name,
+            'card' => $deckCard->defaultCard?->name ?? '',
+        ]));
+        $request->session()->flash('type', 'success');
+
+        return redirect(route('decks.show', $deck));
+    }
+
+    /**
      * Delete the deck and all its dependent rows.
      *
      * Commanders, deck_cards and deck_categories cascade on FK delete, so a
@@ -557,7 +582,7 @@ class DecksController extends Controller
         $name = $deck->name;
         $deck->delete();
 
-        $request->session()->flash('message', __('auth.deck_deleted', ['name' => $name]));
+        $request->session()->flash('message', __('decks.deck_deleted', ['name' => $name]));
         $request->session()->flash('type', 'success');
 
         return redirect(route('decks'));
