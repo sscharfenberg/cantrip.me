@@ -27,18 +27,17 @@ class UpdateEverything extends Command
     public function __construct()
     {
         parent::__construct();
-        $this->formatService = new FormatService();
+        $this->formatService = new FormatService;
     }
 
     /**
      * Sleep for a configured amount of seconds, then return the idled seconds.
-     *
-     * @return int
      */
     private function sleep(): int
     {
         $duration = 2;
         sleep($duration);
+
         return $duration;
     }
 
@@ -49,12 +48,14 @@ class UpdateEverything extends Command
     {
         $start = now();
         $waitTime = 0;
-        if (app()->isProduction()) $this->call('down'); // 503 http requests
+        if (app()->isProduction()) {
+            $this->call('down');
+        } // 503 http requests
         try {
             $this->info("artisan command 'scryfall:update' started.");
-            Log::channel('scryfall')->info("=======================================================");
+            Log::channel('scryfall')->info('=======================================================');
             Log::channel('scryfall')->info("artisan command 'scryfall:update' started.");
-            Log::channel('scryfall')->info("=======================================================");
+            Log::channel('scryfall')->info('=======================================================');
             // update sets
             $this->call('scryfall:sets');
             $waitTime += $this->sleep();
@@ -74,13 +75,19 @@ class UpdateEverything extends Command
             $waitTime += $this->sleep();
             // resolve Scryfall URLs → local paths for downloaded images
             $this->call('scryfall:resolve-paths');
+            // Pre-warm the welcome-page Scryfall stats cache with the freshly
+            // imported dataset so the very first visitor doesn't pay the
+            // recursive `find` + `du` cost.
+            $this->call('scryfall:cache');
             $ms = $start->diffInMilliseconds(now());
-            Log::channel('scryfall')->info("=======================================================");
+            Log::channel('scryfall')->info('=======================================================');
             Log::channel('scryfall')->info("artisan command 'scryfall:update' finished in ".$this->formatService->formatMs($ms).", including $waitTime seconds idle time.");
-            Log::channel('scryfall')->info("=======================================================");
+            Log::channel('scryfall')->info('=======================================================');
             $this->info("artisan command 'scryfall:update' finished in ".$this->formatService->formatMs($ms).", including $waitTime seconds idle time.");
         } finally {
-            if (app()->isProduction()) $this->call('up'); // make sure the site goes back up.
+            if (app()->isProduction()) {
+                $this->call('up');
+            } // make sure the site goes back up.
         }
     }
 }

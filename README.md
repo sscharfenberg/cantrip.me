@@ -102,6 +102,7 @@ scryfall:oracle         → import oracle cards from bulk JSON into oracle_cards
 scryfall:default_cards  → import default cards from bulk JSON into default_cards + artists tables
 scryfall:images         → download missing/outdated art crops + card images to local disk
 scryfall:resolve-paths  → update Scryfall URLs in database to point at local image paths
+scryfall:cache          → pre-warm the welcome-page Scryfall stats cache so the next visitor lands on a warm page
 ```
 
 #### Design: separation of concerns for image handling
@@ -153,6 +154,12 @@ Total image cache currently needs about `25 Gb` of image files.
 Walks `default_cards` and `oracle_cards` looking for rows that still have Scryfall URLs in their image columns. For each row, checks if the corresponding local file exists on disk and, if so, updates the database column to the local path (e.g. `/art-crops/lea/uuid--1709234567.jpg`).
 
 For oracle cards, the local path is copied from a matching default card (looked up via `oracle_id`), since oracle cards share images with their default card printings.
+
+### `php artisan scryfall:cache`
+
+Refreshes the welcome-page Scryfall stats cache (full-table COUNTs of `oracle_cards` / `default_cards` / `sets` / `artists`, plus recursive `find` + `du` over the on-disk art-crop and card-image directories). The result is keyed under `welcome.scryfallStats` and stored with `Cache::forever`, so it stays valid until the next sync explicitly replaces it.
+
+`scryfall:update` runs this as its final step so visitors right after a sync don't pay the cold filesystem-walk cost. Run it manually if you've wiped the cache table or otherwise need to repopulate the entry without doing a full sync — it takes a few seconds at most.
 
 ## Scheduled tasks
 
