@@ -265,6 +265,25 @@ class DecksController extends Controller
             'name' => $cat->name,
         ])->values();
 
+        // Hero image fallback: in commander-like formats, decks frequently
+        // don't have an explicit `default_card_id` set — pick the primary
+        // commander's printing so the banner shows the commander's art by
+        // default rather than rendering a blank header. Loaded inline because
+        // the eager-loaded `commanders.defaults` only carries card images,
+        // not art_crop / set / artist.
+        $heroCard = $deck->defaultCard;
+        if ($heroCard === null && $profile->requiresCommander()) {
+            $primaryCommander = $deck->commanders->firstWhere('pivot.is_partner', false);
+            if ($primaryCommander !== null && $primaryCommander->pivot->default_card_id !== null) {
+                $heroCard = DefaultCard::query()
+                    ->with(['set:id,name,code,path', 'artist:id,name'])
+                    ->find(
+                        $primaryCommander->pivot->default_card_id,
+                        ['id', 'name', 'art_crop', 'artist_id', 'set_id']
+                    );
+            }
+        }
+
         return Inertia::render('Deck/DeckPage', [
             'deck' => [
                 'id' => $deck->id,
@@ -284,15 +303,15 @@ class DecksController extends Controller
                 'allows_companion' => $allowsCompanion,
                 'banned_as_companion' => $profile->bannedAsCompanion(),
                 'last_activity' => $lastActivity,
-                'hero_card' => $deck->defaultCard ? [
-                    'id' => $deck->defaultCard->id,
-                    'name' => $deck->defaultCard->name,
-                    'art_crop' => $deck->defaultCard->art_crop,
-                    'artist' => $deck->defaultCard->artist?->name,
-                    'set' => $deck->defaultCard->set ? [
-                        'name' => $deck->defaultCard->set->name,
-                        'code' => $deck->defaultCard->set->code,
-                        'path' => $deck->defaultCard->set->path,
+                'hero_card' => $heroCard ? [
+                    'id' => $heroCard->id,
+                    'name' => $heroCard->name,
+                    'art_crop' => $heroCard->art_crop,
+                    'artist' => $heroCard->artist?->name,
+                    'set' => $heroCard->set ? [
+                        'name' => $heroCard->set->name,
+                        'code' => $heroCard->set->code,
+                        'path' => $heroCard->set->path,
                     ] : null,
                 ] : null,
             ],
