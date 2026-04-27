@@ -43,7 +43,7 @@ defineProps<{
             >
                 <span class="card__qty">1x </span>{{ companion.name }}
             </card-image-preview>
-            <mana-cost v-for="(cost, i) in companion.mana_cost" :key="i" :mana-cost="cost" />
+            <mana-cost :mana-cost="companion.mana_cost" />
             <deck-companion-actions-menu :deck-id="deckId" :companion-name="companion.name" />
         </li>
     </ul>

@@ -106,7 +106,7 @@ const previewTarget = ref<PreviewTarget | null>(null);
                             >
                                 <span class="card__qty">1x </span>{{ commander.name }}
                             </card-image-preview>
-                            <mana-cost v-for="(cost, i) in commander.mana_cost" :key="i" :mana-cost="cost" />
+                            <mana-cost :mana-cost="commander.mana_cost" />
                             <deck-commander-actions-menu
                                 :deck-id="deck.id"
                                 :oracle-card-id="commander.oracle_card_id"
@@ -175,7 +175,7 @@ const previewTarget = ref<PreviewTarget | null>(null);
                                 :size="1"
                                 :additional-classes="['card__illegal']"
                             />
-                            <mana-cost v-for="(cost, i) in card.mana_cost" :key="i" :mana-cost="cost" />
+                            <mana-cost :mana-cost="card.mana_cost" />
                             <deck-card-actions-menu
                                 :deck-id="props.deck.id"
                                 :card="card"
