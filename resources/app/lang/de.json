@@ -690,6 +690,7 @@
             "categories": "Kategorien",
             "no_cards": "Noch keine Karten in diesem Deck.",
             "illegal": "Diese Karte ist in diesem Deck nicht legal.",
+            "game_changer": "Diese Karte steht auf der Game-Changer-Liste.",
             "legality": {
                 "title": "{count} Legalitätsproblem | {count} Legalitätsprobleme",
                 "pool_legality": "{count} Karte ist in diesem Format nicht legal. | {count} Karten sind in diesem Format nicht legal.",

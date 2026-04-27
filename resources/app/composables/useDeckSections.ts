@@ -163,6 +163,17 @@ export function useDeckSections(
 
         result.sort((a, b) => a.label.localeCompare(b.label));
 
+        // Lands always go last among the main-zone groups regardless of
+        // locale-alphabetical order, so the mainboard reads spells → … →
+        // lands → sideboard. Only the auto-derived `land` type group is
+        // moved; custom categories whose names happen to start with "L"
+        // keep their alphabetical position.
+        const landIdx = result.findIndex(s => s.key === "land");
+        if (landIdx >= 0) {
+            const [land] = result.splice(landIdx, 1);
+            result.push(land);
+        }
+
         // Sideboard joins the column distribution only when the format
         // allows it AND it actually has cards. The empty-but-allowed case
         // is handled by `dragTargets` so it appears next to the create-
@@ -230,6 +241,15 @@ export function useDeckSections(
         }
 
         targets.sort((a, b) => a.label.localeCompare(b.label));
+
+        // Mirror the `allGroups` rule: a land drop-target placeholder
+        // always sits after the alphabetical custom-category targets so
+        // the user's mental model (lands last) holds during the drag too.
+        const landIdx = targets.findIndex(t => t.key === "land");
+        if (landIdx >= 0) {
+            const [land] = targets.splice(landIdx, 1);
+            targets.push(land);
+        }
 
         // Empty sideboard appears here (outside the column distribution)
         // only while a drag is in progress, and only when the format

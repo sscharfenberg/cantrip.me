@@ -90,6 +90,17 @@ abstract class FormatProfile
     }
 
     /**
+     * Whether the format uses the Wizards "Game Changer" list (the bracket
+     * system's restricted-power overlay). Drives the per-card GC badge in
+     * the deck UI; ignored when false. Currently only the official
+     * Commander format opts in.
+     */
+    public function usesGameChangerList(): bool
+    {
+        return false;
+    }
+
+    /**
      * Oracle names of companions that are format-banned from the companion slot.
      *
      * @return array<int, string>
@@ -175,6 +186,7 @@ abstract class FormatProfile
             'companionPlacement' => $this->companionPlacement()->value,
             'allowsCompanion' => $this->allowsCompanion(),
             'bannedAsCompanion' => $this->bannedAsCompanion(),
+            'usesGameChangerList' => $this->usesGameChangerList(),
         ];
     }
 }

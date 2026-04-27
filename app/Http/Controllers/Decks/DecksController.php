@@ -245,6 +245,7 @@ class DecksController extends Controller
             'is_basic_land' => in_array($dc->oracleCard->name, FormatProfile::BASIC_LANDS, true),
             'is_unlimited' => $dc->oracleCard->hasUnlimitedCopiesRule(),
             'is_illegal' => isset($illegalDeckCardIds[$dc->id]),
+            'is_game_changer' => (bool) $dc->oracleCard->game_changer,
             'zone' => $dc->zone->value,
             'quantity' => $dc->quantity,
             'finish' => $dc->finish->value,
@@ -305,6 +306,7 @@ class DecksController extends Controller
                 'enforces_color_identity' => $profile->enforcesColorIdentity(),
                 'allows_companion' => $allowsCompanion,
                 'banned_as_companion' => $profile->bannedAsCompanion(),
+                'uses_game_changer_list' => $profile->usesGameChangerList(),
                 'last_activity' => $lastActivity,
                 'hero_card' => $heroCard ? [
                     'id' => $heroCard->id,

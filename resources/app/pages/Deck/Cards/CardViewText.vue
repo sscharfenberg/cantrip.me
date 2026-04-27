@@ -178,6 +178,12 @@ const previewTarget = ref<PreviewTarget | null>(null);
                                 :size="1"
                                 :additional-classes="['card__illegal']"
                             />
+                            <icon
+                                v-if="card.is_game_changer && deck.uses_game_changer_list"
+                                v-tooltip="$t('pages.deck.game_changer')"
+                                name="balance"
+                                :additional-classes="['card__game-changer']"
+                            />
                             <mana-cost :mana-cost="card.mana_cost" />
                             <deck-card-actions-menu
                                 :deck-id="props.deck.id"

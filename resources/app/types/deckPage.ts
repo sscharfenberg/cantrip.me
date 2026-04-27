@@ -51,6 +51,8 @@ export interface DeckCardRow {
     is_unlimited: boolean;
     /** True when the card violates a per-card format rule (pool legality, copy limit, color identity). */
     is_illegal: boolean;
+    /** True when the card is on Wizards' Game Changer list. Display gated by `DeckMeta.uses_game_changer_list`. */
+    is_game_changer: boolean;
     zone: string;
     quantity: number;
     finish: string;
@@ -143,6 +145,8 @@ export interface DeckMeta {
     allows_companion: boolean;
     /** Oracle names of companions banned in this format (e.g. Lutri in Commander). */
     banned_as_companion: string[];
+    /** Whether the format uses the Game Changer list — gates the per-card GC badge in the UI. */
+    uses_game_changer_list: boolean;
     last_activity: string;
     /** Deck hero / banner art — the chosen printing's art crop, or null. */
     hero_card: DefaultCardArtCrop | null;

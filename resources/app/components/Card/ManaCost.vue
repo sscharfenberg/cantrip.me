@@ -65,8 +65,8 @@ const faces = computed(() => {
     vertical-align: -0.125em;
 
     &__symbol {
-        width: 1rem;
-        height: 1rem;
+        width: 1.125rem;
+        height: 1.125rem;
     }
 
     &__separator {

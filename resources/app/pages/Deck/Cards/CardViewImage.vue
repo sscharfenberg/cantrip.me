@@ -90,6 +90,13 @@ const { allGroups } = useDeckSections(
                     :card-image1="card.default_card.card_image_1"
                     :name="card.name"
                 >
+                    <icon
+                        v-if="card.is_game_changer && deck.uses_game_changer_list"
+                        v-tooltip="$t('pages.deck.game_changer')"
+                        name="balance"
+                        :size="2"
+                        :additional-classes="['card__game-changer']"
+                    />
                     <span class="card__qty">{{ card.quantity }}x</span>
                     <icon
                         v-if="card.is_illegal"

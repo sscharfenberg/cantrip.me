@@ -2,6 +2,7 @@
 
 namespace App\Formats;
 
+use App\Enums\CardFormat;
 use App\Formats\Capabilities\CompanionPlacement;
 
 /**
@@ -55,5 +56,16 @@ class CommanderProfile extends FormatProfile
     public function bannedAsCompanion(): array
     {
         return ['Lutri, the Spellchaser'];
+    }
+
+    /**
+     * Wizards' bracket / Game Changer system applies only to the base
+     * Commander format. Variants that share this profile (Brawl, Predh,
+     * Pauper Commander, Duel) use their own ban lists and don't reference
+     * the GC overlay.
+     */
+    public function usesGameChangerList(): bool
+    {
+        return $this->format === CardFormat::Commander;
     }
 }

@@ -78,6 +78,15 @@ $deck: (
         "gap": 0.25rem,
         "radius": map.get(s.$radius, "featured")
     ),
+    "flags": (
+        "size": 1.25rem,
+        "padding": 1px,
+        "border": map.get(s.$border, "base"),
+        "radius": (
+            "text": 90dvh,
+            "image": map.get(s.$radius, "base")
+        )
+    ),
     "image-view": (
         "groups-gap": 1rem,
         "group-gap": 0.5rem

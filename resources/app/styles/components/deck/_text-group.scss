@@ -50,14 +50,29 @@
         }
 
         .card__illegal {
-            flex-basis: 1rem;
+            flex-basis: map.get(s.$pages, "deck", "flags", "size");
 
-            width: 1rem;
-            height: 1rem;
+            width: map.get(s.$pages, "deck", "flags", "size");
+            height: map.get(s.$pages, "deck", "flags", "size");
+            padding: 0;
+            border: map.get(s.$pages, "deck", "flags", "border") solid map.get(c.$state, "error", "border");
 
             background-color: map.get(c.$state, "error", "background");
             color: map.get(c.$state, "error", "surface");
-            border-radius: 90dvw;
+            border-radius: map.get(s.$pages, "deck", "flags", "radius", "text");
+        }
+
+        .card__game-changer {
+            flex-basis: map.get(s.$pages, "deck", "flags", "size");
+
+            width: map.get(s.$pages, "deck", "flags", "size");
+            height: map.get(s.$pages, "deck", "flags", "size");
+            padding: map.get(s.$pages, "deck", "flags", "padding");
+            border: map.get(s.$pages, "deck", "flags", "border") solid map.get(c.$state, "warning", "border");
+
+            background-color: map.get(c.$state, "warning", "background");
+            color: map.get(c.$state, "warning", "surface");
+            border-radius: map.get(s.$pages, "deck", "flags", "radius", "text");
         }
 
         .card__drag-handle {

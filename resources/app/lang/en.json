@@ -690,6 +690,7 @@
             "categories": "Categories",
             "no_cards": "No cards in this deck yet.",
             "illegal": "This card is illegal in this deck.",
+            "game_changer": "This card is on the Game Changer list.",
             "legality": {
                 "title": "{count} legality issue | {count} legality issues",
                 "pool_legality": "{count} card is not legal in this format. | {count} cards are not legal in this format.",
