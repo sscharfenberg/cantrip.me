@@ -12,13 +12,17 @@
     textarea {
         overflow-y: auto;
         width: 100%;
-        height: var(--textarea-height);
+        min-height: 2lh;
+        max-height: 10lh;
         border: 0;
 
         background: transparent;
         outline: 0;
 
         font-family: map.get(t.$form, "textarea");
+
+        // Auto-grow with content, clamped by the 2lh / 10lh bounds.
+        field-sizing: content;
 
         resize: none;
     }

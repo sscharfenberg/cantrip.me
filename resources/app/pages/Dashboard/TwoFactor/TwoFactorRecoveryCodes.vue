@@ -111,8 +111,4 @@ const onSubmit = (e: SubmitEvent) => {
 .form {
     margin-bottom: 1lh;
 }
-
-.form-input__textarea {
-    --textarea-height: 8.25lh;
-}
 </style>

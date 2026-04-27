@@ -880,6 +880,10 @@
             "password": "When entering your password, we check if the password is secure enough. Insecure passwords are rejected.",
             "2fa": "Your account has enabled two-factor authentication. Please check your app for a one-time password, or use a recovery code to login."
         },
+        "hints": {
+            "chars_remaining": "You can still enter up to {count} characters.",
+            "chars_full": "Maximum length reached."
+        },
         "fields": {
             "username": "Username",
             "email": "E-Mail",

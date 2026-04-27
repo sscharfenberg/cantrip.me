@@ -122,6 +122,17 @@ watch(selectedFormat, () => {
  */
 const commanderMissing = computed(() => !!selectedCapabilities.value?.requiresCommander && !commander.value);
 const signatureSpellMissing = computed(() => !!selectedCapabilities.value?.hasSignatureSpell && !signatureSpell.value);
+/**
+ * Description-textarea character counter. Driven by the textarea's
+ * `maxlength` so the displayed remaining count tracks the actual typing
+ * cap exactly. State thresholds: 0 → error, ≥95% used → warning, else info.
+ */
+const descriptionRemaining = computed(() => Math.max(0, props.descriptionMax - deckDescription.value.length));
+const descriptionCounterState = computed<"info" | "warning" | "error">(() => {
+    if (descriptionRemaining.value === 0) return "error";
+    if (deckDescription.value.length >= props.descriptionMax * 0.95) return "warning";
+    return "info";
+});
 const { setBreadcrumbs } = useBreadcrumbs();
 setBreadcrumbs(
     isEdit.value && props.existingDeck
@@ -275,6 +286,15 @@ setBreadcrumbs(
                     @change="validate('deck_description')"
                 />
             </div>
+            <template #text>
+                <p class="char-counter" :class="`char-counter--${descriptionCounterState}`">
+                    {{
+                        descriptionRemaining === 0
+                            ? $t("form.hints.chars_full")
+                            : $t("form.hints.chars_remaining", { count: descriptionRemaining })
+                    }}
+                </p>
+            </template>
         </form-group>
         <!-- Hero image picker is edit-only, and only useful once there are
              at least two cards to choose from — with one card the answer is
@@ -313,13 +333,44 @@ setBreadcrumbs(
 </template>
 
 <style lang="scss" scoped>
+@use "sass:map";
+@use "Abstracts/colors" as c;
 @use "Abstracts/mixins" as m;
+@use "Abstracts/sizes" as s;
 
 .commander-picker__commander--selected {
     padding-right: calc(0.5rem + 20px + 0.5ch);
 
     @include m.mq("landscape") {
         padding-right: calc(1rem + 20px + 0.5ch);
+    }
+}
+
+.char-counter {
+    padding: 0.5ex 1.5ch;
+    border: map.get(s.$components, "error", "border") solid transparent;
+    margin: 0;
+
+    border-radius: map.get(s.$components, "error", "radius");
+
+    font-size: 0.875rem;
+
+    &--info {
+        background-color: map.get(c.$state, "info", "background");
+        color: map.get(c.$state, "info", "surface");
+        border-color: map.get(c.$state, "info", "border");
+    }
+
+    &--warning {
+        background-color: map.get(c.$state, "warning", "background");
+        color: map.get(c.$state, "warning", "surface");
+        border-color: map.get(c.$state, "warning", "border");
+    }
+
+    &--error {
+        background-color: map.get(c.$state, "error", "background");
+        color: map.get(c.$state, "error", "surface");
+        border-color: map.get(c.$state, "error", "border");
     }
 }
 </style>

@@ -880,6 +880,10 @@
             "password": "Während der Eingabe des Passwortes prüfen wir ob das Passwort sicher genug ist. Unsichere Passwörter werden abgewiesen.",
             "2fa": "Für dein Benutzerkonto ist die Zwei-Faktor Authentifizierung aktiviert. Bitte prüfe deine App und gib das Einmalkennwort ein, das angezeigt wird."
         },
+        "hints": {
+            "chars_remaining": "Du kannst noch bis zu {count} Zeichen eingeben.",
+            "chars_full": "Maximale Länge erreicht."
+        },
         "fields": {
             "username": "Benutzername",
             "email": "E-Mail-Adresse",

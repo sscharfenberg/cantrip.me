@@ -79,6 +79,8 @@ const { t } = useI18n();
 
 :deep(p) {
     margin: 0;
+
+    white-space: pre-wrap;
 }
 
 // The art crop is sized to 50% of the section width with `auto` height so

@@ -209,8 +209,3 @@ setBreadcrumbs([
     </Form>
 </template>
 
-<style scoped lang="scss">
-.form-input__textarea {
-    --textarea-height: 4lh;
-}
-</style>
