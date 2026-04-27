@@ -15,6 +15,8 @@ defineProps<{
     companion: DeckCompanion;
     /** Which card view this is rendered in — picks the tile presentation. */
     variant: "image" | "text";
+    /** Current deck hero printing id, or null — forwarded into the actions menu. */
+    heroCardId: string | null;
 }>();
 </script>
 
@@ -25,7 +27,13 @@ defineProps<{
             :card-image1="companion.default_card.card_image_1"
             :name="companion.name"
         >
-            <deck-companion-actions-menu :deck-id="deckId" :companion-name="companion.name" :is-medium-button="true" />
+            <deck-companion-actions-menu
+                :deck-id="deckId"
+                :companion-name="companion.name"
+                :default-card-id="companion.default_card.id"
+                :hero-card-id="heroCardId"
+                :is-medium-button="true"
+            />
         </face-image-lazy>
     </ul>
     <ul v-else class="text-card-group__list">
@@ -44,7 +52,12 @@ defineProps<{
                 <span class="card__qty">1x </span>{{ companion.name }}
             </card-image-preview>
             <mana-cost :mana-cost="companion.mana_cost" />
-            <deck-companion-actions-menu :deck-id="deckId" :companion-name="companion.name" />
+            <deck-companion-actions-menu
+                :deck-id="deckId"
+                :companion-name="companion.name"
+                :default-card-id="companion.default_card.id"
+                :hero-card-id="heroCardId"
+            />
         </li>
     </ul>
 </template>

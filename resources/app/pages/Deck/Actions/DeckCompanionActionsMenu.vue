@@ -10,6 +10,10 @@ const props = defineProps<{
     deckId: string;
     /** Current companion name — interpolated into the switch-printing modal title. */
     companionName: string;
+    /** Companion's current printing id — compared against `heroCardId`. */
+    defaultCardId: string;
+    /** Current deck hero printing id, or null. Hides "Use as hero image" when the companion already is the hero. */
+    heroCardId: string | null;
     /** Whether this sits on top of a card image (tweaks PopOver trigger size). */
     isMediumButton?: boolean;
 }>();
@@ -86,7 +90,7 @@ async function switchPrinting(printing: DeckPrinting): Promise<void> {
                     {{ $t("pages.deck.switch_printing.link") }}
                 </button>
             </li>
-            <li>
+            <li v-if="props.defaultCardId !== props.heroCardId">
                 <Link
                     :href="`/decks/${props.deckId}/companion/use-as-hero`"
                     method="patch"

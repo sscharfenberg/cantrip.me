@@ -17,6 +17,10 @@ const props = defineProps<{
     commanderName: string;
     /** Format key (e.g. "commander", "oathbreaker") — selects the right picker modal. */
     format: string;
+    /** This commander's current printing id — compared against `heroCardId`. */
+    defaultCardId: string;
+    /** Current deck hero printing id, or null. Hides "Use as hero image" when this commander already is the hero. */
+    heroCardId: string | null;
     /** Whether this sits on top of a card image (tweaks PopOver trigger size). */
     isMediumButton?: boolean;
 }>();
@@ -109,7 +113,7 @@ async function changeCommander(commander: CommanderResult, second: CommanderResu
                     {{ $t("pages.deck.change_commander.link") }}
                 </button>
             </li>
-            <li>
+            <li v-if="props.defaultCardId !== props.heroCardId">
                 <Link
                     :href="`/decks/${props.deckId}/commander/${props.oracleCardId}/use-as-hero`"
                     method="patch"

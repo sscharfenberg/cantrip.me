@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Link } from "@inertiajs/vue3";
-import { ref, useId } from "vue";
+import { computed, ref, useId } from "vue";
 import Icon from "Components/UI/Icon.vue";
 import PopOver from "Components/UI/PopOver.vue";
 import { useDeckCardActions } from "Composables/useDeckCardActions.ts";
@@ -23,6 +23,10 @@ const props = defineProps<{
     maxCopies: number;
     /** Whether the format is singleton (max 1 copy of non-basic cards). */
     isSingleton: boolean;
+    /** Whether the format has a sideboard — gates the "move to sideboard" entry. */
+    hasSideboard: boolean;
+    /** Current deck hero printing id, or null. Hides "Use as hero image" when this card already is the hero. */
+    heroCardId: string | null;
     /** whether the button should be "medium" or not */
     isMediumButton?: boolean;
 }>();
@@ -53,6 +57,16 @@ function openMoveToGroup(): void {
     closePopover();
     showMoveToGroupModal.value = true;
 }
+/**
+ * True when the move-to-group modal would offer at least one real target —
+ * the card is in a custom category (so "back to default" is available), or
+ * at least one custom category exists. Gates the menu entry; without a
+ * target the modal would only show "Create new group", which is reachable
+ * via drag-and-drop instead.
+ */
+const canMoveToGroup = computed(
+    () => props.card.category_id !== null || props.categories.length > 0
+);
 const { canIncrement, increment, decrement, destroy, moveZone, switchPrinting } = useDeckCardActions(
     {
         deckId: props.deckId,
@@ -109,25 +123,25 @@ const { canIncrement, increment, decrement, destroy, moveZone, switchPrinting } 
                     {{ $t("pages.deck.split_printing.link") }}
                 </button>
             </li>
-            <li v-if="props.card.zone !== 'side'">
+            <li v-if="props.card.zone !== 'side' && canMoveToGroup">
                 <button type="button" class="popover-list-item" @click="openMoveToGroup">
                     <icon name="cards" :size="1" />
                     {{ $t("pages.deck.move_to_group.link") }}
                 </button>
             </li>
-            <li v-if="props.card.zone !== 'side'">
+            <li v-if="props.card.zone !== 'side' && props.hasSideboard">
                 <button type="button" class="popover-list-item" @click="moveZone('side')">
                     <icon name="sideboard" :size="1" />
                     {{ $t("pages.deck.move_zone.to_side") }}
                 </button>
             </li>
-            <li v-else>
+            <li v-else-if="props.card.zone === 'side'">
                 <button type="button" class="popover-list-item" @click="moveZone('main')">
                     <icon name="deck" :size="1" />
                     {{ $t("pages.deck.move_zone.to_main") }}
                 </button>
             </li>
-            <li>
+            <li v-if="props.card.default_card.id !== props.heroCardId">
                 <Link
                     :href="`/decks/${props.deckId}/cards/${props.card.id}/use-as-hero`"
                     method="patch"

@@ -112,6 +112,8 @@ const previewTarget = ref<PreviewTarget | null>(null);
                                 :oracle-card-id="commander.oracle_card_id"
                                 :commander-name="commander.name"
                                 :format="deck.format"
+                                :default-card-id="commander.default_card.id"
+                                :hero-card-id="deck.hero_card?.id ?? null"
                             />
                         </li>
                     </ul>
@@ -126,6 +128,7 @@ const previewTarget = ref<PreviewTarget | null>(null);
                         :deck-id="deck.id"
                         :companion="section.companion"
                         variant="text"
+                        :hero-card-id="deck.hero_card?.id ?? null"
                         @preview="target => (previewTarget = target)"
                     />
                 </section>
@@ -184,6 +187,8 @@ const previewTarget = ref<PreviewTarget | null>(null);
                                 :category-name-max="props.categoryNameMax"
                                 :max-copies="props.maxCopies"
                                 :is-singleton="props.isSingleton"
+                                :has-sideboard="props.deck.max_sideboard_size > 0"
+                                :hero-card-id="props.deck.hero_card?.id ?? null"
                             />
                         </li>
                     </VueDraggable>
