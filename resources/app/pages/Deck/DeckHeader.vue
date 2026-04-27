@@ -35,7 +35,8 @@ const { t } = useI18n();
 </script>
 
 <template>
-    <section class="deck-meta" :class="{ 'deck-meta--has-hero': heroArtCrop }" :style="heroBackgroundStyle">
+    <section class="deck-meta" :class="{ 'deck-meta--has-hero': heroArtCrop }">
+        <div v-if="heroArtCrop" class="deck-meta__hero" :style="heroBackgroundStyle" />
         <header class="deck-meta__name">
             {{ deck.name.toUpperCase() }}
             <deck-actions-menu
@@ -83,31 +84,30 @@ const { t } = useI18n();
     white-space: pre-wrap;
 }
 
-// The art crop is sized to 50% of the section width with `auto` height so
-// its natural aspect ratio is preserved. On wide-but-short sections this
-// makes the image taller than the section (vertical overflow is clipped to
-// the section bounds, showing the middle band of the artwork — the implicit
-// zoom). When the section grows tall (e.g. legality panel expanded) more of
-// the image becomes visible vertically without any distortion.
-// Why the gradient stops: the image's left edge sits at section x=50%, but
-// the tint is still fully opaque there — so the seam is hidden. The fade
-// only starts at x=50%, so the artwork emerges
-// smoothly across the right half with no harsh edge.
 .deck-meta--has-hero {
-    background-image:
-        linear-gradient(
-            to right,
-            map.get(c.$pages, "deck", "meta", "hero-tint") 0%,
-            map.get(c.$pages, "deck", "meta", "hero-tint") 50%,
-            transparent 100%
-        ),
-        var(--hero-art-crop);
-    background-repeat: no-repeat;
-    background-position:
-        center,
-        right center;
-    background-size:
-        100% 100%,
-        50% auto;
+    position: relative;
+    isolation: isolate;
+
+    background-color: map.get(c.$pages, "deck", "meta", "hero-tint");
+}
+
+.deck-meta__hero {
+    position: absolute;
+    inset: 0 0 0 50%;
+    z-index: -1;
+
+    background-image: var(--hero-art-crop);
+    background-position: center;
+    background-size: cover;
+    mask-composite: intersect;
+
+    // Soft vignette: horizontal fade on the left blends the artwork
+    // into the surrounding tint, plus vertical fade top/bottom so tall
+    // sections don't show the artwork as a hard rectangle of pixels.
+    // `mask-composite: intersect` ANDs the two masks — the artwork is
+    // visible only where both alphas pass.
+    mask-image:
+        linear-gradient(to right, transparent 0%, black 30%, black 100%),
+        linear-gradient(to bottom, transparent 0%, black 15%, black 85%, transparent 100%);
 }
 </style>
