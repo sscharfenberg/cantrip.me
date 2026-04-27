@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { router, usePage } from "@inertiajs/vue3";
+import { Link, router, usePage } from "@inertiajs/vue3";
 import { ref, useId } from "vue";
 import Icon from "Components/UI/Icon.vue";
 import PopOver from "Components/UI/PopOver.vue";
@@ -85,6 +85,18 @@ async function switchPrinting(printing: DeckPrinting): Promise<void> {
                     <icon name="card" :size="1" />
                     {{ $t("pages.deck.switch_printing.link") }}
                 </button>
+            </li>
+            <li>
+                <Link
+                    :href="`/decks/${props.deckId}/companion/use-as-hero`"
+                    method="patch"
+                    as="button"
+                    class="popover-list-item"
+                    @click="closePopover"
+                >
+                    <icon name="container-image" :size="1" />
+                    {{ $t("pages.deck.use_as_hero.link") }}
+                </Link>
             </li>
             <li>
                 <button

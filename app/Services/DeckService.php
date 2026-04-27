@@ -296,5 +296,9 @@ class DeckService
                 ->implode('');
             $deck->update(['colors' => $merged ?: null]);
         });
+
+        // Detaching the prior command zone may have removed the printing
+        // the hero image points at; clear it if it's now orphaned.
+        $deck->syncHeroImage();
     }
 }

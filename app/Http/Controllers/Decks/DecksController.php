@@ -7,6 +7,8 @@ use App\Enums\CardFormat;
 use App\Formats\FormatProfile;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Decks\DeleteDeckRequest;
+use App\Http\Requests\Decks\SetDeckCommanderHeroImageRequest;
+use App\Http\Requests\Decks\SetDeckCompanionHeroImageRequest;
 use App\Http\Requests\Decks\SetDeckHeroImageRequest;
 use App\Http\Requests\Decks\ShowDeckRequest;
 use App\Models\Deck;
@@ -564,6 +566,59 @@ class DecksController extends Controller
         $request->session()->flash('message', __('decks.deck_hero_changed', [
             'name' => $deck->name,
             'card' => $deckCard->defaultCard?->name ?? '',
+        ]));
+        $request->session()->flash('type', 'success');
+
+        return redirect(route('decks.show', $deck));
+    }
+
+    /**
+     * Set the deck's hero image to a commander's printing.
+     *
+     * Sibling of {@see setHeroImage} for the commander actions menu — the
+     * source printing is the `commanders` pivot's `default_card_id`. Owner
+     * + commander-belongs-to-deck checks live in
+     * {@see SetDeckCommanderHeroImageRequest::authorize}.
+     */
+    public function setCommanderHeroImage(
+        SetDeckCommanderHeroImageRequest $request,
+        Deck $deck,
+        OracleCard $oracleCard,
+    ): RedirectResponse {
+        $defaultCardId = $deck->commanders()
+            ->where('oracle_card_id', $oracleCard->id)
+            ->first()
+            ?->pivot
+            ?->default_card_id;
+
+        $deck->update(['default_card_id' => $defaultCardId]);
+
+        $request->session()->flash('message', __('decks.deck_hero_changed', [
+            'name' => $deck->name,
+            'card' => $oracleCard->name,
+        ]));
+        $request->session()->flash('type', 'success');
+
+        return redirect(route('decks.show', $deck));
+    }
+
+    /**
+     * Set the deck's hero image to the companion's printing.
+     *
+     * Sibling of {@see setHeroImage} for the companion actions menu — the
+     * source printing is `decks.companion_default_card_id`. Owner +
+     * has-a-companion checks live in
+     * {@see SetDeckCompanionHeroImageRequest::authorize}.
+     */
+    public function setCompanionHeroImage(SetDeckCompanionHeroImageRequest $request, Deck $deck): RedirectResponse
+    {
+        $deck->loadMissing('companionDefaultCard:id,name');
+
+        $deck->update(['default_card_id' => $deck->companion_default_card_id]);
+
+        $request->session()->flash('message', __('decks.deck_hero_changed', [
+            'name' => $deck->name,
+            'card' => $deck->companionDefaultCard?->name ?? '',
         ]));
         $request->session()->flash('type', 'success');
 

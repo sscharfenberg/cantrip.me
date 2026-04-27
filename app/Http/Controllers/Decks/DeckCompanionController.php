@@ -38,6 +38,7 @@ class DeckCompanionController extends Controller
         ]);
 
         DeckCardService::recalculateColors($deck);
+        $deck->syncHeroImage();
 
         return response()->json([
             'companion_oracle_card_id' => $deck->companion_oracle_card_id,
@@ -53,7 +54,14 @@ class DeckCompanionController extends Controller
      */
     public function updatePrinting(SetDeckCompanionPrintingRequest $request, Deck $deck): JsonResponse
     {
-        $deck->update(['companion_default_card_id' => $request->validated()['default_card_id']]);
+        $oldPrinting = $deck->companion_default_card_id;
+        $newPrinting = $request->validated()['default_card_id'];
+
+        $deck->update(['companion_default_card_id' => $newPrinting]);
+
+        if ($oldPrinting !== null) {
+            $deck->remapHeroImage($oldPrinting, $newPrinting);
+        }
 
         return response()->json(status: 204);
     }
@@ -88,6 +96,7 @@ class DeckCompanionController extends Controller
         ]);
 
         DeckCardService::recalculateColors($deck);
+        $deck->syncHeroImage();
 
         return response()->json(['companion_oracle_card_id' => null]);
     }

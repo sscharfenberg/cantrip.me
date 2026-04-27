@@ -61,6 +61,7 @@ class DeckCardController extends Controller
         if ($newQuantity <= 0) {
             $deckCard->delete();
             DeckCardService::recalculateColors($deck);
+            $deck->syncHeroImage();
 
             return response()->json(['deleted' => true]);
         }
@@ -98,6 +99,7 @@ class DeckCardController extends Controller
         $deckCard->delete();
 
         DeckCardService::recalculateColors($deck);
+        $deck->syncHeroImage();
 
         return response()->json(status: 204);
     }
@@ -219,6 +221,8 @@ class DeckCardController extends Controller
             }
         });
 
+        $deck->syncHeroImage();
+
         return response()->json(status: 204);
     }
 
@@ -232,7 +236,10 @@ class DeckCardController extends Controller
      */
     public function updatePrinting(UpdateDeckCardPrintingRequest $request, Deck $deck, DeckCard $deckCard): JsonResponse
     {
+        $oldPrinting = $deckCard->default_card_id;
         $deckCard->update($request->validated());
+
+        $deck->remapHeroImage($oldPrinting, $deckCard->default_card_id);
 
         return response()->json(status: 204);
     }

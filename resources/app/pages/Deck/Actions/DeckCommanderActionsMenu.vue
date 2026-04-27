@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { router, usePage } from "@inertiajs/vue3";
+import { Link, router, usePage } from "@inertiajs/vue3";
 import { computed, ref, useId } from "vue";
 import CommanderCommandZonePickerModal from "@/pages/Deck/Create/CommanderCommandZonePickerModal.vue";
 import OathbreakerCommandZonePickerModal from "@/pages/Deck/Create/OathbreakerCommandZonePickerModal.vue";
@@ -108,6 +108,18 @@ async function changeCommander(commander: CommanderResult, second: CommanderResu
                     <icon name="register" :size="1" />
                     {{ $t("pages.deck.change_commander.link") }}
                 </button>
+            </li>
+            <li>
+                <Link
+                    :href="`/decks/${props.deckId}/commander/${props.oracleCardId}/use-as-hero`"
+                    method="patch"
+                    as="button"
+                    class="popover-list-item"
+                    @click="closePopover"
+                >
+                    <icon name="container-image" :size="1" />
+                    {{ $t("pages.deck.use_as_hero.link") }}
+                </Link>
             </li>
         </ul>
     </pop-over>

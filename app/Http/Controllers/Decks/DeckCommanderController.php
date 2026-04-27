@@ -52,9 +52,20 @@ class DeckCommanderController extends Controller
      */
     public function updatePrinting(UpdateDeckCommanderPrintingRequest $request, Deck $deck, OracleCard $oracleCard): JsonResponse
     {
+        $newPrinting = $request->validated()['default_card_id'];
+        $oldPrinting = $deck->commanders()
+            ->where('oracle_card_id', $oracleCard->id)
+            ->first()
+            ?->pivot
+            ?->default_card_id;
+
         $deck->commanders()->updateExistingPivot($oracleCard->id, [
-            'default_card_id' => $request->validated()['default_card_id'],
+            'default_card_id' => $newPrinting,
         ]);
+
+        if ($oldPrinting !== null) {
+            $deck->remapHeroImage($oldPrinting, $newPrinting);
+        }
 
         return response()->json(status: 204);
     }

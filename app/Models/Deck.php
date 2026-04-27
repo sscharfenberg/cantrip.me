@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\DB;
 
 class Deck extends Model
 {
@@ -134,5 +135,49 @@ class Deck extends Model
     public function categories(): HasMany
     {
         return $this->hasMany(DeckCategory::class);
+    }
+
+    /**
+     * Swap the hero printing if it currently matches `$from`.
+     *
+     * Used during printing-swap flows: when a deck card / commander /
+     * companion changes its `default_card_id`, the hero (if pinned to
+     * the old printing) follows the swap instead of being orphaned.
+     */
+    public function remapHeroImage(string $from, string $to): void
+    {
+        if ($this->default_card_id === $from && $from !== $to) {
+            $this->update(['default_card_id' => $to]);
+        }
+    }
+
+    /**
+     * Clear the hero image when its printing is no longer attached to
+     * the deck in any role (deck card, commander pivot, or companion).
+     *
+     * The deck-update form validator requires the submitted hero to
+     * match an attached printing, so any mutation that can detach the
+     * current hero must call this afterwards — otherwise the next
+     * `decks.update` save fails with "default_card_id is invalid".
+     */
+    public function syncHeroImage(): void
+    {
+        if ($this->default_card_id === null) {
+            return;
+        }
+
+        $isAttached = $this->default_card_id === $this->companion_default_card_id
+            || DeckCard::query()
+                ->where('deck_id', $this->id)
+                ->where('default_card_id', $this->default_card_id)
+                ->exists()
+            || DB::table('commanders')
+                ->where('deck_id', $this->id)
+                ->where('default_card_id', $this->default_card_id)
+                ->exists();
+
+        if (! $isAttached) {
+            $this->update(['default_card_id' => null]);
+        }
     }
 }
