@@ -144,6 +144,8 @@ Route::middleware(array_filter(['auth', Features::enabled(Features::emailVerific
         ->name('decks.destroy');
     Route::get('/api/decks/{deck}/card-search/oracle', [DeckCardSearchController::class, 'oracle'])
         ->name('api.decks.card-search.oracle');
+    Route::get('/api/decks/{deck}/oracle-cards', [DeckCardSearchController::class, 'oracleCards'])
+        ->name('api.decks.oracle-cards');
     Route::get('/api/decks/{deck}/card-search/printings', [DeckCardSearchController::class, 'printings'])
         ->name('api.decks.card-search.printings');
     Route::post('/api/decks/{deck}/cards', [DeckCardController::class, 'store'])

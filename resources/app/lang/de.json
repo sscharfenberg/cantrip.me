@@ -826,7 +826,9 @@
                 "companion_warning": "Diese Karte würde die Einschränkung deines Gefährten brechen."
             },
             "quick_add": {
-                "label": "Quick add"
+                "label": "Quick add",
+                "no_results": "Keine Karten für dieses Deck gefunden.",
+                "added": "Zum Hauptdeck hinzugefügt"
             }
         },
         "create_deck": {

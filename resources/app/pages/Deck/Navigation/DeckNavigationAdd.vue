@@ -4,6 +4,7 @@ import Icon from "Components/UI/Icon.vue";
 import type { DeckCardRow, DeckCompanion, DeckMeta } from "Types/deckPage.ts";
 import AddCompanionModal from "../Modals/AddCompanionModal.vue";
 import CardAddModal from "../Modals/CardAddModal.vue";
+import DeckNavigationQuickAdd from "./DeckNavigationQuickAdd.vue";
 defineProps<{
     /** Deck metadata (name, format, state, colors, etc.). */
     deck: DeckMeta;
@@ -37,9 +38,12 @@ const showCompanionModal = ref(false);
             <icon name="add" />
             {{ $t("pages.deck.companion.add") }}
         </button>
-        <div class="deck-navigation-add__quick">
-            <input type="text" class="form-input" :placeholder="$t('pages.deck.quick_add.label')" />
-        </div>
+        <deck-navigation-quick-add
+            :deck-id="deck.id"
+            :enforces-color-identity="deck.enforces_color_identity"
+            :max-copies="deck.max_copies"
+            :cards="cards"
+        />
         <card-add-modal v-if="showAddModal" :deck="deck" :cards="cards" @close="showAddModal = false" />
         <add-companion-modal
             v-if="showCompanionModal"

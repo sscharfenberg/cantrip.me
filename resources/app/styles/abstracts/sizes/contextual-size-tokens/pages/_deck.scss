@@ -78,6 +78,20 @@ $deck: (
         "gap": 0.25rem,
         "radius": map.get(s.$radius, "featured")
     ),
+    "quick-add": (
+        "gap": 0.25rem,
+        "padding": 0.5rem 0.25rem,
+        "results-max": 24rem,
+        "results-min": 12rem,
+        "border": map.get(s.$border, "base"),
+        "radius": map.get(s.$radius, "base"),
+        "item": (
+            "padding": 0 0.25rem
+        ),
+        "button-padding": 0.25rem 0.5rem,
+        "row-gap": 0.5rem,
+        "added-padding": 0.25rem 0.5rem
+    ),
     "flags": (
         "size": 1.25rem,
         "padding": 1px,

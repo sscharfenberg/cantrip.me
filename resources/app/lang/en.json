@@ -826,7 +826,9 @@
                 "companion_warning": "Adding this card would break your companion's deckbuilding restriction."
             },
             "quick_add": {
-                "label": "Quick add"
+                "label": "Quick add",
+                "no_results": "No cards found for this deck.",
+                "added": "Added to main deck"
             }
         },
         "create_deck": {

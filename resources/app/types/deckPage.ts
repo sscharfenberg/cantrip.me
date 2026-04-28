@@ -126,6 +126,33 @@ export interface DeckSearchResult {
     printing: DefaultCardImage | null;
 }
 
+/** One face of a quick-add result — same shape as commander faces. */
+export interface QuickAddCardFace {
+    type_line: string | null;
+    mana_cost: string | null;
+}
+
+/**
+ * One result row from the quick-add oracle endpoint
+ * (`/api/decks/{deck}/oracle-cards`).
+ *
+ * Oracle-level (one row per oracle card, no printings). `faces` carries the
+ * per-face `type_line` + `mana_cost` so the UI can render multi-faced cards.
+ * `default_card_id` is the newest printing's UUID, used for the add-card POST.
+ * `is_basic_land` and `has_unlimited_copies` flag cards exempt from the format's
+ * per-card copy limit ("a deck can have any number of cards named X" rule), so
+ * the result row should stay in the popover after add instead of being removed.
+ */
+export interface QuickAddCardResult {
+    id: string;
+    name: string;
+    color_identity: string | null;
+    default_card_id: string | null;
+    is_basic_land: boolean;
+    has_unlimited_copies: boolean;
+    faces: QuickAddCardFace[];
+}
+
 /** Deck metadata as passed by the controller. */
 export interface DeckMeta {
     id: string;

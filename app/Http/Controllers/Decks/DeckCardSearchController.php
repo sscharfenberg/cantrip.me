@@ -29,6 +29,24 @@ class DeckCardSearchController extends Controller
     }
 
     /**
+     * Quick-add oracle card search.
+     *
+     * Returns oracle cards (one row per card, no printings) shaped like the
+     * commander search — name, color identity, and per-face type line +
+     * mana cost. Honors `set:` / `cn:` tokens so the user can narrow by
+     * printing provenance even though the response is oracle-level.
+     */
+    public function oracleCards(SearchDeckOracleRequest $request, Deck $deck): JsonResponse
+    {
+        $results = DeckCardSearchService::searchOracleCardsForDeck(
+            $deck,
+            trim((string) $request->query('q', ''))
+        );
+
+        return response()->json($results);
+    }
+
+    /**
      * Printing-level card search for the deck (full card-add modal).
      *
      * Honors `set:` / `cn:` tokens so the user can pin results to a specific

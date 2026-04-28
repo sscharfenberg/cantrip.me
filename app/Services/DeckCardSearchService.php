@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Companions\CompanionRegistry;
 use App\Enums\Finish;
+use App\Formats\FormatProfile;
 use App\Models\Deck;
 use App\Models\DefaultCard;
 use App\Models\OracleCard;
@@ -42,6 +43,15 @@ final class DeckCardSearchService
     public const DEFAULT_LIMIT = 20;
 
     public const PRINTINGS_LIMIT = 100;
+
+    /**
+     * Candidate pool size for the quick-add oracle search. Over-fetched so
+     * that filtering out cards already at the format's per-card max still
+     * leaves a usable page of results when the deck happens to contain many
+     * cards matching the query (e.g. searching "land" in a deck with 30+
+     * lands already in the 99).
+     */
+    public const QUICK_ADD_CANDIDATE_LIMIT = 100;
 
     /**
      * Upper bound on the number of oracle cards considered in phase 1 of
@@ -159,6 +169,118 @@ final class DeckCardSearchService
         }
 
         return $printings;
+    }
+
+    /**
+     * Quick-add oracle search — returns oracle cards with each face's
+     * `type_line` and `mana_cost`, shaped like the commander-search response.
+     *
+     * Honors `set:` / `cn:` tokens so the user can narrow by printing
+     * provenance even though the result itself is oracle-level (a single
+     * row per oracle card, not per printing).
+     *
+     * Two-phase performance pattern: SQL handles only the cheap, indexed
+     * predicates on `oracle_cards` (name, legality, color identity), with
+     * `set:` / `cn:` pushed into a `whereHas('defaults')` correlated
+     * subquery. Faces are eager-loaded with the minimum columns needed for
+     * the response so the mapper doesn't trigger N+1 queries.
+     *
+     * @return array<int, array{
+     *     id: string,
+     *     name: string,
+     *     color_identity: string|null,
+     *     default_card_id: string|null,
+     *     is_basic_land: bool,
+     *     has_unlimited_copies: bool,
+     *     faces: array<int, array{type_line: string|null, mana_cost: string|null}>
+     * }>
+     */
+    public static function searchOracleCardsForDeck(Deck $deck, string $rawQuery, int $limit = self::DEFAULT_LIMIT): array
+    {
+        $parsed = CardSearchParser::parse($rawQuery);
+        if (! $parsed) {
+            return [];
+        }
+
+        $query = OracleCard::query()->legalIn($deck->format);
+
+        self::applyColorIdentityFilter($query, $deck);
+        self::applyNameSegments($query, 'oracle_cards.searchable_name', $parsed['normalized_name_segments']);
+
+        if ($parsed['set_code']) {
+            $query->whereHas('defaults', fn (Builder $q) => $q->whereHas(
+                'set',
+                fn (Builder $sq) => $sq->where('code', $parsed['set_code'])
+            ));
+        }
+
+        if ($parsed['collector_number']) {
+            $query->whereHas(
+                'defaults',
+                fn (Builder $q) => $q->where('collector_number', $parsed['collector_number'])
+            );
+        }
+
+        self::applyNameRanking($query, 'oracle_cards.searchable_name', 'oracle_cards.name', $parsed['normalized_name_segments']);
+
+        // Over-fetch so the per-card-max filter below still produces a full
+        // page when the deck already contains many matching cards.
+        // `oracle_text` is included on the faces select so `hasUnlimitedCopiesRule`
+        // (called inside canAddCopy) doesn't trigger an N+1 lazy-load.
+        $candidates = $query
+            ->select('oracle_cards.id', 'oracle_cards.name', 'oracle_cards.color_identity')
+            ->with(['faces' => fn ($q) => $q->select('oracle_card_id', 'face_index', 'mana_cost', 'type_line', 'oracle_text')
+                ->orderBy('face_index')])
+            ->limit(self::QUICK_ADD_CANDIDATE_LIMIT)
+            ->get();
+
+        if ($candidates->isEmpty()) {
+            return [];
+        }
+
+        // Drop cards the deck already has at the format's per-card maximum:
+        // singleton (already in the deck) for commander-likes, max-copies
+        // (4 of any non-basic, non-unlimited card) for constructed. Pass `0`
+        // for current deck size so a full deck doesn't blank the results —
+        // deck-full feedback comes from the actual add flow.
+        $copiesByOracleId = $deck->deckCards()
+            ->whereIn('oracle_card_id', $candidates->pluck('id'))
+            ->selectRaw('oracle_card_id, SUM(quantity) as total')
+            ->groupBy('oracle_card_id')
+            ->pluck('total', 'oracle_card_id');
+
+        $profile = $deck->format->rules();
+
+        $survivors = $candidates
+            ->filter(fn (OracleCard $card): bool => $profile->canAddCopy(
+                $card,
+                (int) ($copiesByOracleId[$card->id] ?? 0),
+                0,
+            )->allowed)
+            ->take($limit)
+            ->values();
+
+        // Resolve each survivor's newest printing so the quick-add click can
+        // POST a `default_card_id` to /api/decks/{deck}/cards without an
+        // intermediate lookup.
+        $newestPrintings = self::fetchNewestPrintings($survivors->pluck('id')->all());
+
+        return $survivors
+            ->map(fn (OracleCard $card): array => [
+                'id' => $card->id,
+                'name' => $card->name,
+                'color_identity' => $card->color_identity,
+                'default_card_id' => $newestPrintings[$card->id]['id'] ?? null,
+                // Cards exempt from per-card copy limits — the frontend uses these
+                // to decide when a result row should stick around past the max.
+                'is_basic_land' => in_array($card->name, FormatProfile::BASIC_LANDS, true),
+                'has_unlimited_copies' => $card->hasUnlimitedCopiesRule(),
+                'faces' => $card->faces->map(fn ($face) => [
+                    'type_line' => $face->type_line,
+                    'mana_cost' => $face->mana_cost,
+                ])->values()->all(),
+            ])
+            ->all();
     }
 
     /**

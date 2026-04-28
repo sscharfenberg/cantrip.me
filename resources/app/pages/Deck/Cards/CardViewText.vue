@@ -14,6 +14,7 @@ import Icon from "Components/UI/Icon.vue";
 import { useDeckCardDrag } from "Composables/useDeckCardDrag.ts";
 import { useDeckSections } from "Composables/useDeckSections.ts";
 import type { DeckSort } from "Composables/useDeckSort.ts";
+import { useRecentlyAddedId } from "Composables/useRecentlyAdded.ts";
 import { useResponsiveColumns } from "Composables/useResponsiveColumns.ts";
 import type { DeckCardRow, DeckCategoryRow, DeckCommander, DeckCompanion, DeckMeta } from "Types/deckPage.ts";
 /** Shape of the data needed by the preview modal. */
@@ -43,6 +44,8 @@ const props = defineProps<{
     isSingleton: boolean;
 }>();
 const { t } = useI18n();
+/** Oracle id of a card just added via quick-add — used to flash its row briefly. */
+const recentlyAddedId = useRecentlyAddedId();
 const {
     dragging,
     draggedTypeGroup,
@@ -156,7 +159,13 @@ const previewTarget = ref<PreviewTarget | null>(null);
                                 onDropToGroup(evt, section.group.categoryId, section.group.zone)
                         "
                     >
-                        <li v-for="card in section.group.cards" :key="card.id" :data-card-id="card.id" class="card">
+                        <li
+                            v-for="card in section.group.cards"
+                            :key="card.id"
+                            :data-card-id="card.id"
+                            class="card"
+                            :class="{ 'card--just-added': recentlyAddedId === card.oracle_card_id }"
+                        >
                             <span class="card__drag-handle"><icon name="drag" :size="1" /></span>
                             <card-image-preview
                                 :src="card.default_card.card_image_0"

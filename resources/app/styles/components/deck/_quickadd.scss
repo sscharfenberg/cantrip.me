@@ -1,0 +1,10 @@
+@use "sass:map";
+@use "Abstracts/colors" as c;
+@use "Abstracts/sizes" as s;
+
+.quickadd__added {
+    padding: map.get(s.$pages, "deck", "quick-add", "added-padding");
+
+    background-color: map.get(c.$state, "success", "background");
+    color: map.get(c.$state, "success", "surface");
+}

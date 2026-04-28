@@ -59,6 +59,33 @@ $deck: (
             "surface-hover": light-dark(map.get(c.$brand, "dark1", "contrast"), map.get(c.$brand, "light1", "contrast"))
         )
     ),
+    "quick-add": (
+        "background": light-dark(
+                color.adjust(map.get(c.$grey, "astral"), $alpha: -0.25),
+                color.adjust(map.get(c.$grey, "ebony"), $alpha: -0.25)
+            ),
+        "item-background": light-dark(
+                color.adjust(map.get(c.$grey, "mystic"), $alpha: -0.25),
+                color.adjust(map.get(c.$grey, "bunker"), $alpha: -0.25)
+            ),
+        "item-background-hover": light-dark(map.get(c.$brand, "light2", "color"), map.get(c.$brand, "dark2", "color")),
+        "item-surface": light-dark(map.get(c.$grey, "ebony"), map.get(c.$grey, "astral")),
+        "item-surface-hover": light-dark(
+                map.get(c.$brand, "light2", "contrast"),
+                map.get(c.$brand, "dark2", "contrast")
+            ),
+        "border-from": light-dark(map.get(c.$grey, "iron"), map.get(c.$grey, "asher")),
+        "border-to": light-dark(map.get(c.$grey, "fog"), map.get(c.$grey, "abbey")),
+        "button": (
+            "background": light-dark(
+                    color.adjust(map.get(c.$grey, "infra"), $alpha: -0.25),
+                    color.adjust(map.get(c.$grey, "asher"), $alpha: -0.25)
+                ),
+            "surface": light-dark(map.get(c.$grey, "abbey"), map.get(c.$grey, "infra"))
+        ),
+        "flash-background": light-dark(map.get(c.$brand, "light1", "contrast"), map.get(c.$brand, "dark1", "contrast")),
+        "flash-surface": light-dark(map.get(c.$brand, "light1", "color"), map.get(c.$brand, "dark1", "color"))
+    ),
     "split-printings": (
         "stepper": (
             "background": light-dark(

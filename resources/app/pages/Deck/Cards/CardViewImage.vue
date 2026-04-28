@@ -11,6 +11,7 @@ import Icon from "Components/UI/Icon.vue";
 import Paragraph from "Components/UI/Paragraph.vue";
 import { useDeckSections } from "Composables/useDeckSections.ts";
 import type { DeckSort } from "Composables/useDeckSort.ts";
+import { useRecentlyAddedId } from "Composables/useRecentlyAdded.ts";
 import type { DeckCardRow, DeckCategoryRow, DeckCommander, DeckCompanion, DeckMeta } from "Types/deckPage.ts";
 const props = defineProps<{
     /** Full deck meta (for companion capabilities + format flags). */
@@ -35,6 +36,8 @@ const props = defineProps<{
 const { t } = useI18n();
 /** Image view has no drag — category moves happen via the actions menu. */
 const draggedTypeGroup = ref<DeckCardGroup | null>(null);
+/** Oracle id of a card just added via quick-add — used to flash its row briefly. */
+const recentlyAddedId = useRecentlyAddedId();
 const { allGroups } = useDeckSections(
     () => props.cards,
     () => props.commanders,
@@ -89,6 +92,7 @@ const { allGroups } = useDeckSections(
                     :card-image0="card.default_card.card_image_0"
                     :card-image1="card.default_card.card_image_1"
                     :name="card.name"
+                    :class="{ 'card--just-added': recentlyAddedId === card.oracle_card_id }"
                 >
                     <icon
                         v-if="card.is_game_changer && deck.uses_game_changer_list"
