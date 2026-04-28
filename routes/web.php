@@ -127,10 +127,10 @@ Route::middleware(array_filter(['auth', Features::enabled(Features::emailVerific
     Route::post('/decks/add', [DecksController::class, 'store'])
         ->middleware([HandleControllerPrecognitiveRequest::class])
         ->name('decks.store');
-    Route::get('/decks/{deck}', [DecksController::class, 'show'])
-        ->name('decks.show');
     Route::get('/decks/{deck}/edit', [DecksController::class, 'edit'])
         ->name('decks.edit');
+    Route::patch('/decks/{deck}/visibility', [DecksController::class, 'setVisibility'])
+        ->name('decks.set-visibility');
     Route::patch('/decks/{deck}', [DecksController::class, 'update'])
         ->middleware([HandleControllerPrecognitiveRequest::class])
         ->name('decks.update');
@@ -187,10 +187,12 @@ Route::middleware(array_filter(['auth', Features::enabled(Features::emailVerific
 });
 
 /******************************************************************************
- * Public container page (visibility check handled in controller)
+ * Public deck/container pages (visibility check handled in controller).
  * Must be registered after the auth group so that specific routes like
- * containers/new, containers/qr, containers/sort are matched first.
+ * containers/new, containers/qr, containers/sort, decks/add are matched first.
  *****************************************************************************/
+Route::get('/decks/{deck}', [DecksController::class, 'show'])
+    ->name('decks.show');
 Route::get('containers/{container}', [ContainerController::class, 'show'])
     ->name('container.show');
 

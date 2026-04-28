@@ -4,12 +4,14 @@ namespace App\Http\Controllers\Decks;
 
 use App\Companions\CompanionRegistry;
 use App\Enums\CardFormat;
+use App\Enums\ContainerVisibility;
 use App\Formats\FormatProfile;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Decks\DeleteDeckRequest;
 use App\Http\Requests\Decks\SetDeckCommanderHeroImageRequest;
 use App\Http\Requests\Decks\SetDeckCompanionHeroImageRequest;
 use App\Http\Requests\Decks\SetDeckHeroImageRequest;
+use App\Http\Requests\Decks\SetDeckVisibilityRequest;
 use App\Http\Requests\Decks\ShowDeckRequest;
 use App\Models\Deck;
 use App\Models\DeckCard;
@@ -289,6 +291,7 @@ class DecksController extends Controller
         }
 
         return Inertia::render('Deck/DeckPage', [
+            'isOwner' => $request->user()?->id === $deck->user_id,
             'deck' => [
                 'id' => $deck->id,
                 'name' => $deck->name,
@@ -372,6 +375,7 @@ class DecksController extends Controller
             $request->validate([
                 'deck_name' => ['required', 'string', 'max:'.Deck::NAME_MAX],
                 'deck_description' => ['nullable', 'string', 'max:'.Deck::DESCRIPTION_MAX],
+                'deck_visibility' => ['required', Rule::enum(ContainerVisibility::class)],
                 'commander_id' => [
                     $requiresCommander ? 'required' : 'nullable',
                     'string',
@@ -412,6 +416,7 @@ class DecksController extends Controller
         $deck->update([
             'name' => $request->input('deck_name'),
             'description' => $request->input('deck_description'),
+            'visibility' => ContainerVisibility::from($request->input('deck_visibility')),
             'default_card_id' => $request->input('default_card_id') ?: null,
         ]);
 
@@ -541,6 +546,7 @@ class DecksController extends Controller
                 'name' => $deck->name,
                 'description' => $deck->description,
                 'format' => $deck->format->value,
+                'visibility' => $deck->visibility->value,
                 'commander' => $commander,
                 'companion' => $companion,
                 'signatureSpell' => $signatureSpell,
@@ -548,6 +554,28 @@ class DecksController extends Controller
                 'heroCard' => $heroCard,
             ],
         ]);
+    }
+
+    /**
+     * Toggle the deck's visibility between public and private.
+     *
+     * Triggered from the deck actions menu — a one-click flip without
+     * going through the full edit-deck form. Owner check lives in
+     * {@see SetDeckVisibilityRequest::authorize}.
+     */
+    public function setVisibility(SetDeckVisibilityRequest $request, Deck $deck): RedirectResponse
+    {
+        $visibility = ContainerVisibility::from($request->input('visibility'));
+
+        $deck->update(['visibility' => $visibility]);
+
+        $request->session()->flash('message', __(
+            'decks.deck_visibility_'.$visibility->value,
+            ['name' => $deck->name]
+        ));
+        $request->session()->flash('type', 'success');
+
+        return redirect(route('decks.show', $deck));
     }
 
     /**

@@ -20,6 +20,8 @@ return [
     'deck_updated' => 'Deck ":name" has been updated.',
     'deck_deleted' => 'Deck ":name" has been deleted.',
     'deck_hero_changed' => 'Changed hero image of deck ":name" to ":card".',
+    'deck_visibility_public' => 'Deck ":name" is now public — anyone with the link can view it.',
+    'deck_visibility_private' => 'Deck ":name" is now private — only you can view it.',
 
     'companion' => [
         'errors' => [
