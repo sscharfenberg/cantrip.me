@@ -7,6 +7,7 @@ import DeckFormatCapabilities from "Components/Deck/DeckFormatCapabilities.vue";
 import type { CommanderResult } from "Components/Deck/ShowCommanderOverview.vue";
 import ShowCommanderOverview from "Components/Deck/ShowCommanderOverview.vue";
 import FormGroup from "Components/Form/FormGroup.vue";
+import RadioButtonGroup from "Components/Form/Radio/RadioButtonGroup.vue";
 import MonoSelect from "Components/Form/Select/MonoSelect.vue";
 import Headline from "Components/UI/Headline.vue";
 import Icon from "Components/UI/Icon.vue";
@@ -21,6 +22,7 @@ export interface ExistingDeck {
     name: string;
     description: string | null;
     format: string;
+    visibility: "private" | "public";
     commander: CommanderResult | null;
     companion: CommanderResult | null;
     signatureSpell: CommanderResult | null;
@@ -86,6 +88,27 @@ const deckDescription = ref(props.existingDeck?.description ?? "");
  * hidden `default_card_id` field on the form.
  */
 const selectedHeroCard = ref<DeckHeroCardOption | null>(props.existingDeck?.heroCard ?? null);
+/**
+ * Visibility radio state — only rendered in edit mode (decks always start
+ * private; you change visibility after creation, either via this form or
+ * the quick-toggle in the deck actions menu).
+ */
+const initialVisibility = props.existingDeck?.visibility ?? "private";
+const visibilityOptions = [
+    {
+        value: "private",
+        label: "form.fields.deck_visibility_private",
+        checked: initialVisibility === "private",
+        icon: "visibility-off"
+    },
+    {
+        value: "public",
+        label: "form.fields.deck_visibility_public",
+        checked: initialVisibility === "public",
+        icon: "visibility-on"
+    }
+];
+const visibility = ref<string>(initialVisibility);
 /** Pre-fill the deck name with the commander's name when the field is empty. */
 const prefillDeckName = (name: string) => {
     if (!deckName.value.trim()) {
@@ -295,6 +318,16 @@ setBreadcrumbs(
                     }}
                 </p>
             </template>
+        </form-group>
+        <!-- Visibility is edit-only — decks always start private, and the
+             choice is only meaningful once a deck exists with content worth
+             sharing. The matching quick-toggle lives in DeckActionsMenu. -->
+        <form-group v-if="isEdit" :label="$t('form.fields.deck_visibility')" :required="true">
+            <radio-button-group
+                name="deck_visibility"
+                :radio-buttons="visibilityOptions"
+                @change="visibility = ($event.target as HTMLInputElement).value"
+            />
         </form-group>
         <!-- Hero image picker is edit-only, and only useful once there are
              at least two cards to choose from — with one card the answer is

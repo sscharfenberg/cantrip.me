@@ -62,6 +62,16 @@ function onEditSettings(): void {
     router.visit(`/decks/${props.deck.id}/edit`);
 }
 /**
+ * Flip the deck between private and public via the dedicated quick-toggle
+ * endpoint. The controller redirects back to the deck show page with a
+ * flash message, so no client-side success handling is needed.
+ */
+function onToggleVisibility(): void {
+    closePopover();
+    const next = props.deck.visibility === "private" ? "public" : "private";
+    router.patch(`/decks/${props.deck.id}/visibility`, { visibility: next }, { preserveScroll: true });
+}
+/**
  * Delete button handler. Skips the confirm prompt for an effectively-empty
  * deck and fires the DELETE directly. Same UX as the deck-list link.
  */
@@ -88,6 +98,12 @@ function onDeleteClick(): void {
                 <button class="popover-list-item" @click="onEditSettings">
                     <icon name="edit" :size="1" />
                     {{ $t("pages.create_deck.edit_link") }}
+                </button>
+            </li>
+            <li>
+                <button class="popover-list-item" @click="onToggleVisibility">
+                    <icon :name="deck.visibility === 'private' ? 'visibility-on' : 'visibility-off'" :size="1" />
+                    {{ $t(deck.visibility === "private" ? "pages.decks.actions.set_public" : "pages.decks.actions.set_private") }}
                 </button>
             </li>
             <li>
