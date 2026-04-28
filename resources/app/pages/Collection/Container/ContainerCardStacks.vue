@@ -125,7 +125,13 @@ const getTimeStamps = (created: string, updated?: string | null) => {
 </script>
 
 <template>
-    <data-table :columns="columns" :response="table" :selectable="isOwner" :base-url="baseUrl">
+    <data-table
+        :columns="columns"
+        :response="table"
+        :selectable="isOwner"
+        :has-actions="isOwner"
+        :base-url="baseUrl"
+    >
         <template #header-updated_at>
             <icon
                 name="calendar"

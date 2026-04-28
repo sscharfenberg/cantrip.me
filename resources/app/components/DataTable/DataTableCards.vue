@@ -12,6 +12,8 @@ const props = defineProps<{
     rows: T[];
     /** Whether to render per-card selection checkboxes. */
     selectable: boolean;
+    /** Whether to render the per-card three-dot actions button. */
+    hasActions: boolean;
 }>();
 const emit = defineEmits<{
     /** Emitted when a card's three-dot action button is clicked. */
@@ -63,6 +65,7 @@ function onActionClick(row: T, event: MouseEvent) {
                     <template v-else>{{ row[primaryCol.key] }}</template>
                 </div>
                 <button
+                    v-if="hasActions"
                     type="button"
                     class="dt-cards__action popover-button popover-button--rounded"
                     :style="{ 'anchor-name': `--dt-action-${row.id}` }"

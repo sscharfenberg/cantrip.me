@@ -116,8 +116,6 @@ Route::middleware(array_filter(['auth', Features::enabled(Features::emailVerific
         ->name('cardstack.update');
     Route::delete('collection/cardstack/{cardStack}', [CardStackController::class, 'destroy'])
         ->name('cardstack.destroy');
-    Route::get('collection/cardstack/{cardStack}/preview', [CardStackPreviewController::class, 'show'])
-        ->name('cardstack.preview');
 
     // decks
     Route::get('/decks', [DecksController::class, 'list'])
@@ -195,6 +193,8 @@ Route::get('/decks/{deck}', [DecksController::class, 'show'])
     ->name('decks.show');
 Route::get('containers/{container}', [ContainerController::class, 'show'])
     ->name('container.show');
+Route::get('collection/cardstack/{cardStack}/preview', [CardStackPreviewController::class, 'show'])
+    ->name('cardstack.preview');
 
 /******************************************************************************
  * Dev pages (no auth, not linked from anywhere)

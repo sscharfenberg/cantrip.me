@@ -19,11 +19,18 @@ const props = withDefaults(
         response: TableResponse<T>;
         /** Whether rows can be selected via checkboxes. */
         selectable?: boolean;
+        /**
+         * Whether to render the per-row actions column (header + body + card-mode
+         * three-dot button). Pass `false` for read-only viewer-mode tables so
+         * non-owners don't see an empty actions column / button.
+         */
+        hasActions?: boolean;
         /** Base URL for Inertia navigation; defaults to current pathname. */
         baseUrl?: string;
     }>(),
     {
         selectable: false,
+        hasActions: true,
         baseUrl: ""
     }
 );
@@ -234,6 +241,7 @@ onBeforeUnmount(() => {
                     :columns="columns"
                     :sort="sort"
                     :selectable="selectable"
+                    :has-actions="hasActions"
                     :row-ids="rowIds"
                     :stuck="isStuck"
                     @sort="onSort"
@@ -242,7 +250,13 @@ onBeforeUnmount(() => {
                         <slot :name="name" v-bind="slotProps" />
                     </template>
                 </data-table-head>
-                <data-table-body :columns="columns" :rows="response.rows" :selectable="selectable" @action="onAction">
+                <data-table-body
+                    :columns="columns"
+                    :rows="response.rows"
+                    :selectable="selectable"
+                    :has-actions="hasActions"
+                    @action="onAction"
+                >
                     <template v-for="name in cellSlotNames" :key="name" #[name]="slotProps">
                         <slot :name="name" v-bind="slotProps" />
                     </template>
@@ -250,7 +264,13 @@ onBeforeUnmount(() => {
             </table>
 
             <!-- Mobile: card layout -->
-            <data-table-cards :columns="columns" :rows="response.rows" :selectable="selectable" @action="onAction">
+            <data-table-cards
+                :columns="columns"
+                :rows="response.rows"
+                :selectable="selectable"
+                :has-actions="hasActions"
+                @action="onAction"
+            >
                 <template v-for="name in cellSlotNames" :key="name" #[name]="slotProps">
                     <slot :name="name" v-bind="slotProps" />
                 </template>
@@ -273,7 +293,12 @@ onBeforeUnmount(() => {
         />
 
         <!-- Row action popover -->
-        <data-table-actions :row="activeRow" :trigger-el="actionButtonRef" @close="onCloseActions">
+        <data-table-actions
+            v-if="hasActions"
+            :row="activeRow"
+            :trigger-el="actionButtonRef"
+            @close="onCloseActions"
+        >
             <template v-if="activeRow" #default>
                 <slot name="actions" :row="activeRow" />
             </template>

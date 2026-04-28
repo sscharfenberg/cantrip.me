@@ -4,11 +4,12 @@ namespace App\Http\Controllers\Api;
 
 use App\Enums\CardFormat;
 use App\Enums\CardLegality;
+use App\Enums\Locale;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Collection\ShowCardStackPreviewRequest;
 use App\Models\CardStack;
 use App\Services\ContainerService;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 
 class CardStackPreviewController extends Controller
 {
@@ -17,17 +18,18 @@ class CardStackPreviewController extends Controller
      *
      * Loads the related default card (with set, artist, oracle) and resolves
      * the unit price based on the user's currency preference.
+     *
+     * Authorisation lives in {@see ShowCardStackPreviewRequest::authorize()}:
+     * owner sees their own stacks unconditionally; everyone else only sees
+     * stacks belonging to a container marked public.
      */
-    public function show(Request $request, CardStack $cardStack): JsonResponse
+    public function show(ShowCardStackPreviewRequest $request, CardStack $cardStack): JsonResponse
     {
-        if ($cardStack->user_id !== $request->user()->id) {
-            abort(403);
-        }
-
         $cardStack->load('defaultCard.set', 'defaultCard.artist', 'defaultCard.oracle.legalities');
 
         $card = $cardStack->defaultCard;
-        $currency = $request->user()->currency;
+        $currency = $request->user()?->currency
+            ?? Locale::from(app()->getLocale())->defaultCurrency();
         $unitPriceSql = ContainerService::unitPriceSql($currency);
 
         $priceRow = CardStack::query()

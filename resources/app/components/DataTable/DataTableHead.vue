@@ -10,6 +10,8 @@ const props = defineProps<{
     sort: SortEntry[];
     /** Whether to render the select-all checkbox column. */
     selectable: boolean;
+    /** Whether to render the per-row actions column. */
+    hasActions: boolean;
     /** All row IDs on the current page, for the select-all checkbox logic. */
     rowIds: string[];
     /** True when the header is in its sticky (scrolled) state. */
@@ -82,7 +84,7 @@ function onHeaderCheckbox() {
                     <slot :name="`header-${col.key}`" :column="col">{{ col.label }}</slot>
                 </span>
             </th>
-            <th class="dt-head__actions">
+            <th v-if="hasActions" class="dt-head__actions">
                 <span class="sr-only">{{ $t("components.datatable.actions") }}</span>
             </th>
         </tr>

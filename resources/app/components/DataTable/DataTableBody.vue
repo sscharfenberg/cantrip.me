@@ -12,6 +12,8 @@ defineProps<{
     rows: T[];
     /** Whether to render per-row selection checkboxes. */
     selectable: boolean;
+    /** Whether to render the per-row three-dot actions button. */
+    hasActions: boolean;
 }>();
 const emit = defineEmits<{
     /** Emitted when a row's three-dot action button is clicked. */
@@ -54,7 +56,7 @@ function onActionClick(row: T, event: MouseEvent) {
                 <slot v-if="slots[`cell-${col.key}`]" :name="`cell-${col.key}`" :row="row" />
                 <template v-else>{{ row[col.key] }}</template>
             </td>
-            <td class="dt-body__actions">
+            <td v-if="hasActions" class="dt-body__actions">
                 <button
                     type="button"
                     class="popover-button popover-button--rounded"
