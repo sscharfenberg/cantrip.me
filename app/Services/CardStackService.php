@@ -69,14 +69,13 @@ class CardStackService
     /**
      * Update a card stack's editable attributes.
      *
-     * Aborts with 403 if the stack does not belong to the user.
+     * Ownership is checked at the controller boundary by
+     * {@see UpdateCardStackRequest::authorize}.
      *
      * @param  array{amount: int, language: string, condition?: string|null, finish: string, container_id?: string|null}  $data
      */
     public static function updateStack(User $user, CardStack $cardStack, array $data): void
     {
-        abort_if($cardStack->user_id !== $user->id, 403);
-
         $cardStack->update([
             'amount' => $data['amount'],
             'language' => $data['language'],
@@ -89,14 +88,13 @@ class CardStackService
     /**
      * Delete a card stack from the user's collection.
      *
-     * Aborts with 403 if the stack does not belong to the user.
+     * Ownership is checked at the controller boundary by
+     * {@see DeleteCardStackRequest::authorize}.
      *
      * @return array{name: string, amount: int, container_id: string|null} Metadata for the flash message.
      */
     public static function deleteStack(User $user, CardStack $cardStack): array
     {
-        abort_if($cardStack->user_id !== $user->id, 403);
-
         $meta = [
             'name' => $cardStack->defaultCard->name,
             'amount' => $cardStack->amount,
@@ -111,8 +109,10 @@ class CardStackService
     /**
      * Delete multiple card stacks belonging to the given user.
      *
-     * Aborts with 403 if any stack does not belong to the user,
-     * or 404 if any requested ID does not exist.
+     * Ownership is checked at the controller boundary by
+     * {@see DestroySelectedCardStacksRequest::authorize}. The 404 below
+     * stays in the service because it's an existence check (some IDs
+     * don't resolve), not an authorisation one.
      *
      * @param  string[]  $cardStackIds
      * @return array{stacks: int, cards: int, container_id: string|null} Metadata for the flash message.
@@ -120,7 +120,6 @@ class CardStackService
     public static function deleteSelected(User $user, array $cardStackIds): array
     {
         $stacks = CardStack::whereIn('id', $cardStackIds)->get();
-        abort_if($stacks->contains(fn (CardStack $s) => $s->user_id !== $user->id), 403);
         abort_if($stacks->count() !== count($cardStackIds), 404);
 
         $meta = [
@@ -135,10 +134,12 @@ class CardStackService
     }
 
     /**
-     * Verify ownership and move card stacks to a different container.
+     * Verify existence and move card stacks to a different container.
      *
-     * Aborts with 403 if any stack does not belong to the user,
-     * or 404 if any requested ID does not exist.
+     * Ownership is checked at the controller boundary by
+     * {@see MoveSelectedCardStacksRequest::authorize}. The 404 below
+     * stays in the service because it's an existence check (some IDs
+     * don't resolve), not an authorisation one.
      *
      * @param  string[]  $cardStackIds
      * @return Collection<int, CardStack> The affected stacks.
@@ -146,7 +147,6 @@ class CardStackService
     public static function moveToContainer(User $user, array $cardStackIds, ?string $containerId): Collection
     {
         $stacks = CardStack::whereIn('id', $cardStackIds)->get();
-        abort_if($stacks->contains(fn (CardStack $s) => $s->user_id !== $user->id), 403);
         abort_if($stacks->count() !== count($cardStackIds), 404);
 
         CardStack::whereIn('id', $cardStackIds)
@@ -158,14 +158,13 @@ class CardStackService
     /**
      * Move all card stacks from one container to another.
      *
-     * Aborts with 403 if the source container does not belong to the user.
+     * Source ownership is checked at the controller boundary by
+     * {@see MassMoveCardStacksRequest::authorize}.
      *
      * @return int Total number of cards (sum of amounts) moved.
      */
     public static function massMove(User $user, Container $sourceContainer, ?string $targetContainerId): int
     {
-        abort_if($sourceContainer->user_id !== $user->id, 403);
-
         $query = CardStack::where('user_id', $user->id)
             ->where('container_id', $sourceContainer->id);
 

@@ -7,8 +7,12 @@ use App\Enums\ContainerVisibility;
 use App\Enums\Locale;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Collection\ContainerQrSvgRequest;
+use App\Http\Requests\Collection\DeleteContainerRequest;
 use App\Http\Requests\Collection\EditContainerRequest;
 use App\Http\Requests\Collection\GenerateContainerQrRequest;
+use App\Http\Requests\Collection\PruneContainerRequest;
+use App\Http\Requests\Collection\ShowContainerRequest;
+use App\Http\Requests\Collection\UpdateContainerRequest;
 use App\Models\Container;
 use App\Models\DefaultCard;
 use App\Services\CardSearchParser;
@@ -118,11 +122,11 @@ class ContainerController extends Controller
     /**
      * Validate and update an existing container.
      *
-     * Validation is identical to store and wrapped in a precognitive block for
-     * real-time field feedback. Aborts with 403 if the container belongs to
-     * another user.
+     * Validation is identical to store and wrapped in a precognitive block
+     * for real-time field feedback. Ownership is enforced by
+     * {@see UpdateContainerRequest::authorize}.
      */
-    public function update(Request $request, Container $container): RedirectResponse
+    public function update(UpdateContainerRequest $request, Container $container): RedirectResponse
     {
         precognitive(function () use ($request) {
             $request->validate([
@@ -167,9 +171,10 @@ class ContainerController extends Controller
     /**
      * Delete a container.
      *
+     * Ownership is enforced by {@see DeleteContainerRequest::authorize}.
      * Redirects back to the containers list with a success flash message.
      */
-    public function destroy(Request $request, Container $container): RedirectResponse
+    public function destroy(DeleteContainerRequest $request, Container $container): RedirectResponse
     {
         $name = ContainerService::deleteContainer($request->user(), $container);
 
@@ -182,9 +187,10 @@ class ContainerController extends Controller
     /**
      * Delete all card stacks from a container.
      *
+     * Ownership is enforced by {@see PruneContainerRequest::authorize}.
      * Redirects back to the container page with a success flash message.
      */
-    public function prune(Request $request, Container $container): RedirectResponse
+    public function prune(PruneContainerRequest $request, Container $container): RedirectResponse
     {
         $result = ContainerService::pruneContainer($request->user(), $container);
 
@@ -203,15 +209,12 @@ class ContainerController extends Controller
      * This route is publicly accessible (outside the auth middleware group).
      * - Owner: full page with management actions.
      * - Non-owner + public visibility: read-only view.
-     * - Non-owner + private visibility: 404.
+     * - Non-owner + private visibility: 404 (existence-hiding) — see
+     *   {@see ShowContainerRequest::failedAuthorization}.
      */
-    public function show(Request $request, Container $container): Response
+    public function show(ShowContainerRequest $request, Container $container): Response
     {
         $isOwner = $request->user()?->id === $container->user_id;
-
-        if (! $isOwner && $container->visibility !== ContainerVisibility::Public) {
-            abort(404);
-        }
 
         $currency = $request->user()?->currency
             ?? Locale::from(app()->getLocale())->defaultCurrency();

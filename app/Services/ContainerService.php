@@ -79,14 +79,13 @@ class ContainerService
     /**
      * Update an existing container's attributes.
      *
-     * Aborts with 403 if the container does not belong to the user.
+     * Ownership is checked at the controller boundary by
+     * {@see UpdateContainerRequest::authorize}.
      *
      * @param  array{container_name: string, container_description?: string|null, container_type: string, container_type_other?: string|null, container_image?: string|null, container_visibility?: string|null}  $data
      */
     public static function updateContainer(User $user, Container $container, array $data): void
     {
-        abort_if($container->user_id !== $user->id, 403);
-
         $container->update([
             'name' => $data['container_name'],
             'description' => $data['container_description'] ?? null,
@@ -120,14 +119,13 @@ class ContainerService
     /**
      * Delete a container.
      *
-     * Aborts with 403 if the container does not belong to the user.
+     * Ownership is checked at the controller boundary by
+     * {@see DeleteContainerRequest::authorize}.
      *
      * @return string The container name (for the flash message).
      */
     public static function deleteContainer(User $user, Container $container): string
     {
-        abort_if($container->user_id !== $user->id, 403);
-
         $name = $container->name;
         $container->delete();
 
@@ -137,14 +135,13 @@ class ContainerService
     /**
      * Delete all card stacks from a container without deleting the container itself.
      *
-     * Aborts with 403 if the container does not belong to the user.
+     * Ownership is checked at the controller boundary by
+     * {@see PruneContainerRequest::authorize}.
      *
      * @return array{name: string, count: int}
      */
     public static function pruneContainer(User $user, Container $container): array
     {
-        abort_if($container->user_id !== $user->id, 403);
-
         $count = $container->cardStacks()->sum('amount');
         $container->cardStacks()->delete();
 

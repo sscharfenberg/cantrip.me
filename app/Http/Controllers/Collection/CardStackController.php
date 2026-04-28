@@ -7,7 +7,12 @@ use App\Enums\CardLanguage;
 use App\Enums\Finish;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Collection\AddCardStackRequest;
+use App\Http\Requests\Collection\DeleteCardStackRequest;
+use App\Http\Requests\Collection\DestroySelectedCardStacksRequest;
 use App\Http\Requests\Collection\EditCardStackRequest;
+use App\Http\Requests\Collection\MassMoveCardStacksRequest;
+use App\Http\Requests\Collection\MoveSelectedCardStacksRequest;
+use App\Http\Requests\Collection\UpdateCardStackRequest;
 use App\Models\CardStack;
 use App\Models\Container;
 use App\Models\DefaultCard;
@@ -171,9 +176,12 @@ class CardStackController extends Controller
      * Validate and update an existing card stack.
      *
      * The default_card_id cannot be changed — only amount, language,
-     * condition, finish and container_id are editable.
+     * condition, finish and container_id are editable. Ownership of the
+     * stack itself is enforced by {@see UpdateCardStackRequest::authorize};
+     * ownership of the target container_id form field is verified
+     * separately via {@see CardStackService::resolveOwnedContainer}.
      */
-    public function update(Request $request, CardStack $cardStack): RedirectResponse
+    public function update(UpdateCardStackRequest $request, CardStack $cardStack): RedirectResponse
     {
         precognitive(function () use ($request) {
             $request->validate([
@@ -205,10 +213,12 @@ class CardStackController extends Controller
      * Move multiple card stacks to a different container.
      *
      * A null/empty container_id moves the stacks to "unsorted" (no container).
-     * Ownership of both the stacks and the target container is verified before
-     * the update — the service layer aborts with 403/404 on violations.
+     * Stack ownership is enforced by
+     * {@see MoveSelectedCardStacksRequest::authorize}; the service still
+     * 404's on missing IDs (existence concern). Target container ownership
+     * is verified by {@see CardStackService::resolveOwnedContainer}.
      */
-    public function moveSelected(Request $request): RedirectResponse
+    public function moveSelected(MoveSelectedCardStacksRequest $request): RedirectResponse
     {
         $request->validate([
             'card_stack_ids' => ['required', 'array', 'min:1'],
@@ -247,10 +257,12 @@ class CardStackController extends Controller
     /**
      * Move all card stacks from one container to another (or to unsorted).
      *
-     * Validates ownership of both source and target containers.
+     * Source container ownership is enforced by
+     * {@see MassMoveCardStacksRequest::authorize}. Target container
+     * ownership is verified by {@see CardStackService::resolveOwnedContainer}.
      * Redirects back to the previous page with a flash message.
      */
-    public function massMove(Request $request, Container $container): RedirectResponse
+    public function massMove(MassMoveCardStacksRequest $request, Container $container): RedirectResponse
     {
         $request->validate([
             'container_id' => ['nullable', Rule::exists(Container::class, 'id')],
@@ -284,10 +296,11 @@ class CardStackController extends Controller
     /**
      * Delete an existing card stack from the user's collection.
      *
+     * Ownership is enforced by {@see DeleteCardStackRequest::authorize}.
      * Redirects to the container page when the card stack belonged to one,
      * otherwise to the containers list.
      */
-    public function destroy(Request $request, CardStack $cardStack): RedirectResponse
+    public function destroy(DeleteCardStackRequest $request, CardStack $cardStack): RedirectResponse
     {
         $meta = CardStackService::deleteStack($request->user(), $cardStack);
 
@@ -307,10 +320,13 @@ class CardStackController extends Controller
     /**
      * Delete multiple selected card stacks from the user's collection.
      *
-     * Redirects back to the container page when the stacks belonged to one,
-     * otherwise to the containers list.
+     * Stack ownership is enforced by
+     * {@see DestroySelectedCardStacksRequest::authorize}; the service
+     * still 404's on missing IDs (existence concern). Redirects back to
+     * the container page when the stacks belonged to one, otherwise to
+     * the containers list.
      */
-    public function destroySelected(Request $request): RedirectResponse
+    public function destroySelected(DestroySelectedCardStacksRequest $request): RedirectResponse
     {
         $request->validate([
             'card_stack_ids' => ['required', 'array', 'min:1'],

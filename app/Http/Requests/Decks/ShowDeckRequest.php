@@ -26,6 +26,16 @@ class ShowDeckRequest extends FormRequest
     }
 
     /**
+     * Throw 404 instead of the default 403 — we don't want non-owners
+     * to be able to enumerate the existence of private decks. Mirrors
+     * the same behaviour {@see ShowContainerRequest} uses for containers.
+     */
+    protected function failedAuthorization(): never
+    {
+        abort(404);
+    }
+
+    /**
      * @return array<string, array<mixed>>
      */
     public function rules(): array
