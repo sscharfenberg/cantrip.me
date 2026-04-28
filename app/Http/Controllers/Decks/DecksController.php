@@ -8,6 +8,7 @@ use App\Enums\ContainerVisibility;
 use App\Formats\FormatProfile;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Decks\DeleteDeckRequest;
+use App\Http\Requests\Decks\EditDeckRequest;
 use App\Http\Requests\Decks\SetDeckCommanderHeroImageRequest;
 use App\Http\Requests\Decks\SetDeckCompanionHeroImageRequest;
 use App\Http\Requests\Decks\SetDeckHeroImageRequest;
@@ -464,7 +465,7 @@ class DecksController extends Controller
      * so the pre-fill payload matches the `CommanderResult` shape the rest
      * of the form already understands.
      */
-    public function edit(ShowDeckRequest $request, Deck $deck): Response
+    public function edit(EditDeckRequest $request, Deck $deck): Response
     {
         $deck->load([
             'commanders.faces:oracle_card_id,face_index,type_line,mana_cost,oracle_text',

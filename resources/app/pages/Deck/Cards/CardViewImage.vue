@@ -16,6 +16,11 @@ import type { DeckCardRow, DeckCategoryRow, DeckCommander, DeckCompanion, DeckMe
 const props = defineProps<{
     /** Full deck meta (for companion capabilities + format flags). */
     deck: DeckMeta;
+    /**
+     * True when the request user owns the deck. Hides per-card / commander /
+     * companion action menus so non-owners get a read-only view.
+     */
+    isOwner: boolean;
     /** Commanders / command zone cards with full oracle + printing data. */
     commanders: DeckCommander[];
     /** Currently-set companion card, or null. */
@@ -63,6 +68,7 @@ const { allGroups } = useDeckSections(
                     :name="commander.name"
                 >
                     <deck-commander-actions-menu
+                        v-if="isOwner"
                         :deck-id="deck.id"
                         :oracle-card-id="commander.oracle_card_id"
                         :commander-name="commander.name"
@@ -80,6 +86,7 @@ const { allGroups } = useDeckSections(
                 :deck-id="deck.id"
                 :companion="companion"
                 variant="image"
+                :is-owner="isOwner"
                 :hero-card-id="deck.hero_card?.id ?? null"
             />
         </section>
@@ -110,6 +117,7 @@ const { allGroups } = useDeckSections(
                         :additional-classes="['card__illegal']"
                     />
                     <deck-card-actions-menu
+                        v-if="isOwner"
                         :deck-id="props.deck.id"
                         :card="card"
                         :cards="props.cards"

@@ -13,6 +13,8 @@ import DeckLegalityPanel from "./DeckLegalityPanel.vue";
 const props = defineProps<{
     /** Deck metadata (name, format, state, colors, etc.). */
     deck: DeckMeta;
+    /** True when the request user owns the deck — gates the actions menu. */
+    isOwner: boolean;
     /** hasCommanders **/
     hasCommanders: boolean;
     /** Currently-set companion card, or null — forwarded to the actions menu. */
@@ -40,6 +42,7 @@ const { t } = useI18n();
         <header class="deck-meta__name">
             {{ deck.name.toUpperCase() }}
             <deck-actions-menu
+                v-if="isOwner"
                 :deck="deck"
                 :companion="companion"
                 :cards="cards"

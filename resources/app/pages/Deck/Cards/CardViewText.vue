@@ -26,6 +26,12 @@ interface PreviewTarget {
 const props = defineProps<{
     /** Full deck meta (for companion capabilities + format flags). */
     deck: DeckMeta;
+    /**
+     * True when the request user owns the deck. Hides per-card / commander /
+     * companion action menus, drag handles and drag-drop drop targets so
+     * non-owners get a read-only view.
+     */
+    isOwner: boolean;
     /** Commanders / command zone cards with full oracle + printing data. */
     commanders: DeckCommander[];
     /** Currently-set companion card, or null. */
@@ -111,6 +117,7 @@ const previewTarget = ref<PreviewTarget | null>(null);
                             </card-image-preview>
                             <mana-cost :mana-cost="commander.mana_cost" />
                             <deck-commander-actions-menu
+                                v-if="isOwner"
                                 :deck-id="deck.id"
                                 :oracle-card-id="commander.oracle_card_id"
                                 :commander-name="commander.name"
@@ -131,6 +138,7 @@ const previewTarget = ref<PreviewTarget | null>(null);
                         :deck-id="deck.id"
                         :companion="section.companion"
                         variant="text"
+                        :is-owner="isOwner"
                         :hero-card-id="deck.hero_card?.id ?? null"
                         @preview="target => (previewTarget = target)"
                     />
@@ -166,7 +174,7 @@ const previewTarget = ref<PreviewTarget | null>(null);
                             class="card"
                             :class="{ 'card--just-added': recentlyAddedId === card.oracle_card_id }"
                         >
-                            <span class="card__drag-handle"><icon name="drag" :size="1" /></span>
+                            <span v-if="isOwner" class="card__drag-handle"><icon name="drag" :size="1" /></span>
                             <card-image-preview
                                 :src="card.default_card.card_image_0"
                                 :alt="card.name"
@@ -195,6 +203,7 @@ const previewTarget = ref<PreviewTarget | null>(null);
                             />
                             <mana-cost :mana-cost="card.mana_cost" />
                             <deck-card-actions-menu
+                                v-if="isOwner"
                                 :deck-id="props.deck.id"
                                 :card="card"
                                 :cards="props.cards"
@@ -210,8 +219,10 @@ const previewTarget = ref<PreviewTarget | null>(null);
                 </section>
             </template>
             <!-- Extra drop targets rendered outside the column distribution
-                 so that appearing mid-drag doesn't cause a redistribution. -->
-            <template v-if="dragging && ci === columns.length - 1">
+                 so that appearing mid-drag doesn't cause a redistribution.
+                 Implicitly gated on `isOwner` because non-owners can't start
+                 a drag (no handle), but kept explicit for defense-in-depth. -->
+            <template v-if="isOwner && dragging && ci === columns.length - 1">
                 <section v-for="target in dragTargets" :key="target.key" class="text-card-group">
                     <deck-group-headline>{{ target.label }} ({{ target.count }})</deck-group-headline>
                     <VueDraggable

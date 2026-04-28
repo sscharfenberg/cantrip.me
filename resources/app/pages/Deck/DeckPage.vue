@@ -18,6 +18,12 @@ import CardViewText from "./Cards/CardViewText.vue";
 import DeckHeader from "./DeckHeader.vue";
 import DeckNavigation from "./Navigation/DeckNavigation.vue";
 const props = defineProps<{
+    /**
+     * True when the request user owns the deck. Drives the read-only
+     * "viewer mode" for non-owners on public decks: action menus, drag
+     * handles, the add-card nav and the quick-add sidebar are all hidden.
+     */
+    isOwner: boolean;
     /** Deck metadata (name, format, state, colors, etc.). */
     deck: DeckMeta;
     /** Commanders / command zone cards with full oracle + printing data. */
@@ -51,6 +57,7 @@ const commanderColorIdentity = computed(() => combineCI(props.commanders.map(c =
     >
     <deck-header
         :deck="deck"
+        :is-owner="isOwner"
         :has-commanders="commanders.length > 0"
         :companion="companion"
         :cards="cards"
@@ -61,6 +68,7 @@ const commanderColorIdentity = computed(() => combineCI(props.commanders.map(c =
     />
     <deck-navigation
         :deck="deck"
+        :is-owner="isOwner"
         :cards="cards"
         :companion="companion"
         :companion-roster="companionRoster"
@@ -69,6 +77,7 @@ const commanderColorIdentity = computed(() => combineCI(props.commanders.map(c =
     <card-view-text
         v-if="viewMode === 'text'"
         :deck="deck"
+        :is-owner="isOwner"
         :commanders="commanders"
         :companion="companion"
         :cards="cards"
@@ -81,6 +90,7 @@ const commanderColorIdentity = computed(() => combineCI(props.commanders.map(c =
     <card-view-image
         v-if="viewMode === 'cards'"
         :deck="deck"
+        :is-owner="isOwner"
         :commanders="commanders"
         :companion="companion"
         :cards="cards"

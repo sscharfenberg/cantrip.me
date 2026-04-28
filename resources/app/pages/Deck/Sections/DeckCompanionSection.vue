@@ -15,6 +15,8 @@ defineProps<{
     companion: DeckCompanion;
     /** Which card view this is rendered in — picks the tile presentation. */
     variant: "image" | "text";
+    /** True when the request user owns the deck — gates the actions menu. */
+    isOwner: boolean;
     /** Current deck hero printing id, or null — forwarded into the actions menu. */
     heroCardId: string | null;
 }>();
@@ -28,6 +30,7 @@ defineProps<{
             :name="companion.name"
         >
             <deck-companion-actions-menu
+                v-if="isOwner"
                 :deck-id="deckId"
                 :companion-name="companion.name"
                 :default-card-id="companion.default_card.id"
@@ -53,6 +56,7 @@ defineProps<{
             </card-image-preview>
             <mana-cost :mana-cost="companion.mana_cost" />
             <deck-companion-actions-menu
+                v-if="isOwner"
                 :deck-id="deckId"
                 :companion-name="companion.name"
                 :default-card-id="companion.default_card.id"
