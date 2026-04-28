@@ -35,6 +35,11 @@ function openSwitchPrinting(): void {
  * Remove the companion from the deck. `removing` guards against double-
  * submits while the DELETE is in flight; cleared once the Inertia reload
  * finishes so the button re-enables only after the UI reflects the new state.
+ *
+ * Reloads `cards` + `violations` alongside `deck` + `companion` because
+ * dropping a restrictive companion (e.g. Lurrus) can flip previously-illegal
+ * cards back to legal — the legality panel and per-card `is_illegal` flag
+ * have to refresh too.
  */
 async function removeCompanion(): Promise<void> {
     if (removing.value) return;
@@ -52,7 +57,7 @@ async function removeCompanion(): Promise<void> {
         return;
     }
     router.reload({
-        only: ["deck", "companion"],
+        only: ["deck", "companion", "cards", "violations"],
         onFinish: () => {
             removing.value = false;
         }

@@ -41,8 +41,10 @@ const tiles = computed<Tile[]>(() =>
 /**
  * Persist the chosen companion on the deck. On 422 the backend returns
  * field errors — the first one becomes an inline error message. On success
- * the Inertia partial reload refreshes deck + companion state before
- * closing the modal.
+ * the Inertia partial reload refreshes deck + companion + cards + violations:
+ * a companion's per-card restriction (e.g. Lurrus's mana-value cap) can
+ * retroactively flip many deck cards illegal, so the legality panel and
+ * each card's `is_illegal` flag have to come back too.
  */
 const pickCompanion = async (card: DeckCompanion): Promise<void> => {
     if (processing.value) return;
@@ -70,7 +72,7 @@ const pickCompanion = async (card: DeckCompanion): Promise<void> => {
         return;
     }
     router.reload({
-        only: ["deck", "companion"],
+        only: ["deck", "companion", "cards", "violations"],
         onFinish: () => emit("close")
     });
 };
