@@ -278,6 +278,69 @@ class DeckCardSearchServiceTest extends TestCase
     }
 
     #[Test]
+    public function printings_cn_token_alone_returns_matches_across_sets(): void
+    {
+        // Token-only query (no name segment): `cn:269` should return many
+        // cn=269 printings from across the catalogue. Regression: phase 1's
+        // 200-oracle prefilter used to ignore set:/cn: filters, so a cn-only
+        // query returned the first 200 oracles in arbitrary order and only
+        // the few that happened to have a cn=269 printing survived phase 2.
+        $deck = $this->makeDeck(CardFormat::Vintage);
+        $results = DeckCardSearchService::searchPrintingsForDeck($deck, 'cn:269');
+
+        $this->assertNotEmpty($results);
+        foreach ($results as $card) {
+            $this->assertSame('269', $card['printing']['cn']);
+        }
+        // The fix should surface printings from multiple sets — pre-fix the
+        // result was clamped to whatever 1–2 sets the unfiltered phase 1
+        // happened to include.
+        $setCodes = array_unique(array_map(
+            fn (array $r) => $r['printing']['set']['code'],
+            $results,
+        ));
+        $this->assertGreaterThan(2, count($setCodes));
+    }
+
+    #[Test]
+    public function printings_cn_token_alone_works_for_non_commander_format(): void
+    {
+        // Non-commander format: color identity isn't enforced but legality is.
+        // `cn:1` should still return cn=1 printings from Modern-legal sets.
+        // Regression: pre-fix this returned an empty array because the
+        // smaller Modern-legal pool meant the 200-oracle prefilter was
+        // statistically unlikely to include any oracle with a cn=1 printing.
+        $deck = $this->makeDeck(CardFormat::Modern);
+        $results = DeckCardSearchService::searchPrintingsForDeck($deck, 'cn:1');
+
+        $this->assertNotEmpty($results);
+        foreach ($results as $card) {
+            $this->assertSame('1', $card['printing']['cn']);
+        }
+    }
+
+    #[Test]
+    public function printings_cn_token_with_include_non_legal_returns_results(): void
+    {
+        // Pure cn-token query with the Rule-0 escape hatch on. Pre-fix this
+        // returned nothing: dropping legality + CI in phase 1 widened the
+        // candidate pool but the 200-oracle limit still happened before
+        // the cn: filter narrowed anything, so most surviving oracles had
+        // no cn=269 printing.
+        $deck = $this->makeDeck(CardFormat::Commander);
+        $results = DeckCardSearchService::searchPrintingsForDeck(
+            $deck,
+            'cn:269',
+            true,
+        );
+
+        $this->assertNotEmpty($results);
+        foreach ($results as $card) {
+            $this->assertSame('269', $card['printing']['cn']);
+        }
+    }
+
+    #[Test]
     public function printings_respect_color_identity(): void
     {
         // Even with a set filter, a mono-white Commander deck must not return

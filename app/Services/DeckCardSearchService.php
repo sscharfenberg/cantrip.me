@@ -343,9 +343,39 @@ final class DeckCardSearchService
             self::applyColorIdentityFilter($oracleQuery, $deck);
         }
         self::applyNameSegments($oracleQuery, 'oracle_cards.searchable_name', $parsed['normalized_name_segments']);
+
+        // Push `set:` / `cn:` down to phase 1 so the 200-oracle prefilter only
+        // considers oracles that actually have a matching printing. Without
+        // this, a token-only query like `cn:144` returns the first 200 oracles
+        // in arbitrary order, and most don't have a cn=144 printing, so phase
+        // 2's filter leaves a tiny, biased result set. Mirrors the pattern in
+        // {@see searchOracleCardsForDeck}.
+        if ($parsed['set_code']) {
+            $oracleQuery->whereHas('defaults', fn (Builder $q) => $q->whereHas(
+                'set',
+                fn (Builder $sq) => $sq->where('code', $parsed['set_code'])
+            ));
+        }
+        if ($parsed['collector_number']) {
+            $oracleQuery->whereHas(
+                'defaults',
+                fn (Builder $q) => $q->where('collector_number', $parsed['collector_number'])
+            );
+        }
+
         if ($companionProfile !== null) {
             $oracleQuery->with('faces:oracle_card_id,face_index,type_line,mana_cost,oracle_text');
         }
+
+        // Order phase 1 deterministically so the 200-oracle slice is stable.
+        // For name queries, this ranks exact > prefix > contains; for token-
+        // only queries, it falls through to the alphabetical tiebreaker.
+        self::applyNameRanking(
+            $oracleQuery,
+            'oracle_cards.searchable_name',
+            'oracle_cards.name',
+            $parsed['normalized_name_segments']
+        );
 
         /** @var Collection<string, OracleCard> $oraclesById */
         $oraclesById = $oracleQuery
