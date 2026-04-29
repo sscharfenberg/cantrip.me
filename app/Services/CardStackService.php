@@ -7,6 +7,7 @@ use App\Models\CardStack;
 use App\Models\Container;
 use App\Models\User;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 class CardStackService
 {
@@ -153,6 +154,34 @@ class CardStackService
             ->update(['container_id' => $containerId]);
 
         return $stacks;
+    }
+
+    /**
+     * Split a stack into two — decrement the source's `amount` and create
+     * a new stack carrying the split-off amount, with otherwise identical
+     * attributes (printing, container, language, condition, finish).
+     *
+     * Used by the deck finalize wizard when a stack's `amount` exceeds the
+     * deck card's `quantity`: the wizard splits off only the cards being
+     * claimed so the leftover copies stay free.
+     *
+     * Mirrors the pattern of {@see DeckCardController::split}.
+     */
+    public static function splitStack(CardStack $stack, int $amountToSplit): CardStack
+    {
+        return DB::transaction(function () use ($stack, $amountToSplit): CardStack {
+            $stack->decrement('amount', $amountToSplit);
+
+            return CardStack::create([
+                'user_id' => $stack->user_id,
+                'default_card_id' => $stack->default_card_id,
+                'container_id' => $stack->container_id,
+                'amount' => $amountToSplit,
+                'condition' => $stack->condition,
+                'finish' => $stack->finish,
+                'language' => $stack->language,
+            ]);
+        });
     }
 
     /**

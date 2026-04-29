@@ -58,7 +58,13 @@ export interface DeckCardRow {
     finish: string;
     language: string;
     category_id: string | null;
-    card_stack_id: string | null;
+    /**
+     * Mode-C-only per-card collection status. Null in modes A and B (the
+     * controller doesn't compute it, so cards from those decks omit the
+     * field entirely). One of: `claimed_for_this_deck` | `available` |
+     * `claimed_by_other_deck` | `wrong_printing` | `not_owned`.
+     */
+    collection_status: string | null;
     default_card: DeckCardDefaultCard;
 }
 

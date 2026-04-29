@@ -40,6 +40,7 @@ class User extends Authenticatable implements HasLocalePreference, MustVerifyEma
         'currency',
         'deck_view_default',
         'deck_sort_default',
+        'collection_integration_enabled',
         'email_verified_at',
         'password',
         'two_factor_secret',
@@ -71,6 +72,7 @@ class User extends Authenticatable implements HasLocalePreference, MustVerifyEma
             'currency' => Currency::class,
             'deck_view_default' => DeckView::class,
             'deck_sort_default' => DeckSort::class,
+            'collection_integration_enabled' => 'boolean',
         ];
     }
 

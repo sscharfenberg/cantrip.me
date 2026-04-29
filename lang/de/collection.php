@@ -17,4 +17,8 @@ return [
     'container_deleted' => 'Container ":name" wurde gelöscht.',
     'container_pruned' => ':count Karten wurden aus ":name" entfernt.',
 
+    'errors' => [
+        'cannot_move_claimed_stack' => 'Dieser Kartenstapel ist einem Deck zugeordnet und kann nicht verschoben werden. Hebe die Zuordnung zuerst auf.',
+    ],
+
 ];

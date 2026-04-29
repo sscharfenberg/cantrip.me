@@ -50,6 +50,7 @@ class HandleInertiaRequests extends Middleware
                         ...$request->user()->only('id', 'name', 'email'),
                         'deck_view_default' => $request->user()->deck_view_default->value,
                         'deck_sort_default' => $request->user()->deck_sort_default->value,
+                        'collection_integration_enabled' => $request->user()->collection_integration_enabled,
                     ]
                     : null,
             ],

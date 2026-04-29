@@ -691,6 +691,13 @@
             "no_cards": "Noch keine Karten in diesem Deck.",
             "illegal": "Diese Karte ist in diesem Deck nicht legal.",
             "game_changer": "Diese Karte steht auf der Game-Changer-Liste.",
+            "collection_status": {
+                "claimed_for_this_deck": "Aus deiner Sammlung für dieses Deck reserviert.",
+                "available": "Du besitzt ein Exemplar, das noch keinem Deck zugeordnet ist.",
+                "claimed_by_other_deck": "Du besitzt ein Exemplar, es ist aber einem anderen Deck zugeordnet.",
+                "wrong_printing": "Du besitzt einen anderen Druck dieser Karte.",
+                "not_owned": "Du besitzt diese Karte nicht."
+            },
             "legality": {
                 "title": "{count} Legalitätsproblem | {count} Legalitätsprobleme",
                 "pool_legality": "{count} Karte ist in diesem Format nicht legal. | {count} Karten sind in diesem Format nicht legal.",

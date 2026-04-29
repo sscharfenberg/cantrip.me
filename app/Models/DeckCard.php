@@ -8,6 +8,7 @@ use App\Enums\Finish;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class DeckCard extends Model
 {
@@ -25,7 +26,6 @@ class DeckCard extends Model
         'deck_id',
         'oracle_card_id',
         'default_card_id',
-        'card_stack_id',
         'category_id',
         'zone',
         'quantity',
@@ -72,13 +72,19 @@ class DeckCard extends Model
     }
 
     /**
-     * The physical card from the collection assigned to this deck slot.
+     * Physical card stacks claimed for this deck slot.
      *
-     * @return BelongsTo<CardStack, DeckCard>
+     * Many-to-many: multiple stacks can back a single deck_card row (e.g.
+     * 4× Lightning Bolt covered by stacks of 2 + 1 + 1) and a stack may
+     * theoretically back multiple deck_cards (the UX assumes one, but the
+     * schema allows it).
+     *
+     * @return BelongsToMany<CardStack>
      */
-    public function cardStack(): BelongsTo
+    public function cardStacks(): BelongsToMany
     {
-        return $this->belongsTo(CardStack::class);
+        return $this->belongsToMany(CardStack::class, 'deck_card_card_stack')
+            ->withPivot('created_at');
     }
 
     /**

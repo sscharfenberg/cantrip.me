@@ -40,6 +40,12 @@ const props = defineProps<{
     categoryNameMax: number;
     /** Legality violations computed on the server — drives the legality panel. */
     violations: DeckViolation[];
+    /**
+     * Effective collection-integration mode for this user/deck. Mode A is
+     * also returned to non-owners so the deck view stays silent for them.
+     * Mode C is the only mode that surfaces per-card status badges.
+     */
+    collectionMode: "A" | "B" | "C";
 }>();
 const { setBreadcrumbs } = useBreadcrumbs();
 setBreadcrumbs([{ labelKey: "pages.decks.link", href: "/decks", icon: "deck" }, { label: props.deck.name }]);
@@ -86,6 +92,7 @@ const commanderColorIdentity = computed(() => combineCI(props.commanders.map(c =
         :category-name-max="categoryNameMax"
         :max-copies="deck.max_copies"
         :is-singleton="deck.is_singleton"
+        :collection-mode="collectionMode"
     />
     <card-view-image
         v-if="viewMode === 'cards'"
@@ -99,6 +106,7 @@ const commanderColorIdentity = computed(() => combineCI(props.commanders.map(c =
         :category-name-max="categoryNameMax"
         :max-copies="deck.max_copies"
         :is-singleton="deck.is_singleton"
+        :collection-mode="collectionMode"
     />
 
 </template>

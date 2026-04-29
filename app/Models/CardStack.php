@@ -8,7 +8,7 @@ use App\Enums\Finish;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class CardStack extends Model
 {
@@ -90,12 +90,21 @@ class CardStack extends Model
     }
 
     /**
-     * The deck card this physical card is assigned to, if any.
+     * Deck cards this stack has been claimed for.
      *
-     * @return HasOne<DeckCard>
+     * @return BelongsToMany<DeckCard>
      */
-    public function deckCard(): HasOne
+    public function deckCards(): BelongsToMany
     {
-        return $this->hasOne(DeckCard::class);
+        return $this->belongsToMany(DeckCard::class, 'deck_card_card_stack')
+            ->withPivot('created_at');
+    }
+
+    /**
+     * Whether this stack is claimed by any deck card.
+     */
+    public function isClaimed(): bool
+    {
+        return $this->deckCards()->exists();
     }
 }

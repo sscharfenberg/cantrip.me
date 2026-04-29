@@ -20,6 +20,7 @@ use App\Models\DeckCategory;
 use App\Models\DefaultCard;
 use App\Models\OracleCard;
 use App\Services\CommandZoneService;
+use App\Services\DeckCollectionStatusService;
 use App\Services\DeckService;
 use App\Services\DeckValidator;
 use Illuminate\Http\RedirectResponse;
@@ -214,6 +215,17 @@ class DecksController extends Controller
             ];
         }
 
+        // Collection-integration mode + per-card status. Owners only — viewers
+        // never see collection state for someone else's deck.
+        $collectionMode = DeckCollectionStatusService::MODE_A;
+        $collectionStatuses = [];
+        if ($request->user()?->id === $deck->user_id) {
+            $collectionMode = DeckCollectionStatusService::effectiveMode($request->user(), $deck);
+            if ($collectionMode === DeckCollectionStatusService::MODE_C) {
+                $collectionStatuses = DeckCollectionStatusService::statusForDeck($deck);
+            }
+        }
+
         $cardCount = $deck->deckCards->count() + $deck->commanders->count();
         $lastActivity = max(array_filter([
             $deck->updated_at?->toIso8601String(),
@@ -254,7 +266,7 @@ class DecksController extends Controller
             'finish' => $dc->finish->value,
             'language' => $dc->language->value,
             'category_id' => $dc->category_id,
-            'card_stack_id' => $dc->card_stack_id,
+            'collection_status' => $collectionStatuses[$dc->id] ?? null,
             'default_card' => [
                 'id' => $dc->defaultCard?->id,
                 'name' => $dc->defaultCard?->name,
@@ -331,6 +343,7 @@ class DecksController extends Controller
             'categories' => $categories,
             'categoryNameMax' => DeckCategory::NAME_MAX,
             'violations' => $violations,
+            'collectionMode' => $collectionMode,
         ]);
     }
 

@@ -116,9 +116,7 @@ class DeckCardController extends Controller
      * first, and writes the combined-plus-one quantity back to the
      * survivor. This both absorbs the moved copy AND consolidates any
      * pre-existing fragmented rows in the target zone (e.g. from add-card
-     * flows that don't auto-merge) into a single row. The survivor keeps
-     * its `card_stack_id`; any duplicates' `card_stack_id` is lost when
-     * those rows are deleted.
+     * flows that don't auto-merge) into a single row.
      *
      * The new/incremented row never carries a category (sideboard rows
      * can't have one, and main rows landing here via "move from
@@ -188,9 +186,9 @@ class DeckCardController extends Controller
      * Split this deck card into multiple rows, one per chosen printing.
      *
      * The existing row is mutated to the first split entry (preserving its
-     * id, category, zone, and card_stack_id — typically used for the largest
-     * assignment), and additional rows are inserted for the remaining entries
-     * with matching `zone`, `category_id`, `finish`, and `language`.
+     * id, category, and zone — typically used for the largest assignment),
+     * and additional rows are inserted for the remaining entries with
+     * matching `zone`, `category_id`, `finish`, and `language`.
      *
      * Copy limits cannot be violated because the sum of split quantities is
      * required by the FormRequest to equal the existing quantity.

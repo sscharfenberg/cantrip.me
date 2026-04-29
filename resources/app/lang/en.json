@@ -691,6 +691,13 @@
             "no_cards": "No cards in this deck yet.",
             "illegal": "This card is illegal in this deck.",
             "game_changer": "This card is on the Game Changer list.",
+            "collection_status": {
+                "claimed_for_this_deck": "Claimed from your collection for this deck.",
+                "available": "You own a copy that is not yet claimed by any deck.",
+                "claimed_by_other_deck": "You own a copy, but it is claimed by another deck.",
+                "wrong_printing": "You own a different printing of this card.",
+                "not_owned": "You don't own this card."
+            },
             "legality": {
                 "title": "{count} legality issue | {count} legality issues",
                 "pool_legality": "{count} card is not legal in this format. | {count} cards are not legal in this format.",

@@ -17,4 +17,8 @@ return [
     'container_deleted' => 'Container ":name" has been deleted.',
     'container_pruned' => ':count cards have been removed from ":name".',
 
+    'errors' => [
+        'cannot_move_claimed_stack' => 'This card stack is claimed by a deck and cannot be moved. Unclaim it first.',
+    ],
+
 ];

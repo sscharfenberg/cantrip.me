@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Collection;
 
 use App\Models\CardStack;
+use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 
 /**
@@ -44,5 +45,33 @@ class MoveSelectedCardStacksRequest extends FormRequest
     public function rules(): array
     {
         return [];
+    }
+
+    /**
+     * Block bulk container moves when any selected stack is claimed by
+     * a deck. See {@see UpdateCardStackRequest::withValidator} for the
+     * single-stack equivalent and rationale.
+     */
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator): void {
+            /** @var array<int, string> $ids */
+            $ids = (array) $this->input('card_stack_ids', []);
+            if ($ids === []) {
+                return;
+            }
+
+            $hasClaimed = CardStack::query()
+                ->whereIn('id', $ids)
+                ->whereHas('deckCards')
+                ->exists();
+
+            if ($hasClaimed) {
+                $validator->errors()->add(
+                    'container_id',
+                    __('collection.errors.cannot_move_claimed_stack'),
+                );
+            }
+        });
     }
 }

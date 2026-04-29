@@ -23,6 +23,7 @@ return new class extends Migration
             $table->string('currency', 3)->default('eur');
             $table->string('deck_view_default', 8)->default('text');
             $table->string('deck_sort_default', 8)->default('mana');
+            $table->boolean('collection_integration_enabled')->default(true);
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
             $table->text('two_factor_secret')->nullable();

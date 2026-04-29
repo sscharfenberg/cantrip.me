@@ -27,10 +27,6 @@ return new class extends Migration
             $table->foreignUuid('default_card_id')
                 ->constrained('default_cards')
                 ->cascadeOnDelete();
-            $table->foreignUuid('card_stack_id')
-                ->nullable()
-                ->constrained()
-                ->nullOnDelete();
             $table->foreignUuid('category_id')
                 ->nullable()
                 ->constrained('deck_categories')
@@ -45,7 +41,6 @@ return new class extends Migration
             $table->index(['deck_id', 'zone']);
             $table->index(['oracle_card_id']);
             $table->index(['default_card_id']);
-            $table->index(['card_stack_id']);
         });
     }
 

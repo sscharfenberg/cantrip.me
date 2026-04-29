@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { useI18n } from "vue-i18n";
+import CollectionStatusBadge, { type CollectionStatus } from "@/components/Deck/CollectionStatusBadge.vue";
 import DeckCardActionsMenu from "@/pages/Deck/Actions/DeckCardActionsMenu.vue";
 import DeckCommanderActionsMenu from "@/pages/Deck/Actions/DeckCommanderActionsMenu.vue";
 import FaceImageLazy from "@/pages/Deck/Cards/FaceImageLazy.vue";
@@ -37,6 +38,8 @@ const props = defineProps<{
     maxCopies: number;
     /** Whether the deck's format is singleton. */
     isSingleton: boolean;
+    /** Effective collection-integration mode — only mode C renders per-card status badges. */
+    collectionMode: "A" | "B" | "C";
 }>();
 const { t } = useI18n();
 /** Image view has no drag — category moves happen via the actions menu. */
@@ -115,6 +118,11 @@ const { allGroups } = useDeckSections(
                         name="error"
                         :size="2"
                         :additional-classes="['card__illegal']"
+                    />
+                    <collection-status-badge
+                        v-if="collectionMode === 'C' && card.collection_status"
+                        :status="card.collection_status as CollectionStatus"
+                        variant="corner"
                     />
                     <deck-card-actions-menu
                         v-if="isOwner"

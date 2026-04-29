@@ -2,6 +2,7 @@
 import { ref } from "vue";
 import { VueDraggable } from "vue-draggable-plus";
 import { useI18n } from "vue-i18n";
+import CollectionStatusBadge, { type CollectionStatus } from "@/components/Deck/CollectionStatusBadge.vue";
 import DeckCardActionsMenu from "@/pages/Deck/Actions/DeckCardActionsMenu.vue";
 import DeckCommanderActionsMenu from "@/pages/Deck/Actions/DeckCommanderActionsMenu.vue";
 import DeckAddGroupModal from "@/pages/Deck/Modals/DeckAddGroupModal.vue";
@@ -48,6 +49,8 @@ const props = defineProps<{
     maxCopies: number;
     /** Whether the deck's format is singleton. */
     isSingleton: boolean;
+    /** Effective collection-integration mode — only mode C renders per-card status badges. */
+    collectionMode: "A" | "B" | "C";
 }>();
 const { t } = useI18n();
 /** Oracle id of a card just added via quick-add — used to flash its row briefly. */
@@ -200,6 +203,11 @@ const previewTarget = ref<PreviewTarget | null>(null);
                                 v-tooltip="$t('pages.deck.game_changer')"
                                 name="balance"
                                 :additional-classes="['card__game-changer']"
+                            />
+                            <collection-status-badge
+                                v-if="collectionMode === 'C' && card.collection_status"
+                                :status="card.collection_status as CollectionStatus"
+                                variant="inline"
                             />
                             <mana-cost :mana-cost="card.mana_cost" />
                             <deck-card-actions-menu
