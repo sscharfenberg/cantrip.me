@@ -71,6 +71,7 @@ const commanderColorIdentity = computed(() => combineCI(props.commanders.map(c =
         :category-name-max="categoryNameMax"
         :violations="violations"
         :hero-art-crop="deck.hero_card?.art_crop ?? null"
+        :collection-mode="collectionMode"
     />
     <deck-navigation
         :deck="deck"

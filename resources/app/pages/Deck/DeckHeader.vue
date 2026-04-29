@@ -29,6 +29,8 @@ const props = defineProps<{
     violations: DeckViolation[];
     /** URL of the deck's hero art crop, used as the section background. */
     heroArtCrop: string | null;
+    /** Effective collection-integration mode — drives "Set to finished" routing. */
+    collectionMode: "A" | "B" | "C";
 }>();
 const heroBackgroundStyle = computed<Record<string, string> | undefined>(() =>
     props.heroArtCrop ? { "--hero-art-crop": `url('${props.heroArtCrop}')` } : undefined
@@ -48,6 +50,7 @@ const { t } = useI18n();
                 :cards="cards"
                 :categories="categories"
                 :category-name-max="categoryNameMax"
+                :collection-mode="collectionMode"
             />
         </header>
         <div class="deck-meta__badges">

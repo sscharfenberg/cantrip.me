@@ -272,6 +272,14 @@
                 "apply_existing_hint": "When enabled, any per-deck overrides you've already set will be reset to this new default.",
                 "submit": "Update default sort"
             },
+            "collection_integration": {
+                "headline": "Track collection on decks",
+                "link": "Collection integration",
+                "intro": "Cantrip can show, per deck card, whether you own a physical copy in your collection — and let you claim specific stacks for a deck once you mark it finished.",
+                "toggle_label": "Show collection state on my decks",
+                "help": "Off keeps the deck view free of collection-aware indicators, even if your collection has cards. The default is on; you can turn it back on at any time.",
+                "submit": "Update preference"
+            },
             "two_factor": {
                 "headline": "Two-Factor authentication",
                 "link": "Two-Factor",
@@ -697,6 +705,24 @@
                 "claimed_by_other_deck": "You own a copy, but it is claimed by another deck.",
                 "wrong_printing": "You own a different printing of this card.",
                 "not_owned": "You don't own this card."
+            },
+            "finalize": {
+                "title": "Finalize {name}",
+                "heading": "Please assign physical card stacks to finalize the deck",
+                "intro": "Pick the stacks from your collection you want to claim for this deck. You can skip this step entirely or leave individual rows blank — you can always come back later.",
+                "col_needed": "Needed for deck",
+                "col_assignment": "Assign from your collection",
+                "no_match": "No matching stacks in your collection.",
+                "stack_label": "{type}: {name} (×{amount})",
+                "stack_unsorted": "Unsorted (×{amount})",
+                "container_heading": "Container for this deck",
+                "container_hint": "Optional. A Deck Box is the recommended container type — picks from your collection.",
+                "container_unset": "— No container —",
+                "deckbox_hint": "Recommended",
+                "partial_coverage": "{claimed} of {needed} will be claimed; the remainder stays unassigned.",
+                "submit": "Finalize deck",
+                "skip": "Skip — finalize without claiming",
+                "back": "Back to deck"
             },
             "legality": {
                 "title": "{count} legality issue | {count} legality issues",

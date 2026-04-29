@@ -272,6 +272,14 @@
                 "apply_existing_hint": "Wenn aktiviert, werden alle bereits gesetzten Deck-Sortierungen auf den neuen Standardwert zurückgesetzt.",
                 "submit": "Standardsortierung aktualisieren"
             },
+            "collection_integration": {
+                "headline": "Sammlung in Decks anzeigen",
+                "link": "Sammlungs-Integration",
+                "intro": "Cantrip kann pro Deck-Karte anzeigen, ob du ein physisches Exemplar in deiner Sammlung besitzt — und dir erlauben, beim Fertigstellen eines Decks gezielt Stapel zu reservieren.",
+                "toggle_label": "Sammlungsstatus in meinen Decks anzeigen",
+                "help": "Aus hält die Deckansicht frei von Sammlungsindikatoren, selbst wenn deine Sammlung Karten enthält. Standard ist an; du kannst es jederzeit wieder einschalten.",
+                "submit": "Einstellung aktualisieren"
+            },
             "two_factor": {
                 "headline": "Zwei-Faktor Authentifizierung",
                 "link": "Zwei-Faktor",
@@ -697,6 +705,24 @@
                 "claimed_by_other_deck": "Du besitzt ein Exemplar, es ist aber einem anderen Deck zugeordnet.",
                 "wrong_printing": "Du besitzt einen anderen Druck dieser Karte.",
                 "not_owned": "Du besitzt diese Karte nicht."
+            },
+            "finalize": {
+                "title": "{name} fertigstellen",
+                "heading": "Ordne dem Deck physische Kartenstapel zu",
+                "intro": "Wähle die Stapel aus deiner Sammlung, die du für dieses Deck reservieren möchtest. Du kannst diesen Schritt komplett überspringen oder einzelne Zeilen leer lassen — du kannst jederzeit zurückkommen.",
+                "col_needed": "Benötigt im Deck",
+                "col_assignment": "Aus deiner Sammlung zuordnen",
+                "no_match": "Kein passender Stapel in deiner Sammlung.",
+                "stack_label": "{type}: {name} (×{amount})",
+                "stack_unsorted": "Unsortiert (×{amount})",
+                "container_heading": "Container für dieses Deck",
+                "container_hint": "Optional. Eine Deck Box ist der empfohlene Container-Typ — Auswahl aus deiner Sammlung.",
+                "container_unset": "— Kein Container —",
+                "deckbox_hint": "Empfohlen",
+                "partial_coverage": "{claimed} von {needed} werden reserviert; der Rest bleibt offen.",
+                "submit": "Deck fertigstellen",
+                "skip": "Überspringen — ohne Reservierung fertigstellen",
+                "back": "Zurück zum Deck"
             },
             "legality": {
                 "title": "{count} Legalitätsproblem | {count} Legalitätsprobleme",

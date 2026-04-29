@@ -21,6 +21,11 @@ const props = defineProps<{
     categories: DeckCategoryRow[];
     /** Maximum length for a category name. */
     categoryNameMax: number;
+    /**
+     * Effective collection-integration mode. Drives "Set to finished":
+     * mode A patches the state directly, modes B and C open the wizard.
+     */
+    collectionMode: "A" | "B" | "C";
 }>();
 const { t } = useI18n();
 const popoverId = useId();
@@ -72,6 +77,23 @@ function onToggleVisibility(): void {
     router.patch(`/decks/${props.deck.id}/visibility`, { visibility: next }, { preserveScroll: true });
 }
 /**
+ * "Set to finished" handler. Mode A patches state directly because the
+ * wizard has nothing to claim; modes B and C open the wizard so the
+ * user can claim physical copies before the transition.
+ */
+function onSetBuilt(): void {
+    closePopover();
+    if (props.collectionMode === "A") {
+        router.patch(
+            `/decks/${props.deck.id}/state`,
+            { state: "built" },
+            { preserveScroll: true }
+        );
+        return;
+    }
+    router.visit(`/decks/${props.deck.id}/finalize`);
+}
+/**
  * Delete button handler. Skips the confirm prompt for an effectively-empty
  * deck and fires the DELETE directly. Same UX as the deck-list link.
  */
@@ -104,6 +126,12 @@ function onDeleteClick(): void {
                 <button class="popover-list-item" @click="onToggleVisibility">
                     <icon :name="deck.visibility === 'private' ? 'visibility-on' : 'visibility-off'" :size="1" />
                     {{ $t(deck.visibility === "private" ? "pages.decks.actions.set_public" : "pages.decks.actions.set_private") }}
+                </button>
+            </li>
+            <li v-if="deck.state === 'planned'">
+                <button class="popover-list-item" @click="onSetBuilt">
+                    <icon name="finished" :size="1" />
+                    {{ $t("pages.decks.actions.set_built") }}
                 </button>
             </li>
             <li>

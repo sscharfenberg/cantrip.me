@@ -6,6 +6,7 @@ import Headline from "Components/UI/Headline.vue";
 import Icon from "Components/UI/Icon.vue";
 import StickyNav from "Components/UI/StickyNav.vue";
 import { useBreadcrumbs } from "Composables/useBreadcrumbs.ts";
+import DashboardCollectionIntegration from "./DashboardCollectionIntegration.vue";
 import DashboardDeckSort from "./DashboardDeckSort.vue";
 import DashboardDeckView from "./DashboardDeckView.vue";
 import DashboardPassword from "./DashboardPassword.vue";
@@ -18,6 +19,7 @@ const navItems = computed(() => [
     { id: "profileSection", label: t("pages.dashboard.profile.link") },
     { id: "deckViewSection", label: t("pages.dashboard.deck_view.link") },
     { id: "deckSortSection", label: t("pages.dashboard.deck_sort.link") },
+    { id: "collectionIntegrationSection", label: t("pages.dashboard.collection_integration.link") },
     { id: "2faSection", label: t("pages.dashboard.two_factor.link") },
     { id: "deleteSection", label: t("pages.dashboard.deletion.link") }
 ]);
@@ -38,6 +40,7 @@ setBreadcrumbs([{ labelKey: "pages.dashboard.link" }]);
     <dashboard-profile />
     <dashboard-deck-view />
     <dashboard-deck-sort />
+    <dashboard-collection-integration />
     <two-factor />
     <delete-account />
 </template>

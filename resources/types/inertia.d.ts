@@ -13,6 +13,7 @@ declare module "@inertiajs/core" {
                     email: string;
                     deck_view_default: "text" | "cards";
                     deck_sort_default: "mana" | "name";
+                    collection_integration_enabled: boolean;
                 } | null;
             };
             locale: string;

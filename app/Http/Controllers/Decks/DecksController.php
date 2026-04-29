@@ -4,16 +4,22 @@ namespace App\Http\Controllers\Decks;
 
 use App\Companions\CompanionRegistry;
 use App\Enums\CardFormat;
+use App\Enums\ContainerType;
 use App\Enums\ContainerVisibility;
+use App\Enums\DeckState;
 use App\Formats\FormatProfile;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Decks\DeleteDeckRequest;
 use App\Http\Requests\Decks\EditDeckRequest;
+use App\Http\Requests\Decks\FinalizeDeckRequest;
 use App\Http\Requests\Decks\SetDeckCommanderHeroImageRequest;
 use App\Http\Requests\Decks\SetDeckCompanionHeroImageRequest;
 use App\Http\Requests\Decks\SetDeckHeroImageRequest;
+use App\Http\Requests\Decks\SetDeckStateRequest;
 use App\Http\Requests\Decks\SetDeckVisibilityRequest;
 use App\Http\Requests\Decks\ShowDeckRequest;
+use App\Models\CardStack;
+use App\Models\Container;
 use App\Models\Deck;
 use App\Models\DeckCard;
 use App\Models\DeckCategory;
@@ -21,6 +27,7 @@ use App\Models\DefaultCard;
 use App\Models\OracleCard;
 use App\Services\CommandZoneService;
 use App\Services\DeckCollectionStatusService;
+use App\Services\DeckFinalizeService;
 use App\Services\DeckService;
 use App\Services\DeckValidator;
 use Illuminate\Http\RedirectResponse;
@@ -348,6 +355,117 @@ class DecksController extends Controller
     }
 
     /**
+     * Render the "finalize deck" wizard (planned → built transition).
+     *
+     * Available to deck owners only. The page lists each deck card,
+     * the user's matching stacks (grouped by `default_card_id`), and a
+     * dropdown of containers (deckboxes sorted to the top) so the user
+     * can claim physical copies and pick a deckbox in one shot.
+     *
+     * Mode A users never reach this page — the action menu PATCHes the
+     * deck state directly. Modes B and C both render the wizard.
+     */
+    public function finalize(FinalizeDeckRequest $request, Deck $deck): Response
+    {
+        $deck->load([
+            'deckCards.oracleCard:id,name',
+            'deckCards.defaultCard:id,name,card_image_0,card_image_1,collector_number,set_id,oracle_id',
+            'deckCards.defaultCard.set:id,name,code',
+        ]);
+
+        $defaultCardIds = $deck->deckCards->pluck('default_card_id')->unique()->values();
+
+        // Stacks owned by the user that match any default_card_id appearing
+        // in the deck. Excludes anything already claimed by another deck so
+        // the wizard can't surface a stack that's effectively unavailable.
+        $stacks = CardStack::query()
+            ->where('user_id', $request->user()->id)
+            ->whereIn('default_card_id', $defaultCardIds)
+            ->whereNotIn('id', DB::table('deck_card_card_stack')->select('card_stack_id'))
+            ->with(['container:id,name,type'])
+            ->get(['id', 'default_card_id', 'container_id', 'amount', 'finish', 'language']);
+
+        $stacksByDefault = $stacks->groupBy('default_card_id');
+
+        $cards = $deck->deckCards->map(function (DeckCard $dc) use ($stacksByDefault) {
+            $matching = $stacksByDefault->get($dc->default_card_id, collect());
+
+            return [
+                'id' => $dc->id,
+                'name' => $dc->oracleCard->name,
+                'quantity' => $dc->quantity,
+                'set_code' => $dc->defaultCard?->set?->code,
+                'collector_number' => $dc->defaultCard?->collector_number,
+                'card_image_0' => $dc->defaultCard?->card_image_0,
+                'card_image_1' => $dc->defaultCard?->card_image_1,
+                'available' => $matching->map(fn (CardStack $s) => [
+                    'id' => $s->id,
+                    'amount' => $s->amount,
+                    'container' => $s->container ? [
+                        'id' => $s->container->id,
+                        'name' => $s->container->name,
+                        'type' => $s->container->type->value,
+                    ] : null,
+                ])->values(),
+            ];
+        })->values();
+
+        $containers = $request->user()->containers()
+            ->orderBy('sort_order')
+            ->get(['id', 'name', 'type'])
+            ->map(fn (Container $c) => [
+                'id' => $c->id,
+                'name' => $c->name,
+                'type' => $c->type->value,
+                'is_deckbox' => $c->type === ContainerType::Deckbox,
+            ])
+            ->sortByDesc('is_deckbox')
+            ->values();
+
+        return Inertia::render('Deck/Finalize/DeckFinalizePage', [
+            'deck' => [
+                'id' => $deck->id,
+                'name' => $deck->name,
+                'container_id' => $deck->container_id,
+            ],
+            'cards' => $cards,
+            'containers' => $containers,
+        ]);
+    }
+
+    /**
+     * Persist the wizard's submission and transition the deck to Built.
+     *
+     * Two paths:
+     *  - "Submit" with assignments: writes pivot rows, splits stacks /
+     *    deck_cards as needed, sets `decks.container_id`, then
+     *    transitions state. See {@see DeckFinalizeService::persistAssignments}.
+     *  - "Skip" (no assignments): just transitions state. Mode A's
+     *    direct PATCH from the action menu lands here too with an empty
+     *    body.
+     *
+     * @param  array<string, mixed>  $validated  Shape `{assignments?: array<deck_card_id, string[]>, container_id?: string|null}`.
+     */
+    public function storeFinalize(FinalizeDeckRequest $request, Deck $deck): RedirectResponse
+    {
+        $validated = $request->validated();
+        /** @var array<string, array<int, string>> $assignments */
+        $assignments = $validated['assignments'] ?? [];
+        $containerId = $validated['container_id'] ?? null;
+
+        if ($assignments === [] && $containerId === null) {
+            DeckFinalizeService::transitionToBuilt($deck);
+        } else {
+            DeckFinalizeService::persistAssignments($deck, $assignments, $containerId);
+        }
+
+        $request->session()->flash('message', __('decks.finalize.flash_built', ['name' => $deck->name]));
+        $request->session()->flash('type', 'success');
+
+        return redirect(route('decks.show', $deck->id));
+    }
+
+    /**
      * Display the "create deck" page.
      */
     public function create(Request $request): Response
@@ -586,6 +704,29 @@ class DecksController extends Controller
         $request->session()->flash('message', __(
             'decks.deck_visibility_'.$visibility->value,
             ['name' => $deck->name]
+        ));
+        $request->session()->flash('type', 'success');
+
+        return redirect(route('decks.show', $deck));
+    }
+
+    /**
+     * Quick-toggle the deck's lifecycle state.
+     *
+     * Hit by mode-A's "Set to finished" entry from the actions menu —
+     * mode A has no collection to claim from, so the wizard would be
+     * empty UI. Modes B and C go through the wizard instead. Reusable
+     * for archive/unarchive transitions later.
+     */
+    public function setState(SetDeckStateRequest $request, Deck $deck): RedirectResponse
+    {
+        $state = DeckState::from($request->input('state'));
+
+        $deck->update(['state' => $state->value]);
+
+        $request->session()->flash('message', __(
+            'decks.deck_state_'.$state->value,
+            ['name' => $deck->name],
         ));
         $request->session()->flash('type', 'success');
 

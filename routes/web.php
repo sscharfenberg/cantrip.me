@@ -15,6 +15,7 @@ use App\Http\Controllers\Decks\DeckCompanionController;
 use App\Http\Controllers\Decks\DecksController;
 use App\Http\Controllers\GuestController;
 use App\Http\Controllers\LocaleController;
+use App\Http\Controllers\User\CollectionIntegrationController;
 use App\Http\Controllers\User\DashboardController;
 use App\Http\Controllers\User\DeckSortController;
 use App\Http\Controllers\User\DeckViewController;
@@ -50,6 +51,8 @@ Route::middleware(array_filter(['auth', Features::enabled(Features::emailVerific
         ->name('deck_view_default.update');
     Route::post('/deck-sort-default', [DeckSortController::class, 'update'])
         ->name('deck_sort_default.update');
+    Route::post('/collection-integration', [CollectionIntegrationController::class, 'update'])
+        ->name('collection_integration.update');
 
     // collection
     Route::get('/collection', [CollectionController::class, 'list'])
@@ -129,6 +132,12 @@ Route::middleware(array_filter(['auth', Features::enabled(Features::emailVerific
         ->name('decks.edit');
     Route::patch('/decks/{deck}/visibility', [DecksController::class, 'setVisibility'])
         ->name('decks.set-visibility');
+    Route::patch('/decks/{deck}/state', [DecksController::class, 'setState'])
+        ->name('decks.set-state');
+    Route::get('/decks/{deck}/finalize', [DecksController::class, 'finalize'])
+        ->name('decks.finalize');
+    Route::post('/decks/{deck}/finalize', [DecksController::class, 'storeFinalize'])
+        ->name('decks.finalize.store');
     Route::patch('/decks/{deck}', [DecksController::class, 'update'])
         ->middleware([HandleControllerPrecognitiveRequest::class])
         ->name('decks.update');

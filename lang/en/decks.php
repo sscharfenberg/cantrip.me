@@ -14,6 +14,12 @@ return [
         ],
     ],
 
+    'collection_integration' => [
+        'flash' => [
+            'success' => 'Collection integration preference updated.',
+        ],
+    ],
+
     'category_created' => 'Created new group ":group" for the deck ":deck".',
 
     'deck_created' => 'Deck ":name" has been created.',
@@ -22,6 +28,13 @@ return [
     'deck_hero_changed' => 'Changed hero image of deck ":name" to ":card".',
     'deck_visibility_public' => 'Deck ":name" is now public — anyone with the link can view it.',
     'deck_visibility_private' => 'Deck ":name" is now private — only you can view it.',
+    'deck_state_planned' => 'Deck ":name" is now planned.',
+    'deck_state_built' => 'Deck ":name" is now finished.',
+    'deck_state_archived' => 'Deck ":name" has been archived.',
+
+    'finalize' => [
+        'flash_built' => 'Deck ":name" is finished.',
+    ],
 
     'companion' => [
         'errors' => [
