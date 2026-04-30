@@ -134,6 +134,7 @@ function clearAssignment(): void {
                 >
                     <span class="assign-stack__container">
                         <template v-if="stack.container !== null">
+                            <icon name="storage" />
                             {{
                                 $t("pages.deck.assign_stack.stack_label_with_container", {
                                     container_type: $t(`enums.container_type.${stack.container.type}`),
@@ -145,15 +146,15 @@ function clearAssignment(): void {
                             {{ $t("pages.deck.assign_stack.stack_label_unsorted") }}
                         </template>
                     </span>
-                    <span class="assign-stack__amount">
-                        {{ $t("pages.deck.assign_stack.amount", { amount: stack.amount }) }}
-                    </span>
                     <span v-if="stack.currently_assigned" class="assign-stack__badge assign-stack__badge--current">
                         <icon name="check" :size="1" />
                         {{ $t("pages.deck.assign_stack.currently_assigned") }}
                     </span>
+                    <span class="assign-stack__amount">
+                        {{ $t("pages.deck.assign_stack.amount", { amount: stack.amount }) }}
+                    </span>
                     <span
-                        v-else-if="stack.claim !== null && !stack.claim.is_this_deck_card"
+                        v-if="!stack.currently_assigned && stack.claim !== null && !stack.claim.is_this_deck_card"
                         class="assign-stack__badge assign-stack__badge--locked"
                     >
                         {{
@@ -175,6 +176,10 @@ function clearAssignment(): void {
 </template>
 
 <style lang="scss" scoped>
+@use "sass:map";
+@use "Abstracts/colors" as c;
+@use "Abstracts/sizes" as s;
+
 .assign-stack__loading,
 .assign-stack__error,
 .assign-stack__empty {
@@ -194,7 +199,7 @@ function clearAssignment(): void {
     padding: 0;
 
     margin: 0;
-    gap: 0.5rem;
+    gap: map.get(s.$pages, "deck", "assign-stack", "list-gap");
 
     list-style: none;
 }
@@ -205,9 +210,9 @@ function clearAssignment(): void {
     flex-wrap: wrap;
 
     width: 100%;
-    padding: 0.75rem 1rem;
+    padding: map.get(s.$pages, "deck", "assign-stack", "button-padding");
 
-    border: 1px solid currentcolor;
+    border: map.get(s.$pages, "deck", "assign-stack", "border") solid currentcolor;
     gap: 0.75rem;
 
     border-radius: 0.25rem;
@@ -224,17 +229,22 @@ function clearAssignment(): void {
 }
 
 .assign-stack__item--current .assign-stack__button {
-    border-width: 2px;
+    background-color: map.get(c.$pages, "deck", "assign-stack", "current-background");
+    color: map.get(c.$pages, "deck", "assign-stack", "current-surface");
 }
 
 .assign-stack__container {
+    display: flex;
+    align-items: center;
+
     flex: 1 1 auto;
+    gap: map.get(s.$pages, "deck", "assign-stack", "list-gap");
 }
 
 .assign-stack__amount {
     flex: 0 0 auto;
 
-    font-variant-numeric: tabular-nums;
+    font-weight: 600;
 }
 
 .assign-stack__badge {

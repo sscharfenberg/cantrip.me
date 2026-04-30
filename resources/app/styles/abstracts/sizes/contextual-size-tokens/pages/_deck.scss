@@ -127,5 +127,10 @@ $deck: (
         "needed": (
             "gap": 0.75rem
         )
+    ),
+    "assign-stack": (
+        "list-gap": 0.5rem,
+        "border": map.get(s.$border, "base"),
+        "button-padding": 0.5rem 1rem
     )
 );

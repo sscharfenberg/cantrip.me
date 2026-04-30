@@ -120,5 +120,12 @@ $deck: (
             "background-hover": light-dark(map.get(c.$grey, "bunker"), map.get(c.$grey, "mystic")),
             "surface-hover": light-dark(map.get(c.$grey, "white"), map.get(c.$grey, "black"))
         )
+    ),
+    "assign-stack": (
+        "current-background": light-dark(
+                map.get(c.$brand, "light1", "contrast"),
+                map.get(c.$brand, "dark1", "contrast")
+            ),
+        "current-surface": light-dark(map.get(c.$brand, "light1", "color"), map.get(c.$brand, "dark1", "color"))
     )
 );
