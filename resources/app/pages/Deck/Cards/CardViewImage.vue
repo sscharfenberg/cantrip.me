@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { useI18n } from "vue-i18n";
-import CollectionStatusBadge, { type CollectionStatus } from "@/components/Deck/CollectionStatusBadge.vue";
+import CollectionStatusBadge from "@/components/Deck/CollectionStatusBadge.vue";
 import DeckCardActionsMenu from "@/pages/Deck/Actions/DeckCardActionsMenu.vue";
 import DeckCommanderActionsMenu from "@/pages/Deck/Actions/DeckCommanderActionsMenu.vue";
 import FaceImageLazy from "@/pages/Deck/Cards/FaceImageLazy.vue";
@@ -121,7 +121,7 @@ const { allGroups } = useDeckSections(
                     />
                     <collection-status-badge
                         v-if="collectionMode === 'C' && card.collection_status"
-                        :status="card.collection_status as CollectionStatus"
+                        :status="card.collection_status"
                         variant="corner"
                     />
                     <deck-card-actions-menu
@@ -135,6 +135,7 @@ const { allGroups } = useDeckSections(
                         :is-singleton="props.isSingleton"
                         :has-sideboard="props.deck.max_sideboard_size > 0"
                         :hero-card-id="props.deck.hero_card?.id ?? null"
+                        :collection-mode="collectionMode"
                         :is-medium-button="true"
                     />
                 </face-image-lazy>

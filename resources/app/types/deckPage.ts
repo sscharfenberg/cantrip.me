@@ -29,6 +29,19 @@ export interface DeckCompanion {
     default_card: DeckCommanderDefaultCard;
 }
 
+/**
+ * Per-deck-card collection-integration status. Computed by
+ * `DeckCollectionStatusService::statusForDeck` and rendered by
+ * `CollectionStatusBadge`. Null on `DeckCardRow.collection_status`
+ * outside mode C — see the field-level doc.
+ */
+export type CollectionStatus =
+    | "claimed_for_this_deck"
+    | "available"
+    | "claimed_by_other_deck"
+    | "wrong_printing"
+    | "not_owned";
+
 /** Default card (specific printing) attached to a deck card. */
 export interface DeckCardDefaultCard {
     id: string | null;
@@ -62,10 +75,8 @@ export interface DeckCardRow {
      * Per-card collection status, computed only for owners in mode C
      * (the deck has at least one claimed stack). Null in modes A and B
      * and for non-owners. Mode B's count-based display is Phase 2.2 work.
-     * One of: `claimed_for_this_deck` | `available` |
-     * `claimed_by_other_deck` | `wrong_printing` | `not_owned`.
      */
-    collection_status: string | null;
+    collection_status: CollectionStatus | null;
     default_card: DeckCardDefaultCard;
 }
 

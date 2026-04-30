@@ -10,24 +10,7 @@
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 import Icon from "Components/UI/Icon.vue";
-/**
- * The five status values produced by
- * `DeckCollectionStatusService::statusForDeck` and consumed by this
- * badge plus its callsites in `CardViewText` / `CardViewImage`. Mirrors
- * the design-doc taxonomy:
- *
- *  - `claimed_for_this_deck` — a stack the user has assigned to *this* deck.
- *  - `available` — owned, no pivot row anywhere.
- *  - `claimed_by_other_deck` — owned but committed elsewhere.
- *  - `wrong_printing` — owned in a different printing of the same oracle card.
- *  - `not_owned` — not in the user's collection at all.
- */
-export type CollectionStatus =
-    | "claimed_for_this_deck"
-    | "available"
-    | "claimed_by_other_deck"
-    | "wrong_printing"
-    | "not_owned";
+import type { CollectionStatus } from "Types/deckPage.ts";
 const props = defineProps<{
     status: CollectionStatus;
     /** Layout variant — text rows use `inline`, image grid uses `corner`. */

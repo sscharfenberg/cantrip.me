@@ -834,6 +834,26 @@
                 "assigned": "Zugewiesen",
                 "submit": "Aufteilung übernehmen"
             },
+            "assign_stack": {
+                "title": "Physisches Exemplar für {card} zuordnen",
+                "link": "Physisches Exemplar zuordnen",
+                "loading": "Stapel werden geladen…",
+                "load_error": "Stapel konnten nicht geladen werden.",
+                "no_stacks": "Du besitzt diesen Druck noch nicht.",
+                "currently_assigned": "Aktuell zugeordnet",
+                "claimed_by_other_deck": "Reserviert für {deck}",
+                "stack_label_with_container": "{container_type} — {container_name}",
+                "stack_label_unsorted": "Unsortiert",
+                "amount": "×{amount}",
+                "clear": "Zuordnung entfernen",
+                "cleared_flash": "Zuordnung entfernt.",
+                "assigned_flash": "Stapel diesem Eintrag zugeordnet.",
+                "errors": {
+                    "not_owned": "Dieser Stapel gehört nicht dir.",
+                    "wrong_printing": "Dieser Stapel ist ein anderer Druck der Karte.",
+                    "already_claimed": "Dieser Stapel ist bereits einem anderen Deck zugeordnet."
+                }
+            },
             "no_categories": "Keine Kategorien definiert.",
             "navigation": {
                 "label": "Deck-Navigation",

@@ -162,6 +162,10 @@ Route::middleware(array_filter(['auth', Features::enabled(Features::emailVerific
         ->name('decks.categories.store');
     Route::get('/api/decks/{deck}/cards/{deckCard}/printings', [DeckCardController::class, 'printings'])
         ->name('api.decks.cards.printings');
+    Route::get('/api/decks/{deck}/cards/{deckCard}/assignable-stacks', [DeckCardController::class, 'assignableStacks'])
+        ->name('api.decks.cards.assignable-stacks');
+    Route::patch('/api/decks/{deck}/cards/{deckCard}/assigned-stacks', [DeckCardController::class, 'updateAssignedStacks'])
+        ->name('api.decks.cards.update-assigned-stacks');
     Route::patch('/api/decks/{deck}/cards/{deckCard}/category', [DeckCardController::class, 'updateCategory'])
         ->name('api.decks.cards.update-category');
     Route::patch('/api/decks/{deck}/cards/{deckCard}/printing', [DeckCardController::class, 'updatePrinting'])

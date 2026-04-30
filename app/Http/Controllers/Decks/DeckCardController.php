@@ -8,12 +8,15 @@ use App\Http\Requests\Decks\MoveDeckCardZoneRequest;
 use App\Http\Requests\Decks\ShowDeckCardPrintingsRequest;
 use App\Http\Requests\Decks\SplitDeckCardRequest;
 use App\Http\Requests\Decks\StoreDeckCardRequest;
+use App\Http\Requests\Decks\UpdateDeckCardAssignedStacksRequest;
 use App\Http\Requests\Decks\UpdateDeckCardCategoryRequest;
 use App\Http\Requests\Decks\UpdateDeckCardPrintingRequest;
 use App\Http\Requests\Decks\UpdateDeckCardQuantityRequest;
+use App\Models\CardStack;
 use App\Models\Deck;
 use App\Models\DeckCard;
 use App\Models\DefaultCard;
+use App\Services\DeckCardAssignmentService;
 use App\Services\DeckCardService;
 use App\Services\DeckPrintingsService;
 use Illuminate\Http\JsonResponse;
@@ -268,5 +271,92 @@ class DeckCardController extends Controller
             $deckCard->oracle_card_id,
             $deckCard->default_card_id,
         ));
+    }
+
+    /**
+     * List the user's owned stacks of this deck card's printing, alongside
+     * each stack's container and current claim status. Powers the per-card
+     * "assign physical copy" picker (mode C).
+     *
+     * Each row carries:
+     *  - `currently_assigned`: true when the stack is already pivoted to
+     *    this exact deck_card (the picker pre-selects it).
+     *  - `claim`: `{ deck_id, deck_name, is_this_deck_card }` when the
+     *    stack is pivoted *somewhere*, null otherwise. The picker uses
+     *    this to grey-out stacks claimed elsewhere.
+     *
+     * Owner-only — same authorisation shape as {@see printings}.
+     */
+    public function assignableStacks(ShowDeckCardPrintingsRequest $request, Deck $deck, DeckCard $deckCard): JsonResponse
+    {
+        $stacks = CardStack::query()
+            ->where('user_id', $deck->user_id)
+            ->where('default_card_id', $deckCard->default_card_id)
+            ->with(['container:id,name,type'])
+            ->get();
+
+        if ($stacks->isEmpty()) {
+            return response()->json([]);
+        }
+
+        $stackIds = $stacks->pluck('id')->all();
+
+        // One batched lookup for any current pivot rows on these stacks.
+        // Joins to decks for the human-readable deck name shown when a
+        // stack is claimed elsewhere.
+        $claims = DB::table('deck_card_card_stack')
+            ->join('deck_cards', 'deck_cards.id', '=', 'deck_card_card_stack.deck_card_id')
+            ->join('decks', 'decks.id', '=', 'deck_cards.deck_id')
+            ->whereIn('deck_card_card_stack.card_stack_id', $stackIds)
+            ->get([
+                'deck_card_card_stack.card_stack_id',
+                'deck_card_card_stack.deck_card_id',
+                'deck_cards.deck_id',
+                'decks.name as deck_name',
+            ])
+            ->keyBy('card_stack_id');
+
+        $payload = $stacks->map(function (CardStack $stack) use ($claims, $deckCard): array {
+            $claim = $claims->get($stack->id);
+
+            return [
+                'id' => $stack->id,
+                'amount' => (int) $stack->amount,
+                'finish' => $stack->finish->value,
+                'language' => $stack->language->value,
+                'condition' => $stack->condition?->value,
+                'container' => $stack->container ? [
+                    'id' => $stack->container->id,
+                    'name' => $stack->container->name,
+                    'type' => $stack->container->type->value,
+                ] : null,
+                'currently_assigned' => $claim !== null && $claim->deck_card_id === $deckCard->id,
+                'claim' => $claim === null ? null : [
+                    'deck_id' => $claim->deck_id,
+                    'deck_name' => $claim->deck_name,
+                    'is_this_deck_card' => $claim->deck_card_id === $deckCard->id,
+                ],
+            ];
+        })->values()->all();
+
+        return response()->json($payload);
+    }
+
+    /**
+     * Replace this deck card's claimed stack with the chosen one (or
+     * clear the assignment when `card_stack_id` is null).
+     *
+     * Validates ownership / printing match / no foreign claim in the
+     * FormRequest; the service does the atomic detach-and-attach with
+     * an auto-split when the chosen stack is oversized.
+     */
+    public function updateAssignedStacks(UpdateDeckCardAssignedStacksRequest $request, Deck $deck, DeckCard $deckCard): JsonResponse
+    {
+        $stackId = $request->validated()['card_stack_id'] ?? null;
+        $stack = $stackId === null ? null : CardStack::query()->find($stackId);
+
+        DeckCardAssignmentService::replaceAssignedStack($deckCard, $stack);
+
+        return response()->json(status: 204);
     }
 }

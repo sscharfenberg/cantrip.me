@@ -834,6 +834,26 @@
                 "assigned": "Assigned",
                 "submit": "Apply split"
             },
+            "assign_stack": {
+                "title": "Assign physical copy for {card}",
+                "link": "Assign physical copy",
+                "loading": "Loading your stacks…",
+                "load_error": "Could not load your stacks.",
+                "no_stacks": "You don't own this printing yet.",
+                "currently_assigned": "Currently assigned",
+                "claimed_by_other_deck": "Claimed by {deck}",
+                "stack_label_with_container": "{container_type} — {container_name}",
+                "stack_label_unsorted": "Unsorted",
+                "amount": "×{amount}",
+                "clear": "Clear assignment",
+                "cleared_flash": "Assignment cleared.",
+                "assigned_flash": "Stack assigned to this card.",
+                "errors": {
+                    "not_owned": "This stack does not belong to you.",
+                    "wrong_printing": "This stack is a different printing of the card.",
+                    "already_claimed": "This stack is already claimed by another deck."
+                }
+            },
             "no_categories": "No categories defined.",
             "navigation": {
                 "label": "Deck navigation",

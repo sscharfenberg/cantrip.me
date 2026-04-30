@@ -2,7 +2,7 @@
 import { ref } from "vue";
 import { VueDraggable } from "vue-draggable-plus";
 import { useI18n } from "vue-i18n";
-import CollectionStatusBadge, { type CollectionStatus } from "@/components/Deck/CollectionStatusBadge.vue";
+import CollectionStatusBadge from "@/components/Deck/CollectionStatusBadge.vue";
 import DeckCardActionsMenu from "@/pages/Deck/Actions/DeckCardActionsMenu.vue";
 import DeckCommanderActionsMenu from "@/pages/Deck/Actions/DeckCommanderActionsMenu.vue";
 import DeckAddGroupModal from "@/pages/Deck/Modals/DeckAddGroupModal.vue";
@@ -206,7 +206,7 @@ const previewTarget = ref<PreviewTarget | null>(null);
                             />
                             <collection-status-badge
                                 v-if="collectionMode === 'C' && card.collection_status"
-                                :status="card.collection_status as CollectionStatus"
+                                :status="card.collection_status"
                                 variant="inline"
                             />
                             <mana-cost :mana-cost="card.mana_cost" />
@@ -221,6 +221,7 @@ const previewTarget = ref<PreviewTarget | null>(null);
                                 :is-singleton="props.isSingleton"
                                 :has-sideboard="props.deck.max_sideboard_size > 0"
                                 :hero-card-id="props.deck.hero_card?.id ?? null"
+                                :collection-mode="collectionMode"
                             />
                         </li>
                     </VueDraggable>

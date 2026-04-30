@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { Link } from "@inertiajs/vue3";
+import { Link, router, usePage } from "@inertiajs/vue3";
 import { computed, ref, useId } from "vue";
 import Icon from "Components/UI/Icon.vue";
 import PopOver from "Components/UI/PopOver.vue";
 import { useDeckCardActions } from "Composables/useDeckCardActions.ts";
 import type { DeckCardRow, DeckCategoryRow } from "Types/deckPage.ts";
+import DeckCardAssignStackModal from "../Modals/DeckCardAssignStackModal.vue";
 import DeckCardMoveToGroupModal from "../Modals/DeckCardMoveToGroupModal.vue";
 import DeckCardSplitPrintingModal from "../Modals/DeckCardSplitPrintingModal.vue";
 import DeckCardSwitchPrintingModal from "../Modals/DeckCardSwitchPrintingModal.vue";
@@ -27,9 +28,17 @@ const props = defineProps<{
     hasSideboard: boolean;
     /** Current deck hero printing id, or null. Hides "Use as hero image" when this card already is the hero. */
     heroCardId: string | null;
+    /**
+     * Effective collection-integration mode for this deck. The "Assign
+     * physical copy" entry is only rendered in mode C — modes A and B are
+     * silent (A means no collection at all; B is the implicit-deckbox
+     * mode that gets count-based UI in Phase 2.2).
+     */
+    collectionMode: "A" | "B" | "C";
     /** whether the button should be "medium" or not */
     isMediumButton?: boolean;
 }>();
+const page = usePage();
 const popoverId = useId();
 /** Controls visibility of the switch-printing modal. */
 const showSwitchPrintingModal = ref(false);
@@ -37,6 +46,8 @@ const showSwitchPrintingModal = ref(false);
 const showSplitPrintingModal = ref(false);
 /** Controls visibility of the move-to-group modal. */
 const showMoveToGroupModal = ref(false);
+/** Controls visibility of the assign-stack modal (mode C only). */
+const showAssignStackModal = ref(false);
 /** Close the action popover programmatically. */
 function closePopover(): void {
     const el = document.getElementById(popoverId);
@@ -56,6 +67,33 @@ function openSplitPrinting(): void {
 function openMoveToGroup(): void {
     closePopover();
     showMoveToGroupModal.value = true;
+}
+/** Close the popover and open the assign-stack modal. */
+function openAssignStack(): void {
+    closePopover();
+    showAssignStackModal.value = true;
+}
+/**
+ * PATCH the chosen stack id (or null to clear) and refresh the cards
+ * payload so the per-row collection-status badge reflects the new pivot
+ * state. Mode itself can't change here — the deck stays sticky-pinned to
+ * C even after a clear, by design.
+ */
+async function assignStack(stackId: string | null): Promise<void> {
+    const response = await fetch(
+        `/api/decks/${props.deckId}/cards/${props.card.id}/assigned-stacks`,
+        {
+            method: "PATCH",
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRF-TOKEN": page.props.csrfToken as string,
+                Accept: "application/json"
+            },
+            body: JSON.stringify({ card_stack_id: stackId })
+        }
+    );
+    if (!response.ok) return;
+    router.reload({ only: ["cards"] });
 }
 /**
  * True when the move-to-group modal would offer at least one real target —
@@ -129,6 +167,12 @@ const { canIncrement, increment, decrement, destroy, moveZone, switchPrinting } 
                     {{ $t("pages.deck.move_to_group.link") }}
                 </button>
             </li>
+            <li v-if="props.collectionMode === 'C'">
+                <button type="button" class="popover-list-item" @click="openAssignStack">
+                    <icon name="storage" :size="1" />
+                    {{ $t("pages.deck.assign_stack.link") }}
+                </button>
+            </li>
             <li v-if="props.card.zone !== 'side' && props.hasSideboard">
                 <button type="button" class="popover-list-item" @click="moveZone('side')">
                     <icon name="sideboard" :size="1" />
@@ -183,6 +227,13 @@ const { canIncrement, increment, decrement, destroy, moveZone, switchPrinting } 
         :categories="props.categories"
         :category-name-max="props.categoryNameMax"
         @close="showMoveToGroupModal = false"
+    />
+    <deck-card-assign-stack-modal
+        v-if="showAssignStackModal"
+        :stacks-url="`/api/decks/${props.deckId}/cards/${props.card.id}/assignable-stacks`"
+        :name="props.card.name"
+        @select="assignStack"
+        @close="showAssignStackModal = false"
     />
 </template>
 

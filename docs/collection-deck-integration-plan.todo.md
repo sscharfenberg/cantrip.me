@@ -11,7 +11,7 @@ Two design refinements emerged during smoke-testing and are now baked in:
 - **Sticky mode C.** Originally mode was inferred purely from current pivot-row count. Deleting the last claimed stack from the collection cascade-removed its pivot row and silently dropped the deck back to mode B, hiding all status badges. Per the design doc, C→B is rare and explicit ("clear all collection assignments"), never implicit. Fix: `decks.collection_mode` (nullable string, length 1) gets pinned to `'C'` the first time the wizard claims a stack and stays put until a future explicit C→B action clears it. `effectiveMode` checks the pin before falling back to the pivot count.
 - **Mode-B decks stay silent.** A first-pass overshoot let mode-B decks render badges so a sibling deck's claim could surface as `claimed_by_other_deck`. That was design-non-faithful — mode B was always meant to be quiet until Phase 2.2's count-based display ships. Reverted; cross-deck claim visibility is now explicitly Phase 2.2 territory.
 
-**Phase 2 is sketched but unbuilt** — five steps (2.1 per-card assign picker, 2.2 mode-B implicit display, 2.3 mode-aware gating audit, 2.4 "bought new" wizard checkbox, 2.5 collection-side claim badges). Pick whichever makes sense next.
+**Phase 2 is partially shipped.** 2.1 (per-card assign picker) is done and smoke-tested on staging. Four steps left — 2.2 mode-B implicit display, 2.3 mode-aware gating audit, 2.4 "bought new" wizard checkbox, 2.5 collection-side claim badges. Pick whichever makes sense next.
 
 ## Phase 1 — MVP (shipped)
 
@@ -179,21 +179,25 @@ Surfaces the user-level opt-out flag added in step 1.1. Mirrors the existing `de
 
 Phase 2 fills in the corners. Each step is self-contained and can ship independently of the others.
 
-### Step 2.1 — Per-card "assign physical copy" picker
+### Step 2.1 — Per-card "assign physical copy" picker ✅ shipped
 
 **Frontend:** `resources/app/pages/Deck/Modals/DeckCardAssignStackModal.vue`
 - Mirror the shape of `DeckCardSwitchPrintingModal.vue`.
 - Lists the user's owned card_stacks for this deck card's `default_card_id`, with their container badge.
 - Replace-style: selecting a stack assigns it (and unassigns any previously-assigned stack for this deck_card).
+- Footer "Clear assignment" button only renders when there's a current assignment to clear.
 
 **Backend:**
 - New endpoint: `PATCH /api/decks/{deck}/cards/{deckCard}/assigned-stacks` → `DeckCardController::updateAssignedStacks`.
-- New `UpdateDeckCardAssignedStacksRequest` for owner check + payload validation.
-- Service: replace pivot rows for the deck_card atomically.
+- New endpoint: `GET /api/decks/{deck}/cards/{deckCard}/assignable-stacks` → `DeckCardController::assignableStacks`. One batched join for stack rows + their current pivot/claim status; reuses `ShowDeckCardPrintingsRequest` for the owner check.
+- New `UpdateDeckCardAssignedStacksRequest` — owner gate, ownership/printing/no-foreign-claim guards in `withValidator`.
+- New service `app/Services/DeckCardAssignmentService.php`. Single static `replaceAssignedStack(DeckCard, ?CardStack)`: atomic detach + (oversized stacks split via `CardStackService::splitStack` so only `quantity` copies carry the pivot) + attach. Mode-C stays sticky on clear, by design.
 
-**UI wiring:** `DeckCardActionsMenu.vue` — new menu item "Assign physical copy" (mode C only).
+**UI wiring:** `DeckCardActionsMenu.vue` — new menu item "Assign physical copy" rendered only when `collectionMode === 'C'`. PATCHes the endpoint then `router.reload({ only: ['cards'] })` so the row's collection-status badge refreshes. New `collection-mode` prop drilled through `CardViewText.vue` and `CardViewImage.vue`.
 
-**Tests:** unit-ish on the service, smoke on staging.
+**i18n:** keys under `pages.deck.assign_stack.*` (title, link, loading/error/empty states, currently-assigned badge, claimed-by-other-deck badge, errors). German + English.
+
+**Tests:** `tests/Feature/DeckCardAssignmentServiceTest.php` — 5 SQLite cases covering first-attach, replace, clear (null), oversized-stack auto-split, exact-size no-split. Smoke-tested on staging.
 
 ---
 
