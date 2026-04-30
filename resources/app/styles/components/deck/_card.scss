@@ -4,7 +4,7 @@
 @use "Abstracts/timings" as ti;
 
 .text-card-group {
-    .card {
+    .card:not(.icon) {
         display: flex;
         align-items: center;
 
@@ -15,7 +15,9 @@
         background-color: map.get(c.$pages, "deck", "card", "background");
         color: map.get(c.$pages, "deck", "card", "surface");
         border-radius: map.get(s.$pages, "deck", "card", "radius");
+    }
 
+    .card {
         &__qty {
             font-weight: 600;
         }

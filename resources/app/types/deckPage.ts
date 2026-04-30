@@ -59,9 +59,10 @@ export interface DeckCardRow {
     language: string;
     category_id: string | null;
     /**
-     * Mode-C-only per-card collection status. Null in modes A and B (the
-     * controller doesn't compute it, so cards from those decks omit the
-     * field entirely). One of: `claimed_for_this_deck` | `available` |
+     * Per-card collection status, computed only for owners in mode C
+     * (the deck has at least one claimed stack). Null in modes A and B
+     * and for non-owners. Mode B's count-based display is Phase 2.2 work.
+     * One of: `claimed_for_this_deck` | `available` |
      * `claimed_by_other_deck` | `wrong_printing` | `not_owned`.
      */
     collection_status: string | null;

@@ -43,6 +43,8 @@ class DeckFinalizeService
     public static function persistAssignments(Deck $deck, array $assignments, ?string $containerId): void
     {
         DB::transaction(function () use ($deck, $assignments, $containerId): void {
+            $anyPivotsWritten = false;
+
             foreach ($assignments as $deckCardId => $stackIds) {
                 $stackIds = array_values(array_unique(array_filter($stackIds)));
                 if ($stackIds === []) {
@@ -57,14 +59,24 @@ class DeckFinalizeService
                     continue;
                 }
 
-                self::claimStacksForDeckCard($deckCard, $stackIds);
+                if (self::claimStacksForDeckCard($deckCard, $stackIds)) {
+                    $anyPivotsWritten = true;
+                }
             }
 
+            // Pin the deck to mode C the first time at least one pivot is
+            // written. Sticky: stays 'C' even if the user later deletes
+            // every claimed stack from the collection (cascade removes the
+            // pivots but the deck still tracks claims). Per design, C→B
+            // is an explicit "clear all assignments" action — not yet built.
+            $updates = ['state' => DeckState::Built->value];
             if ($containerId !== null) {
-                $deck->update(['container_id' => $containerId]);
+                $updates['container_id'] = $containerId;
             }
-
-            $deck->update(['state' => DeckState::Built->value]);
+            if ($anyPivotsWritten && $deck->collection_mode !== 'C') {
+                $updates['collection_mode'] = 'C';
+            }
+            $deck->update($updates);
         });
     }
 
@@ -83,9 +95,13 @@ class DeckFinalizeService
      * quantity (partial coverage), and splitting any oversized stack
      * down to size first.
      *
+     * Returns true when at least one pivot row was written, so the
+     * caller can pin the deck to mode C only when the user actually
+     * claimed something.
+     *
      * @param  array<int, string>  $stackIds
      */
-    private static function claimStacksForDeckCard(DeckCard $deckCard, array $stackIds): void
+    private static function claimStacksForDeckCard(DeckCard $deckCard, array $stackIds): bool
     {
         $stacks = CardStack::query()
             ->whereIn('id', $stackIds)
@@ -97,7 +113,7 @@ class DeckFinalizeService
         $stacks = $stacks->reject(fn (CardStack $s): bool => in_array($s->id, $alreadyClaimed, true));
 
         if ($stacks->isEmpty()) {
-            return;
+            return false;
         }
 
         $needed = $deckCard->quantity;
@@ -123,7 +139,7 @@ class DeckFinalizeService
         }
 
         if ($stacksToAttach === []) {
-            return;
+            return false;
         }
 
         $targetDeckCard = $deckCard;
@@ -145,6 +161,8 @@ class DeckFinalizeService
         }
 
         $targetDeckCard->cardStacks()->attach($stacksToAttach);
+
+        return true;
     }
 
     /**

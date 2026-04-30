@@ -5,11 +5,27 @@
          colors="true"
 >
     <testsuites>
-        <testsuite name="Unit">
+        <!--
+            Local suite — runs against in-memory SQLite (the <env> defaults
+            below). Covers everything *except* tests/Feature/Services, which
+            need real Scryfall data and a live MariaDB connection. Triggered
+            by `composer test`.
+        -->
+        <testsuite name="Local">
             <directory>tests/Unit</directory>
-        </testsuite>
-        <testsuite name="Feature">
             <directory>tests/Feature</directory>
+            <exclude>tests/Feature/Services</exclude>
+        </testsuite>
+        <!--
+            Staging suite — runs only the tests that read real Scryfall data
+            against MariaDB. Triggered by `composer test:mysql` on a host
+            with DB_CONNECTION=mysql + a populated dataset. These tests
+            never write to the DB, so they're safe to run on staging; the
+            Local suite is excluded here so any test using RefreshDatabase
+            cannot reach a live connection.
+        -->
+        <testsuite name="Staging">
+            <directory>tests/Feature/Services</directory>
         </testsuite>
     </testsuites>
     <source>

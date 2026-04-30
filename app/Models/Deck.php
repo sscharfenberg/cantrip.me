@@ -43,6 +43,7 @@ class Deck extends Model
         'container_id',
         'companion_oracle_card_id',
         'companion_default_card_id',
+        'collection_mode',
     ];
 
     protected function casts(): array

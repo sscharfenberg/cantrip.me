@@ -15,6 +15,7 @@ use App\Models\Set;
 use App\Models\User;
 use App\Services\CardStackService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -35,6 +36,22 @@ use Tests\TestCase;
 class DeckCardCardStackPivotTest extends TestCase
 {
     use RefreshDatabase;
+
+    /**
+     * Hard-skip on real MariaDB connections. {@see RefreshDatabase} runs
+     * `migrate:fresh` on the first test, which would drop every table on
+     * staging — including Scryfall data, real users, and existing decks.
+     * These tests only need a working schema, which the in-memory SQLite
+     * default provides; running them on staging is never the intent.
+     */
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        if (DB::connection()->getDriverName() === 'mysql') {
+            $this->markTestSkipped('Skipped on MariaDB — RefreshDatabase would wipe live data. Run via the default `composer test` (SQLite).');
+        }
+    }
 
     private function makeOracleCard(string $name = 'Test Card'): OracleCard
     {

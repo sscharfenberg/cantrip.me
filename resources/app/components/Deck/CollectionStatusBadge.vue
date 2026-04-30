@@ -10,22 +10,30 @@
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 import Icon from "Components/UI/Icon.vue";
-
+/**
+ * The five status values produced by
+ * `DeckCollectionStatusService::statusForDeck` and consumed by this
+ * badge plus its callsites in `CardViewText` / `CardViewImage`. Mirrors
+ * the design-doc taxonomy:
+ *
+ *  - `claimed_for_this_deck` — a stack the user has assigned to *this* deck.
+ *  - `available` — owned, no pivot row anywhere.
+ *  - `claimed_by_other_deck` — owned but committed elsewhere.
+ *  - `wrong_printing` — owned in a different printing of the same oracle card.
+ *  - `not_owned` — not in the user's collection at all.
+ */
 export type CollectionStatus =
     | "claimed_for_this_deck"
     | "available"
     | "claimed_by_other_deck"
     | "wrong_printing"
     | "not_owned";
-
 const props = defineProps<{
     status: CollectionStatus;
     /** Layout variant — text rows use `inline`, image grid uses `corner`. */
     variant?: "inline" | "corner";
 }>();
-
 const { t } = useI18n();
-
 const iconName = computed(() => {
     switch (props.status) {
         case "claimed_for_this_deck":
@@ -41,10 +49,8 @@ const iconName = computed(() => {
             return "money";
     }
 });
-
 const colorClass = computed(() => `collection-status--${props.status}`);
 const variantClass = computed(() => `collection-status--${props.variant ?? "inline"}`);
-
 const tooltip = computed(() => t(`pages.deck.collection_status.${props.status}`));
 </script>
 
@@ -86,9 +92,9 @@ const tooltip = computed(() => t(`pages.deck.collection_status.${props.status}`)
     }
 
     &--wrong_printing {
-        background-color: map.get(c.$state, "info", "background");
-        color: map.get(c.$state, "info", "surface");
-        border-color: map.get(c.$state, "info", "border");
+        background-color: map.get(c.$state, "warning", "background");
+        color: map.get(c.$state, "warning", "surface");
+        border-color: map.get(c.$state, "warning", "border");
     }
 
     &--not_owned {
@@ -101,6 +107,9 @@ const tooltip = computed(() => t(`pages.deck.collection_status.${props.status}`)
         position: absolute;
         bottom: 0.25rem;
         left: 0.25rem;
+
+        width: 1.5rem;
+        height: 1.5rem;
 
         border-radius: map.get(s.$pages, "deck", "flags", "radius", "image");
     }

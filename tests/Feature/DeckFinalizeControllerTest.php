@@ -15,6 +15,7 @@ use App\Models\OracleCard;
 use App\Models\Set;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -32,6 +33,19 @@ use Tests\TestCase;
 class DeckFinalizeControllerTest extends TestCase
 {
     use RefreshDatabase;
+
+    /**
+     * Hard-skip on real MariaDB connections. See
+     * {@see DeckCardCardStackPivotTest::setUp} for the rationale.
+     */
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        if (DB::connection()->getDriverName() === 'mysql') {
+            $this->markTestSkipped('Skipped on MariaDB — RefreshDatabase would wipe live data. Run via the default `composer test` (SQLite).');
+        }
+    }
 
     private function makeOracleCard(string $name = 'Test Card'): OracleCard
     {
@@ -211,6 +225,33 @@ class DeckFinalizeControllerTest extends TestCase
 
         $response->assertForbidden();
         $this->assertSame('planned', $deck->fresh()->state->value);
+    }
+
+    #[Test]
+    public function deck_show_keeps_mode_b_decks_silent_until_phase_2_2(): void
+    {
+        // Per-row badges are mode-C-only by design. Mode B decks (the user
+        // owns stacks but hasn't claimed anything for this deck yet) should
+        // expose `collectionMode: 'B'` but no per-card statuses — the
+        // count-based display lands in Phase 2.2.
+        $user = User::factory()->create();
+        $deckA = $this->makeDeck($user);
+        $deckB = $this->makeDeck($user);
+        $oracle = $this->makeOracleCard();
+        $default = $this->makeDefaultCard($oracle);
+        $stack = $this->makeCardStack($user, $default);
+
+        $deckCardA = $this->makeDeckCard($deckA, $oracle, $default);
+        $deckCardA->cardStacks()->attach($stack->id);
+        $this->makeDeckCard($deckB, $oracle, $default);
+
+        $response = $this->actingAs($user)->get("/decks/{$deckB->id}");
+
+        $response->assertOk();
+        $response->assertInertia(fn ($page) => $page
+            ->where('collectionMode', 'B')
+            ->where('cards.0.collection_status', null)
+        );
     }
 
     #[Test]

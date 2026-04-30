@@ -113,5 +113,19 @@ $deck: (
     "zone-btn": (
         "padding": 0.5rem 1rem,
         "radius": map.get(s.$radius, "base")
+    ),
+    "finalize": (
+        "row": (
+            "gap": 0.5rem,
+            "padding": 0.75rem,
+            "border": map.get(s.$border, "base"),
+            "radius": map.get(s.$radius, "featured")
+        ),
+        "thumb": (
+            "radius": map.get(s.$radius, "base")
+        ),
+        "needed": (
+            "gap": 0.75rem
+        )
     )
 );

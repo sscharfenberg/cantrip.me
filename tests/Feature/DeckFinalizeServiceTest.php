@@ -15,6 +15,7 @@ use App\Models\Set;
 use App\Models\User;
 use App\Services\DeckFinalizeService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -30,6 +31,19 @@ use Tests\TestCase;
 class DeckFinalizeServiceTest extends TestCase
 {
     use RefreshDatabase;
+
+    /**
+     * Hard-skip on real MariaDB connections. See
+     * {@see DeckCardCardStackPivotTest::setUp} for the rationale.
+     */
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        if (DB::connection()->getDriverName() === 'mysql') {
+            $this->markTestSkipped('Skipped on MariaDB — RefreshDatabase would wipe live data. Run via the default `composer test` (SQLite).');
+        }
+    }
 
     private function makeOracleCard(string $name = 'Test Card'): OracleCard
     {
@@ -220,6 +234,42 @@ class DeckFinalizeServiceTest extends TestCase
         DeckFinalizeService::persistAssignments($deck, [], $container->id);
 
         $this->assertSame($container->id, $deck->fresh()->container_id);
+        $this->assertSame('built', $deck->fresh()->state->value);
+    }
+
+    #[Test]
+    public function persist_assignments_pins_collection_mode_to_c_on_claim(): void
+    {
+        $user = User::factory()->create();
+        $deck = $this->makeDeck($user);
+        $oracle = $this->makeOracleCard();
+        $default = $this->makeDefaultCard($oracle);
+        $deckCard = $this->makeDeckCard($deck, $oracle, $default);
+        $stack = $this->makeCardStack($user, $default);
+
+        $this->assertNull($deck->collection_mode);
+
+        DeckFinalizeService::persistAssignments(
+            $deck,
+            [$deckCard->id => [$stack->id]],
+            null,
+        );
+
+        $this->assertSame('C', $deck->fresh()->collection_mode);
+    }
+
+    #[Test]
+    public function persist_assignments_does_not_pin_collection_mode_when_no_stacks_were_claimed(): void
+    {
+        // Skip path: empty assignments (or assignments that all resolve
+        // to no-op because the stacks don't match) should leave the deck
+        // in whatever mode it was — no implicit promotion to C.
+        $user = User::factory()->create();
+        $deck = $this->makeDeck($user);
+
+        DeckFinalizeService::persistAssignments($deck, [], null);
+
+        $this->assertNull($deck->fresh()->collection_mode);
         $this->assertSame('built', $deck->fresh()->state->value);
     }
 

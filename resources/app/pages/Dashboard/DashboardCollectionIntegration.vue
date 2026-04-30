@@ -13,6 +13,7 @@ import Switch from "Components/Form/Switch.vue";
 import Headline from "Components/UI/Headline.vue";
 import Icon from "Components/UI/Icon.vue";
 import LoadingSpinner from "Components/UI/LoadingSpinner.vue";
+import Paragraph from "Components/UI/Paragraph.vue";
 
 /** Current user default pulled from the Inertia shared `auth.user` prop. */
 const userDefault = (usePage().props.auth.user?.collection_integration_enabled ?? true) as boolean;
@@ -47,7 +48,7 @@ const enabled = ref<boolean>(userDefault);
                 />
             </template>
             <template #text>
-                {{ $t("pages.dashboard.collection_integration.help") }}
+                <paragraph>{{ $t("pages.dashboard.collection_integration.help") }}</paragraph>
             </template>
         </form-group>
         <input type="hidden" name="collection_integration_enabled" :value="enabled ? '1' : '0'" />

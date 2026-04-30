@@ -2,7 +2,18 @@
 
 Companion to `collection-deck-integration.todo.md` (the design doc). The design doc captures *what and why*; this plan captures *how and in what order*. Two phases — phase 1 is the headline MVP, phase 2 fills in the corners.
 
-## Phase 1 — MVP
+## Status (2026-04-30)
+
+**Phase 1 is shipped and smoke-tested on staging.** All five sub-steps (1.1 schema/lifecycle, 1.2 mode detection, 1.3 status badges, 1.4 finalize wizard, 1.5 settings toggle) are merged. The full nine-section smoke-test plan against real Scryfall data passed end-to-end.
+
+Two design refinements emerged during smoke-testing and are now baked in:
+
+- **Sticky mode C.** Originally mode was inferred purely from current pivot-row count. Deleting the last claimed stack from the collection cascade-removed its pivot row and silently dropped the deck back to mode B, hiding all status badges. Per the design doc, C→B is rare and explicit ("clear all collection assignments"), never implicit. Fix: `decks.collection_mode` (nullable string, length 1) gets pinned to `'C'` the first time the wizard claims a stack and stays put until a future explicit C→B action clears it. `effectiveMode` checks the pin before falling back to the pivot count.
+- **Mode-B decks stay silent.** A first-pass overshoot let mode-B decks render badges so a sibling deck's claim could surface as `claimed_by_other_deck`. That was design-non-faithful — mode B was always meant to be quiet until Phase 2.2's count-based display ships. Reverted; cross-deck claim visibility is now explicitly Phase 2.2 territory.
+
+**Phase 2 is sketched but unbuilt** — five steps (2.1 per-card assign picker, 2.2 mode-B implicit display, 2.3 mode-aware gating audit, 2.4 "bought new" wizard checkbox, 2.5 collection-side claim badges). Pick whichever makes sense next.
+
+## Phase 1 — MVP (shipped)
 
 The minimum that ships the headline value: a deck owner can claim physical copies from their collection at the planned→finished transition, and the deck view surfaces ownership status per card.
 
@@ -211,6 +222,89 @@ Most gating happens inline as steps 1.3, 1.4, 2.1, 2.2 are built (each component
 - "Move to deck's deckbox?" container hint — only after a successful assignment, only in mode C.
 
 **Tests:** check controller payload shape per mode (3 feature tests). UI smoke per mode.
+
+---
+
+### Step 2.4 — "Bought new" checkbox in the finalize wizard
+
+Extend the finalize wizard so users who just bought missing copies can fold that into the same submit instead of leaving the wizard, adding card stacks in the collection page, and coming back. Per-row checkbox renders on **every** row — including rows with available stacks (e.g. user owns 3, just bought 1 more) and rows with none (e.g. card not yet in collection).
+
+**Wizard payload extension:**
+- Add `buy_new` to the form: `Record<deck_card_id, boolean>`, default false.
+- Submit shape becomes `{ assignments, buy_new, container_id }`.
+
+**Stack creation rules** (per row, when `buy_new === true`):
+- Compute the *uncovered* slot count: `quantity - sum(amount of stacks chosen in assignments[row])`.
+- If uncovered ≤ 0, the checkbox is a no-op (covered by the existing assignment); skip.
+- Otherwise create one new card_stack with:
+  - `default_card_id` = the deck card's printing.
+  - `amount` = the uncovered slot count.
+  - `language` / `finish` defaults: `En` / `Nonfoil` (no per-row overrides — keep the wizard quick).
+  - `condition` = null.
+  - `container_id` = the deckbox the wizard's bottom dropdown picks, falling back to null (unsorted).
+- Attach the new stack via the pivot to the deck card (so the row renders `claimed_for_this_deck` after redirect).
+
+**No deck_card auto-split**: when "buy new" fully covers the row, there's no leftover. When it's combined with a partial assignment, the new stack pads to full coverage so the deck_card row stays a single row.
+
+**FormRequest:** extend `FinalizeDeckRequest::rules()` with `buy_new: nullable array`, `buy_new.*: boolean`.
+
+**Service:** extend `DeckFinalizeService::persistAssignments` (or split into a new `BuyNewAndClaim` helper if it gets too dense — judgement call when wired up). Stack creation goes through `CardStackService::addToCollection` so the merge-into-existing-stack logic stays consistent (if the user happens to already have a matching unsorted stack, the new amount merges rather than fragmenting the collection).
+
+**Frontend:**
+- New row layout adds the checkbox below or beside the dropdown.
+- When checked, show a small inline note: "Will create N× <name> in your collection".
+- Disable the checkbox when the row is fully covered by an existing assignment (no uncovered slots).
+- i18n keys under `pages.deck.finalize.buy_new.*` (label, hint, computed-amount template).
+
+**Edge cases worth deciding before implementing:**
+- Foil/etched copies: default to nonfoil; any user that wants foil tracking goes through the collection page. Don't open that can here.
+- A deckbox isn't picked: new stacks land unsorted. Acceptable; the user can re-organize later.
+- The deck card has zero quantity (shouldn't happen, but be defensive in the service).
+
+**Tests:**
+- Service: `buy_new` with no available stacks → creates one stack of full quantity, attaches pivot.
+- Service: `buy_new` combined with partial assignment → creates one stack for the remainder, attaches both.
+- Service: `buy_new` fully covered by assignment → no-op.
+- Service: `buy_new` + `addToCollection` merge — pre-seed an unsorted stack of the same printing, run wizard, assert stack amount went up rather than a duplicate row appearing.
+- Feature test: end-to-end submit through `storeFinalize` with mixed rows.
+
+**Definition of done for 2.4:**
+- A user can finalize a planned deck where some cards aren't owned yet, check "bought new" for those rows, submit, and end up with new stacks in the collection plus pivot rows attaching them to the deck.
+- The checkbox renders for every row including those with full coverage already (visible-but-disabled in that case).
+- New stacks land in the chosen deckbox when one is set on the wizard, else unsorted.
+
+---
+
+### Step 2.5 — Collection-side "claimed for deck X" badges
+
+The lifecycle guards in Phase 1 block container moves on claimed stacks with the message "This card stack is claimed by a deck and cannot be moved. Unclaim it first." — but the user has no way to find *which* deck claimed it without hunting through their own deck list. This step surfaces that information on every claimed stack in the collection, with a link to the offending deck so the user can act.
+
+**Service additions:**
+- Bulk lookup that maps `card_stack_id → [{ deck_id, deck_name, deck_card_id }, ...]`. Single batched query joining `deck_card_card_stack → deck_cards → decks`. The schema allows N claimers per stack (UX assumes one), so the helper returns a list. Lives on either `DeckCollectionStatusService` (closest cousin) or a new `CardStackClaimService` if it grows.
+- Inject the map into the existing collection list endpoints (`CollectionController`, `ContainerController`) so datatable / card-view rows ship with claim data already attached — no per-row N+1.
+
+**Frontend:**
+- Small "Reserviert für [DeckName]" badge on every claimed stack, where `[DeckName]` is an `<Link>` to `decks.show` for that deck.
+- Multi-claim case (rare but allowed by schema): comma-list, or "Reserviert für DeckA +N more" with a tooltip showing the full list.
+- Render in:
+  - `Collection/CardStacksDatatable.vue` — new column or row trailer.
+  - `Collection/common/CardStackCard.vue` — the card view variant.
+  - `Collection/common/CardStackPreviewModal.vue` — so the modal surfaces the claim too.
+  - `Collection/CardStack/CardStackPage.vue` — the edit form, explaining why the container picker is locked.
+- New i18n keys under `pages.collection.claim_badge.*` (`label`, `multi_label`, `tooltip_multi`).
+
+**Unclaim affordance** *(intentionally split out)*:
+- A per-stack "unclaim" button next to the badge is the obvious pairing — let the user free a stack from the collection side without navigating to the deck. Mirror of the *assign* endpoint Phase 2.1 builds.
+- Defer to its own step (call it 2.6 when the time comes) so 2.5 can ship as pure visibility first and 2.1's endpoint shape can inform the unclaim API.
+
+**Tests:**
+- Service: bulk lookup returns expected shape for stacks with 0 / 1 / N claims.
+- Service: query-count smoke (one query for the whole listing, not N+1).
+- Feature: collection list endpoint returns the claim data on each stack row.
+
+**Definition of done for 2.5:**
+- Every claimed stack in the collection visibly says which deck claims it, with a clickable link to that deck.
+- The lifecycle-guard error stays as-is, but the user can now follow the link to fix the cause instead of hunting.
 
 ---
 

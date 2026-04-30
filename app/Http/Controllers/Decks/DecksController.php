@@ -222,8 +222,11 @@ class DecksController extends Controller
             ];
         }
 
-        // Collection-integration mode + per-card status. Owners only — viewers
-        // never see collection state for someone else's deck.
+        // Collection-integration mode + per-card status. Owners only —
+        // viewers never see collection state for someone else's deck. Per-row
+        // status badges are mode-C-only by design: mode B decks (the user has
+        // a collection but hasn't engaged with this deck via pivot) get a
+        // count-based display in Phase 2.2 instead, and mode A is silent.
         $collectionMode = DeckCollectionStatusService::MODE_A;
         $collectionStatuses = [];
         if ($request->user()?->id === $deck->user_id) {

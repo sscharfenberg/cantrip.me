@@ -30,6 +30,19 @@ class DeckCollectionStatusServiceTest extends TestCase
 {
     use RefreshDatabase;
 
+    /**
+     * Hard-skip on real MariaDB connections. See
+     * {@see DeckCardCardStackPivotTest::setUp} for the rationale.
+     */
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        if (DB::connection()->getDriverName() === 'mysql') {
+            $this->markTestSkipped('Skipped on MariaDB — RefreshDatabase would wipe live data. Run via the default `composer test` (SQLite).');
+        }
+    }
+
     private function makeOracleCard(string $name): OracleCard
     {
         return OracleCard::create([
@@ -146,6 +159,37 @@ class DeckCollectionStatusServiceTest extends TestCase
     }
 
     #[Test]
+    public function mode_c_is_sticky_after_all_pivot_rows_are_cascade_deleted(): void
+    {
+        // Regression: deleting a claimed card stack from the collection
+        // cascade-removes the pivot row. Before the fix, that left the
+        // deck with zero pivot rows, dropping it from C back to B and
+        // hiding every status badge — including the `not_owned` badge
+        // the user was expecting on the now-orphaned deck card row.
+        // The sticky `decks.collection_mode = 'C'` pin keeps the deck in
+        // mode C so the badge layer keeps rendering.
+        $user = User::factory()->create();
+        $oracle = $this->makeOracleCard('Sticky Card');
+        $default = $this->makeDefaultCard($oracle);
+        $stack = $this->makeCardStack($user, $default);
+        // Unrelated stack so the user still owns a collection after the
+        // claimed stack is deleted (otherwise mode A would short-circuit).
+        $unrelatedOracle = $this->makeOracleCard('Filler');
+        $unrelatedDefault = $this->makeDefaultCard($unrelatedOracle);
+        $this->makeCardStack($user, $unrelatedDefault);
+
+        $deck = $this->makeDeck($user);
+        $deckCard = $this->makeDeckCard($deck, $oracle, $default);
+        $deckCard->cardStacks()->attach($stack->id);
+        // Simulate the wizard pinning the mode after a claim.
+        $deck->update(['collection_mode' => 'C']);
+
+        $stack->delete(); // cascade removes the only pivot row.
+
+        $this->assertSame('C', DeckCollectionStatusService::effectiveMode($user->fresh(), $deck->fresh()));
+    }
+
+    #[Test]
     public function mode_c_when_deck_has_at_least_one_pivot_row(): void
     {
         $user = User::factory()->create();
@@ -209,6 +253,57 @@ class DeckCollectionStatusServiceTest extends TestCase
         $this->assertSame('claimed_by_other_deck', $statuses[$deckCardC->id]);
         $this->assertSame('wrong_printing', $statuses[$deckCardD->id]);
         $this->assertSame('not_owned', $statuses[$deckCardE->id]);
+    }
+
+    #[Test]
+    public function partial_coverage_leftover_row_resolves_to_not_owned_not_claimed_for_this_deck(): void
+    {
+        // Regression: deck wants 4×, user owns 3× of same printing, wizard
+        // splits the deck card into a claimed 3-row + leftover 1-row. The
+        // leftover row must NOT inherit `claimed_for_this_deck` from its
+        // sibling — the resolver previously matched on deck_id only, so any
+        // sibling row in the same deck would push the leftover to a green
+        // check. Fix scoped the match to the exact deck_card_id.
+        $user = User::factory()->create();
+        $deck = $this->makeDeck($user);
+        $oracle = $this->makeOracleCard('Erratic Portal');
+        $default = $this->makeDefaultCard($oracle);
+        $stack = $this->makeCardStack($user, $default, amount: 3);
+
+        $claimedRow = $this->makeDeckCard($deck, $oracle, $default, quantity: 3);
+        $leftoverRow = $this->makeDeckCard($deck, $oracle, $default, quantity: 1);
+        $claimedRow->cardStacks()->attach($stack->id);
+
+        $statuses = DeckCollectionStatusService::statusForDeck($deck);
+
+        $this->assertSame('claimed_for_this_deck', $statuses[$claimedRow->id]);
+        $this->assertSame('not_owned', $statuses[$leftoverRow->id]);
+    }
+
+    #[Test]
+    public function partial_coverage_leftover_falls_back_to_wrong_printing_when_other_printings_exist(): void
+    {
+        // Same partial-coverage shape as above, plus a stack of a different
+        // printing of the same oracle card. The leftover row should report
+        // `wrong_printing` (a swap is actionable) rather than `not_owned`
+        // (which would suggest the user has nothing).
+        $user = User::factory()->create();
+        $deck = $this->makeDeck($user);
+        $set = $this->makeSet();
+        $oracle = $this->makeOracleCard('Two-Print Card');
+        $primary = $this->makeDefaultCard($oracle, $set);
+        $alt = $this->makeDefaultCard($oracle, $set);
+        $stack = $this->makeCardStack($user, $primary, amount: 3);
+        $this->makeCardStack($user, $alt);
+
+        $claimedRow = $this->makeDeckCard($deck, $oracle, $primary, quantity: 3);
+        $leftoverRow = $this->makeDeckCard($deck, $oracle, $primary, quantity: 1);
+        $claimedRow->cardStacks()->attach($stack->id);
+
+        $statuses = DeckCollectionStatusService::statusForDeck($deck);
+
+        $this->assertSame('claimed_for_this_deck', $statuses[$claimedRow->id]);
+        $this->assertSame('wrong_printing', $statuses[$leftoverRow->id]);
     }
 
     #[Test]
