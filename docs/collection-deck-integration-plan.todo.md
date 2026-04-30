@@ -17,7 +17,7 @@ Two design refinements emerged during smoke-testing and are now baked in:
 
 The minimum that ships the headline value: a deck owner can claim physical copies from their collection at the planned→finished transition, and the deck view surfaces ownership status per card.
 
-### Step 1.1 — Schema + lifecycle
+### Step 1.1 — Schema + lifecycle ✅ shipped
 
 **Migrations** (project convention: edit existing migrations for existing tables; only create new files for genuinely new tables):
 - **New** `create_deck_card_card_stack_table.php` — pivot table for the new many-to-many.
@@ -25,6 +25,7 @@ The minimum that ships the headline value: a deck owner can claim physical copie
   - Composite primary key on `(deck_card_id, card_stack_id)`.
 - **Edit** `2026_04_04_205106_create_deck_cards_table.php` — remove the dormant `card_stack_id` column + its index from the original migration.
 - **Edit** `0001_01_01_000000_create_users_table.php` — add `collection_integration_enabled` (`boolean`, `default true`, `not null`). User-level opt-out toggle for the entire collection-integration feature; default `true` for everyone (the inferred mode keeps users without stacks silent until data exists).
+- **Edit** `2026_04_04_205056_create_decks_table.php` — add `collection_mode` (nullable `string`, length 1). Sticky mode-C marker; null = mode is inferred (A or B based on user state), `'C'` = the deck has been pinned by the wizard or per-card assign. Stays put even if every pivot row is later cascade-deleted via stack removal. Resolves the otherwise-implicit C→B regression that hides badges when users delete claimed stacks. *(Added during smoke-testing — see "Status" at the top of this doc.)*
 
 **Models:**
 - `app/Models/DeckCard.php`
@@ -54,14 +55,15 @@ The minimum that ships the headline value: a deck owner can claim physical copie
 
 ---
 
-### Step 1.2 — Mode detection + status query
+### Step 1.2 — Mode detection + status query ✅ shipped
 
 **New service:** `app/Services/DeckCollectionStatusService.php`
 - `effectiveMode(User $user, Deck $deck): string` — returns `'A' | 'B' | 'C'`.
   - **Early-return:** `if (! $user->collection_integration_enabled) return 'A'`. The user-level opt-out forces mode A regardless of stacks/pivot state.
-  - Counts user's `card_stacks` (cached on `$user->loadCount('cardStacks')` for the request).
+  - Counts user's `card_stacks` (zero → A regardless of deck state).
+  - **Sticky-pin check:** `$deck->collection_mode === 'C'` short-circuits to C before counting pivots, so the deck stays in C even if every claimed stack was later deleted from the collection.
   - Counts pivot rows for this deck.
-  - A: zero stacks; B: stacks but no pivot for this deck; C: pivot rows exist.
+  - A: zero stacks; B: stacks but neither sticky-pinned nor with pivot rows; C: sticky-pinned OR pivot rows exist.
 
 **Share the toggle to the frontend:** `app/Http/Middleware/HandleInertiaRequests.php` — extend the `auth.user` block with `'collection_integration_enabled' => $request->user()->collection_integration_enabled` (mirrors the existing `deck_view_default` / `deck_sort_default` pattern at lines 51–52).
 - `statusForDeck(Deck $deck): array<string, string>` — keyed by `deck_card_id`, value is one of `claimed_for_this_deck | available | claimed_by_other_deck | wrong_printing | not_owned`. Single batched query joining `deck_cards`, `card_stacks`, pivot, and `oracle_cards.id` for the wrong-printing fallback.
@@ -80,7 +82,7 @@ The minimum that ships the headline value: a deck owner can claim physical copie
 
 ---
 
-### Step 1.3 — Per-row status badges (mode C)
+### Step 1.3 — Per-row status badges (mode C) ✅ shipped
 
 **New Vue component:** `resources/app/components/Deck/CollectionStatusBadge.vue`
 - Props: `status: 'claimed_for_this_deck' | 'available' | 'claimed_by_other_deck' | 'wrong_printing' | 'not_owned'`.
@@ -104,7 +106,7 @@ The minimum that ships the headline value: a deck owner can claim physical copie
 
 ---
 
-### Step 1.4 — Wizard at planned→finished (new page)
+### Step 1.4 — Wizard at planned→finished (new page) ✅ shipped
 
 **Routing:**
 - New auth-gated route: `GET /decks/{deck}/finalize` → `DecksController::finalize`, name `decks.finalize`.
@@ -152,7 +154,7 @@ The minimum that ships the headline value: a deck owner can claim physical copie
 
 ---
 
-### Step 1.5 — Settings UI for the collection-integration toggle
+### Step 1.5 — Settings UI for the collection-integration toggle ✅ shipped
 
 Surfaces the user-level opt-out flag added in step 1.1. Mirrors the existing `deck_view_default` / `deck_sort_default` pattern.
 
@@ -310,8 +312,6 @@ The lifecycle guards in Phase 1 block container moves on claimed stacks with the
 
 ## Cross-cutting notes
 
-**Migration safety:** Step 1.1's migration drops a column. Run on staging first, verify no production data referenced it (we know it's dormant, but worth one final `SELECT COUNT(*) WHERE card_stack_id IS NOT NULL` before commit).
-
 **Naming conventions:**
 - Pivot table: `deck_card_card_stack` (alphabetical, Laravel convention).
 - Pivot model: not needed (use `BelongsToMany` direct).
@@ -322,12 +322,10 @@ The lifecycle guards in Phase 1 block container moves on claimed stacks with the
 - Wizard submit (step 1.4): full redirect to `decks.show` (state changed, full reload appropriate).
 - Container move blocked (step 1.1): handled at the FormRequest layer, no reload concerns.
 
+**Test-suite split.** During Phase 1 implementation the test suite was split into two physical PHPUnit testsuites — `Local` (SQLite, write-heavy fixtures via `RefreshDatabase`) and `Staging` (MariaDB, read-only against real Scryfall data). `composer test` runs `Local`, `composer test:mysql` runs `Staging`. The split exists because `RefreshDatabase` runs `migrate:fresh` on any non-`:memory:` connection — earlier all tests ran together and accidentally wiped the staging DB. See `CLAUDE.md` § Testing and `README.md` § Backend commands for the rules on which directory + skip-guard a future test belongs to.
+
 **What's intentionally left for later:**
 - Bulk reconcile button (a deck-level "auto-claim from collection") — not in scope; the wizard covers the planned→finished moment, the per-card picker covers ongoing maintenance.
 - Mode B → C upgrade prompt ("would you like to start tracking specific copies?") — implicit upgrade-by-acting is enough for V1.
+- Explicit C → B action ("clear all collection assignments") — schema supports it (set `decks.collection_mode = null`), no UI yet. Phase 2.x.
 - Sleeved/foil-condition tracking per assignment — see "Out of scope" in the design doc.
-
-**Definition of done for Phase 1:**
-- A user with a non-empty collection can hit "Set to finished" on a planned deck, get the wizard page, claim some/all needed copies, submit, and see the per-row status badges on the deck show page after.
-- A user with no collection sees the same deck builder behaviour as before — no regressions.
-- All FK cascades verified; container moves blocked for claimed stacks.
