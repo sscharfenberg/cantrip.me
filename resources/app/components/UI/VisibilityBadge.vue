@@ -32,17 +32,20 @@ const { t } = useI18n();
     width: map.get(s.$components, "visibility-badge", "size");
     height: map.get(s.$components, "visibility-badge", "size");
     padding: map.get(s.$components, "visibility-badge", "padding");
+    border: map.get(s.$components, "visibility-badge", "border") solid transparent;
 
     border-radius: map.get(s.$components, "visibility-badge", "radius");
 
     &--public {
-        background-color: map.get(c.$components, "visibility-badge", "public", "background");
-        color: map.get(c.$components, "visibility-badge", "public", "surface");
+        background-color: map.get(c.$state, "error", "background");
+        color: map.get(c.$state, "error", "surface");
+        border-color: map.get(c.$state, "error", "border");
     }
 
     &--private {
-        background-color: map.get(c.$components, "visibility-badge", "private", "background");
-        color: map.get(c.$components, "visibility-badge", "private", "surface");
+        background-color: map.get(c.$state, "success", "background");
+        color: map.get(c.$state, "success", "surface");
+        border-color: map.get(c.$state, "success", "border");
     }
 }
 </style>

@@ -718,17 +718,17 @@
                     "A": {
                         "label": "Tracking aus",
                         "description": "Dieses Deck ist nicht mit deiner Sammlung verknüpft. Es werden keine Status-Badges pro Karte angezeigt.",
-                        "tooltip": "Sammlungstracking: aus."
+                        "tooltip": "Sammlungsintegration: aus."
                     },
                     "B": {
                         "label": "Implizites Tracking",
                         "description": "Dieses Deck zeigt zählbasierte Abdeckung aus deiner Sammlung: wie viele Exemplare in der Deckbox liegen, wie viele woanders sind und wie viele fehlen.",
-                        "tooltip": "Sammlungstracking: implizit / zählbasiert."
+                        "tooltip": "Sammlungsintegration: implizit / Anzahlbasiert."
                     },
                     "C": {
-                        "label": "Exemplar-genaues Tracking",
+                        "label": "Explizites Tracking",
                         "description": "Konkrete Exemplare aus deiner Sammlung sind diesem Deck zugeordnet. Jede Kartenzeile zeigt, ob das Exemplar reserviert, verfügbar, von einem anderen Deck reserviert oder gar nicht im Besitz ist.",
-                        "tooltip": "Sammlungstracking: exemplargenau."
+                        "tooltip": "Sammlungsintegration: exemplargenau."
                     }
                 },
                 "modal_title": "Sammlungs-Tracking",

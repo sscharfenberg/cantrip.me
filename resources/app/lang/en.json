@@ -723,12 +723,12 @@
                     "B": {
                         "label": "Implicit tracking",
                         "description": "This deck shows count-based coverage from your collection: how many copies are in this deck's deckbox, how many sit elsewhere, and how many are missing.",
-                        "tooltip": "Collection tracking: implicit count-based."
+                        "tooltip": "Collection tracking: implicit quantity-based."
                     },
                     "C": {
-                        "label": "Per-copy tracking",
+                        "label": "Explicit tracking",
                         "description": "Specific physical copies from your collection are claimed for this deck. Each card row shows whether it's claimed, available, claimed by another deck, or missing.",
-                        "tooltip": "Collection tracking: per-copy."
+                        "tooltip": "Collection tracking: explicit per-copy."
                     }
                 },
                 "modal_title": "Collection tracking",

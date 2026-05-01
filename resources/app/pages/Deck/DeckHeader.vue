@@ -91,12 +91,8 @@ const { t } = useI18n();
             </badge>
             <deck-state :state="deck.state" />
             <badge type="info"><icon name="deck" :size="1" />{{ deck.card_count }}</badge>
+            <collection-mode-badge v-if="isOwner" :mode="collectionBadgeMode" @click="showCollectionModeModal = true" />
             <visibility-badge :visibility="deck.visibility" />
-            <collection-mode-badge
-                v-if="isOwner"
-                :mode="collectionBadgeMode"
-                @click="showCollectionModeModal = true"
-            />
         </div>
         <paragraph v-if="deck.description">{{ deck.description }}</paragraph>
         <deck-legality-panel v-if="violations.length > 0" :violations="violations" :cards="cards" />
@@ -114,6 +110,7 @@ const { t } = useI18n();
 <style lang="scss" scoped>
 @use "sass:map";
 @use "Abstracts/colors" as c;
+@use "Abstracts/sizes" as s;
 
 :deep(.badge):not(.warning) {
     padding: 0.2rem 0.5rem;
@@ -126,6 +123,10 @@ const { t } = useI18n();
     margin: 0;
 
     white-space: pre-wrap;
+}
+
+:deep(.visibility-badge) {
+    border-radius: map.get(s.$components, "badge", "radius");
 }
 
 .deck-meta--has-hero {
