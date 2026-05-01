@@ -150,7 +150,7 @@ setBreadcrumbs([{ labelKey: "pages.collection.link" }]);
             {{ $t("pages.add_cards.link") }}
         </Link>
     </nav>
-    <collection-card-stacks v-if="table.rows.length > 0" :table="table" />
+    <collection-card-stacks v-if="stats.totalCards > 0" :table="table" />
     <delete-collection-modal
         v-if="showNukeModal"
         :total-cards="stats.totalCards"
