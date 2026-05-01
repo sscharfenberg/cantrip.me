@@ -94,6 +94,21 @@ function onSetBuilt(): void {
     router.visit(`/decks/${props.deck.id}/finalize`);
 }
 /**
+ * "Set to planned" handler — pure built→planned state flip. Pivot rows
+ * and `decks.container_id` are deliberately preserved (state and
+ * collection_mode are orthogonal: claims survive across state changes).
+ * Users who want a clean slate can clear claims via the deck-header
+ * collection-mode modal's "Clear all collection assignments" action.
+ */
+function onSetPlanned(): void {
+    closePopover();
+    router.patch(
+        `/decks/${props.deck.id}/state`,
+        { state: "planned" },
+        { preserveScroll: true }
+    );
+}
+/**
  * Delete button handler. Skips the confirm prompt for an effectively-empty
  * deck and fires the DELETE directly. Same UX as the deck-list link.
  */
@@ -132,6 +147,12 @@ function onDeleteClick(): void {
                 <button class="popover-list-item" @click="onSetBuilt">
                     <icon name="finished" :size="1" />
                     {{ $t("pages.decks.actions.set_built") }}
+                </button>
+            </li>
+            <li v-else-if="deck.state === 'built'">
+                <button class="popover-list-item" @click="onSetPlanned">
+                    <icon name="planned" :size="1" />
+                    {{ $t("pages.decks.actions.set_planned") }}
                 </button>
             </li>
             <li>
