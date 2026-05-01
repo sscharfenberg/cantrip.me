@@ -706,6 +706,13 @@
                 "wrong_printing": "Du besitzt einen anderen Druck dieser Karte.",
                 "not_owned": "Du besitzt diese Karte nicht."
             },
+            "collection_implicit_status": {
+                "all_in_deckbox": "Alle {needed} Exemplare liegen in der Deckbox dieses Decks.",
+                "in_deckbox_and_elsewhere": "{in_deckbox} von {needed} in der Deckbox dieses Decks, {elsewhere} woanders.",
+                "all_elsewhere": "{elsewhere} von {needed} im Besitz, alle in anderen Containern.",
+                "partial_with_missing": "{owned} von {needed} im Besitz ({in_deckbox} hier, {elsewhere} woanders). {missing} fehlen.",
+                "all_missing": "Du besitzt diese Karte nicht ({needed} fehlen)."
+            },
             "finalize": {
                 "title": "{name} fertigstellen",
                 "heading": "Ordne dem Deck physische Kartenstapel zu",

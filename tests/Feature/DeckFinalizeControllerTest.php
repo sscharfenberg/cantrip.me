@@ -111,11 +111,12 @@ class DeckFinalizeControllerTest extends TestCase
         ]);
     }
 
-    private function makeCardStack(User $user, DefaultCard $default, int $amount = 1): CardStack
+    private function makeCardStack(User $user, DefaultCard $default, ?Container $container = null, int $amount = 1): CardStack
     {
         return CardStack::create([
             'user_id' => $user->id,
             'default_card_id' => $default->id,
+            'container_id' => $container?->id,
             'amount' => $amount,
             'finish' => 1,
             'language' => 'en',
@@ -228,29 +229,61 @@ class DeckFinalizeControllerTest extends TestCase
     }
 
     #[Test]
-    public function deck_show_keeps_mode_b_decks_silent_until_phase_2_2(): void
+    public function deck_show_emits_mode_b_implicit_status_per_card(): void
     {
-        // Per-row badges are mode-C-only by design. Mode B decks (the user
-        // owns stacks but hasn't claimed anything for this deck yet) should
-        // expose `collectionMode: 'B'` but no per-card statuses — the
-        // count-based display lands in Phase 2.2.
+        // Mode B decks expose `collectionMode: 'B'` plus per-card
+        // `collection_implicit_status` counts (Phase 2.2). The mode-C
+        // `collection_status` field stays null on mode-B decks — the two
+        // render paths are mutually exclusive.
         $user = User::factory()->create();
-        $deckA = $this->makeDeck($user);
-        $deckB = $this->makeDeck($user);
+        $deckbox = Container::create([
+            'user_id' => $user->id,
+            'name' => 'Deckbox',
+            'type' => 'deckbox',
+            'sort_order' => 1,
+        ]);
+        $deck = $this->makeDeck($user);
+        $deck->update(['container_id' => $deckbox->id]);
         $oracle = $this->makeOracleCard();
         $default = $this->makeDefaultCard($oracle);
-        $stack = $this->makeCardStack($user, $default);
+        $this->makeCardStack($user, $default, $deckbox);
+        $this->makeDeckCard($deck->fresh(), $oracle, $default, quantity: 1);
 
-        $deckCardA = $this->makeDeckCard($deckA, $oracle, $default);
-        $deckCardA->cardStacks()->attach($stack->id);
-        $this->makeDeckCard($deckB, $oracle, $default);
-
-        $response = $this->actingAs($user)->get("/decks/{$deckB->id}");
+        $response = $this->actingAs($user)->get("/decks/{$deck->id}");
 
         $response->assertOk();
         $response->assertInertia(fn ($page) => $page
             ->where('collectionMode', 'B')
             ->where('cards.0.collection_status', null)
+            ->where('cards.0.collection_implicit_status.in_deckbox', 1)
+            ->where('cards.0.collection_implicit_status.elsewhere', 0)
+            ->where('cards.0.collection_implicit_status.missing', 0)
+        );
+    }
+
+    #[Test]
+    public function deck_show_keeps_mode_b_silent_when_deck_has_no_container(): void
+    {
+        // Mode B still resolves (so the planned→built wizard fires
+        // correctly — that's where the user picks a container), but
+        // the per-card "in this deckbox / elsewhere" partition has no
+        // anchor without `decks.container_id`. The controller therefore
+        // ships a null `collection_implicit_status` per card so badges
+        // stay silent.
+        $user = User::factory()->create();
+        $deck = $this->makeDeck($user);
+        $oracle = $this->makeOracleCard();
+        $default = $this->makeDefaultCard($oracle);
+        $this->makeCardStack($user, $default);
+        $this->makeDeckCard($deck, $oracle, $default);
+
+        $response = $this->actingAs($user)->get("/decks/{$deck->id}");
+
+        $response->assertOk();
+        $response->assertInertia(fn ($page) => $page
+            ->where('collectionMode', 'B')
+            ->where('cards.0.collection_status', null)
+            ->where('cards.0.collection_implicit_status', null)
         );
     }
 

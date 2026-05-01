@@ -706,6 +706,13 @@
                 "wrong_printing": "You own a different printing of this card.",
                 "not_owned": "You don't own this card."
             },
+            "collection_implicit_status": {
+                "all_in_deckbox": "All {needed} copies are in this deck's deckbox.",
+                "in_deckbox_and_elsewhere": "{in_deckbox} of {needed} in this deck's deckbox, {elsewhere} elsewhere.",
+                "all_elsewhere": "{elsewhere} of {needed} owned, all in other containers.",
+                "partial_with_missing": "{owned} of {needed} owned ({in_deckbox} here, {elsewhere} elsewhere). {missing} missing.",
+                "all_missing": "You don't own this card ({needed} missing)."
+            },
             "finalize": {
                 "title": "Finalize {name}",
                 "heading": "Please assign physical card stacks to finalize the deck",

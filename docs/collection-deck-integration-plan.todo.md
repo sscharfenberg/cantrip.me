@@ -11,7 +11,7 @@ Two design refinements emerged during smoke-testing and are now baked in:
 - **Sticky mode C.** Originally mode was inferred purely from current pivot-row count. Deleting the last claimed stack from the collection cascade-removed its pivot row and silently dropped the deck back to mode B, hiding all status badges. Per the design doc, C→B is rare and explicit ("clear all collection assignments"), never implicit. Fix: `decks.collection_mode` (nullable string, length 1) gets pinned to `'C'` the first time the wizard claims a stack and stays put until a future explicit C→B action clears it. `effectiveMode` checks the pin before falling back to the pivot count.
 - **Mode-B decks stay silent.** A first-pass overshoot let mode-B decks render badges so a sibling deck's claim could surface as `claimed_by_other_deck`. That was design-non-faithful — mode B was always meant to be quiet until Phase 2.2's count-based display ships. Reverted; cross-deck claim visibility is now explicitly Phase 2.2 territory.
 
-**Phase 2 is partially shipped.** 2.1 (per-card assign picker) is done and smoke-tested on staging. Four steps left — 2.2 mode-B implicit display, 2.3 mode-aware gating audit, 2.4 "bought new" wizard checkbox, 2.5 collection-side claim badges. Pick whichever makes sense next.
+**Phase 2 is partially shipped.** 2.1 (per-card assign picker) and 2.2 (mode-B implicit display) are done and smoke-tested on staging. Four steps left — 2.3 mode-aware gating audit (now includes the deck-edit container picker rolled in from 2.2), 2.4 "bought new" wizard checkbox, 2.5 collection-side claim badges, 2.6 collection-mode badge + modal in the deck header.
 
 ## Phase 1 — MVP (shipped)
 
@@ -201,18 +201,24 @@ Phase 2 fills in the corners. Each step is self-contained and can ship independe
 
 ---
 
-### Step 2.2 — Mode B implicit display
+### Step 2.2 — Mode B implicit display ✅ shipped
 
-Different render path from mode C — count-based, not status-icon based.
+Different render path from mode C — coverage-icon-based with a tooltip carrying the full breakdown.
 
 **Service additions:**
-- `DeckCollectionStatusService::implicitStatusForDeck(Deck $deck): array` — keyed by `deck_card_id`, value is `{ in_deckbox: int, elsewhere: int, missing: int }`. Counts based on `decks.container_id`.
+- `DeckCollectionStatusService::implicitStatusForDeck(Deck $deck): array` — keyed by `deck_card_id`, value is `{ in_deckbox: int, elsewhere: int, missing: int }`. One batched query over `card_stacks` matching the deck's printings, partitioned in PHP by whether `container_id` matches `decks.container_id`. Counts at face value (oversized stacks count fully); wrong-printing copies excluded.
 
-**Controller wiring:** `DecksController::show()` — when mode === `'B'`, inject the implicit-status map alongside the deck card payload.
+**Controller wiring:** `DecksController::show()` — when `mode === 'B'` *and* `deck.container_id !== null`, inject the implicit-status map per card. Without an anchor the per-card payload stays null so the badges silent themselves; the deck still resolves to mode B at the menu/wizard layer (so the planned→built wizard fires correctly — that's where the user picks a container).
 
-**Frontend:** small per-row count component (different from `CollectionStatusBadge`). Renders compact text like `[3 here · 1 elsewhere]` or similar — TBD when I sketch the row layout.
+**Frontend:** new `resources/app/components/Deck/CollectionImplicitBadge.vue`. Single storage icon, three colour states using the existing `c.$state` map (success / warning / error) — success when fully covered with all copies in the deck's deckbox, warning when fully covered but some copies sit elsewhere, error when copies are missing. Tooltip phrasing branches on count shape (5 cases: all-here / mixed / all-elsewhere / partial-with-missing / all-missing). Same `inline | corner` variants as `CollectionStatusBadge` so it slots into both card views.
 
-**Tests:** service-level test for the count math.
+**Types:** `CollectionImplicitStatus` interface added to `types/deckPage.ts`; new `collection_implicit_status: CollectionImplicitStatus | null` on `DeckCardRow`.
+
+**i18n:** `pages.deck.collection_implicit_status.{all_in_deckbox, in_deckbox_and_elsewhere, all_elsewhere, partial_with_missing, all_missing}` in `de.json` + `en.json`.
+
+**Tests:** 6 new SQLite cases in `DeckCollectionStatusServiceTest` (count partitioning, unsorted-as-elsewhere, all-missing, wrong-printing-not-counted, oversized-counted-at-face-value), plus an updated controller test asserting the live payload (mode B emits the implicit status; no-container deck stays mode B with null implicit status).
+
+**Smoke-test fallout:** found that the actions menu's "Set to finished" path uses `collectionMode === 'A'` to decide direct-patch vs wizard. The original 2.2 mode-A fallback for "no container_id" broke this — a planned deck with stacks but no container couldn't reach the wizard. Reverted the fallback in `effectiveMode` and moved the gating to the controller layer (badges silent, mode still B); rolled the missing "set container on a built deck" UI into 2.3.
 
 ---
 
@@ -227,7 +233,9 @@ Most gating happens inline as steps 1.3, 1.4, 2.1, 2.2 are built (each component
 - Deck show payload — controller doesn't compute status data when mode === `'A'` (avoid unnecessary queries).
 - "Move to deck's deckbox?" container hint — only after a successful assignment, only in mode C.
 
-**Tests:** check controller payload shape per mode (3 feature tests). UI smoke per mode.
+**Container picker on the deck-edit page (rolled in here from 2.2 smoke-testing).** Currently `decks.container_id` is only writable through the planned→built wizard. Once a deck is built there's no UI to add, change, or remove its deckbox — the only path is `php artisan tinker` or a SQL update. Add a container `MonoSelect` to `CreateEditDeckPage.vue` (deckboxes pinned to the top with the same "Recommended" hint as the wizard, an explicit "— No container —" option for clearing) and wire `container_id` through `EditDeckRequest` + `DecksController::update`. Mode-B decks become reachable end-to-end without leaving the UI; mode-A decks gain a way to opt into mode B without going through the planned→built dance again.
+
+**Tests:** check controller payload shape per mode (3 feature tests). Feature test for the new container-picker path on the deck-edit endpoint. UI smoke per mode.
 
 ---
 
@@ -311,6 +319,46 @@ The lifecycle guards in Phase 1 block container moves on claimed stacks with the
 **Definition of done for 2.5:**
 - Every claimed stack in the collection visibly says which deck claims it, with a clickable link to that deck.
 - The lifecycle-guard error stays as-is, but the user can now follow the link to fix the cause instead of hunting.
+
+---
+
+### Step 2.6 — Collection-mode badge + modal in the deck header
+
+The implicit-mode logic is invisible to users — they can't tell whether a deck is in mode A / B / C without reading the docs. This step surfaces the current mode in `DeckHeader` and gives the user explicit control over the two transitions the design has been deferring (B→C promote, C→B clear-all).
+
+**Frontend:**
+- New `resources/app/components/Deck/CollectionModeBadge.vue` rendered owner-only in `DeckHeader`'s badge row. Icon + label key, tooltip with one-line description. Click opens the modal.
+- New `resources/app/pages/Deck/Modals/CollectionModeModal.vue`. Sections:
+  - **Current mode**: heading + paragraph explaining what it does.
+  - **Why am I in this mode?**: short rule recap (master switch off / no stacks / no claims yet / claims exist) — phrased from the live context prop, not generic.
+  - **Actions**: one button per available transition.
+    - **In A**: link to settings (master switch off) or `/collection/add` (no stacks). Read-only otherwise.
+    - **In B**: "Switch to per-copy tracking" — pins `decks.collection_mode = 'C'` without claiming anything. After promotion the per-card "Assign physical copy" menu becomes reachable; row badges flip to mode-C status (no `claimed_for_this_deck` yet — those land via the picker).
+    - **In C**: "Clear all collection assignments" — destructive, two-step confirm in-modal. Detaches every pivot row for the deck and nulls the sticky pin so the deck cleanly returns to mode B.
+
+**Backend:**
+- New `app/Services/DeckCollectionModeService.php`:
+  - `promoteToExplicit(Deck $deck): void` — sets `collection_mode = 'C'`, no-op if already.
+  - `clearAssignments(Deck $deck): void` — atomic detach-all + null the sticky pin.
+- New `PromoteDeckCollectionModeRequest` + `ClearDeckCollectionAssignmentsRequest` (owner gates).
+- New `DecksController::promoteCollectionMode` (PATCH) + `DecksController::clearCollectionAssignments` (DELETE) returning a `RedirectResponse` with flash. Mirrors the `setVisibility` / `setState` shape.
+- Routes (web, owner-gated):
+  - `PATCH /decks/{deck}/collection-mode/promote` named `decks.collection-mode.promote`
+  - `DELETE /decks/{deck}/collection-mode/assignments` named `decks.collection-mode.clear`
+
+**Controller payload extension:** `DecksController::show` ships a top-level `collectionModeContext: { master_switch_enabled, has_stacks, has_container, claimed_count }` prop alongside `collectionMode` so the modal can phrase the "why" from live state instead of recomputing client-side.
+
+**i18n:** new keys under `pages.deck.collection_mode.*` (badge labels, modal headings, why-recap copy, action button labels, confirm text, flash messages).
+
+**Tests:**
+- Service: `promoteToExplicit` is a no-op when already C; `clearAssignments` detaches pivots + nulls pin atomically; `clearAssignments` is a no-op for mode A/B.
+- Feature: both endpoints owner-gated, redirect with flash, persist correctly.
+
+**Definition of done for 2.6:**
+- A header badge tells the user which mode they're in at a glance.
+- The modal explains *why* and offers the actionable transitions where they exist.
+- B→C promote works without requiring the wizard or any pre-claimed stacks.
+- C→B clear-all detaches every pivot for the deck and nulls the sticky pin in a single transaction.
 
 ---
 

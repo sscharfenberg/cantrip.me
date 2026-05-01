@@ -149,6 +149,12 @@ class DeckCollectionStatusServiceTest extends TestCase
     #[Test]
     public function mode_b_when_user_has_stacks_but_deck_has_no_pivot_rows(): void
     {
+        // Mode B is independent of `decks.container_id` so the
+        // planned→built finalize wizard still fires for users who
+        // haven't picked a container yet — the wizard is precisely
+        // where they pick one. Per-card badge rendering is gated
+        // separately at the controller layer (see
+        // {@see DeckFinalizeControllerTest}).
         $user = User::factory()->create();
         $oracle = $this->makeOracleCard('Sol Ring');
         $default = $this->makeDefaultCard($oracle);
@@ -304,6 +310,177 @@ class DeckCollectionStatusServiceTest extends TestCase
 
         $this->assertSame('claimed_for_this_deck', $statuses[$claimedRow->id]);
         $this->assertSame('wrong_printing', $statuses[$leftoverRow->id]);
+    }
+
+    // ── implicitStatusForDeck ─────────────────────────────────────────────
+
+    #[Test]
+    public function implicit_status_returns_in_deckbox_count_when_all_copies_sit_in_the_decks_container(): void
+    {
+        $user = User::factory()->create();
+        $deckbox = Container::create([
+            'user_id' => $user->id,
+            'name' => 'Deckbox',
+            'type' => 'deckbox',
+            'sort_order' => 1,
+        ]);
+        $oracle = $this->makeOracleCard('Lightning Bolt');
+        $default = $this->makeDefaultCard($oracle);
+        $this->makeCardStack($user, $default, $deckbox, amount: 4);
+        $deck = $this->makeDeck($user);
+        $deck->update(['container_id' => $deckbox->id]);
+        $deckCard = $this->makeDeckCard($deck->fresh(), $oracle, $default, quantity: 4);
+
+        $statuses = DeckCollectionStatusService::implicitStatusForDeck($deck->fresh());
+
+        $this->assertSame(
+            ['in_deckbox' => 4, 'elsewhere' => 0, 'missing' => 0],
+            $statuses[$deckCard->id]
+        );
+    }
+
+    #[Test]
+    public function implicit_status_partitions_stacks_by_container(): void
+    {
+        $user = User::factory()->create();
+        $deckbox = Container::create([
+            'user_id' => $user->id,
+            'name' => 'Deckbox',
+            'type' => 'deckbox',
+            'sort_order' => 1,
+        ]);
+        $binder = Container::create([
+            'user_id' => $user->id,
+            'name' => 'Binder',
+            'type' => 'binder',
+            'sort_order' => 2,
+        ]);
+        $oracle = $this->makeOracleCard('Brainstorm');
+        $default = $this->makeDefaultCard($oracle);
+        $this->makeCardStack($user, $default, $deckbox, amount: 2);
+        $this->makeCardStack($user, $default, $binder, amount: 1);
+        $deck = $this->makeDeck($user);
+        $deck->update(['container_id' => $deckbox->id]);
+        $deckCard = $this->makeDeckCard($deck->fresh(), $oracle, $default, quantity: 4);
+
+        $statuses = DeckCollectionStatusService::implicitStatusForDeck($deck->fresh());
+
+        // Owned 3 (2 here + 1 elsewhere), needed 4 → missing 1.
+        $this->assertSame(
+            ['in_deckbox' => 2, 'elsewhere' => 1, 'missing' => 1],
+            $statuses[$deckCard->id]
+        );
+    }
+
+    #[Test]
+    public function implicit_status_treats_unsorted_stacks_as_elsewhere(): void
+    {
+        // The deck has a `container_id`; stacks with `container_id = null`
+        // (unsorted) belong in `elsewhere`, not `in_deckbox`.
+        $user = User::factory()->create();
+        $deckbox = Container::create([
+            'user_id' => $user->id,
+            'name' => 'Deckbox',
+            'type' => 'deckbox',
+            'sort_order' => 1,
+        ]);
+        $oracle = $this->makeOracleCard('Counterspell');
+        $default = $this->makeDefaultCard($oracle);
+        $this->makeCardStack($user, $default, container: null, amount: 2);
+        $deck = $this->makeDeck($user);
+        $deck->update(['container_id' => $deckbox->id]);
+        $deckCard = $this->makeDeckCard($deck->fresh(), $oracle, $default, quantity: 2);
+
+        $statuses = DeckCollectionStatusService::implicitStatusForDeck($deck->fresh());
+
+        $this->assertSame(
+            ['in_deckbox' => 0, 'elsewhere' => 2, 'missing' => 0],
+            $statuses[$deckCard->id]
+        );
+    }
+
+    #[Test]
+    public function implicit_status_reports_missing_when_no_stacks_match_the_printing(): void
+    {
+        $user = User::factory()->create();
+        $deckbox = Container::create([
+            'user_id' => $user->id,
+            'name' => 'Deckbox',
+            'type' => 'deckbox',
+            'sort_order' => 1,
+        ]);
+        $oracle = $this->makeOracleCard('Mana Drain');
+        $default = $this->makeDefaultCard($oracle);
+        $deck = $this->makeDeck($user);
+        $deck->update(['container_id' => $deckbox->id]);
+        $deckCard = $this->makeDeckCard($deck->fresh(), $oracle, $default, quantity: 1);
+
+        $statuses = DeckCollectionStatusService::implicitStatusForDeck($deck->fresh());
+
+        $this->assertSame(
+            ['in_deckbox' => 0, 'elsewhere' => 0, 'missing' => 1],
+            $statuses[$deckCard->id]
+        );
+    }
+
+    #[Test]
+    public function implicit_status_does_not_count_wrong_printing_copies(): void
+    {
+        // The user owns a different printing of the same oracle card.
+        // Mode B is per-printing — the alt-printing stack must not
+        // contribute to either `in_deckbox` or `elsewhere`. (Mode C's
+        // wrong_printing status is the actionable hint for this case.)
+        $user = User::factory()->create();
+        $deckbox = Container::create([
+            'user_id' => $user->id,
+            'name' => 'Deckbox',
+            'type' => 'deckbox',
+            'sort_order' => 1,
+        ]);
+        $set = $this->makeSet();
+        $oracle = $this->makeOracleCard('Brainstorm');
+        $primary = $this->makeDefaultCard($oracle, $set);
+        $alt = $this->makeDefaultCard($oracle, $set);
+        $this->makeCardStack($user, $alt, $deckbox, amount: 3);
+        $deck = $this->makeDeck($user);
+        $deck->update(['container_id' => $deckbox->id]);
+        $deckCard = $this->makeDeckCard($deck->fresh(), $oracle, $primary, quantity: 1);
+
+        $statuses = DeckCollectionStatusService::implicitStatusForDeck($deck->fresh());
+
+        $this->assertSame(
+            ['in_deckbox' => 0, 'elsewhere' => 0, 'missing' => 1],
+            $statuses[$deckCard->id]
+        );
+    }
+
+    #[Test]
+    public function implicit_status_counts_oversized_stacks_at_face_value(): void
+    {
+        // Deck wants 1× but the user has a 4-stack of the printing in
+        // the deckbox. Counting at face value lets the tooltip phrase
+        // "all 4 are in this deck's deckbox" — not "1 of 1 here, 3
+        // somewhere unseen". Missing clamps to 0.
+        $user = User::factory()->create();
+        $deckbox = Container::create([
+            'user_id' => $user->id,
+            'name' => 'Deckbox',
+            'type' => 'deckbox',
+            'sort_order' => 1,
+        ]);
+        $oracle = $this->makeOracleCard('Sol Ring');
+        $default = $this->makeDefaultCard($oracle);
+        $this->makeCardStack($user, $default, $deckbox, amount: 4);
+        $deck = $this->makeDeck($user);
+        $deck->update(['container_id' => $deckbox->id]);
+        $deckCard = $this->makeDeckCard($deck->fresh(), $oracle, $default, quantity: 1);
+
+        $statuses = DeckCollectionStatusService::implicitStatusForDeck($deck->fresh());
+
+        $this->assertSame(
+            ['in_deckbox' => 4, 'elsewhere' => 0, 'missing' => 0],
+            $statuses[$deckCard->id]
+        );
     }
 
     #[Test]

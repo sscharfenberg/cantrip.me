@@ -2,6 +2,7 @@
 import { ref } from "vue";
 import { VueDraggable } from "vue-draggable-plus";
 import { useI18n } from "vue-i18n";
+import CollectionImplicitBadge from "@/components/Deck/CollectionImplicitBadge.vue";
 import CollectionStatusBadge from "@/components/Deck/CollectionStatusBadge.vue";
 import DeckCardActionsMenu from "@/pages/Deck/Actions/DeckCardActionsMenu.vue";
 import DeckCommanderActionsMenu from "@/pages/Deck/Actions/DeckCommanderActionsMenu.vue";
@@ -207,6 +208,12 @@ const previewTarget = ref<PreviewTarget | null>(null);
                             <collection-status-badge
                                 v-if="collectionMode === 'C' && card.collection_status"
                                 :status="card.collection_status"
+                                variant="inline"
+                            />
+                            <collection-implicit-badge
+                                v-if="collectionMode === 'B' && card.collection_implicit_status"
+                                :status="card.collection_implicit_status"
+                                :quantity="card.quantity"
                                 variant="inline"
                             />
                             <mana-cost :mana-cost="card.mana_cost" />

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { useI18n } from "vue-i18n";
+import CollectionImplicitBadge from "@/components/Deck/CollectionImplicitBadge.vue";
 import CollectionStatusBadge from "@/components/Deck/CollectionStatusBadge.vue";
 import DeckCardActionsMenu from "@/pages/Deck/Actions/DeckCardActionsMenu.vue";
 import DeckCommanderActionsMenu from "@/pages/Deck/Actions/DeckCommanderActionsMenu.vue";
@@ -122,6 +123,12 @@ const { allGroups } = useDeckSections(
                     <collection-status-badge
                         v-if="collectionMode === 'C' && card.collection_status"
                         :status="card.collection_status"
+                        variant="corner"
+                    />
+                    <collection-implicit-badge
+                        v-if="collectionMode === 'B' && card.collection_implicit_status"
+                        :status="card.collection_implicit_status"
+                        :quantity="card.quantity"
                         variant="corner"
                     />
                     <deck-card-actions-menu

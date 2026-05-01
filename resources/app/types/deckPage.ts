@@ -42,6 +42,21 @@ export type CollectionStatus =
     | "wrong_printing"
     | "not_owned";
 
+/**
+ * Mode-B "implicit deckbox" counts. Computed by
+ * `DeckCollectionStatusService::implicitStatusForDeck` and rendered by
+ * `CollectionImplicitBadge`. Null on `DeckCardRow.collection_implicit_status`
+ * outside mode B.
+ */
+export interface CollectionImplicitStatus {
+    /** Stacks of the matching printing in the deck's `container_id`. */
+    in_deckbox: number;
+    /** Stacks of the matching printing in any other container. */
+    elsewhere: number;
+    /** `max(0, deck_card.quantity - (in_deckbox + elsewhere))`. */
+    missing: number;
+}
+
 /** Default card (specific printing) attached to a deck card. */
 export interface DeckCardDefaultCard {
     id: string | null;
@@ -74,9 +89,15 @@ export interface DeckCardRow {
     /**
      * Per-card collection status, computed only for owners in mode C
      * (the deck has at least one claimed stack). Null in modes A and B
-     * and for non-owners. Mode B's count-based display is Phase 2.2 work.
+     * and for non-owners.
      */
     collection_status: CollectionStatus | null;
+    /**
+     * Per-card "implicit deckbox" counts, computed only for owners in
+     * mode B (the deck has a `container_id` but no pivot rows yet).
+     * Null in modes A and C and for non-owners.
+     */
+    collection_implicit_status: CollectionImplicitStatus | null;
     default_card: DeckCardDefaultCard;
 }
 

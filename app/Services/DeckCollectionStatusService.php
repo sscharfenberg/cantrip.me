@@ -19,7 +19,13 @@ use Illuminate\Support\Facades\DB;
  *   A — no collection: user has zero card_stacks (or has opted out via
  *       the master switch).
  *   B — implicit deckbox: user has card_stacks but this deck has not
- *       been pinned to mode C and has no pivot rows.
+ *       been pinned to mode C and has no pivot rows. Mode B is the
+ *       trigger for the planned→built finalize wizard — it includes
+ *       decks that don't yet have a `container_id` (the wizard is
+ *       precisely where the user picks one). Mode-B *badge rendering*
+ *       is gated separately on the controller side: the implicit-status
+ *       payload only ships when `decks.container_id` is set so the
+ *       per-row "in this deckbox / elsewhere" count has an anchor.
  *   C — explicit assignment: the deck is pinned via `decks.collection_mode`
  *       OR currently has at least one pivot row in `deck_card_card_stack`.
  *
@@ -157,6 +163,80 @@ class DeckCollectionStatusService
                 $dc->id,
                 $deck->id,
             );
+        }
+
+        return $result;
+    }
+
+    /**
+     * Per-deck-card "implicit deckbox" counts for mode B.
+     *
+     * For each deck_card row, partition the user's owned stacks of the
+     * matching printing into:
+     *
+     *  - `in_deckbox`   — stacks whose `container_id` matches the deck's
+     *                     `container_id` (the implicit-deckbox anchor).
+     *  - `elsewhere`    — stacks of the same printing in any other
+     *                     container (or unsorted).
+     *  - `missing`      — `max(0, deck_card.quantity - (in_deckbox + elsewhere))`.
+     *
+     * Wrong-printing copies are deliberately not counted. Mode B is
+     * per-printing — if the user wants to surface alt-printing
+     * coverage, mode C's per-card picker is the path.
+     *
+     * Counts are at face value: the same 4-stack of a printing shared
+     * by two split-row deck_cards (rare but legal) shows up as 4 on
+     * each row. Each row's `missing` math still uses its own
+     * `quantity`, so each row's signal stays correct in isolation —
+     * the user reading both rows gets a total that double-counts the
+     * stack, which is an acceptable V1 ambiguity.
+     *
+     * Caller must check {@see effectiveMode} === MODE_B first; this
+     * method does not re-check ownership or container presence.
+     *
+     * @return array<string, array{in_deckbox: int, elsewhere: int, missing: int}>
+     *                                                                             Keyed by deck_card_id.
+     */
+    public static function implicitStatusForDeck(Deck $deck): array
+    {
+        $userId = $deck->user_id;
+        $deckContainerId = $deck->container_id;
+
+        $deckCardRows = DeckCard::query()
+            ->where('deck_id', $deck->id)
+            ->get(['id', 'default_card_id', 'quantity']);
+
+        if ($deckCardRows->isEmpty()) {
+            return [];
+        }
+
+        $printingIds = $deckCardRows->pluck('default_card_id')->unique()->values();
+
+        $stacks = DB::table('card_stacks')
+            ->where('user_id', $userId)
+            ->whereIn('default_card_id', $printingIds)
+            ->get(['default_card_id', 'amount', 'container_id']);
+
+        $byPrinting = [];
+        foreach ($stacks as $row) {
+            $printingId = $row->default_card_id;
+            $byPrinting[$printingId] ??= ['in_deckbox' => 0, 'elsewhere' => 0];
+            if ($row->container_id === $deckContainerId) {
+                $byPrinting[$printingId]['in_deckbox'] += (int) $row->amount;
+            } else {
+                $byPrinting[$printingId]['elsewhere'] += (int) $row->amount;
+            }
+        }
+
+        $result = [];
+        foreach ($deckCardRows as $dc) {
+            $counts = $byPrinting[$dc->default_card_id] ?? ['in_deckbox' => 0, 'elsewhere' => 0];
+            $owned = $counts['in_deckbox'] + $counts['elsewhere'];
+            $result[$dc->id] = [
+                'in_deckbox' => $counts['in_deckbox'],
+                'elsewhere' => $counts['elsewhere'],
+                'missing' => max(0, (int) $dc->quantity - $owned),
+            ];
         }
 
         return $result;

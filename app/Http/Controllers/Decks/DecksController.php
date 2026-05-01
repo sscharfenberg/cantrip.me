@@ -9,9 +9,11 @@ use App\Enums\ContainerVisibility;
 use App\Enums\DeckState;
 use App\Formats\FormatProfile;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Decks\ClearDeckCollectionAssignmentsRequest;
 use App\Http\Requests\Decks\DeleteDeckRequest;
 use App\Http\Requests\Decks\EditDeckRequest;
 use App\Http\Requests\Decks\FinalizeDeckRequest;
+use App\Http\Requests\Decks\PromoteDeckCollectionModeRequest;
 use App\Http\Requests\Decks\SetDeckCommanderHeroImageRequest;
 use App\Http\Requests\Decks\SetDeckCompanionHeroImageRequest;
 use App\Http\Requests\Decks\SetDeckHeroImageRequest;
@@ -26,6 +28,7 @@ use App\Models\DeckCategory;
 use App\Models\DefaultCard;
 use App\Models\OracleCard;
 use App\Services\CommandZoneService;
+use App\Services\DeckCollectionModeService;
 use App\Services\DeckCollectionStatusService;
 use App\Services\DeckFinalizeService;
 use App\Services\DeckService;
@@ -229,10 +232,19 @@ class DecksController extends Controller
         // count-based display in Phase 2.2 instead, and mode A is silent.
         $collectionMode = DeckCollectionStatusService::MODE_A;
         $collectionStatuses = [];
+        $collectionImplicitStatuses = [];
         if ($request->user()?->id === $deck->user_id) {
             $collectionMode = DeckCollectionStatusService::effectiveMode($request->user(), $deck);
             if ($collectionMode === DeckCollectionStatusService::MODE_C) {
                 $collectionStatuses = DeckCollectionStatusService::statusForDeck($deck);
+            } elseif ($collectionMode === DeckCollectionStatusService::MODE_B && $deck->container_id !== null) {
+                // Mode B's per-row "in this deckbox / elsewhere" partition
+                // needs `decks.container_id` as the anchor. Without one,
+                // the deck still resolves to mode B (so the planned→built
+                // wizard fires correctly — that's where the user picks a
+                // container), but per-card badges stay silent until an
+                // anchor exists.
+                $collectionImplicitStatuses = DeckCollectionStatusService::implicitStatusForDeck($deck);
             }
         }
 
@@ -277,6 +289,7 @@ class DecksController extends Controller
             'language' => $dc->language->value,
             'category_id' => $dc->category_id,
             'collection_status' => $collectionStatuses[$dc->id] ?? null,
+            'collection_implicit_status' => $collectionImplicitStatuses[$dc->id] ?? null,
             'default_card' => [
                 'id' => $dc->defaultCard?->id,
                 'name' => $dc->defaultCard?->name,
@@ -707,6 +720,51 @@ class DecksController extends Controller
         $request->session()->flash('message', __(
             'decks.deck_visibility_'.$visibility->value,
             ['name' => $deck->name]
+        ));
+        $request->session()->flash('type', 'success');
+
+        return redirect(route('decks.show', $deck));
+    }
+
+    /**
+     * Promote the deck from mode B to mode C without claiming any
+     * stacks — pins `decks.collection_mode = 'C'` so the per-card
+     * "Assign physical copy" picker becomes reachable and per-row
+     * status badges flip on.
+     *
+     * Triggered from the deck-header collection-mode modal. Idempotent
+     * (the service no-ops when already pinned).
+     */
+    public function promoteCollectionMode(PromoteDeckCollectionModeRequest $request, Deck $deck): RedirectResponse
+    {
+        DeckCollectionModeService::promoteToExplicit($deck);
+
+        $request->session()->flash('message', __(
+            'pages.deck.collection_mode.promoted_flash',
+            ['name' => $deck->name],
+        ));
+        $request->session()->flash('type', 'success');
+
+        return redirect(route('decks.show', $deck));
+    }
+
+    /**
+     * Clear every collection assignment on this deck and reset the
+     * sticky mode pin — explicit C→B transition. Destructive: every
+     * pivot row attached to a deck_card on this deck is deleted, and
+     * `decks.collection_mode` is nulled.
+     *
+     * Triggered from the deck-header collection-mode modal after the
+     * two-step in-modal confirm. Idempotent (the service no-ops when
+     * there's nothing to clear).
+     */
+    public function clearCollectionAssignments(ClearDeckCollectionAssignmentsRequest $request, Deck $deck): RedirectResponse
+    {
+        DeckCollectionModeService::clearAssignments($deck);
+
+        $request->session()->flash('message', __(
+            'pages.deck.collection_mode.cleared_flash',
+            ['name' => $deck->name],
         ));
         $request->session()->flash('type', 'success');
 
