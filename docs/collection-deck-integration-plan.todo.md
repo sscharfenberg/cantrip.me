@@ -13,7 +13,7 @@ Two design refinements emerged during phase-1 smoke-testing and are baked in:
 - **Sticky mode C.** Originally mode was inferred purely from current pivot-row count. Deleting the last claimed stack from the collection cascade-removed its pivot row and silently dropped the deck back to mode B, hiding all status badges. Per the design doc, C→B is rare and explicit ("clear all collection assignments"), never implicit. Fix: `decks.collection_mode` (nullable string, length 1) gets pinned to `'C'` the first time the wizard claims a stack and stays put until a future explicit C→B action clears it. `effectiveMode` checks the pin before falling back to the pivot count.
 - **Mode-B decks stay silent (until 2.2).** A first-pass overshoot let mode-B decks render badges so a sibling deck's claim could surface as `claimed_by_other_deck`. That was design-non-faithful — mode B was always meant to be quiet until Phase 2.2's count-based display ships. Reverted; cross-deck claim visibility now lives in 2.2.
 
-**Phase 2 is shipped.** All six sub-steps are done and smoke-tested on staging — 2.1 (per-card assign picker), 2.2 (mode-B implicit display), 2.3 (mode-aware gating audit + deck-edit container picker), 2.4 ("bought new" wizard checkbox), 2.5 (collection-side claim badges), 2.6 (collection-mode badge + modal in the deck header). The deferred follow-up is the per-stack "unclaim" button on the collection-side badge (mirror of 2.1's assign endpoint, intentionally split out from 2.5).
+**Phase 2 is mostly shipped.** Six sub-steps done and smoke-tested on staging — 2.1 (per-card assign picker), 2.2 (mode-B implicit display), 2.3 (mode-aware gating audit + deck-edit container picker), 2.4 ("bought new" wizard checkbox), 2.5 (collection-side claim badges), 2.6 (collection-mode badge + modal in the deck header). One step left — 2.7 collection-side unclaim affordance (final step, mirror of 2.1's "Clear assignment" but on the stack's row).
 
 Two refinements from phase-2 smoke-testing are baked in:
 
@@ -391,6 +391,38 @@ The implicit-mode logic is invisible to users — they can't tell whether a deck
 - B→C promote works without requiring the wizard or any pre-claimed stacks.
 - C→B clear-all detaches every pivot for the deck and nulls the sticky pin in a single transaction.
 - The "Implicit tracking" badge no longer fires for decks with no container set — it demotes to "Tracking off" for honesty.
+
+---
+
+### Step 2.7 — Collection-side unclaim (final step)
+
+The deferred follow-up to 2.5: surface an "Unclaim" affordance next to the claim badge on the collection side so the user can free a stack from the deck without navigating to the deck. Mirror of the deck-side "Clear assignment" button shipped in 2.1, but acting from the stack's perspective.
+
+**Semantic — "unclaim from all":** when the stack is multi-claimed (rare, schema-permitted but UX assumes one claim per stack), a single click detaches every pivot row at once. The user can re-assign through the per-card picker on whichever deck they actually meant to keep. Per-deck unclaim stays a future option if anyone hits the multi-claim case in earnest.
+
+**Backend:**
+- New service method `CardStackClaimService::unclaimAll(CardStack $stack): int` returning the number of pivot rows removed (lets the caller flash a count). Single batched `DELETE FROM deck_card_card_stack WHERE card_stack_id = ?`.
+- New `UnclaimCardStackRequest` (owner gate, mirrors the existing `EditCardStackRequest` / `DeleteCardStackRequest` shape).
+- New controller method `CardStackController::unclaim` returning a `RedirectResponse` to wherever the user came from (`?from=container`, `?from=collection`, or default to `cardstack.edit`) with a flash message.
+- New route `DELETE /collection/cardstack/{cardStack}/claims` named `cardstack.unclaim`.
+
+**Stickiness preserved.** Like 2.6's `clearAssignments`, this only touches pivot rows — it does **not** null any deck's `collection_mode = 'C'` pin. A deck whose only claim was on this stack stays sticky in mode C; the user goes through the deck-header modal's "Clear all collection assignments" if they want the full reset. Two distinct affordances for two distinct intents.
+
+**Frontend surfaces (both `class="btn-default"`):**
+- `CollectionCardStacks.vue` and `Container/ContainerCardStacks.vue` row actions popover — new "Unclaim" entry rendered only when `row.claims.length > 0` (gated alongside the existing edit / delete entries). Owner-only on the container page (mirrors the column-hiding from 2.5).
+- `CardStackPage.vue` edit form — a `<button class="btn-default">` next to the claim form-group, also rendered only when the stack has claims. This is where a user trying to move a claimed stack lands when the 422 fires; an inline unclaim closes the loop.
+- Both surfaces fire `router.delete(...)`; the controller flashes a success message and redirects so the badge disappears post-action.
+
+**i18n:** new key under `pages.collection.claim_badge.unclaim` ("Unclaim" / "Reservierung aufheben") and a flash message under `collection.cardstack_unclaimed` ("Unclaimed [card name] from {count} deck | Unclaimed [card name] from {count} decks") in `lang/{en,de}/collection.php`.
+
+**Tests:**
+- Service (`CardStackClaimServiceTest`): `unclaimAll` removes every pivot for the given stack, leaves other stacks alone, returns the correct count, no-op when nothing to unclaim.
+- Feature (`CardStackUnclaimControllerTest`): owner can DELETE; non-owner returns 403; multi-claim case removes all pivots in one shot; redirects with flash; sticky `collection_mode` on the affected deck stays pinned to `'C'` post-unclaim.
+
+**Definition of done for 2.7:**
+- A claimed stack can be freed from the collection side in one click, from either the row actions popover or the edit form.
+- Multi-claim stacks unclaim atomically (all decks at once).
+- Affected decks keep their sticky mode-C pin — clearing the pin is still 2.6's modal action, distinct.
 
 ---
 
