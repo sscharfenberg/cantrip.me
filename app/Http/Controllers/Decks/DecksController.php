@@ -591,6 +591,14 @@ class DecksController extends Controller
                         }
                     },
                 ],
+                // Container picker (Phase 2.3). Nullable so the user can
+                // unset the deck's deckbox; existence + ownership checked
+                // inline so a foreign container id can't be smuggled in.
+                'container_id' => [
+                    'nullable',
+                    'string',
+                    Rule::exists('containers', 'id')->where('user_id', $request->user()->id),
+                ],
             ]);
         });
 
@@ -599,6 +607,7 @@ class DecksController extends Controller
             'description' => $request->input('deck_description'),
             'visibility' => ContainerVisibility::from($request->input('deck_visibility')),
             'default_card_id' => $request->input('default_card_id') ?: null,
+            'container_id' => $request->input('container_id') ?: null,
         ]);
 
         // Compare the requested command zone against the current pivot rows
@@ -716,18 +725,35 @@ class DecksController extends Controller
             $capabilities[$format->value] = $format->rules()->toArray();
         }
 
+        // User containers for the optional deckbox picker. Same shape as
+        // the finalize wizard ships (`is_deckbox` flag + deckbox-sorting)
+        // so the picker UX stays consistent across the two surfaces.
+        $containers = $request->user()->containers()
+            ->orderBy('sort_order')
+            ->get(['id', 'name', 'type'])
+            ->map(fn (Container $c) => [
+                'id' => $c->id,
+                'name' => $c->name,
+                'type' => $c->type->value,
+                'is_deckbox' => $c->type === ContainerType::Deckbox,
+            ])
+            ->sortByDesc('is_deckbox')
+            ->values();
+
         return Inertia::render('Deck/Create/CreateEditDeckPage', [
             'mode' => 'edit',
             'formats' => array_column(CardFormat::cases(), 'value'),
             'capabilities' => $capabilities,
             'nameMax' => Deck::NAME_MAX,
             'descriptionMax' => Deck::DESCRIPTION_MAX,
+            'containers' => $containers,
             'existingDeck' => [
                 'id' => $deck->id,
                 'name' => $deck->name,
                 'description' => $deck->description,
                 'format' => $deck->format->value,
                 'visibility' => $deck->visibility->value,
+                'container_id' => $deck->container_id,
                 'commander' => $commander,
                 'companion' => $companion,
                 'signatureSpell' => $signatureSpell,

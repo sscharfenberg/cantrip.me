@@ -23,6 +23,11 @@ export interface ExistingDeck {
     description: string | null;
     format: string;
     visibility: "private" | "public";
+    /**
+     * Currently-set deckbox container id, or null when the deck isn't
+     * tied to a container yet. Used to preselect the container picker.
+     */
+    container_id: string | null;
     commander: CommanderResult | null;
     companion: CommanderResult | null;
     signatureSpell: CommanderResult | null;
@@ -30,6 +35,15 @@ export interface ExistingDeck {
     cards: DeckHeroCardOption[];
     /** Currently chosen deck hero image (one of `cards`), or null. */
     heroCard: DeckHeroCardOption | null;
+}
+
+/** A user-owned container option for the deck-edit container picker. */
+export interface ContainerOption {
+    id: string;
+    name: string;
+    type: string;
+    /** True when `type === "deckbox"` — drives the recommended-suffix hint and top-of-list pinning. */
+    is_deckbox: boolean;
 }
 const props = withDefaults(
     defineProps<{
@@ -45,8 +59,13 @@ const props = withDefaults(
         descriptionMax: number;
         /** Current deck values when `mode === "edit"`. Ignored in create mode. */
         existingDeck?: ExistingDeck | null;
+        /**
+         * User's containers for the deck-edit container picker. Only shipped
+         * in edit mode. Empty array when the user has no containers yet.
+         */
+        containers?: ContainerOption[];
     }>(),
-    { mode: "create", existingDeck: null }
+    { mode: "create", existingDeck: null, containers: () => [] }
 );
 const { t } = useI18n();
 /** True when the page is editing an existing deck rather than creating one. */
@@ -109,6 +128,23 @@ const visibilityOptions = [
     }
 ];
 const visibility = ref<string>(initialVisibility);
+/**
+ * Currently picked deckbox container id, edit-only. Initialised from the
+ * deck's `container_id` so the select preselects what's already set;
+ * empty string === unset (no container). Submitted as a hidden field.
+ */
+const containerId = ref<string>(props.existingDeck?.container_id ?? "");
+/**
+ * MonoSelect options for the container picker. Server already sorted
+ * deckboxes to the top; we only add the recommended-suffix hint to
+ * deckbox-typed entries here so non-deckbox containers stay clean.
+ */
+const containerOptions = computed(() =>
+    props.containers.map(c => ({
+        value: c.id,
+        label: c.is_deckbox ? `${c.name} — ${t("form.fields.deck_container_deckbox_hint")}` : c.name
+    }))
+);
 /** Pre-fill the deck name with the commander's name when the field is empty. */
 const prefillDeckName = (name: string) => {
     if (!deckName.value.trim()) {
@@ -328,6 +364,30 @@ setBreadcrumbs(
                 :radio-buttons="visibilityOptions"
                 @change="visibility = ($event.target as HTMLInputElement).value"
             />
+        </form-group>
+        <!-- Container picker is edit-only and only renders when the user
+             actually has containers to pick from. In mode B the picker
+             provides the anchor for "in this deckbox" counts; in mode C
+             it backs the wizard's "move to deck's deckbox" hint and the
+             post-finalize cleanup paths. Submits as a hidden input so
+             the wrapping <Form> picks it up alongside the other fields. -->
+        <form-group
+            v-if="isEdit && containers.length > 0"
+            :label="$t('form.fields.deck_container')"
+            :error="errors.container_id ?? ''"
+            :invalid="!!errors?.container_id"
+        >
+            <mono-select
+                :options="containerOptions"
+                :selected="containerId"
+                :placeholder="$t('form.fields.deck_container_unset')"
+                :sort="false"
+                addon-icon="container-image"
+                max="100%"
+                @change="containerId = $event"
+            />
+            <input type="hidden" name="container_id" :value="containerId" />
+            <template #text>{{ $t("form.fields.deck_container_hint") }}</template>
         </form-group>
         <!-- Hero image picker is edit-only, and only useful once there are
              at least two cards to choose from — with one card the answer is
