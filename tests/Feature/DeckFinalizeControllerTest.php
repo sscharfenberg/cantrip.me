@@ -179,6 +179,53 @@ class DeckFinalizeControllerTest extends TestCase
     }
 
     #[Test]
+    public function store_finalize_handles_mixed_buy_new_and_assignment_rows(): void
+    {
+        // End-to-end: a deck with two rows. Row A gets a real assignment,
+        // row B gets buy_new=true (no assignment, no existing stack).
+        // Expected: row A pivots to its assigned stack; row B pivots to a
+        // freshly minted stack of `quantity` copies.
+        $user = User::factory()->create();
+        $deck = $this->makeDeck($user);
+        $oracleA = $this->makeOracleCard('Card A');
+        $defaultA = $this->makeDefaultCard($oracleA);
+        $oracleB = $this->makeOracleCard('Card B');
+        $defaultB = $this->makeDefaultCard($oracleB);
+        $deckCardA = $this->makeDeckCard($deck, $oracleA, $defaultA, quantity: 1);
+        $deckCardB = $this->makeDeckCard($deck, $oracleB, $defaultB, quantity: 2);
+        $existingA = $this->makeCardStack($user, $defaultA, amount: 1);
+
+        $response = $this->actingAs($user)->post(
+            "/decks/{$deck->id}/finalize",
+            [
+                'assignments' => [$deckCardA->id => [$existingA->id]],
+                'buy_new' => [$deckCardB->id => true],
+                'container_id' => null,
+            ],
+        );
+
+        $response->assertRedirect("/decks/{$deck->id}");
+        $this->assertSame('built', $deck->fresh()->state->value);
+        $this->assertSame('C', $deck->fresh()->collection_mode);
+
+        // Row A pivots to the existing stack, row B pivots to a new stack of 2.
+        $this->assertDatabaseHas('deck_card_card_stack', [
+            'deck_card_id' => $deckCardA->id,
+            'card_stack_id' => $existingA->id,
+        ]);
+        $newStackB = CardStack::query()
+            ->where('user_id', $user->id)
+            ->where('default_card_id', $defaultB->id)
+            ->first();
+        $this->assertNotNull($newStackB);
+        $this->assertSame(2, $newStackB->amount);
+        $this->assertDatabaseHas('deck_card_card_stack', [
+            'deck_card_id' => $deckCardB->id,
+            'card_stack_id' => $newStackB->id,
+        ]);
+    }
+
+    #[Test]
     public function store_finalize_with_empty_body_skips_to_built(): void
     {
         $user = User::factory()->create();

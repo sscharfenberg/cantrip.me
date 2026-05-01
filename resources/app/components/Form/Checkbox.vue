@@ -55,6 +55,7 @@ const onCheckboxChange = (event: Event) => {
         :id="refId"
         type="checkbox"
         :name="refId"
+        :disabled="disabled"
         @change="onCheckboxChange"
         :value="value"
         :checked="checkboxStatus"
@@ -102,6 +103,16 @@ input {
 
             transform: rotate(0deg) scale(1);
         }
+    }
+
+    // Disabled: dim the box and switch the cursor so the unclickable
+    // state reads visually. The native input ignores click events
+    // (because of `:disabled`); the label is just a styled proxy and
+    // would otherwise stay fully opaque + pointer-cursor.
+    &:disabled + label {
+        opacity: 0.5;
+
+        cursor: not-allowed;
     }
 }
 

@@ -11,13 +11,13 @@
 import { Head, Link, useForm } from "@inertiajs/vue3";
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
+import Checkbox from "Components/Form/Checkbox.vue";
 import FormGroup from "Components/Form/FormGroup.vue";
 import FormLegend from "Components/Form/FormLegend.vue";
 import MonoSelect from "Components/Form/Select/MonoSelect.vue";
 import Headline from "Components/UI/Headline.vue";
 import Icon from "Components/UI/Icon.vue";
 import { useBreadcrumbs } from "Composables/useBreadcrumbs.ts";
-
 /** One owned stack offered to claim for a single deck card row. */
 interface FinalizeStackOption {
     id: string;
@@ -51,7 +51,6 @@ interface DeckSnapshot {
     /** Currently-set deckbox container id, used to preselect the picker. */
     container_id: string | null;
 }
-
 const props = defineProps<{
     /** Slim snapshot of the deck being finalized. */
     deck: DeckSnapshot;
@@ -60,7 +59,6 @@ const props = defineProps<{
     /** Every container the user owns, with deckboxes flagged for sorting + the recommended hint. */
     containers: FinalizeContainer[];
 }>();
-
 const { t } = useI18n();
 useBreadcrumbs().setBreadcrumbs([
     { labelKey: "pages.decks.link", href: "/decks", icon: "deck" },
@@ -69,14 +67,20 @@ useBreadcrumbs().setBreadcrumbs([
 ]);
 /**
  * Form state. `assignments` is keyed by deck_card_id with an array of
- * picked stack ids. Initialised empty — every row defaults to "skip".
+ * picked stack ids. `buy_new` mirrors the same key set with a flat
+ * boolean — true means "I just bought the missing copies for this row,
+ * mint a stack for the uncovered slots". Both maps default empty —
+ * every row starts as "skip".
  */
 const initialAssignments: Record<string, string[]> = Object.fromEntries(props.cards.map(card => [card.id, []]));
+const initialBuyNew: Record<string, boolean> = Object.fromEntries(props.cards.map(card => [card.id, false]));
 const form = useForm<{
     assignments: Record<string, string[]>;
+    buy_new: Record<string, boolean>;
     container_id: string | null;
 }>({
     assignments: initialAssignments,
+    buy_new: initialBuyNew,
     container_id: props.deck.container_id
 });
 /** Container options for MonoSelect, deckboxes pinned to the top with a hint suffix. */
@@ -111,6 +115,15 @@ function claimedFor(card: FinalizeCard): number {
     return card.available.filter(stack => ids.includes(stack.id)).reduce((sum, stack) => sum + stack.amount, 0);
 }
 /**
+ * How many slots remain after the existing-stack assignment — drives the
+ * "Will add Nx to your collection" hint and the disabled state of the
+ * buy-new checkbox. Clamped at 0 so over-coverage (rare but legal when
+ * picking an oversized stack) doesn't surface a negative number.
+ */
+function uncoveredFor(card: FinalizeCard): number {
+    return Math.max(0, card.quantity - claimedFor(card));
+}
+/**
  * Stack-picker change handler. Single-stack-per-row UX: clearing the
  * select empties the row, picking a stack replaces whatever was there.
  * Multi-stack assignment per row isn't surfaced in the wizard UI yet
@@ -129,7 +142,9 @@ function onSubmit(): void {
 }
 /** Skip path — submit an empty payload, server transitions state without writing pivot rows. */
 function onSkip(): void {
-    form.transform(() => ({ assignments: {}, container_id: null })).post(`/decks/${props.deck.id}/finalize`);
+    form.transform(() => ({ assignments: {}, buy_new: {}, container_id: null })).post(
+        `/decks/${props.deck.id}/finalize`
+    );
 }
 </script>
 
@@ -197,6 +212,28 @@ function onSkip(): void {
                                 needed: card.quantity
                             })
                         }}
+                    </span>
+                    <!-- Bought-new checkbox — visible on every row so the
+                         user can fold "I just bought this" into the same
+                         submit. Disabled when the existing-stack
+                         assignment already fully covers the row, in which
+                         case ticking it would be a no-op. The hint copy
+                         flips between "will add N×" and "already covered"
+                         to make the disabled state legible. -->
+                    <label class="finalize__buy-new">
+                        <checkbox
+                            :ref-id="`buy-new-${card.id}`"
+                            :checked-initially="form.buy_new[card.id]"
+                            :disabled="uncoveredFor(card) === 0"
+                            @change="form.buy_new[card.id] = $event"
+                        />
+                        {{ $t("pages.deck.finalize.buy_new.label") }}
+                    </label>
+                    <span v-if="form.buy_new[card.id] && uncoveredFor(card) > 0" class="finalize__buy-new-hint">
+                        {{ $t("pages.deck.finalize.buy_new.will_create", { amount: uncoveredFor(card) }) }}
+                    </span>
+                    <span v-else-if="uncoveredFor(card) === 0" class="finalize__buy-new-hint">
+                        {{ $t("pages.deck.finalize.buy_new.fully_covered") }}
                     </span>
                 </div>
             </li>
@@ -292,6 +329,17 @@ function onSkip(): void {
 
         gap: 0.5rem;
     }
+
+    &__buy-new {
+        display: flex;
+        align-items: center;
+
+        gap: 0.5rem;
+    }
+}
+
+label:has(input[disabled]) {
+    opacity: 0.5;
 }
 
 @media (width <= 40rem) {

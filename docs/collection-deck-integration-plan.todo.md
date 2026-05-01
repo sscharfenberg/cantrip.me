@@ -13,7 +13,7 @@ Two design refinements emerged during phase-1 smoke-testing and are baked in:
 - **Sticky mode C.** Originally mode was inferred purely from current pivot-row count. Deleting the last claimed stack from the collection cascade-removed its pivot row and silently dropped the deck back to mode B, hiding all status badges. Per the design doc, C→B is rare and explicit ("clear all collection assignments"), never implicit. Fix: `decks.collection_mode` (nullable string, length 1) gets pinned to `'C'` the first time the wizard claims a stack and stays put until a future explicit C→B action clears it. `effectiveMode` checks the pin before falling back to the pivot count.
 - **Mode-B decks stay silent (until 2.2).** A first-pass overshoot let mode-B decks render badges so a sibling deck's claim could surface as `claimed_by_other_deck`. That was design-non-faithful — mode B was always meant to be quiet until Phase 2.2's count-based display ships. Reverted; cross-deck claim visibility now lives in 2.2.
 
-**Phase 2 is mostly shipped.** 2.1 (per-card assign picker), 2.2 (mode-B implicit display), 2.3 (mode-aware gating audit + deck-edit container picker), and 2.6 (collection-mode badge + modal in the deck header) are done and smoke-tested on staging. Two steps left — 2.4 "bought new" wizard checkbox, 2.5 collection-side claim badges.
+**Phase 2 is almost shipped.** 2.1 (per-card assign picker), 2.2 (mode-B implicit display), 2.3 (mode-aware gating audit + deck-edit container picker), 2.4 ("bought new" wizard checkbox), and 2.6 (collection-mode badge + modal in the deck header) are done and smoke-tested on staging. One step left — 2.5 collection-side claim badges.
 
 Two refinements from phase-2 smoke-testing are baked in:
 
@@ -257,52 +257,53 @@ Two parts: an audit sweep over the existing collection-aware elements, plus the 
 
 ---
 
-### Step 2.4 — "Bought new" checkbox in the finalize wizard
+### Step 2.4 — "Bought new" checkbox in the finalize wizard ✅ shipped
 
-Extend the finalize wizard so users who just bought missing copies can fold that into the same submit instead of leaving the wizard, adding card stacks in the collection page, and coming back. Per-row checkbox renders on **every** row — including rows with available stacks (e.g. user owns 3, just bought 1 more) and rows with none (e.g. card not yet in collection).
+Extends the finalize wizard so users who just bought missing copies can fold that into the same submit instead of leaving the wizard, adding card stacks in the collection page, and coming back. Per-row checkbox renders on **every** row — including rows with available stacks (e.g. user owns 3, just bought 1 more) and rows with none (e.g. card not yet in collection).
 
 **Wizard payload extension:**
-- Add `buy_new` to the form: `Record<deck_card_id, boolean>`, default false.
-- Submit shape becomes `{ assignments, buy_new, container_id }`.
+- `buy_new: Record<deck_card_id, boolean>` added to the form, default false per row.
+- Submit shape: `{ assignments, buy_new, container_id }`. Skip path resets all three to empty.
 
 **Stack creation rules** (per row, when `buy_new === true`):
 - Compute the *uncovered* slot count: `quantity - sum(amount of stacks chosen in assignments[row])`.
 - If uncovered ≤ 0, the checkbox is a no-op (covered by the existing assignment); skip.
-- Otherwise create one new card_stack with:
+- Otherwise call `CardStackService::addToCollection` with:
   - `default_card_id` = the deck card's printing.
   - `amount` = the uncovered slot count.
-  - `language` / `finish` defaults: `En` / `Nonfoil` (no per-row overrides — keep the wizard quick).
-  - `condition` = null.
+  - `language` = `en`, `finish` = `nonfoil`, `condition` = null (no per-row overrides — keeps the wizard quick).
   - `container_id` = the deckbox the wizard's bottom dropdown picks, falling back to null (unsorted).
-- Attach the new stack via the pivot to the deck card (so the row renders `claimed_for_this_deck` after redirect).
+- Attach the new (or merged) stack via the pivot to the deck card so the row renders `claimed_for_this_deck` after redirect.
 
 **No deck_card auto-split**: when "buy new" fully covers the row, there's no leftover. When it's combined with a partial assignment, the new stack pads to full coverage so the deck_card row stays a single row.
 
-**FormRequest:** extend `FinalizeDeckRequest::rules()` with `buy_new: nullable array`, `buy_new.*: boolean`.
+**FormRequest:** `FinalizeDeckRequest::rules()` extended with `buy_new: nullable array`, `buy_new.*: boolean`.
 
-**Service:** extend `DeckFinalizeService::persistAssignments` (or split into a new `BuyNewAndClaim` helper if it gets too dense — judgement call when wired up). Stack creation goes through `CardStackService::addToCollection` so the merge-into-existing-stack logic stays consistent (if the user happens to already have a matching unsorted stack, the new amount merges rather than fragmenting the collection).
+**Service:** `DeckFinalizeService::persistAssignments` extended with a `$buyNew` parameter. The internal `claimStacksForDeckCard` walks existing assignments first, then pads with `CardStackService::addToCollection` when buy-new is set and the row is uncovered. Defensive: short-circuits on `quantity <= 0`. The merge-into-existing-stack logic in `addToCollection` keeps the collection from fragmenting when the user happens to already have a matching unsorted stack — `stacksToAttach` is deduplicated before the pivot insert so the merge case doesn't trip the composite PK.
 
-**Frontend:**
-- New row layout adds the checkbox below or beside the dropdown.
-- When checked, show a small inline note: "Will create N× <name> in your collection".
-- Disable the checkbox when the row is fully covered by an existing assignment (no uncovered slots).
-- i18n keys under `pages.deck.finalize.buy_new.*` (label, hint, computed-amount template).
+**Controller:** `DecksController::storeFinalize` threads `buy_new` to the service and includes it in the "bare state transition vs persist" branch — `array_filter($buyNew) === []` so a buy-new-only submit still routes through the persist path.
 
-**Edge cases worth deciding before implementing:**
-- Foil/etched copies: default to nonfoil; any user that wants foil tracking goes through the collection page. Don't open that can here.
-- A deckbox isn't picked: new stacks land unsorted. Acceptable; the user can re-organize later.
-- The deck card has zero quantity (shouldn't happen, but be defensive in the service).
+**Frontend (`DeckFinalizePage.vue`):**
+- Per-row `<Checkbox>` rendered next to the assignment dropdown. Visible label, no extra styles.
+- Disabled when `uncoveredFor(card) === 0`. Inline hint switches between "Will add N× to your collection" (checked + uncovered > 0) and "Already fully covered by your assignment" (disabled).
+- New `uncoveredFor(card)` helper clamps at 0 so over-coverage doesn't surface a negative number.
+- i18n keys under `pages.deck.finalize.buy_new.{label, will_create, fully_covered}` in `de.json` + `en.json`.
+
+**Pre-existing bug found + fixed during 2.4:** `Form/Checkbox.vue` declared a `disabled` prop but never bound it to the `<input>`. Wired `:disabled="disabled"` and added a minimal `&:disabled + label` rule (opacity 0.5 + `cursor: not-allowed`) so the disabled state reads visually. Affects every other checkbox call site too — they now actually respect `:disabled`.
+
+**Edge cases baked in:**
+- Foil/etched copies: defaults to nonfoil. Foil tracking goes through the collection page.
+- No deckbox picked: new stacks land unsorted. Acceptable.
+- Deck card with zero quantity: defensive no-op short-circuit at the top of `claimStacksForDeckCard`.
 
 **Tests:**
-- Service: `buy_new` with no available stacks → creates one stack of full quantity, attaches pivot.
-- Service: `buy_new` combined with partial assignment → creates one stack for the remainder, attaches both.
-- Service: `buy_new` fully covered by assignment → no-op.
-- Service: `buy_new` + `addToCollection` merge — pre-seed an unsorted stack of the same printing, run wizard, assert stack amount went up rather than a duplicate row appearing.
-- Feature test: end-to-end submit through `storeFinalize` with mixed rows.
+- `DeckFinalizeServiceTest` (5 new): `buy_new_creates_a_full_quantity_stack_when_user_has_none`, `buy_new_pads_the_uncovered_remainder_alongside_an_assignment` (binder + unsorted scenario so no merge), `buy_new_is_a_noop_when_assignment_already_fully_covers_the_row`, `buy_new_merges_into_an_existing_unsorted_stack_of_the_same_printing`, `buy_new_drops_the_minted_stack_into_the_chosen_container`.
+- `DeckFinalizeControllerTest` (1 new): `store_finalize_handles_mixed_buy_new_and_assignment_rows` — end-to-end mixed payload through the HTTP layer.
+- All existing `persistAssignments` test calls updated to pass `[]` for the new `$buyNew` arg.
 
 **Definition of done for 2.4:**
 - A user can finalize a planned deck where some cards aren't owned yet, check "bought new" for those rows, submit, and end up with new stacks in the collection plus pivot rows attaching them to the deck.
-- The checkbox renders for every row including those with full coverage already (visible-but-disabled in that case).
+- The checkbox renders for every row including those with full coverage already (visible-but-disabled in that case, with the disabled state actually preventing clicks).
 - New stacks land in the chosen deckbox when one is set on the wizard, else unsorted.
 
 ---

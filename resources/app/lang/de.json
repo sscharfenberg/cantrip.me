@@ -773,6 +773,11 @@
                 "container_unset": "— Kein Container —",
                 "deckbox_hint": "Empfohlen",
                 "partial_coverage": "{claimed} von {needed} werden reserviert; der Rest bleibt offen.",
+                "buy_new": {
+                    "label": "Die fehlenden Exemplare habe ich gerade gekauft",
+                    "will_create": "Fügt {amount}× zur Sammlung hinzu.",
+                    "fully_covered": "Bereits durch deine Auswahl gedeckt."
+                },
                 "submit": "Deck fertigstellen",
                 "skip": "Überspringen — ohne Reservierung fertigstellen",
                 "back": "Zurück zum Deck"
@@ -941,7 +946,7 @@
             "title": "Deck erstellen",
             "link": "Deck erstellen",
             "edit_title": "Deck-Einstellungen bearbeiten",
-            "edit_link": "Einstellungen bearbeiten",
+            "edit_link": "Einstellungen",
             "commander": {
                 "choose": "Command Zone auswählen",
                 "change": "Command Zone ändern",

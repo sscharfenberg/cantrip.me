@@ -500,12 +500,17 @@ class DecksController extends Controller
         $validated = $request->validated();
         /** @var array<string, array<int, string>> $assignments */
         $assignments = $validated['assignments'] ?? [];
+        /** @var array<string, bool> $buyNew */
+        $buyNew = $validated['buy_new'] ?? [];
         $containerId = $validated['container_id'] ?? null;
 
-        if ($assignments === [] && $containerId === null) {
+        // Empty everything → bare state transition. Any non-empty piece
+        // (assignments, bought-new flags, or a container pick) routes
+        // through the full persist path so the wizard's intent lands.
+        if ($assignments === [] && array_filter($buyNew) === [] && $containerId === null) {
             DeckFinalizeService::transitionToBuilt($deck);
         } else {
-            DeckFinalizeService::persistAssignments($deck, $assignments, $containerId);
+            DeckFinalizeService::persistAssignments($deck, $assignments, $buyNew, $containerId);
         }
 
         $request->session()->flash('message', __('decks.finalize.flash_built', ['name' => $deck->name]));

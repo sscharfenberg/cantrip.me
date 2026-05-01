@@ -23,7 +23,7 @@ class DeckFinalizeService
     /**
      * Persist the wizard's assignments and transition the deck to Built.
      *
-     * - Empty assignments map → behaves like {@see transitionToBuilt}.
+     * - Empty assignments + empty buy_new map → behaves like {@see transitionToBuilt}.
      * - Each `[deck_card_id => [stack_id, ...]]` entry attaches the
      *   listed stacks via the pivot.
      * - Auto-split #1: when a stack's `amount` exceeds the assigned
@@ -34,20 +34,39 @@ class DeckFinalizeService
      *   coverage of one stack across multiple deck_cards is not
      *   surfaced by the wizard UI.
      * - Auto-split #2: when the user assigns N stacks for a deck_card
-     *   whose `quantity > N`, the deck_card is split into a claimed
-     *   row of `quantity = N` (carrying the pivot rows) and a leftover
-     *   row of `quantity = remainder` (no pivot).
+     *   whose `quantity > N` AND doesn't tick "bought new", the
+     *   deck_card is split into a claimed row of `quantity = N`
+     *   (carrying the pivot rows) and a leftover row of `quantity =
+     *   remainder` (no pivot).
+     * - Buy-new pad: rows where `buy_new[deck_card_id] === true` get
+     *   any uncovered slots covered by a freshly created (or merged
+     *   into an existing matching unsorted stack) card_stack via
+     *   {@see CardStackService::addToCollection}. The bought stack is
+     *   attached to the deck_card so the row renders
+     *   `claimed_for_this_deck` after redirect, and the deck_card is
+     *   not split (the row is fully covered).
      *
      * @param  array<string, array<int, string>>  $assignments  Keyed by deck_card_id → list of card_stack_ids.
+     * @param  array<string, bool>  $buyNew  Keyed by deck_card_id → "bought new" flag.
      */
-    public static function persistAssignments(Deck $deck, array $assignments, ?string $containerId): void
+    public static function persistAssignments(Deck $deck, array $assignments, array $buyNew, ?string $containerId): void
     {
-        DB::transaction(function () use ($deck, $assignments, $containerId): void {
+        DB::transaction(function () use ($deck, $assignments, $buyNew, $containerId): void {
             $anyPivotsWritten = false;
 
-            foreach ($assignments as $deckCardId => $stackIds) {
-                $stackIds = array_values(array_unique(array_filter($stackIds)));
-                if ($stackIds === []) {
+            // Walk every deck_card touched by either side of the
+            // payload — assignments, buy_new, or both. Skipping a row
+            // means neither flag was set for it, which is the
+            // implicit "leave this row alone" path.
+            $touchedDeckCardIds = array_unique(array_merge(
+                array_keys($assignments),
+                array_keys(array_filter($buyNew)),
+            ));
+
+            foreach ($touchedDeckCardIds as $deckCardId) {
+                $stackIds = array_values(array_unique(array_filter($assignments[$deckCardId] ?? [])));
+                $buyForThisRow = (bool) ($buyNew[$deckCardId] ?? false);
+                if ($stackIds === [] && ! $buyForThisRow) {
                     continue;
                 }
 
@@ -59,7 +78,7 @@ class DeckFinalizeService
                     continue;
                 }
 
-                if (self::claimStacksForDeckCard($deckCard, $stackIds)) {
+                if (self::claimStacksForDeckCard($deckCard, $stackIds, $buyForThisRow, $containerId)) {
                     $anyPivotsWritten = true;
                 }
             }
@@ -68,7 +87,7 @@ class DeckFinalizeService
             // written. Sticky: stays 'C' even if the user later deletes
             // every claimed stack from the collection (cascade removes the
             // pivots but the deck still tracks claims). Per design, C→B
-            // is an explicit "clear all assignments" action — not yet built.
+            // is an explicit "clear all assignments" action — see 2.6.
             $updates = ['state' => DeckState::Built->value];
             if ($containerId !== null) {
                 $updates['container_id'] = $containerId;
@@ -92,17 +111,26 @@ class DeckFinalizeService
     /**
      * Claim a set of stacks for one deck_card row, splitting the
      * deck_card if the user assigned fewer stacks than the deck_card's
-     * quantity (partial coverage), and splitting any oversized stack
-     * down to size first.
+     * quantity (partial coverage), splitting any oversized stack down
+     * to size first, and optionally padding any uncovered slots with a
+     * freshly-bought stack when the user ticked "bought new".
      *
      * Returns true when at least one pivot row was written, so the
      * caller can pin the deck to mode C only when the user actually
      * claimed something.
      *
+     * Defensive against `quantity <= 0` — a no-op short-circuit so a
+     * malformed deck_card row can't trigger spurious work.
+     *
      * @param  array<int, string>  $stackIds
      */
-    private static function claimStacksForDeckCard(DeckCard $deckCard, array $stackIds): bool
+    private static function claimStacksForDeckCard(DeckCard $deckCard, array $stackIds, bool $buyNew, ?string $containerId): bool
     {
+        $needed = (int) $deckCard->quantity;
+        if ($needed <= 0) {
+            return false;
+        }
+
         $stacks = CardStack::query()
             ->whereIn('id', $stackIds)
             ->where('user_id', $deckCard->deck->user_id)
@@ -112,11 +140,6 @@ class DeckFinalizeService
         $alreadyClaimed = self::claimedStackIds($stacks->pluck('id')->all());
         $stacks = $stacks->reject(fn (CardStack $s): bool => in_array($s->id, $alreadyClaimed, true));
 
-        if ($stacks->isEmpty()) {
-            return false;
-        }
-
-        $needed = $deckCard->quantity;
         $claimed = 0;
         $stacksToAttach = [];
 
@@ -138,14 +161,45 @@ class DeckFinalizeService
             }
         }
 
+        // Buy-new pad: if the user ticked "bought new" and the existing
+        // assignment leaves the row uncovered, mint (or merge into) a
+        // matching unsorted-or-deckbox stack via
+        // {@see CardStackService::addToCollection} so the deck_card
+        // row ends fully covered with no leftover split.
+        //
+        // Defaults: language en / finish nonfoil / condition null —
+        // baseline values to keep the wizard quick. Users who track
+        // foil/etched copies go through the collection page.
+        if ($buyNew && $claimed < $needed) {
+            $uncovered = $needed - $claimed;
+            $bought = CardStackService::addToCollection($deckCard->deck->user, [
+                'default_card_id' => $deckCard->default_card_id,
+                'amount' => $uncovered,
+                'language' => 'en',
+                'condition' => null,
+                'finish' => 'nonfoil',
+                'container_id' => $containerId,
+            ]);
+            $stacksToAttach[] = $bought['stack']->id;
+            $claimed += $uncovered;
+        }
+
+        // Dedupe — `addToCollection` may have merged the bought
+        // amount into a stack the user already assigned (same
+        // printing + matching language/finish/condition/container),
+        // in which case the same stack id appears twice and the
+        // pivot's composite PK rejects the second insert.
+        $stacksToAttach = array_values(array_unique($stacksToAttach));
+
         if ($stacksToAttach === []) {
             return false;
         }
 
         $targetDeckCard = $deckCard;
         if ($claimed < $needed) {
-            // Partial coverage: split the deck_card so the leftover slot
-            // is its own row (and renders with "not_owned" status).
+            // Partial coverage (and no buy-new pad): split the deck_card
+            // so the leftover slot is its own row (and renders with
+            // "not_owned" status).
             $leftover = $needed - $claimed;
             $deckCard->update(['quantity' => $claimed]);
             DeckCard::create([

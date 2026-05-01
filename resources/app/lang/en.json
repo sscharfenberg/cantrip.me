@@ -773,6 +773,11 @@
                 "container_unset": "— No container —",
                 "deckbox_hint": "Recommended",
                 "partial_coverage": "{claimed} of {needed} will be claimed; the remainder stays unassigned.",
+                "buy_new": {
+                    "label": "I just bought the missing copies",
+                    "will_create": "Will add {amount}× to your collection.",
+                    "fully_covered": "Already fully covered by your assignment."
+                },
                 "submit": "Finalize deck",
                 "skip": "Skip — finalize without claiming",
                 "back": "Back to deck"
