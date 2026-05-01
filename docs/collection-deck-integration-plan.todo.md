@@ -13,7 +13,7 @@ Two design refinements emerged during phase-1 smoke-testing and are baked in:
 - **Sticky mode C.** Originally mode was inferred purely from current pivot-row count. Deleting the last claimed stack from the collection cascade-removed its pivot row and silently dropped the deck back to mode B, hiding all status badges. Per the design doc, C→B is rare and explicit ("clear all collection assignments"), never implicit. Fix: `decks.collection_mode` (nullable string, length 1) gets pinned to `'C'` the first time the wizard claims a stack and stays put until a future explicit C→B action clears it. `effectiveMode` checks the pin before falling back to the pivot count.
 - **Mode-B decks stay silent (until 2.2).** A first-pass overshoot let mode-B decks render badges so a sibling deck's claim could surface as `claimed_by_other_deck`. That was design-non-faithful — mode B was always meant to be quiet until Phase 2.2's count-based display ships. Reverted; cross-deck claim visibility now lives in 2.2.
 
-**Phase 2 is half-shipped.** 2.1 (per-card assign picker), 2.2 (mode-B implicit display), and 2.6 (collection-mode badge + modal in the deck header) are done and smoke-tested on staging. Three steps left — 2.3 mode-aware gating audit (now includes the deck-edit container picker rolled in from 2.2), 2.4 "bought new" wizard checkbox, 2.5 collection-side claim badges.
+**Phase 2 is mostly shipped.** 2.1 (per-card assign picker), 2.2 (mode-B implicit display), 2.3 (mode-aware gating audit + deck-edit container picker), and 2.6 (collection-mode badge + modal in the deck header) are done and smoke-tested on staging. Two steps left — 2.4 "bought new" wizard checkbox, 2.5 collection-side claim badges.
 
 Two refinements from phase-2 smoke-testing are baked in:
 
@@ -229,20 +229,31 @@ Different render path from mode C — coverage-icon-based with a tooltip carryin
 
 ---
 
-### Step 2.3 — Mode-aware gating audit
+### Step 2.3 — Mode-aware gating audit ✅ shipped
 
-Most gating happens inline as steps 1.3, 1.4, 2.1, 2.2 are built (each component checks `collection_mode` at creation). This step is the audit sweep — walk every collection-aware element and verify the mode-A path is silent.
+Two parts: an audit sweep over the existing collection-aware elements, plus the deck-edit container picker rolled in from 2.2 smoke-testing.
 
-**Audit checklist:**
-- DeckPage / CardViewText / CardViewImage — all collection UI hidden when mode === `'A'`.
-- DeckCardActionsMenu — "Assign physical copy" item hidden in modes A and B.
-- Deck state-transition (planned→finished) — mode A transitions directly without redirect to wizard.
-- Deck show payload — controller doesn't compute status data when mode === `'A'` (avoid unnecessary queries).
-- "Move to deck's deckbox?" container hint — only after a successful assignment, only in mode C.
+**Audit findings (all already gated correctly — no code changes needed):**
+- ✅ `CardViewText` / `CardViewImage` — only render the mode-C status badge or the mode-B implicit badge when their respective gates are true; mode A is silent.
+- ✅ `DeckCardActionsMenu` — gates "Assign physical copy" on `collectionMode === 'C'`; mode A and B never see the entry.
+- ✅ `DeckActionsMenu.onSetBuilt()` — direct-PATCHes the state in mode A (no wizard); modes B and C redirect to `/decks/{deck}/finalize`.
+- ✅ `DecksController::show` — skips `statusForDeck` when not mode C and `implicitStatusForDeck` when not mode B (or no anchor). Lightweight modal-context queries (`master_switch_enabled`, `has_stacks`, `has_container`, `claimed_count`) always run for owners — required for the modal even in mode A so the "why" recap can phrase what's blocking.
+- N/A — "Move to deck's deckbox?" hint isn't implemented yet; nothing to gate.
 
-**Container picker on the deck-edit page (rolled in here from 2.2 smoke-testing).** Currently `decks.container_id` is only writable through the planned→built wizard. Once a deck is built there's no UI to add, change, or remove its deckbox — the only path is `php artisan tinker` or a SQL update. Add a container `MonoSelect` to `CreateEditDeckPage.vue` (deckboxes pinned to the top with the same "Recommended" hint as the wizard, an explicit "— No container —" option for clearing) and wire `container_id` through `EditDeckRequest` + `DecksController::update`. Mode-B decks become reachable end-to-end without leaving the UI; mode-A decks gain a way to opt into mode B without going through the planned→built dance again.
+**Deliberate exception:** `CollectionModeBadge` renders for *all* modes including A — the modal is the explainer/entry point, and silencing the badge in mode A would hide the only path to the modal that explains why the deck is silent.
 
-**Tests:** check controller payload shape per mode (3 feature tests). Feature test for the new container-picker path on the deck-edit endpoint. UI smoke per mode.
+**Container picker on `CreateEditDeckPage.vue`:**
+- `DecksController::edit` ships a `containers` prop (deckbox-flagged, deckboxes sorted to the top — same shape the finalize wizard already uses) and `existingDeck.container_id` so the picker pre-selects what's already set.
+- `DecksController::update` validates `container_id` (nullable, must exist in `containers` and belong to the requesting user via `Rule::exists('containers', 'id')->where('user_id', …)`) and persists it on the deck. Empty string clears.
+- `CreateEditDeckPage.vue` renders an edit-only `<MonoSelect>` next to the visibility radio. Deckbox-typed entries get a translated "Recommended" suffix; non-deckbox containers stay clean. "— No deckbox —" placeholder clears the binding. Hidden input on the wrapping `<Form>` so submission is unchanged.
+- New `form.fields.deck_container{,_hint,_unset,_deckbox_hint}` keys in `de.json` + `en.json`.
+
+**Tests:** `tests/Feature/DeckUpdateContainerTest.php` — 4 SQLite cases covering set / change / clear / foreign-container rejection. The audit items themselves are already covered by the per-step controller / view tests shipped in 1.3 / 1.4 / 2.1 / 2.2.
+
+**Definition of done for 2.3:**
+- Every mode-A path is silent at the badge layer; mode-B and mode-C paths each render only their own UI.
+- Users can add, change, or clear a deck's deckbox from the deck edit form without resorting to tinker.
+- A foreign container UUID submitted via curl/dev-tools is rejected at the FormRequest layer.
 
 ---
 
