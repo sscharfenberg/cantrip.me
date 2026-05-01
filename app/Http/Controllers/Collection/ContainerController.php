@@ -16,6 +16,7 @@ use App\Http\Requests\Collection\UpdateContainerRequest;
 use App\Models\Container;
 use App\Models\DefaultCard;
 use App\Services\CardSearchParser;
+use App\Services\CardStackClaimService;
 use App\Services\ContainerService;
 use App\Services\DataTableService;
 use App\Services\QrCodeService;
@@ -240,12 +241,16 @@ class ContainerController extends Controller
                 'sets.path as set_path',
             ])
             ->selectRaw("COALESCE({$unitPriceSql}, 0) as unit_price")
-            ->selectRaw("COALESCE(card_stacks.amount * ({$unitPriceSql}), 0) as stack_price");
+            ->selectRaw("COALESCE(card_stacks.amount * ({$unitPriceSql}), 0) as stack_price")
+            // Phase 2.5: same correlated claim-count subquery as
+            // CollectionController::list — drives the new "Claimed"
+            // column's sort.
+            ->selectRaw('(SELECT COUNT(*) FROM deck_card_card_stack WHERE deck_card_card_stack.card_stack_id = card_stacks.id) as claim_count');
 
         $table = DataTableService::buildResponse(
             query: $query,
             request: $request,
-            sortable: ['name', 'set_name', 'collector_number', 'amount', 'condition', 'language', 'finish', 'price', 'total_price', 'updated_at'],
+            sortable: ['name', 'set_name', 'collector_number', 'amount', 'condition', 'language', 'finish', 'price', 'total_price', 'updated_at', 'claims'],
             sortColumnMap: [
                 'name' => 'default_cards.name',
                 'set_name' => 'sets.name',
@@ -253,6 +258,7 @@ class ContainerController extends Controller
                 'price' => 'unit_price',
                 'total_price' => 'stack_price',
                 'updated_at' => 'card_stacks.updated_at',
+                'claims' => 'claim_count',
             ],
             defaultSort: 'updated_at',
             searchCallback: function ($q, $search) {
@@ -299,6 +305,21 @@ class ContainerController extends Controller
             },
             defaultDirection: 'desc',
         );
+
+        // Phase 2.5: hydrate per-row deck claims for the owner only.
+        // Non-owners viewing a public container don't see the
+        // "Claimed" column on the frontend anyway — and even if they
+        // did, the deck names belong to the *owner's* private deck
+        // list (some of which may not be public), so we shouldn't
+        // ship them to a foreign viewer. Owners get the same
+        // one-batched-query treatment as `CollectionController::list`.
+        $claimsByStack = $isOwner
+            ? CardStackClaimService::bulkClaimsForStacks(array_column($table['rows'], 'id'))
+            : [];
+        foreach ($table['rows'] as &$row) {
+            $row['claims'] = $claimsByStack[$row['id']] ?? [];
+        }
+        unset($row);
 
         $props = [
             'container' => ContainerService::serializeContainer($container),

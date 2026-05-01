@@ -13,7 +13,7 @@ Two design refinements emerged during phase-1 smoke-testing and are baked in:
 - **Sticky mode C.** Originally mode was inferred purely from current pivot-row count. Deleting the last claimed stack from the collection cascade-removed its pivot row and silently dropped the deck back to mode B, hiding all status badges. Per the design doc, C→B is rare and explicit ("clear all collection assignments"), never implicit. Fix: `decks.collection_mode` (nullable string, length 1) gets pinned to `'C'` the first time the wizard claims a stack and stays put until a future explicit C→B action clears it. `effectiveMode` checks the pin before falling back to the pivot count.
 - **Mode-B decks stay silent (until 2.2).** A first-pass overshoot let mode-B decks render badges so a sibling deck's claim could surface as `claimed_by_other_deck`. That was design-non-faithful — mode B was always meant to be quiet until Phase 2.2's count-based display ships. Reverted; cross-deck claim visibility now lives in 2.2.
 
-**Phase 2 is almost shipped.** 2.1 (per-card assign picker), 2.2 (mode-B implicit display), 2.3 (mode-aware gating audit + deck-edit container picker), 2.4 ("bought new" wizard checkbox), and 2.6 (collection-mode badge + modal in the deck header) are done and smoke-tested on staging. One step left — 2.5 collection-side claim badges.
+**Phase 2 is shipped.** All six sub-steps are done and smoke-tested on staging — 2.1 (per-card assign picker), 2.2 (mode-B implicit display), 2.3 (mode-aware gating audit + deck-edit container picker), 2.4 ("bought new" wizard checkbox), 2.5 (collection-side claim badges), 2.6 (collection-mode badge + modal in the deck header). The deferred follow-up is the per-stack "unclaim" button on the collection-side badge (mirror of 2.1's assign endpoint, intentionally split out from 2.5).
 
 Two refinements from phase-2 smoke-testing are baked in:
 
@@ -308,36 +308,41 @@ Extends the finalize wizard so users who just bought missing copies can fold tha
 
 ---
 
-### Step 2.5 — Collection-side "claimed for deck X" badges
+### Step 2.5 — Collection-side "claimed for deck X" badges ✅ shipped
 
-The lifecycle guards in Phase 1 block container moves on claimed stacks with the message "This card stack is claimed by a deck and cannot be moved. Unclaim it first." — but the user has no way to find *which* deck claimed it without hunting through their own deck list. This step surfaces that information on every claimed stack in the collection, with a link to the offending deck so the user can act.
+The lifecycle guards in Phase 1 block container moves on claimed stacks with the message "This card stack is claimed by a deck and cannot be moved. Unclaim it first." — without this step the user had no way to find *which* deck claimed a stack without hunting through their own deck list. Now every claimed stack carries a "Reserved for [Deck]" badge linking straight to the offending deck.
 
-**Service additions:**
-- Bulk lookup that maps `card_stack_id → [{ deck_id, deck_name, deck_card_id }, ...]`. Single batched query joining `deck_card_card_stack → deck_cards → decks`. The schema allows N claimers per stack (UX assumes one), so the helper returns a list. Lives on either `DeckCollectionStatusService` (closest cousin) or a new `CardStackClaimService` if it grows.
-- Inject the map into the existing collection list endpoints (`CollectionController`, `ContainerController`) so datatable / card-view rows ship with claim data already attached — no per-row N+1.
+**Service:** new `app/Services/CardStackClaimService.php` with a single static `bulkClaimsForStacks(array $stackIds): array` returning `[stack_id => [{deck_id, deck_name}, ...]]`. One batched join over `deck_card_card_stack → deck_cards → decks`, ordered alphabetically by deck name. Per-`(stack, deck)` dedupe so the rare partial-coverage split-within-the-same-deck case collapses to one badge instead of N.
+
+**Controller wiring:**
+- `CollectionController::list` and `ContainerController::show` — after `DataTableService::buildResponse`, hydrate each row's `claims` from one batched lookup over the page's stack ids. Stacks with no claims default to `[]`.
+- `CardStackPreviewController::show` — single-id lookup, `claims` added to the JSON body.
+- `CardStackController::edit` — single-id lookup, `claims` added to the `cardStack` Inertia prop.
+- **Owner-only privacy guard.** `ContainerController::show` only ships claims to the container's owner — non-owners get `claims: []` per row even on public containers, so a sniffed Inertia payload can't leak the owner's deck names. The frontend column also self-hides for non-owners.
+
+**Sortable column.** Both list endpoints add a `claim_count` correlated subquery selectRaw and map column key `claims` → `claim_count` in the `sortColumnMap`. DESC clusters claimed rows at the top (multi-claims first); ASC clusters unclaimed at the top.
 
 **Frontend:**
-- Small "Reserviert für [DeckName]" badge on every claimed stack, where `[DeckName]` is an `<Link>` to `decks.show` for that deck.
-- Multi-claim case (rare but allowed by schema): comma-list, or "Reserviert für DeckA +N more" with a tooltip showing the full list.
-- Render in:
-  - `Collection/CardStacksDatatable.vue` — new column or row trailer.
-  - `Collection/common/CardStackCard.vue` — the card view variant.
-  - `Collection/common/CardStackPreviewModal.vue` — so the modal surfaces the claim too.
-  - `Collection/CardStack/CardStackPage.vue` — the edit form, explaining why the container picker is locked.
-- New i18n keys under `pages.collection.claim_badge.*` (`label`, `multi_label`, `tooltip_multi`).
+- New `resources/app/components/Collection/CardStackClaimBadge.vue`. Single-claim renders one `<labelled-link>` with a deck icon and "Reserved for [deck]" tooltip. Multi-claim renders the primary deck plus a "+N more" suffix and a tooltip listing the rest. Self-hides on empty `claims`. No styles.
+- Wired into `CollectionCardStacks.vue` and `Container/ContainerCardStacks.vue` as a new sortable `claims` column (column-key matches the row field so `ColumnDef`'s keyof-T constraint is satisfied). Header label from `form.fields.claimed`. Owner-only on the container page.
+- `CardStackPreviewModal.vue` — claim badge added as a new dt/dd pair labelled `form.fields.claimed_by_deck`.
+- `CardStackPage.vue` (edit form) — separate non-required form-group below the container `MonoSelect`, labelled `form.fields.claimed_by_deck`, hosting the badge. Renders only in edit mode when at least one claim exists.
 
-**Unclaim affordance** *(intentionally split out)*:
-- A per-stack "unclaim" button next to the badge is the obvious pairing — let the user free a stack from the collection side without navigating to the deck. Mirror of the *assign* endpoint Phase 2.1 builds.
-- Defer to its own step (call it 2.6 when the time comes) so 2.5 can ship as pure visibility first and 2.1's endpoint shape can inform the unclaim API.
+**Types:** new `StackClaim` in `types/cardStackRow.ts`; `CardStackRow.claims: StackClaim[]` is now required. `CardPreview.claims: StackClaim[]` added to `types/cardPreview.ts`. Edit-page `CardStackEdit` shape inline-extended.
 
-**Tests:**
-- Service: bulk lookup returns expected shape for stacks with 0 / 1 / N claims.
-- Service: query-count smoke (one query for the whole listing, not N+1).
-- Feature: collection list endpoint returns the claim data on each stack row.
+**i18n:** new keys under `form.fields.{claimed, claimed_by_deck}` (the column header / form-group label) and `pages.collection.claim_badge.{label, multi_label, tooltip_multi}` (the badge body) in `de.json` + `en.json`.
+
+**Unclaim affordance** *(deferred — out of scope for 2.5)*:
+- The "unclaim" button next to the badge is still pending. It's tracked separately from this visibility-only step so the assign-endpoint shape from 2.1 can inform the eventual API. Pick it up when the next phase lands.
+
+**Tests** — 11 new SQLite cases:
+- `CardStackClaimServiceTest` (6): empty input / unclaimed stacks / single claim / same-deck dedupe / multi-deck distinct entries / single-query smoke.
+- `CollectionClaimsPayloadTest` (5): collection list ships claims / unclaimed rows ship `[]` / container show ships claims to owner / preview endpoint ships claims / container show strips claims for non-owners.
 
 **Definition of done for 2.5:**
 - Every claimed stack in the collection visibly says which deck claims it, with a clickable link to that deck.
 - The lifecycle-guard error stays as-is, but the user can now follow the link to fix the cause instead of hunting.
+- Non-owners viewing a public container see neither the column nor the underlying `claims` data.
 
 ---
 

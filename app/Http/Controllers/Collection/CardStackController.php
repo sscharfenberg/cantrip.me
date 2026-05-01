@@ -16,6 +16,7 @@ use App\Http\Requests\Collection\UpdateCardStackRequest;
 use App\Models\CardStack;
 use App\Models\Container;
 use App\Models\DefaultCard;
+use App\Services\CardStackClaimService;
 use App\Services\CardStackService;
 use App\Services\ContainerService;
 use Illuminate\Http\RedirectResponse;
@@ -154,6 +155,12 @@ class CardStackController extends Controller
                 'condition' => $cardStack->condition?->value ?? '',
                 'finish' => $cardStack->finish?->label() ?? '',
                 'container_id' => $cardStack->container_id,
+                // Phase 2.5: deck claims so the edit form can hint why
+                // the container picker would 422 if the user tries to
+                // move a claimed stack. The lifecycle guard in
+                // `UpdateCardStackRequest` is the actual enforcement;
+                // the badge is just the legible "by which deck?" hint.
+                'claims' => CardStackClaimService::bulkClaimsForStacks([$cardStack->id])[$cardStack->id] ?? [],
                 'default_card' => [
                     'id' => $defaultCard->id,
                     'name' => $defaultCard->name,

@@ -8,6 +8,7 @@ import CardStackLanguage from "@/pages/Collection/CardStack/CardStackLanguage.vu
 import CardStackSearch from "@/pages/Collection/CardStack/CardStackSearch.vue";
 import type { Container } from "@/types/container";
 import type { ContainerListItem } from "@/types/containerListItem";
+import CardStackClaimBadge from "Components/Collection/CardStackClaimBadge.vue";
 import ButtonGroup from "Components/Form/ButtonGroup.vue";
 import FormGroup from "Components/Form/FormGroup.vue";
 import MonoSelect from "Components/Form/Select/MonoSelect.vue";
@@ -27,8 +28,14 @@ type CardStackEdit = {
     finish: string;
     container_id: string | null;
     default_card: DefaultCardImage;
+    /**
+     * Decks claiming this stack (Phase 2.5). When non-empty, the
+     * container picker would 422 with "cannot move claimed stack" if
+     * the user tries to change it; the badge surfaces *which* deck so
+     * the user can navigate over and unclaim before retrying.
+     */
+    claims: { deck_id: string; deck_name: string }[];
 };
-
 const props = defineProps<{
     /** Present when adding cards to a specific container; null for unsorted / collection-level. */
     container: Container | null;
@@ -73,7 +80,6 @@ const {
     clearDefaults,
     resetToDefaults
 } = useAddCardsDefaults();
-
 // In edit mode, override composable defaults with the card stack's current values.
 if (isEditMode) {
     amount.value = props.cardStack!.amount;
@@ -81,7 +87,6 @@ if (isEditMode) {
     selectedCondition.value = props.cardStack!.condition;
     selectedFinish.value = props.cardStack!.finish;
 }
-
 /** Container options formatted for MonoSelect: `{ value, label }` pairs. */
 const containerOptions = computed(() =>
     props.containers.map(container => ({
@@ -111,10 +116,8 @@ const onSelectChange = (field: string, value: string, validate: (field: string) 
     selectRefs[field].value = value;
     nextTick(() => validate(field));
 };
-
 /** Available finishes for the currently selected card. All finishes when no card is selected. */
 const availableFinishes = ref<string[]>(isEditMode ? props.cardStack!.default_card.finishes : [...props.finishes]);
-
 /** Called when the user selects a card from search results. */
 function onCardSelected(card: DefaultCardImage) {
     availableFinishes.value = card.finishes;
@@ -122,7 +125,6 @@ function onCardSelected(card: DefaultCardImage) {
         selectedFinish.value = card.finishes[0];
     }
 }
-
 /** Called when the user clears the card selection. */
 function onCardCleared() {
     availableFinishes.value = [...props.finishes];
@@ -228,6 +230,18 @@ function onCardCleared() {
             />
             <input type="hidden" name="container_id" :value="selectedContainer" />
         </form-group>
+        <!-- Phase 2.5: separate (non-required) form-group surfacing the
+             deck(s) currently claiming this stack. Read-only — the
+             container picker above would 422 with "cannot move claimed
+             stack" if the user tries to move the stack while it's
+             pivoted to a deck; this group answers "which deck?" so the
+             user can navigate over and unclaim before retrying. -->
+        <form-group
+            v-if="isEditMode && cardStack && cardStack.claims.length > 0"
+            :label="$t('form.fields.claimed_by_deck')"
+        >
+            <card-stack-claim-badge :claims="cardStack.claims" />
+        </form-group>
         <form-group
             :label="$t('form.fields.condition')"
             :error="errors.condition ?? ''"
@@ -273,5 +287,9 @@ function onCardCleared() {
 <style lang="scss" scoped>
 .badge {
     margin-left: auto;
+}
+
+:deep(.claim-badge) {
+    padding: 0.75ex 0;
 }
 </style>

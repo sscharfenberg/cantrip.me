@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import CardFaceImage from "Components/Card/CardFaceImage.vue";
 import CardLegalities from "Components/Card/CardLegalities.vue";
+import CardStackClaimBadge from "Components/Collection/CardStackClaimBadge.vue";
 import Modal from "Components/Modal/Modal.vue";
 import Icon from "Components/UI/Icon.vue";
 import LoadingSpinner from "Components/UI/LoadingSpinner.vue";
@@ -134,6 +135,12 @@ onMounted(async () => {
                     <template v-if="card.updated_at">
                         <dt>{{ t("form.fields.updated_at") }}</dt>
                         <dd>{{ formatDateTime(card.updated_at) }}</dd>
+                    </template>
+                    <template v-if="card.claims?.length">
+                        <dt>{{ t("form.fields.claimed_by_deck") }}</dt>
+                        <dd>
+                            <card-stack-claim-badge :claims="card.claims" />
+                        </dd>
                     </template>
                 </dl>
                 <card-legalities v-if="card.legalities.length" :legalities="card.legalities" />

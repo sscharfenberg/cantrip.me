@@ -1,3 +1,15 @@
+/**
+ * One deck claiming a card stack via the `deck_card_card_stack` pivot.
+ * Surfaced collection-side as the "Reserved for [deck]" badge in
+ * Phase 2.5. The schema permits N decks per stack, hence the array;
+ * within a single deck multi-claim collapses (the service deduplicates
+ * per `(stack_id, deck_id)`).
+ */
+export interface StackClaim {
+    deck_id: string;
+    deck_name: string;
+}
+
 /** Row shape for card stacks in the DataTable, as returned by ContainerController::show. */
 export interface CardStackRow {
     id: string;
@@ -21,4 +33,10 @@ export interface CardStackRow {
     created_at: string;
     /** ISO 8601 timestamp when the card stack was last updated. */
     updated_at: string;
+    /**
+     * Decks that have claimed this stack via a deck_card_card_stack
+     * pivot row. Empty array when nothing claims it. Drives the
+     * "Reserved for [deck]" badge in the collection / container views.
+     */
+    claims: StackClaim[];
 }

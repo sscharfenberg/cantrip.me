@@ -1,3 +1,5 @@
+import type { StackClaim } from "Types/cardStackRow";
+
 /** A single legality entry for a card format. */
 export interface CardLegality {
     format: string;
@@ -24,4 +26,10 @@ export interface CardPreview {
     total_price: number;
     scryfall_uri: string | null;
     legalities: CardLegality[];
+    /**
+     * Decks that have claimed this stack via a `deck_card_card_stack`
+     * pivot row. Surfaced as the "Reserved for [deck]" badge in the
+     * preview modal body (Phase 2.5).
+     */
+    claims: StackClaim[];
 }

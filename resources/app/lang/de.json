@@ -525,6 +525,11 @@
                 "question": "Bist du ganz sicher? Diese Aktion kann nicht rückgängig gemacht werden.",
                 "aff": "Ja, lösche meine Sammlung",
                 "neg": "Nein, abbrechen"
+            },
+            "claim_badge": {
+                "label": "Reserviert für {deck}",
+                "multi_label": "Reserviert für {deck} +{count} weitere",
+                "tooltip_multi": "Außerdem reserviert für: {decks}"
             }
         },
         "containers": {
@@ -1044,7 +1049,9 @@
             "updated_at": "Geändert",
             "legalities": "Legalität",
             "commander": "Commander",
-            "signature_spell": "Signature Spell"
+            "signature_spell": "Signature Spell",
+            "claimed": "Reserviert",
+            "claimed_by_deck": "Reserviert von"
         }
     },
     "state": {

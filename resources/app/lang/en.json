@@ -525,6 +525,11 @@
                 "question": "Are you really sure? This action can't be reverted.",
                 "aff": "Yes, delete my collection",
                 "neg": "No, abort"
+            },
+            "claim_badge": {
+                "label": "Reserved for {deck}",
+                "multi_label": "Reserved for {deck} +{count} more",
+                "tooltip_multi": "Also reserved for: {decks}"
             }
         },
         "containers": {
@@ -1044,7 +1049,9 @@
             "updated_at": "Changed",
             "legalities": "Legalities",
             "commander": "Commander",
-            "signature_spell": "Signature Spell"
+            "signature_spell": "Signature Spell",
+            "claimed": "Claimed",
+            "claimed_by_deck": "Claimed by deck"
         }
     },
     "state": {

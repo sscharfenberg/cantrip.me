@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\CardStack;
 use App\Models\Container;
 use App\Services\CardSearchParser;
+use App\Services\CardStackClaimService;
 use App\Services\ContainerService;
 use App\Services\DataTableService;
 use Illuminate\Http\RedirectResponse;
@@ -61,12 +62,20 @@ class CollectionController extends Controller
                 'containers.name as container_name',
             ])
             ->selectRaw("COALESCE({$unitPriceSql}, 0) as unit_price")
-            ->selectRaw("COALESCE(card_stacks.amount * ({$unitPriceSql}), 0) as stack_price");
+            ->selectRaw("COALESCE(card_stacks.amount * ({$unitPriceSql}), 0) as stack_price")
+            // Phase 2.5: a sortable claim-count expression. Correlated
+            // subquery counts pivot rows for the current stack — 0 for
+            // unclaimed, ≥ 1 for claimed. Sorting DESC clusters claimed
+            // rows at the top (multi-claims first); ASC clusters
+            // unclaimed at the top. The full claim payload is still
+            // hydrated post-build via `CardStackClaimService`; this
+            // column exists only to drive the sort.
+            ->selectRaw('(SELECT COUNT(*) FROM deck_card_card_stack WHERE deck_card_card_stack.card_stack_id = card_stacks.id) as claim_count');
 
         $table = DataTableService::buildResponse(
             query: $tableQuery,
             request: $request,
-            sortable: ['name', 'set_name', 'container_name', 'amount', 'condition', 'language', 'finish', 'price', 'total_price', 'updated_at'],
+            sortable: ['name', 'set_name', 'container_name', 'amount', 'condition', 'language', 'finish', 'price', 'total_price', 'updated_at', 'claims'],
             sortColumnMap: [
                 'name' => 'default_cards.name',
                 'set_name' => 'sets.name',
@@ -74,6 +83,7 @@ class CollectionController extends Controller
                 'price' => 'unit_price',
                 'total_price' => 'stack_price',
                 'updated_at' => 'card_stacks.updated_at',
+                'claims' => 'claim_count',
             ],
             defaultSort: 'updated_at',
             searchCallback: function ($q, $search) {
@@ -128,6 +138,15 @@ class CollectionController extends Controller
             },
             defaultDirection: 'desc',
         );
+
+        // Phase 2.5: hydrate per-row deck claims. One batched query per
+        // visible page; rows the user doesn't see (other pages) skip the
+        // lookup entirely. Stacks not pivoted anywhere default to `[]`.
+        $claimsByStack = CardStackClaimService::bulkClaimsForStacks(array_column($table['rows'], 'id'));
+        foreach ($table['rows'] as &$row) {
+            $row['claims'] = $claimsByStack[$row['id']] ?? [];
+        }
+        unset($row);
 
         return Inertia::render('Collection/CollectionPage', [
             'stats' => [

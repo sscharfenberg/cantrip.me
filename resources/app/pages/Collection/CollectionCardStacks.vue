@@ -5,6 +5,7 @@ import { useI18n } from "vue-i18n";
 import DeleteCardStackModal from "@/pages/Collection/common/DeleteCardStackModal.vue";
 import CardImagePreview from "Components/Card/CardImagePreview.vue";
 import CardStackPreviewModal from "Components/Card/CardStackPreviewModal.vue";
+import CardStackClaimBadge from "Components/Collection/CardStackClaimBadge.vue";
 import DataTable from "Components/DataTable/DataTable.vue";
 import Icon from "Components/UI/Icon.vue";
 import Paragraph from "Components/UI/Paragraph.vue";
@@ -79,6 +80,18 @@ const columns = computed<ColumnDef<CollectionCardStackRow>[]>(() => [
         key: "updated_at",
         label: t("form.fields.updated_at"),
         sortable: true
+    },
+    {
+        // Phase 2.5 — "Reserved for [deck]" badge. Server ships
+        // `claims: StackClaim[]` per row. Column key matches the row
+        // field (`claims`) so `ColumnDef`'s keyof-T constraint is
+        // satisfied. Sorting maps to a `claim_count` correlated
+        // subquery server-side — DESC clusters claimed rows at the
+        // top (multi-claims first), ASC clusters unclaimed at the top.
+        key: "claims",
+        label: t("form.fields.claimed"),
+        sortable: true,
+        visibleInCard: true
     }
 ]);
 /** Resolve the flag image URL for a given language code. */
@@ -154,6 +167,9 @@ const getTimeStamps = (created: string, updated?: string | null) => {
         <template #cell-total_price="{ row }">{{ row.total_price ? formatPrice(row.total_price) : "" }}</template>
         <template #cell-updated_at="{ row }">
             <icon name="calendar" :size="1" v-tooltip="`${getTimeStamps(row.created_at, row.updated_at)}`" />
+        </template>
+        <template #cell-claims="{ row }">
+            <card-stack-claim-badge :claims="row.claims" />
         </template>
         <template #actions="{ row }">
             <li>

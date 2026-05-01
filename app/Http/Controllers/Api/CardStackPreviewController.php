@@ -8,6 +8,7 @@ use App\Enums\Locale;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Collection\ShowCardStackPreviewRequest;
 use App\Models\CardStack;
+use App\Services\CardStackClaimService;
 use App\Services\ContainerService;
 use Illuminate\Http\JsonResponse;
 
@@ -39,6 +40,9 @@ class CardStackPreviewController extends Controller
             ->selectRaw("COALESCE(card_stacks.amount * ({$unitPriceSql}), 0) as stack_price")
             ->first();
 
+        // Phase 2.5: deck claims for the badge in the preview body.
+        $claims = CardStackClaimService::bulkClaimsForStacks([$cardStack->id])[$cardStack->id] ?? [];
+
         return response()->json([
             'name' => $card->name,
             'card_image_0' => $card->card_image_0,
@@ -57,6 +61,7 @@ class CardStackPreviewController extends Controller
             'price' => (float) ($priceRow->unit_price ?? 0),
             'total_price' => (float) ($priceRow->stack_price ?? 0),
             'scryfall_uri' => $card->oracle?->scryfall_uri,
+            'claims' => $claims,
             'legalities' => collect(CardFormat::cases())->map(function (CardFormat $format) use ($card) {
                 $match = $card->oracle?->legalities->first(fn ($l) => $l->format === $format->value);
 

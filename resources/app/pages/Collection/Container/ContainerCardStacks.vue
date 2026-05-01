@@ -7,6 +7,7 @@ import DeleteSelectedCardStacksModal from "@/pages/Collection/common/DeleteSelec
 import MoveSelectedCardStacksModal from "@/pages/Collection/common/MoveSelectedCardStacksModal.vue";
 import CardImagePreview from "Components/Card/CardImagePreview.vue";
 import CardStackPreviewModal from "Components/Card/CardStackPreviewModal.vue";
+import CardStackClaimBadge from "Components/Collection/CardStackClaimBadge.vue";
 import DataTable from "Components/DataTable/DataTable.vue";
 import Icon from "Components/UI/Icon.vue";
 import Paragraph from "Components/UI/Paragraph.vue";
@@ -15,7 +16,7 @@ import { useFormatting } from "Composables/useFormatting";
 import type { CardStackRow } from "Types/cardStackRow";
 import type { ContainerListItem } from "Types/containerListItem";
 import type { ColumnDef, TableResponse } from "Types/dataTable";
-defineProps<{
+const props = defineProps<{
     table: TableResponse<CardStackRow>;
     baseUrl: string;
     containerName: string;
@@ -88,7 +89,23 @@ const columns = computed<ColumnDef<CardStackRow>[]>(() => [
         key: "updated_at",
         label: t("form.fields.updated_at"),
         sortable: true
-    }
+    },
+    // Phase 2.5 — "Reserved for [deck]" badge. Owner-only: a foreign
+    // viewer of a public container has no business seeing which decks
+    // claim the owner's stacks (the deck list isn't necessarily
+    // public, and the deck-show pages would 404 for them anyway). The
+    // controller stops shipping `claims` data to non-owners as well —
+    // this is the UI half of that gate.
+    ...(props.isOwner
+        ? [
+              {
+                  key: "claims" as const,
+                  label: t("form.fields.claimed"),
+                  sortable: true,
+                  visibleInCard: true
+              }
+          ]
+        : [])
 ]);
 /** Resolve the flag image URL for a given language code. */
 const flagSrc = (lang: string): string => new URL(`../../../assets/flags/${lang}.svg`, import.meta.url).href;
@@ -202,6 +219,9 @@ const getTimeStamps = (created: string, updated?: string | null) => {
         <template #cell-total_price="{ row }">{{ row.total_price ? formatPrice(row.total_price) : "" }}</template>
         <template #cell-updated_at="{ row }">
             <icon name="calendar" :size="1" v-tooltip="`${getTimeStamps(row.created_at, row.updated_at)}`" />
+        </template>
+        <template #cell-claims="{ row }">
+            <card-stack-claim-badge :claims="row.claims" />
         </template>
         <template v-if="isOwner" #actions="{ row }">
             <li>
