@@ -36,6 +36,11 @@ return [
         'flash_built' => 'Deck ":name" ist fertig.',
     ],
 
+    'collection_mode' => [
+        'promoted_flash' => 'Deck „:name" nutzt jetzt exemplargenaues Tracking.',
+        'cleared_flash' => 'Alle Sammlungs-Reservierungen für „:name" entfernt.',
+    ],
+
     'companion' => [
         'errors' => [
             'not_allowed_in_format' => 'Gefährten sind in diesem Format nicht erlaubt.',

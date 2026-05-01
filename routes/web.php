@@ -134,6 +134,10 @@ Route::middleware(array_filter(['auth', Features::enabled(Features::emailVerific
         ->name('decks.set-visibility');
     Route::patch('/decks/{deck}/state', [DecksController::class, 'setState'])
         ->name('decks.set-state');
+    Route::patch('/decks/{deck}/collection-mode/promote', [DecksController::class, 'promoteCollectionMode'])
+        ->name('decks.collection-mode.promote');
+    Route::delete('/decks/{deck}/collection-mode/assignments', [DecksController::class, 'clearCollectionAssignments'])
+        ->name('decks.collection-mode.clear');
     Route::get('/decks/{deck}/finalize', [DecksController::class, 'finalize'])
         ->name('decks.finalize');
     Route::post('/decks/{deck}/finalize', [DecksController::class, 'storeFinalize'])

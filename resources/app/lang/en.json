@@ -713,6 +713,52 @@
                 "partial_with_missing": "{owned} of {needed} owned ({in_deckbox} here, {elsewhere} elsewhere). {missing} missing.",
                 "all_missing": "You don't own this card ({needed} missing)."
             },
+            "collection_mode": {
+                "modes": {
+                    "A": {
+                        "label": "Tracking off",
+                        "description": "This deck is not tied to your collection. No per-card status badges are shown.",
+                        "tooltip": "Collection tracking: off."
+                    },
+                    "B": {
+                        "label": "Implicit tracking",
+                        "description": "This deck shows count-based coverage from your collection: how many copies are in this deck's deckbox, how many sit elsewhere, and how many are missing.",
+                        "tooltip": "Collection tracking: implicit count-based."
+                    },
+                    "C": {
+                        "label": "Per-copy tracking",
+                        "description": "Specific physical copies from your collection are claimed for this deck. Each card row shows whether it's claimed, available, claimed by another deck, or missing.",
+                        "tooltip": "Collection tracking: per-copy."
+                    }
+                },
+                "modal_title": "Collection tracking",
+                "current_mode_heading": "Current mode",
+                "why_heading": "Why am I in this mode?",
+                "why": {
+                    "master_switch_off": "You've turned collection integration off in your settings.",
+                    "no_stacks": "You don't have any cards in your collection yet.",
+                    "no_container": "You haven't picked a deckbox for this deck yet — without one, the implicit count has no anchor.",
+                    "implicit": "You own cards but haven't claimed any specific copies for this deck.",
+                    "explicit_pinned": "You've claimed at least one specific copy for this deck (or pinned the deck to per-copy tracking)."
+                },
+                "actions_heading": "Actions",
+                "action": {
+                    "open_settings": "Open settings",
+                    "open_settings_hint": "Re-enable collection integration on your settings page.",
+                    "add_to_collection": "Add cards to your collection",
+                    "add_to_collection_hint": "Once your collection has at least one stack, this deck will pick up implicit count-based tracking automatically.",
+                    "set_container": "Edit deck",
+                    "set_container_hint": "Pick a deckbox in the deck edit form so the implicit count has an anchor.",
+                    "promote": "Switch to per-copy tracking",
+                    "promote_hint": "Pin this deck so the per-card \"Assign physical copy\" picker becomes available. No copies are claimed automatically — you decide row by row.",
+                    "clear": "Clear all collection assignments",
+                    "clear_hint": "Detaches every claimed stack from this deck and resets the deck to implicit tracking. The stacks themselves stay in your collection.",
+                    "clear_confirm_heading": "Clear all assignments?",
+                    "clear_confirm_body": "This will detach {count} claimed stack from this deck and reset it to implicit tracking. | This will detach {count} claimed stacks from this deck and reset it to implicit tracking.",
+                    "clear_confirm_button": "Yes, clear them",
+                    "clear_cancel": "Cancel"
+                }
+            },
             "finalize": {
                 "title": "Finalize {name}",
                 "heading": "Please assign physical card stacks to finalize the deck",

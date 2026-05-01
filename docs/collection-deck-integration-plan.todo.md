@@ -2,16 +2,23 @@
 
 Companion to `collection-deck-integration.todo.md` (the design doc). The design doc captures *what and why*; this plan captures *how and in what order*. Two phases — phase 1 is the headline MVP, phase 2 fills in the corners.
 
-## Status (2026-04-30)
+Per-step staging smoke tests live in `collection-deck-integration.smoke-tests.md`. Each shipped step appends its own section there — keep new steps in sync.
+
+## Status (2026-05-01)
 
 **Phase 1 is shipped and smoke-tested on staging.** All five sub-steps (1.1 schema/lifecycle, 1.2 mode detection, 1.3 status badges, 1.4 finalize wizard, 1.5 settings toggle) are merged. The full nine-section smoke-test plan against real Scryfall data passed end-to-end.
 
-Two design refinements emerged during smoke-testing and are now baked in:
+Two design refinements emerged during phase-1 smoke-testing and are baked in:
 
 - **Sticky mode C.** Originally mode was inferred purely from current pivot-row count. Deleting the last claimed stack from the collection cascade-removed its pivot row and silently dropped the deck back to mode B, hiding all status badges. Per the design doc, C→B is rare and explicit ("clear all collection assignments"), never implicit. Fix: `decks.collection_mode` (nullable string, length 1) gets pinned to `'C'` the first time the wizard claims a stack and stays put until a future explicit C→B action clears it. `effectiveMode` checks the pin before falling back to the pivot count.
-- **Mode-B decks stay silent.** A first-pass overshoot let mode-B decks render badges so a sibling deck's claim could surface as `claimed_by_other_deck`. That was design-non-faithful — mode B was always meant to be quiet until Phase 2.2's count-based display ships. Reverted; cross-deck claim visibility is now explicitly Phase 2.2 territory.
+- **Mode-B decks stay silent (until 2.2).** A first-pass overshoot let mode-B decks render badges so a sibling deck's claim could surface as `claimed_by_other_deck`. That was design-non-faithful — mode B was always meant to be quiet until Phase 2.2's count-based display ships. Reverted; cross-deck claim visibility now lives in 2.2.
 
-**Phase 2 is partially shipped.** 2.1 (per-card assign picker) and 2.2 (mode-B implicit display) are done and smoke-tested on staging. Four steps left — 2.3 mode-aware gating audit (now includes the deck-edit container picker rolled in from 2.2), 2.4 "bought new" wizard checkbox, 2.5 collection-side claim badges, 2.6 collection-mode badge + modal in the deck header.
+**Phase 2 is half-shipped.** 2.1 (per-card assign picker), 2.2 (mode-B implicit display), and 2.6 (collection-mode badge + modal in the deck header) are done and smoke-tested on staging. Three steps left — 2.3 mode-aware gating audit (now includes the deck-edit container picker rolled in from 2.2), 2.4 "bought new" wizard checkbox, 2.5 collection-side claim badges.
+
+Two refinements from phase-2 smoke-testing are baked in:
+
+- **Mode/badge separation.** `effectiveMode` returns mode B regardless of `decks.container_id` (so the planned→built wizard fires correctly — the wizard is where the user picks a container). Per-row implicit badges and the header `collectionBadgeMode` independently demote to A when mode B has no anchor, so the UI never advertises "Implicit tracking" while no per-row badges actually render. The modal heading mirrors the badge presentation; the modal's why-recap and actions still use the real mode so the no-container case gets the "Edit deck" + promote action set.
+- **Boost off in staging.** Laravel Boost's browser-logs proxy was active on staging and POSTed Vue console warnings (containing `onClose=fn` and similar) to a public route. ModSecurity flagged them as XSS, repeated 403s tripped fail2ban. Set `BOOST_ENABLED=false` in staging `.env` to disable the proxy; Boost remains usable locally for development.
 
 ## Phase 1 — MVP (shipped)
 
@@ -322,19 +329,21 @@ The lifecycle guards in Phase 1 block container moves on claimed stacks with the
 
 ---
 
-### Step 2.6 — Collection-mode badge + modal in the deck header
+### Step 2.6 — Collection-mode badge + modal in the deck header ✅ shipped
 
 The implicit-mode logic is invisible to users — they can't tell whether a deck is in mode A / B / C without reading the docs. This step surfaces the current mode in `DeckHeader` and gives the user explicit control over the two transitions the design has been deferring (B→C promote, C→B clear-all).
 
 **Frontend:**
-- New `resources/app/components/Deck/CollectionModeBadge.vue` rendered owner-only in `DeckHeader`'s badge row. Icon + label key, tooltip with one-line description. Click opens the modal.
+- New `resources/app/components/Deck/CollectionModeBadge.vue` rendered owner-only in `DeckHeader`'s badge row. Icon + label, tooltip with one-line description. Click opens the modal.
 - New `resources/app/pages/Deck/Modals/CollectionModeModal.vue`. Sections:
-  - **Current mode**: heading + paragraph explaining what it does.
-  - **Why am I in this mode?**: short rule recap (master switch off / no stacks / no claims yet / claims exist) — phrased from the live context prop, not generic.
-  - **Actions**: one button per available transition.
+  - **Current mode**: heading + paragraph explaining what it does. Driven by the badge presentation mode (see "Badge presentation mode" below) so the modal heading matches what the badge advertised.
+  - **Why am I in this mode?**: short rule recap (master switch off / no stacks / no container / no claims yet / claims exist) — phrased from the live context prop and the *real* `collectionMode`, not the badge's presentation mode.
+  - **Actions**: one button per available transition, gated on the *real* mode:
     - **In A**: link to settings (master switch off) or `/collection/add` (no stacks). Read-only otherwise.
-    - **In B**: "Switch to per-copy tracking" — pins `decks.collection_mode = 'C'` without claiming anything. After promotion the per-card "Assign physical copy" menu becomes reachable; row badges flip to mode-C status (no `claimed_for_this_deck` yet — those land via the picker).
+    - **In B**: "Switch to per-copy tracking" — pins `decks.collection_mode = 'C'` without claiming anything. Plus an "Edit deck" link when `container_id` is null. After promotion the per-card "Assign physical copy" menu becomes reachable; row badges flip to mode-C status (no `claimed_for_this_deck` yet — those land via the picker).
     - **In C**: "Clear all collection assignments" — destructive, two-step confirm in-modal. Detaches every pivot row for the deck and nulls the sticky pin so the deck cleanly returns to mode B.
+
+**Badge presentation mode (`collectionBadgeMode`):** the controller derives a sibling mode for the badge's visuals: equals `collectionMode` except when effective mode is B and `container_id` is null, in which case it demotes to A. Without an anchor the per-row implicit badges withhold themselves; the demotion keeps the header badge from advertising "Implicit tracking" while no per-row badges actually render. The real `collectionMode` continues to drive wizard routing in `DeckActionsMenu` and the modal's why-recap + actions.
 
 **Backend:**
 - New `app/Services/DeckCollectionModeService.php`:
@@ -346,19 +355,25 @@ The implicit-mode logic is invisible to users — they can't tell whether a deck
   - `PATCH /decks/{deck}/collection-mode/promote` named `decks.collection-mode.promote`
   - `DELETE /decks/{deck}/collection-mode/assignments` named `decks.collection-mode.clear`
 
-**Controller payload extension:** `DecksController::show` ships a top-level `collectionModeContext: { master_switch_enabled, has_stacks, has_container, claimed_count }` prop alongside `collectionMode` so the modal can phrase the "why" from live state instead of recomputing client-side.
+**Controller payload extension:** `DecksController::show` ships two new top-level props alongside `collectionMode`:
+- `collectionBadgeMode` — see above.
+- `collectionModeContext: { master_switch_enabled, has_stacks, has_container, claimed_count }` — owner-only; lets the modal phrase the "why" from live state and size the C→B confirm copy.
 
 **i18n:** new keys under `pages.deck.collection_mode.*` (badge labels, modal headings, why-recap copy, action button labels, confirm text, flash messages).
 
 **Tests:**
-- Service: `promoteToExplicit` is a no-op when already C; `clearAssignments` detaches pivots + nulls pin atomically; `clearAssignments` is a no-op for mode A/B.
-- Feature: both endpoints owner-gated, redirect with flash, persist correctly.
+- Service (`DeckCollectionModeServiceTest`, 5 cases): `promoteToExplicit` is a no-op when already C; `clearAssignments` detaches pivots + nulls pin atomically; `clearAssignments` leaves pivots on other decks alone; `clearAssignments` is a no-op for mode A/B.
+- Feature (`DeckCollectionModeControllerTest`, 4 cases): both endpoints owner-gated (403 for non-owner), redirect with flash, persist correctly.
+- Feature (extended `DeckFinalizeControllerTest`): payload-shape coverage for `collectionBadgeMode` — demotes to A when mode B + no container, equals real mode otherwise.
+
+**Operational gotcha (caught during smoke testing):** Laravel Boost's browser-logs proxy was active on staging and POSTing Vue console warnings to `/_boost/browser-logs`. ModSecurity flagged the warning text (which contained `onClose=fn` from a fragment-rendering child component) as XSS via `libinjection` rule 941100, repeated 403s tripped fail2ban's modsecurity jail. Fix: set `BOOST_ENABLED=false` in staging's `.env` so the proxy route doesn't register. Boost stays usable locally for development.
 
 **Definition of done for 2.6:**
 - A header badge tells the user which mode they're in at a glance.
 - The modal explains *why* and offers the actionable transitions where they exist.
 - B→C promote works without requiring the wizard or any pre-claimed stacks.
 - C→B clear-all detaches every pivot for the deck and nulls the sticky pin in a single transaction.
+- The "Implicit tracking" badge no longer fires for decks with no container set — it demotes to "Tracking off" for honesty.
 
 ---
 

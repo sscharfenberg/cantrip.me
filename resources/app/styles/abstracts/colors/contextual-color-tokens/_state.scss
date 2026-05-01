@@ -61,5 +61,19 @@ $state: (
         "background": hsl(from light-dark(map.get(c.$grey, "iron"), map.get(c.$grey, "bunker")) h s l / 25%),
         "surface": light-dark(#000, #fff),
         "border": light-dark(map.get(c.$grey, "charcoal"), map.get(c.$grey, "charcoal"))
+    ),
+    "caution": (
+        "background": light-dark(
+                color.adjust(map.get(c.$state, "light", "caution", "color"), $lightness: -10%),
+                color.adjust(map.get(c.$state, "dark", "caution", "color"), $lightness: -10%)
+            ),
+        "surface": light-dark(
+                map.get(c.$state, "light", "caution", "contrast"),
+                map.get(c.$state, "dark", "caution", "contrast")
+            ),
+        "border": light-dark(
+                color.adjust(map.get(c.$state, "light", "caution", "color"), $lightness: -20%),
+                color.adjust(map.get(c.$state, "dark", "caution", "color"), $lightness: -20%)
+            )
     )
 );

@@ -269,7 +269,9 @@ class DeckFinalizeControllerTest extends TestCase
         // the per-card "in this deckbox / elsewhere" partition has no
         // anchor without `decks.container_id`. The controller therefore
         // ships a null `collection_implicit_status` per card so badges
-        // stay silent.
+        // stay silent — and demotes `collectionBadgeMode` to A so the
+        // header badge doesn't promise "Implicit tracking" while no
+        // per-row badges actually render.
         $user = User::factory()->create();
         $deck = $this->makeDeck($user);
         $oracle = $this->makeOracleCard();
@@ -282,8 +284,37 @@ class DeckFinalizeControllerTest extends TestCase
         $response->assertOk();
         $response->assertInertia(fn ($page) => $page
             ->where('collectionMode', 'B')
+            ->where('collectionBadgeMode', 'A')
             ->where('cards.0.collection_status', null)
             ->where('cards.0.collection_implicit_status', null)
+        );
+    }
+
+    #[Test]
+    public function deck_show_keeps_badge_mode_in_sync_with_real_mode_when_anchor_exists(): void
+    {
+        // Sanity: when mode B has an anchor, badge mode equals real mode
+        // (no demotion). Same for the trivial mode-A case.
+        $user = User::factory()->create();
+        $deckbox = Container::create([
+            'user_id' => $user->id,
+            'name' => 'Deckbox',
+            'type' => 'deckbox',
+            'sort_order' => 1,
+        ]);
+        $deck = $this->makeDeck($user);
+        $deck->update(['container_id' => $deckbox->id]);
+        $oracle = $this->makeOracleCard();
+        $default = $this->makeDefaultCard($oracle);
+        $this->makeCardStack($user, $default, $deckbox);
+        $this->makeDeckCard($deck->fresh(), $oracle, $default);
+
+        $response = $this->actingAs($user)->get("/decks/{$deck->id}");
+
+        $response->assertOk();
+        $response->assertInertia(fn ($page) => $page
+            ->where('collectionMode', 'B')
+            ->where('collectionBadgeMode', 'B')
         );
     }
 

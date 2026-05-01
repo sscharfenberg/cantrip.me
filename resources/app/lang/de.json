@@ -713,6 +713,52 @@
                 "partial_with_missing": "{owned} von {needed} im Besitz ({in_deckbox} hier, {elsewhere} woanders). {missing} fehlen.",
                 "all_missing": "Du besitzt diese Karte nicht ({needed} fehlen)."
             },
+            "collection_mode": {
+                "modes": {
+                    "A": {
+                        "label": "Tracking aus",
+                        "description": "Dieses Deck ist nicht mit deiner Sammlung verknüpft. Es werden keine Status-Badges pro Karte angezeigt.",
+                        "tooltip": "Sammlungstracking: aus."
+                    },
+                    "B": {
+                        "label": "Implizites Tracking",
+                        "description": "Dieses Deck zeigt zählbasierte Abdeckung aus deiner Sammlung: wie viele Exemplare in der Deckbox liegen, wie viele woanders sind und wie viele fehlen.",
+                        "tooltip": "Sammlungstracking: implizit / zählbasiert."
+                    },
+                    "C": {
+                        "label": "Exemplar-genaues Tracking",
+                        "description": "Konkrete Exemplare aus deiner Sammlung sind diesem Deck zugeordnet. Jede Kartenzeile zeigt, ob das Exemplar reserviert, verfügbar, von einem anderen Deck reserviert oder gar nicht im Besitz ist.",
+                        "tooltip": "Sammlungstracking: exemplargenau."
+                    }
+                },
+                "modal_title": "Sammlungs-Tracking",
+                "current_mode_heading": "Aktueller Modus",
+                "why_heading": "Warum ist dieses Deck in diesem Modus?",
+                "why": {
+                    "master_switch_off": "Du hast die Sammlungs-Integration in den Einstellungen deaktiviert.",
+                    "no_stacks": "Du hast noch keine Karten in deiner Sammlung.",
+                    "no_container": "Du hast für dieses Deck noch keine Deckbox gewählt — ohne Anker gibt es keinen impliziten Zählwert.",
+                    "implicit": "Du besitzt Karten, hast aber noch keine konkreten Exemplare für dieses Deck reserviert.",
+                    "explicit_pinned": "Du hast mindestens ein Exemplar für dieses Deck reserviert (oder das Deck explizit auf exemplargenaues Tracking festgelegt)."
+                },
+                "actions_heading": "Aktionen",
+                "action": {
+                    "open_settings": "Einstellungen öffnen",
+                    "open_settings_hint": "Aktiviere die Sammlungs-Integration in den Einstellungen wieder.",
+                    "add_to_collection": "Karten zur Sammlung hinzufügen",
+                    "add_to_collection_hint": "Sobald deine Sammlung mindestens einen Stapel enthält, springt dieses Deck automatisch auf implizites Tracking.",
+                    "set_container": "Deck bearbeiten",
+                    "set_container_hint": "Wähle im Deck-Bearbeitungs-Formular eine Deckbox, damit die implizite Zählung einen Anker hat.",
+                    "promote": "Auf exemplargenaues Tracking umstellen",
+                    "promote_hint": "Markiert das Deck so, dass der „Physisches Exemplar zuordnen“-Picker pro Karte verfügbar wird. Es werden keine Exemplare automatisch reserviert — du entscheidest pro Zeile.",
+                    "clear": "Alle Reservierungen entfernen",
+                    "clear_hint": "Trennt alle reservierten Stapel von diesem Deck und setzt es zurück auf implizites Tracking. Die Stapel selbst bleiben in deiner Sammlung erhalten.",
+                    "clear_confirm_heading": "Alle Reservierungen entfernen?",
+                    "clear_confirm_body": "Damit wird {count} reservierter Stapel vom Deck getrennt und das Deck zurück auf implizites Tracking gesetzt. | Damit werden {count} reservierte Stapel vom Deck getrennt und das Deck zurück auf implizites Tracking gesetzt.",
+                    "clear_confirm_button": "Ja, entfernen",
+                    "clear_cancel": "Abbrechen"
+                }
+            },
             "finalize": {
                 "title": "{name} fertigstellen",
                 "heading": "Ordne dem Deck physische Kartenstapel zu",

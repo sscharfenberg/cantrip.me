@@ -46,6 +46,25 @@ const props = defineProps<{
      * Mode C is the only mode that surfaces per-card status badges.
      */
     collectionMode: "A" | "B" | "C";
+    /**
+     * Badge-presentation mode — equals `collectionMode` except when the
+     * deck is in mode B with no `container_id`, where it demotes to A so
+     * the header badge doesn't claim "Implicit tracking" while no per-row
+     * badges actually render. The real `collectionMode` still drives the
+     * wizard trigger and the modal's why-recap + actions.
+     */
+    collectionBadgeMode: "A" | "B" | "C";
+    /**
+     * Owner-only context shaping the collection-mode modal in `DeckHeader`.
+     * Null for non-owners — the badge that opens the modal is gated on
+     * `isOwner`, so a missing context is never reached on the modal side.
+     */
+    collectionModeContext: {
+        master_switch_enabled: boolean;
+        has_stacks: boolean;
+        has_container: boolean;
+        claimed_count: number;
+    } | null;
 }>();
 const { setBreadcrumbs } = useBreadcrumbs();
 setBreadcrumbs([{ labelKey: "pages.decks.link", href: "/decks", icon: "deck" }, { label: props.deck.name }]);
@@ -72,6 +91,8 @@ const commanderColorIdentity = computed(() => combineCI(props.commanders.map(c =
         :violations="violations"
         :hero-art-crop="deck.hero_card?.art_crop ?? null"
         :collection-mode="collectionMode"
+        :collection-badge-mode="collectionBadgeMode"
+        :collection-mode-context="collectionModeContext"
     />
     <deck-navigation
         :deck="deck"

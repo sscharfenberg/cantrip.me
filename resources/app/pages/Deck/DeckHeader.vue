@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import ColorIdentity from "Components/Card/ColorIdentity.vue";
+import CollectionModeBadge from "Components/Deck/CollectionModeBadge.vue";
 import DeckState from "Components/Deck/DeckState.vue";
 import Badge from "Components/UI/Badge.vue";
 import Icon from "Components/UI/Icon.vue";
@@ -10,6 +11,16 @@ import VisibilityBadge from "Components/UI/VisibilityBadge.vue";
 import type { DeckCardRow, DeckCategoryRow, DeckCompanion, DeckMeta, DeckViolation } from "Types/deckPage.ts";
 import DeckActionsMenu from "./Actions/DeckActionsMenu.vue";
 import DeckLegalityPanel from "./DeckLegalityPanel.vue";
+import CollectionModeModal from "./Modals/CollectionModeModal.vue";
+
+/** Shape of the `collectionModeContext` Inertia prop — owner-only. */
+interface CollectionModeContext {
+    master_switch_enabled: boolean;
+    has_stacks: boolean;
+    has_container: boolean;
+    claimed_count: number;
+}
+
 const props = defineProps<{
     /** Deck metadata (name, format, state, colors, etc.). */
     deck: DeckMeta;
@@ -31,7 +42,21 @@ const props = defineProps<{
     heroArtCrop: string | null;
     /** Effective collection-integration mode — drives "Set to finished" routing. */
     collectionMode: "A" | "B" | "C";
+    /**
+     * Badge presentation mode — A whenever effective mode is B with no
+     * `container_id`. Used for the badge label and the modal's heading
+     * + description; the modal's why-recap and actions still use the
+     * real `collectionMode`.
+     */
+    collectionBadgeMode: "A" | "B" | "C";
+    /**
+     * Owner-only context for the collection-mode modal. Null for non-owners
+     * (the badge is gated on `isOwner`, so the modal never opens for them).
+     */
+    collectionModeContext: CollectionModeContext | null;
 }>();
+/** Controls visibility of the collection-mode explainer modal. */
+const showCollectionModeModal = ref(false);
 const heroBackgroundStyle = computed<Record<string, string> | undefined>(() =>
     props.heroArtCrop ? { "--hero-art-crop": `url('${props.heroArtCrop}')` } : undefined
 );
@@ -67,17 +92,30 @@ const { t } = useI18n();
             <deck-state :state="deck.state" />
             <badge type="info"><icon name="deck" :size="1" />{{ deck.card_count }}</badge>
             <visibility-badge :visibility="deck.visibility" />
+            <collection-mode-badge
+                v-if="isOwner"
+                :mode="collectionBadgeMode"
+                @click="showCollectionModeModal = true"
+            />
         </div>
         <paragraph v-if="deck.description">{{ deck.description }}</paragraph>
         <deck-legality-panel v-if="violations.length > 0" :violations="violations" :cards="cards" />
     </section>
+    <collection-mode-modal
+        v-if="showCollectionModeModal && collectionModeContext !== null"
+        :deck-id="deck.id"
+        :mode="collectionMode"
+        :badge-mode="collectionBadgeMode"
+        :context="collectionModeContext"
+        @close="showCollectionModeModal = false"
+    />
 </template>
 
 <style lang="scss" scoped>
 @use "sass:map";
 @use "Abstracts/colors" as c;
 
-:deep(.badge.badge) {
+:deep(.badge):not(.warning) {
     padding: 0.2rem 0.5rem;
 
     background-color: map.get(c.$pages, "deck", "meta", "badge-background");

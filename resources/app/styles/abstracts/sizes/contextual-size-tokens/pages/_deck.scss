@@ -132,5 +132,8 @@ $deck: (
         "list-gap": 0.5rem,
         "border": map.get(s.$border, "base"),
         "button-padding": 0.5rem 1rem
+    ),
+    "mode-modal": (
+        "section-gap": 1rem
     )
 );

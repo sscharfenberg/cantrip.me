@@ -36,6 +36,11 @@ return [
         'flash_built' => 'Deck ":name" is finished.',
     ],
 
+    'collection_mode' => [
+        'promoted_flash' => 'Deck ":name" is now using per-copy tracking.',
+        'cleared_flash' => 'All collection assignments cleared from ":name".',
+    ],
+
     'companion' => [
         'errors' => [
             'not_allowed_in_format' => 'Companions are not allowed in this format.',

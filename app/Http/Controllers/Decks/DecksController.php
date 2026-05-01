@@ -231,8 +231,10 @@ class DecksController extends Controller
         // a collection but hasn't engaged with this deck via pivot) get a
         // count-based display in Phase 2.2 instead, and mode A is silent.
         $collectionMode = DeckCollectionStatusService::MODE_A;
+        $collectionBadgeMode = DeckCollectionStatusService::MODE_A;
         $collectionStatuses = [];
         $collectionImplicitStatuses = [];
+        $collectionModeContext = null;
         if ($request->user()?->id === $deck->user_id) {
             $collectionMode = DeckCollectionStatusService::effectiveMode($request->user(), $deck);
             if ($collectionMode === DeckCollectionStatusService::MODE_C) {
@@ -246,6 +248,35 @@ class DecksController extends Controller
                 // anchor exists.
                 $collectionImplicitStatuses = DeckCollectionStatusService::implicitStatusForDeck($deck);
             }
+
+            // Badge presentation mode — A whenever effective mode is B but
+            // the deck has no `container_id` (the per-row implicit badges
+            // can't render without an anchor, so the header badge would
+            // otherwise promise "Implicit tracking" while nothing visibly
+            // tracks). The real `collectionMode` continues to drive the
+            // wizard trigger and the modal's why-recap + actions.
+            $collectionBadgeMode = $collectionMode === DeckCollectionStatusService::MODE_B && $deck->container_id === null
+                ? DeckCollectionStatusService::MODE_A
+                : $collectionMode;
+
+            // Context for the deck-header collection-mode modal (Phase 2.6).
+            // Lets the modal phrase the "why am I in this mode?" recap and
+            // size the C→B clear-all confirm copy from real numbers.
+            $claimedCount = (int) DB::table('deck_card_card_stack')
+                ->whereIn(
+                    'deck_card_id',
+                    DB::table('deck_cards')
+                        ->where('deck_id', $deck->id)
+                        ->select('id')
+                )
+                ->count();
+            $hasStacks = $request->user()->cardStacks()->exists();
+            $collectionModeContext = [
+                'master_switch_enabled' => (bool) $request->user()->collection_integration_enabled,
+                'has_stacks' => $hasStacks,
+                'has_container' => $deck->container_id !== null,
+                'claimed_count' => $claimedCount,
+            ];
         }
 
         $cardCount = $deck->deckCards->count() + $deck->commanders->count();
@@ -367,6 +398,8 @@ class DecksController extends Controller
             'categoryNameMax' => DeckCategory::NAME_MAX,
             'violations' => $violations,
             'collectionMode' => $collectionMode,
+            'collectionBadgeMode' => $collectionBadgeMode,
+            'collectionModeContext' => $collectionModeContext,
         ]);
     }
 
@@ -740,7 +773,7 @@ class DecksController extends Controller
         DeckCollectionModeService::promoteToExplicit($deck);
 
         $request->session()->flash('message', __(
-            'pages.deck.collection_mode.promoted_flash',
+            'decks.collection_mode.promoted_flash',
             ['name' => $deck->name],
         ));
         $request->session()->flash('type', 'success');
@@ -763,7 +796,7 @@ class DecksController extends Controller
         DeckCollectionModeService::clearAssignments($deck);
 
         $request->session()->flash('message', __(
-            'pages.deck.collection_mode.cleared_flash',
+            'decks.collection_mode.cleared_flash',
             ['name' => $deck->name],
         ));
         $request->session()->flash('type', 'success');
