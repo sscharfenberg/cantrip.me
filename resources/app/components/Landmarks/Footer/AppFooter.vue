@@ -1,4 +1,5 @@
 <script lang="ts" setup>
+import Icon from "Components/UI/Icon.vue";
 import LabelledLink from "Components/UI/LabelledLink.vue";
 import LinkGroup from "Components/UI/LinkGroup.vue";
 const startYear = 2026;
@@ -17,8 +18,14 @@ if (currentYear > startYear) {
                 <labelled-link href="/about">{{ $t("pages.about.link") }}</labelled-link>
                 <labelled-link href="/privacy">{{ $t("pages.privacy.link") }}</labelled-link>
                 <labelled-link href="/imprint">{{ $t("pages.imprint.link") }}</labelled-link>
-                <labelled-link href="https://github.com/sscharfenberg/cantrip.me" icon=""
-                    ><img src="./github.svg" alt="Github Repository"
+                <labelled-link
+                    href="https://github.com/sscharfenberg/cantrip.me"
+                    :aria-label="$t('footer.github')"
+                    icon=""
+                    ><icon name="github"
+                /></labelled-link>
+                <labelled-link href="https://discord.gg/jCc5fmXyq" :aria-label="$t('footer.discord')" icon=""
+                    ><icon name="discord"
                 /></labelled-link>
             </link-group>
         </section>

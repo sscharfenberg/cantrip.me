@@ -129,6 +129,8 @@
     },
     "footer": {
         "nav_label": "Links to legal information",
+        "github": "Github",
+        "discord": "Discord",
         "disclaimer": "cantrip.me is unofficial Fan Content permitted under the {fcp}. Not approved/endorsed by Wizards. Portions of the materials used are property of Wizards of the Coast. © Wizards of the Coast LLC.",
         "fcp": "Fan Content Policy"
     },
