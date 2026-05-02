@@ -47,6 +47,17 @@ onBeforeUnmount(() => {
         popoverRef.value.hidePopover();
     }
 });
+/**
+ * Programmatic dismissal handle for slot consumers. Native popover
+ * `auto` dismiss only fires on outside click, Escape, or another auto
+ * popover / modal opening — so an action that runs in-place (Inertia
+ * `router.delete` with `preserveScroll`, for example) leaves the
+ * popover open. Slot consumers receive this via `close` so their
+ * click handler can dismiss the popover before firing the request.
+ */
+defineExpose({
+    hide: () => popoverRef.value?.hidePopover()
+});
 </script>
 
 <template>

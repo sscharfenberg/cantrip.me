@@ -102,6 +102,20 @@ const deleteTarget = ref<CollectionCardStackRow | null>(null);
 const openDeleteModal = (row: CollectionCardStackRow) => {
     deleteTarget.value = row;
 };
+/**
+ * Phase 2.7 — fire the collection-side unclaim endpoint. Detaches
+ * every deck claim against `row` (atomic for the rare multi-claim
+ * case). Server flashes a success message and redirects back here.
+ * Closes the row-actions popover first; an in-place `router.delete`
+ * doesn't light-dismiss it the way a modal-opening or page-navigating
+ * action would.
+ */
+const unclaim = (row: CollectionCardStackRow, close: () => void) => {
+    close();
+    router.delete(`/collection/cardstack/${row.id}/claims?from=collection`, {
+        preserveScroll: true
+    });
+};
 /** The card stack ID currently shown in the preview modal, or null when hidden. */
 const previewId = ref<string | null>(null);
 /** helper function for created/updated at dates */
@@ -171,7 +185,7 @@ const getTimeStamps = (created: string, updated?: string | null) => {
         <template #cell-claims="{ row }">
             <card-stack-claim-badge :claims="row.claims" />
         </template>
-        <template #actions="{ row }">
+        <template #actions="{ row, close }">
             <li>
                 <button
                     type="button"
@@ -179,6 +193,22 @@ const getTimeStamps = (created: string, updated?: string | null) => {
                     @click="router.visit(`/collection/cardstack/${row.id}/edit`)"
                 >
                     <icon name="edit" :size="1" /> {{ $t("pages.edit_card.link") }}
+                </button>
+            </li>
+            <li v-if="row.claims.length > 0">
+                <!--
+                    Phase 2.7 — collection-side unclaim. Detaches every
+                    deck claim against the stack in one shot (rare
+                    multi-claim case included). Only renders when the
+                    stack is actually claimed; matches the badge column
+                    above. `?from=collection` tells the controller to
+                    redirect back here on success. The popover doesn't
+                    light-dismiss for an in-place `router.delete`, so
+                    we explicitly `close()` first.
+                -->
+                <button type="button" class="popover-list-item" @click="unclaim(row, close)">
+                    <icon name="delete" :size="1" />
+                    {{ $t("pages.collection.claim_badge.unclaim") }}
                 </button>
             </li>
             <li>

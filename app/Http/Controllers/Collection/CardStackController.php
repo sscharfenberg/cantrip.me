@@ -12,6 +12,7 @@ use App\Http\Requests\Collection\DestroySelectedCardStacksRequest;
 use App\Http\Requests\Collection\EditCardStackRequest;
 use App\Http\Requests\Collection\MassMoveCardStacksRequest;
 use App\Http\Requests\Collection\MoveSelectedCardStacksRequest;
+use App\Http\Requests\Collection\UnclaimCardStackRequest;
 use App\Http\Requests\Collection\UpdateCardStackRequest;
 use App\Models\CardStack;
 use App\Models\Container;
@@ -333,6 +334,51 @@ class CardStackController extends Controller
      * the container page when the stacks belonged to one, otherwise to
      * the containers list.
      */
+    /**
+     * Detach every deck claim against this stack (Phase 2.7).
+     *
+     * Mirror of the deck-side "Clear assignment" picker (Phase 2.1) but
+     * acting from the stack's perspective. The user lands here either
+     * from a row-actions popover entry on the collection / container
+     * tables, or from the dedicated button on the edit form (where the
+     * 422 from {@see UpdateCardStackRequest}'s lifecycle guard sends
+     * users when they tried to move a claimed stack).
+     *
+     * Multi-claim stacks (rare partial-coverage split case) are
+     * unclaimed atomically — a single button press detaches every
+     * pivot row at once. Per-deck unclaim stays a future option.
+     *
+     * Stickiness preserved. The affected deck(s) keep their
+     * `decks.collection_mode = 'C'` pin; clearing the pin remains the
+     * deck-header modal's "Clear all collection assignments" action.
+     *
+     * Redirect target follows `?from=container|collection`, defaulting
+     * to the stack's edit page so the user lands somewhere coherent
+     * regardless of where the click originated.
+     */
+    public function unclaim(UnclaimCardStackRequest $request, CardStack $cardStack): RedirectResponse
+    {
+        $cardName = $cardStack->defaultCard->name;
+        $count = CardStackClaimService::unclaimAll($cardStack);
+
+        $request->session()->flash(
+            'message',
+            trans_choice('collection.cardstack_unclaimed', $count, [
+                'name' => $cardName,
+                'count' => $count,
+            ]),
+        );
+        $request->session()->flash('type', 'success');
+
+        return match ($request->query('from')) {
+            'container' => $cardStack->container_id
+                ? redirect(route('container.show', $cardStack->container_id))
+                : redirect(route('collection')),
+            'collection' => redirect(route('collection')),
+            default => redirect(route('cardstack.edit', $cardStack->id)),
+        };
+    }
+
     public function destroySelected(DestroySelectedCardStacksRequest $request): RedirectResponse
     {
         $request->validate([

@@ -10,6 +10,7 @@ return [
     'cards_moved' => ':number Kartenstapel erfolgreich nach :container verschoben.',
     'cards_deleted' => ':stacks Kartenstapel mit insgesamt :cards Karten gelöscht.',
     'cards_mass_moved' => ':number Karten von \':source\' nach \':target\' verschoben.',
+    'cardstack_unclaimed' => '{1} Reservierung von :name für :count Deck aufgehoben.|[2,*] Reservierung von :name für :count Decks aufgehoben.',
     'collection_deleted' => 'Deine Sammlung wurde gelöscht.',
     'unsorted' => 'Unsortiert',
     'container_created' => 'Container ":name" wurde erstellt.',

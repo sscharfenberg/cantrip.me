@@ -146,6 +146,17 @@ function onCloseActions() {
     actionButtonRef.value = null;
     triggerEl?.focus();
 }
+/**
+ * Reference to the row-actions popover so slot consumers can request
+ * a programmatic dismiss. Edit-style entries that navigate (and
+ * delete-style entries that open a modal — modals force-close auto
+ * popovers per spec) close the popover automatically; in-place
+ * actions like Phase 2.7's "Unclaim" don't, and need this handle.
+ */
+const actionsRef = ref<{ hide: () => void } | null>(null);
+function closeActionsPopover() {
+    actionsRef.value?.hide();
+}
 // ---------------------------------------------------------------------------
 // Navigation helpers — emit Inertia requests
 // ---------------------------------------------------------------------------
@@ -295,12 +306,13 @@ onBeforeUnmount(() => {
         <!-- Row action popover -->
         <data-table-actions
             v-if="hasActions"
+            ref="actionsRef"
             :row="activeRow"
             :trigger-el="actionButtonRef"
             @close="onCloseActions"
         >
             <template v-if="activeRow" #default>
-                <slot name="actions" :row="activeRow" />
+                <slot name="actions" :row="activeRow" :close="closeActionsPopover" />
             </template>
         </data-table-actions>
 

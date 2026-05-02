@@ -531,7 +531,8 @@
             "claim_badge": {
                 "label": "Reserviert für {deck}",
                 "multi_label": "Reserviert für {deck} +{count} weitere",
-                "tooltip_multi": "Außerdem reserviert für: {decks}"
+                "tooltip_multi": "Außerdem reserviert für: {decks}",
+                "unclaim": "Reservierung aufheben"
             }
         },
         "containers": {

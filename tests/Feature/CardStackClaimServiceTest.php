@@ -204,6 +204,70 @@ class CardStackClaimServiceTest extends TestCase
     }
 
     #[Test]
+    public function unclaim_all_removes_every_pivot_for_the_given_stack(): void
+    {
+        // Phase 2.7. Multi-claim case: a single stack pivoted to two
+        // distinct decks. `unclaimAll` should detach both pivots in a
+        // single batched DELETE.
+        $user = User::factory()->create();
+        $deckA = $this->makeDeck($user, 'Deck A');
+        $deckB = $this->makeDeck($user, 'Deck B');
+        $oracle = $this->makeOracleCard();
+        $default = $this->makeDefaultCard($oracle);
+        $deckCardA = $this->makeDeckCard($deckA, $oracle, $default);
+        $deckCardB = $this->makeDeckCard($deckB, $oracle, $default);
+        $stack = $this->makeCardStack($user, $default);
+        $deckCardA->cardStacks()->attach($stack->id);
+        $deckCardB->cardStacks()->attach($stack->id);
+
+        $count = CardStackClaimService::unclaimAll($stack);
+
+        $this->assertSame(2, $count);
+        $this->assertSame([], CardStackClaimService::bulkClaimsForStacks([$stack->id]));
+    }
+
+    #[Test]
+    public function unclaim_all_leaves_other_stacks_untouched(): void
+    {
+        // Phase 2.7. Targeting one stack must not collateral-damage any
+        // pivot row pointing at a sibling stack of the same printing.
+        $user = User::factory()->create();
+        $deck = $this->makeDeck($user);
+        $oracle = $this->makeOracleCard();
+        $default = $this->makeDefaultCard($oracle);
+        $deckCard = $this->makeDeckCard($deck, $oracle, $default, 2);
+        $stackA = $this->makeCardStack($user, $default);
+        $stackB = $this->makeCardStack($user, $default);
+        $deckCard->cardStacks()->attach([$stackA->id, $stackB->id]);
+
+        $count = CardStackClaimService::unclaimAll($stackA);
+
+        $this->assertSame(1, $count);
+        // Stack A is gone from the claims map; stack B's claim survives.
+        $claims = CardStackClaimService::bulkClaimsForStacks([$stackA->id, $stackB->id]);
+        $this->assertArrayNotHasKey($stackA->id, $claims);
+        $this->assertArrayHasKey($stackB->id, $claims);
+        $this->assertCount(1, $claims[$stackB->id]);
+    }
+
+    #[Test]
+    public function unclaim_all_is_a_noop_when_the_stack_has_no_claims(): void
+    {
+        // Phase 2.7. Calling on an unclaimed stack returns 0 and
+        // doesn't error — controller can flash a "0 decks" message
+        // safely (in practice the UI gates the button to claimed
+        // stacks, so the count is always >= 1, but defence in depth).
+        $user = User::factory()->create();
+        $oracle = $this->makeOracleCard();
+        $default = $this->makeDefaultCard($oracle);
+        $stack = $this->makeCardStack($user, $default);
+
+        $count = CardStackClaimService::unclaimAll($stack);
+
+        $this->assertSame(0, $count);
+    }
+
+    #[Test]
     public function uses_a_single_query_for_a_batched_lookup(): void
     {
         // Smoke against N+1 — looking up claims for 10 stacks should

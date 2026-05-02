@@ -531,7 +531,8 @@
             "claim_badge": {
                 "label": "Reserved for {deck}",
                 "multi_label": "Reserved for {deck} +{count} more",
-                "tooltip_multi": "Also reserved for: {decks}"
+                "tooltip_multi": "Also reserved for: {decks}",
+                "unclaim": "Unclaim"
             }
         },
         "containers": {

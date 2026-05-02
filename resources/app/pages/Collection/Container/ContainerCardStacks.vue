@@ -129,6 +129,20 @@ const openDeleteSelectedModal = (selectedIds: string[]) => {
     document.getElementById("massActions")?.hidePopover();
     deleteSelectedIds.value = [...selectedIds];
 };
+/**
+ * Phase 2.7 — fire the collection-side unclaim endpoint. Detaches
+ * every deck claim against `row` (atomic for the rare multi-claim
+ * case). Server flashes a success message and redirects back to this
+ * container. Closes the row-actions popover first; an in-place
+ * `router.delete` doesn't light-dismiss it the way a modal-opening
+ * or page-navigating action would.
+ */
+const unclaim = (row: CardStackRow, close: () => void) => {
+    close();
+    router.delete(`/collection/cardstack/${row.id}/claims?from=container`, {
+        preserveScroll: true
+    });
+};
 /** The card stack ID currently shown in the preview modal, or null when hidden. */
 const previewId = ref<string | null>(null);
 /** helper function for created/updated at dates */
@@ -223,7 +237,7 @@ const getTimeStamps = (created: string, updated?: string | null) => {
         <template #cell-claims="{ row }">
             <card-stack-claim-badge :claims="row.claims" />
         </template>
-        <template v-if="isOwner" #actions="{ row }">
+        <template v-if="isOwner" #actions="{ row, close }">
             <li>
                 <button
                     type="button"
@@ -231,6 +245,22 @@ const getTimeStamps = (created: string, updated?: string | null) => {
                     @click="router.visit(`/collection/cardstack/${row.id}/edit`)"
                 >
                     <icon name="edit" :size="1" /> {{ $t("pages.edit_card.link") }}
+                </button>
+            </li>
+            <li v-if="row.claims.length > 0">
+                <!--
+                    Phase 2.7 — collection-side unclaim, owner-only by
+                    virtue of the wrapping `v-if="isOwner"`. The
+                    `claims` array is itself owner-only on the
+                    container payload (controller strips it for
+                    non-owners), so `row.claims.length > 0` only
+                    evaluates true for owners. The popover doesn't
+                    light-dismiss for an in-place `router.delete`, so
+                    we explicitly `close()` first.
+                -->
+                <button type="button" class="popover-list-item" @click="unclaim(row, close)">
+                    <icon name="delete" :size="1" />
+                    {{ $t("pages.collection.claim_badge.unclaim") }}
                 </button>
             </li>
             <li>

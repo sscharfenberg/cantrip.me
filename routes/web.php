@@ -119,6 +119,8 @@ Route::middleware(array_filter(['auth', Features::enabled(Features::emailVerific
         ->name('cardstack.update');
     Route::delete('collection/cardstack/{cardStack}', [CardStackController::class, 'destroy'])
         ->name('cardstack.destroy');
+    Route::delete('collection/cardstack/{cardStack}/claims', [CardStackController::class, 'unclaim'])
+        ->name('cardstack.unclaim');
 
     // decks
     Route::get('/decks', [DecksController::class, 'list'])

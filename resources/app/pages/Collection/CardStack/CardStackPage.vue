@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Form, Head } from "@inertiajs/vue3";
+import { Form, Head, router } from "@inertiajs/vue3";
 import { type Ref, computed, nextTick, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import CardStackDefaults from "@/pages/Collection/CardStack/CardStackDefaults.vue";
@@ -129,6 +129,24 @@ function onCardSelected(card: DefaultCardImage) {
 function onCardCleared() {
     availableFinishes.value = [...props.finishes];
 }
+/**
+ * Phase 2.7 — collection-side unclaim from the edit form. Detaches
+ * every deck claim against this stack atomically (multi-claim case
+ * included). Spins the button while the request is in-flight; the
+ * controller redirects back to this same edit page on success and the
+ * claim form-group disappears via its `claims.length > 0` gate.
+ */
+const processingUnclaim = ref(false);
+const unclaim = () => {
+    if (!props.cardStack) return;
+    processingUnclaim.value = true;
+    router.delete(`/collection/cardstack/${props.cardStack.id}/claims`, {
+        preserveScroll: true,
+        onFinish: () => {
+            processingUnclaim.value = false;
+        }
+    });
+};
 </script>
 
 <template>
@@ -239,8 +257,22 @@ function onCardCleared() {
         <form-group
             v-if="isEditMode && cardStack && cardStack.claims.length > 0"
             :label="$t('form.fields.claimed_by_deck')"
+            class="claim-group"
         >
             <card-stack-claim-badge :claims="cardStack.claims" />
+            <!-- Phase 2.7: in-form unclaim. Lands the user here after
+                 the lifecycle 422 from a container move attempt; this
+                 button closes the loop without leaving the page.
+                 Detaches every claim atomically (multi-claim case
+                 included). After success the controller redirects back
+                 to this same edit page (default `from` branch) and
+                 flashes a count, so the form-group disappears via the
+                 `claims.length > 0` gate. -->
+            <button type="button" class="btn-default" :disabled="processingUnclaim" @click="unclaim">
+                <icon name="delete" :size="1" />
+                {{ $t("pages.collection.claim_badge.unclaim") }}
+                <loading-spinner v-if="processingUnclaim" :size="2" />
+            </button>
         </form-group>
         <form-group
             :label="$t('form.fields.condition')"
@@ -291,5 +323,12 @@ function onCardCleared() {
 
 :deep(.claim-badge) {
     padding: 0.75ex 0;
+}
+
+:deep(.claim-group .form-group__field) {
+    display: flex;
+    align-items: center;
+
+    gap: 2ch;
 }
 </style>

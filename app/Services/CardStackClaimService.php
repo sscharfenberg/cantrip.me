@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\CardStack;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -71,5 +72,30 @@ class CardStackClaimService
         }
 
         return $result;
+    }
+
+    /**
+     * Detach every deck claim against this stack in a single batched
+     * delete and return the number of pivot rows removed.
+     *
+     * Phase 2.7's collection-side counterpart to the deck-side "Clear
+     * assignment" picker. The schema permits a stack to be claimed by
+     * several deck_card rows (rare partial-coverage split case); this
+     * removes them all at once. Per-deck unclaim stays a future option
+     * if anyone hits the multi-claim case in earnest.
+     *
+     * Sticky `decks.collection_mode = 'C'` is intentionally **not**
+     * cleared here — the deck stays in mode C even if this was its only
+     * claim. Clearing the pin is the deck-header modal's "Clear all
+     * collection assignments" action (see {@see DeckCollectionModeService}).
+     * Two distinct affordances for two distinct intents.
+     *
+     * No-op safe: returns 0 when the stack has no claims.
+     */
+    public static function unclaimAll(CardStack $stack): int
+    {
+        return DB::table('deck_card_card_stack')
+            ->where('card_stack_id', $stack->id)
+            ->delete();
     }
 }
