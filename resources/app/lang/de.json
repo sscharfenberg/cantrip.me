@@ -42,6 +42,10 @@
             "banned": "Banned",
             "restricted": "Restricted"
         },
+        "ruling_sources": {
+            "wotc": "Wizards of the Coast",
+            "scryfall": "Scryfall"
+        },
         "card_formats": {
             "standard": "Standard",
             "pioneer": "Pioneer",
@@ -798,6 +802,7 @@
                 "deck_size_min": "Das Hauptdeck hat {current} Karten – mindestens erforderlich sind {min}.",
                 "deck_size_max": "Das Hauptdeck hat {current} Karten – maximal erlaubt sind {max}.",
                 "sideboard_size_max": "Das Sideboard hat {current} Karten – maximal erlaubt sind {max}.",
+                "commander_banned": "{count} Commander ist in diesem Format gebannt. | {count} Commander sind in diesem Format gebannt.",
                 "companion_restriction": {
                     "gyruda": "{count} Karte verletzt Gyrudas Einschränkung (gerade Manakosten oder Land). | {count} Karten verletzen Gyrudas Einschränkung (gerade Manakosten oder Land).",
                     "jegantha": "{count} Karte verletzt Jeganthas Einschränkung (kein farbiges Mana-Symbol mehrfach). | {count} Karten verletzen Jeganthas Einschränkung (kein farbiges Mana-Symbol mehrfach).",

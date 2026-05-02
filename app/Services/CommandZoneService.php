@@ -71,8 +71,10 @@ class CommandZoneService
             ->limit(self::CANDIDATE_LIMIT)
             ->get();
 
+        $bannedAsCommander = $filters['rule0'] ? [] : $format->rules()->bannedAsCommander();
+
         return $candidates
-            ->filter(fn (OracleCard $card) => self::passesCommanderFilters($card, $filters))
+            ->filter(fn (OracleCard $card) => self::passesCommanderFilters($card, $filters, $bannedAsCommander))
             ->take(self::RESULT_LIMIT)
             ->values()
             ->map(fn (OracleCard $card) => self::mapCommanderCard($card));
@@ -82,12 +84,17 @@ class CommandZoneService
      * Check every face-based commander/companion/background/partner filter
      * against the in-memory `faces` collection of one candidate. Same
      * semantics as the previous SQL `whereHas` chain.
+     *
+     * @param  array<int, string>  $bannedAsCommander  Oracle names banned from the command zone in the active format.
      */
-    private static function passesCommanderFilters(OracleCard $card, array $filters): bool
+    private static function passesCommanderFilters(OracleCard $card, array $filters, array $bannedAsCommander): bool
     {
         // Background search has its own type-line filter — skip the
         // commander qualification check there. Rule 0 also skips it.
         if (! $filters['rule0'] && ! $filters['background'] && ! self::qualifiesAsCommander($card)) {
+            return false;
+        }
+        if (in_array($card->name, $bannedAsCommander, true)) {
             return false;
         }
         if ($filters['partner'] && ! self::hasPartnerKeyword($card)) {

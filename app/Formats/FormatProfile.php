@@ -111,6 +111,19 @@ abstract class FormatProfile
     }
 
     /**
+     * Oracle names of cards that are format-banned from the command zone but
+     * still allowed in the 99 — Scryfall doesn't ship this distinction
+     * structurally (it's only mentioned in the rulings), so it's an overlay
+     * here. Empty list = the format has no commander-only ban list.
+     *
+     * @return array<int, string>
+     */
+    public function bannedAsCommander(): array
+    {
+        return [];
+    }
+
+    /**
      * Pool overlay hook. Return false for cards that are legal per the pivot but
      * should still be excluded (house bans, Canadian Highlander points, etc.).
      *
@@ -186,6 +199,7 @@ abstract class FormatProfile
             'companionPlacement' => $this->companionPlacement()->value,
             'allowsCompanion' => $this->allowsCompanion(),
             'bannedAsCompanion' => $this->bannedAsCompanion(),
+            'bannedAsCommander' => $this->bannedAsCommander(),
             'usesGameChangerList' => $this->usesGameChangerList(),
         ];
     }

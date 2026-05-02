@@ -2,6 +2,7 @@
 
 namespace App\Services\Scryfall;
 
+use App\Enums\Scryfall\ScryfallRulingSource;
 use App\Models\OracleCard;
 use App\Models\Ruling;
 use App\Services\FormatService;
@@ -83,10 +84,17 @@ class RulingsService
             return;
         }
 
+        $source = ScryfallRulingSource::tryFrom($ruling['source'] ?? '');
+        if ($source === null) {
+            $this->skipped++;
+
+            return;
+        }
+
         $this->buffer[] = [
             'id' => (string) Str::uuid(),
             'oracle_card_id' => $oracleId,
-            'source' => $ruling['source'] ?? '',
+            'source' => $source->value,
             'published_at' => $ruling['published_at'] ?? null,
             'comment' => $ruling['comment'] ?? '',
         ];

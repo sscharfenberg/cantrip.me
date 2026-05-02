@@ -26,6 +26,9 @@ use App\Models\OracleCard;
  *  - deck_size_min — main deck below the format minimum
  *  - deck_size_max — main deck above the format maximum
  *  - sideboard_size_max — sideboard above the format maximum
+ *  - commander_banned — one or more commanders are on the format's
+ *    banned-as-commander overlay (legal in the 99, banned in the command
+ *    zone — Duel Commander has its own list for this).
  *
  * Expects these relations to already be loaded on the deck so the service
  * itself performs no queries:
@@ -65,6 +68,11 @@ final class DeckValidator
         $copyIds = self::copyLimitViolations($deck, $profile);
         if ($copyIds !== []) {
             $violations[] = ['type' => 'copy_limit', 'card_ids' => array_values($copyIds)];
+        }
+
+        $bannedCommanderNames = self::bannedCommanderNames($deck, $profile);
+        if ($bannedCommanderNames !== []) {
+            $violations[] = ['type' => 'commander_banned', 'names' => $bannedCommanderNames];
         }
 
         $mainSize = self::zoneSize($deck, DeckZone::Main);
@@ -236,6 +244,27 @@ final class DeckValidator
         }
 
         return $ids;
+    }
+
+    /**
+     * Names of commanders that appear on the format's banned-as-commander
+     * overlay. Returns the empty list when the format has no overlay or
+     * none of the deck's commanders match.
+     *
+     * @return array<int, string>
+     */
+    private static function bannedCommanderNames(Deck $deck, FormatProfile $profile): array
+    {
+        $banned = $profile->bannedAsCommander();
+        if ($banned === []) {
+            return [];
+        }
+
+        return $deck->commanders
+            ->filter(fn (OracleCard $commander): bool => in_array($commander->name, $banned, true))
+            ->pluck('name')
+            ->values()
+            ->all();
     }
 
     private static function zoneSize(Deck $deck, DeckZone $zone): int

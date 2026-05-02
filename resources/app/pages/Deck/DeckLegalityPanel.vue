@@ -71,6 +71,18 @@ const violationNames = (cardIds: string[]): string => {
                                 >
                             </i18n-t>
                         </template>
+                        <template v-else-if="violation.type === 'commander_banned'">
+                            <i18n-t
+                                keypath="pages.deck.legality.commander_banned"
+                                scope="global"
+                                :plural="violation.names.length"
+                            >
+                                <template #count
+                                    ><strong>{{ violation.names.length }}</strong></template
+                                >
+                            </i18n-t>
+                            <span class="legality-panel__names">{{ violation.names.join(", ") }}</span>
+                        </template>
                         <template v-else-if="'card_ids' in violation">
                             <i18n-t
                                 :keypath="`pages.deck.legality.${violation.type}`"

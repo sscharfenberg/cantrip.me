@@ -130,6 +130,8 @@ export type PerCardCompanionKey =
  * `companion_restriction`) carry the offending deck_card IDs. Deck-level
  * violations (`deck_size_min`, `deck_size_max`, `sideboard_size_max`,
  * `companion_size_restriction` for Yorion) carry the comparison numbers.
+ * `commander_banned` carries the banned commanders' names directly because
+ * commanders are not part of the deck-card lookup map.
  */
 export type DeckViolation =
     | { type: "pool_legality"; card_ids: string[] }
@@ -138,6 +140,7 @@ export type DeckViolation =
     | { type: "deck_size_min"; current: number; min: number }
     | { type: "deck_size_max"; current: number; max: number }
     | { type: "sideboard_size_max"; current: number; max: number }
+    | { type: "commander_banned"; names: string[] }
     | { type: "companion_restriction"; message_key: PerCardCompanionKey; card_ids: string[] }
     | { type: "companion_size_restriction"; message_key: "yorion"; current: number; min: number };
 
