@@ -7,10 +7,10 @@ import CollectionStatusBadge from "@/components/Deck/CollectionStatusBadge.vue";
 import DeckCardActionsMenu from "@/pages/Deck/Actions/DeckCardActionsMenu.vue";
 import DeckCommanderActionsMenu from "@/pages/Deck/Actions/DeckCommanderActionsMenu.vue";
 import DeckAddGroupModal from "@/pages/Deck/Modals/DeckAddGroupModal.vue";
-import DeckCardPreviewModal from "@/pages/Deck/Modals/DeckCardPreviewModal.vue";
 import DeckCompanionSection from "@/pages/Deck/Sections/DeckCompanionSection.vue";
 import DeckGroupHeadline from "@/pages/Deck/Sections/DeckGroupHeadline.vue";
 import CardImagePreview from "Components/Card/CardImagePreview.vue";
+import CardPreviewModal from "Components/Card/CardPreviewModal.vue";
 import ManaCost from "Components/Card/ManaCost.vue";
 import Icon from "Components/UI/Icon.vue";
 import { useDeckCardDrag } from "Composables/useDeckCardDrag.ts";
@@ -19,12 +19,6 @@ import type { DeckSort } from "Composables/useDeckSort.ts";
 import { useRecentlyAddedId } from "Composables/useRecentlyAdded.ts";
 import { useResponsiveColumns } from "Composables/useResponsiveColumns.ts";
 import type { DeckCardRow, DeckCategoryRow, DeckCommander, DeckCompanion, DeckMeta } from "Types/deckPage.ts";
-/** Shape of the data needed by the preview modal. */
-interface PreviewTarget {
-    name: string;
-    cardImage0: string | null;
-    cardImage1: string | null;
-}
 const props = defineProps<{
     /** Full deck meta (for companion capabilities + format flags). */
     deck: DeckMeta;
@@ -85,8 +79,17 @@ const { containerRef, columns } = useResponsiveColumns(sections, {
     maxColumns: 3,
     colGap: 16
 });
-/** The card currently shown in the preview modal, or null when hidden. */
-const previewTarget = ref<PreviewTarget | null>(null);
+/**
+ * Preview-modal endpoint URL, or null when hidden. `quantity` is sent
+ * for deck cards (so the modal can show the deck's copy count + implied
+ * total) and omitted for commanders / companion (always 1 — modal stays
+ * clean).
+ */
+const previewUrl = ref<string | null>(null);
+const openPreview = (id: string | null, quantity?: number): void => {
+    if (!id) return;
+    previewUrl.value = quantity ? `/cards/${id}/preview?quantity=${quantity}` : `/cards/${id}/preview`;
+};
 </script>
 
 <template>
@@ -109,13 +112,7 @@ const previewTarget = ref<PreviewTarget | null>(null);
                             <card-image-preview
                                 :src="commander.default_card.card_image_0"
                                 :alt="commander.name"
-                                @preview="
-                                    previewTarget = {
-                                        name: commander.name,
-                                        cardImage0: commander.default_card.card_image_0,
-                                        cardImage1: commander.default_card.card_image_1
-                                    }
-                                "
+                                @preview="openPreview(commander.default_card.id)"
                             >
                                 <span class="card__qty">1x </span>{{ commander.name }}
                             </card-image-preview>
@@ -144,7 +141,7 @@ const previewTarget = ref<PreviewTarget | null>(null);
                         variant="text"
                         :is-owner="isOwner"
                         :hero-card-id="deck.hero_card?.id ?? null"
-                        @preview="target => (previewTarget = target)"
+                        @preview="id => openPreview(id)"
                     />
                 </section>
                 <section
@@ -182,13 +179,7 @@ const previewTarget = ref<PreviewTarget | null>(null);
                             <card-image-preview
                                 :src="card.default_card.card_image_0"
                                 :alt="card.name"
-                                @preview="
-                                    previewTarget = {
-                                        name: card.name,
-                                        cardImage0: card.default_card.card_image_0,
-                                        cardImage1: card.default_card.card_image_1
-                                    }
-                                "
+                                @preview="openPreview(card.default_card.id, card.quantity)"
                             >
                                 <span class="card__qty">{{ card.quantity }}x </span>{{ card.name }}
                             </card-image-preview>
@@ -278,13 +269,7 @@ const previewTarget = ref<PreviewTarget | null>(null);
             droppedCard = null;
         "
     />
-    <deck-card-preview-modal
-        v-if="previewTarget"
-        :name="previewTarget.name"
-        :card-image0="previewTarget.cardImage0"
-        :card-image1="previewTarget.cardImage1"
-        @close="previewTarget = null"
-    />
+    <card-preview-modal v-if="previewUrl" :preview-url="previewUrl" @close="previewUrl = null" />
 </template>
 
 <style lang="scss" scoped>

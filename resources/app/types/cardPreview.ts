@@ -6,7 +6,16 @@ export interface CardLegality {
     legality: string;
 }
 
-/** Response shape from the card stack preview endpoint. */
+/**
+ * Response shape from the card preview endpoints.
+ *
+ * Card-level fields (name, images, set, artist, collector_number, price,
+ * scryfall_uri, legalities) are returned by both the stack endpoint and
+ * the deck-card endpoint. Stack-only fields (`amount`, `condition`,
+ * `finish`, `language`, `created_at`, `updated_at`, `total_price`,
+ * `claims`) are present only on the stack endpoint and gated by `v-if`
+ * in the modal template.
+ */
 export interface CardPreview {
     name: string;
     card_image_0: string | null;
@@ -16,20 +25,20 @@ export interface CardPreview {
     set_path: string | null;
     collector_number: string;
     artist: string | null;
-    amount: number;
-    condition: string | null;
-    finish: string | null;
-    language: string;
-    created_at: string;
-    updated_at: string;
     price: number;
-    total_price: number;
     scryfall_uri: string | null;
     legalities: CardLegality[];
+    amount?: number;
+    condition?: string | null;
+    finish?: string | null;
+    language?: string;
+    created_at?: string;
+    updated_at?: string;
+    total_price?: number;
     /**
      * Decks that have claimed this stack via a `deck_card_card_stack`
      * pivot row. Surfaced as the "Reserved for [deck]" badge in the
-     * preview modal body (Phase 2.5).
+     * preview modal body. Stack-only.
      */
-    claims: StackClaim[];
+    claims?: StackClaim[];
 }

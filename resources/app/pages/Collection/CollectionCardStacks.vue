@@ -4,7 +4,7 @@ import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import DeleteCardStackModal from "@/pages/Collection/common/DeleteCardStackModal.vue";
 import CardImagePreview from "Components/Card/CardImagePreview.vue";
-import CardStackPreviewModal from "Components/Card/CardStackPreviewModal.vue";
+import CardPreviewModal from "Components/Card/CardPreviewModal.vue";
 import CardStackClaimBadge from "Components/Collection/CardStackClaimBadge.vue";
 import DataTable from "Components/DataTable/DataTable.vue";
 import Icon from "Components/UI/Icon.vue";
@@ -226,7 +226,11 @@ const getTimeStamps = (created: string, updated?: string | null) => {
             <paragraph>{{ $t("components.datatable.no_results") }}</paragraph>
         </template>
     </data-table>
-    <card-stack-preview-modal v-if="previewId" :card-stack-id="previewId" @close="previewId = null" />
+    <card-preview-modal
+        v-if="previewId"
+        :preview-url="`/collection/cardstack/${previewId}/preview`"
+        @close="previewId = null"
+    />
     <delete-card-stack-modal
         v-if="deleteTarget"
         :card-stack="deleteTarget"

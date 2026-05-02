@@ -51,14 +51,6 @@ $deck: (
                 color.adjust(map.get(c.$grey, "charcoal"), $alpha: -0.25)
             )
     ),
-    "card-preview": (
-        "flip": (
-            "background": hsl(from light-dark(map.get(c.$grey, "black"), map.get(c.$grey, "infra")) h s l / 50%),
-            "surface": light-dark(#fff, #000),
-            "background-hover": light-dark(map.get(c.$brand, "dark1", "color"), map.get(c.$brand, "light1", "color")),
-            "surface-hover": light-dark(map.get(c.$brand, "dark1", "contrast"), map.get(c.$brand, "light1", "contrast"))
-        )
-    ),
     "quick-add": (
         "background": light-dark(
                 color.adjust(map.get(c.$grey, "astral"), $alpha: -0.25),

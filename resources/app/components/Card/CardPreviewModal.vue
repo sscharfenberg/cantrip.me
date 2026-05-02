@@ -10,31 +10,32 @@ import LoadingSpinner from "Components/UI/LoadingSpinner.vue";
 import { useFormatting } from "Composables/useFormatting";
 import type { CardPreview } from "Types/cardPreview";
 import type { DefaultCardImage } from "Types/defaultCardImage";
-
 /** @emits close — Fired when the modal should be dismissed. */
 const emit = defineEmits<{ close: [] }>();
 const props = defineProps<{
-    /** UUID of the card stack to preview. Used to fetch card details from the API. */
-    cardStackId: string;
+    /**
+     * Endpoint to fetch the preview payload from. Either the card-stack
+     * preview URL (`/collection/cardstack/{id}/preview`, includes
+     * stack-only fields) or the deck-card preview URL
+     * (`/cards/{defaultCardId}/preview`, card-level fields only).
+     */
+    previewUrl: string;
 }>();
 const { t } = useI18n();
 const { formatPrice, formatDateTime, formatDecimals } = useFormatting();
-
 /** Resolve the flag image URL for a given language code. */
 const flagSrc = (lang: string): string => new URL(`../../assets/flags/${lang}.svg`, import.meta.url).href;
-
 /** True while the preview data is being fetched from the server. */
 const loading = ref(true);
 /** True when the fetch request failed. */
 const error = ref(false);
 /** Card preview data returned by the API, or null while loading / on error. */
 const card = ref<CardPreview | null>(null);
-
 /** Map the API response to the shape expected by CardFaceImage. */
 const faceImage = computed<DefaultCardImage | null>(() => {
     if (!card.value) return null;
     return {
-        id: props.cardStackId,
+        id: "",
         name: card.value.name,
         card_image_0: card.value.card_image_0,
         card_image_1: card.value.card_image_1,
@@ -48,15 +49,14 @@ const faceImage = computed<DefaultCardImage | null>(() => {
         }
     };
 });
-
 /**
- * Fetch card preview data from the authenticated endpoint on mount.
+ * Fetch card preview data from the configured endpoint on mount.
  * Shows a loading spinner until the response arrives; sets the error
  * state if the request fails.
  */
 onMounted(async () => {
     try {
-        const response = await fetch(`/collection/cardstack/${props.cardStackId}/preview`, {
+        const response = await fetch(props.previewUrl, {
             headers: { Accept: "application/json" }
         });
         if (response.ok) {
@@ -124,7 +124,7 @@ onMounted(async () => {
                         <dt>{{ t("form.fields.price") }}</dt>
                         <dd>{{ formatPrice(card.price) }}</dd>
                     </template>
-                    <template v-if="card.amount > 1 && card.total_price">
+                    <template v-if="card.amount && card.amount > 1 && card.total_price">
                         <dt>{{ t("components.card_preview.total_price", { amount: card.amount }) }}</dt>
                         <dd>{{ formatPrice(card.total_price) }}</dd>
                     </template>

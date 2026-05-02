@@ -4,12 +4,7 @@ import ManaCost from "Components/Card/ManaCost.vue";
 import type { DeckCompanion } from "Types/deckPage.ts";
 import DeckCompanionActionsMenu from "../Actions/DeckCompanionActionsMenu.vue";
 import FaceImageLazy from "../Cards/FaceImageLazy.vue";
-interface PreviewTarget {
-    name: string;
-    cardImage0: string | null;
-    cardImage1: string | null;
-}
-const emit = defineEmits<{ preview: [target: PreviewTarget] }>();
+const emit = defineEmits<{ preview: [defaultCardId: string] }>();
 defineProps<{
     deckId: string;
     companion: DeckCompanion;
@@ -28,6 +23,7 @@ defineProps<{
             :card-image0="companion.default_card.card_image_0"
             :card-image1="companion.default_card.card_image_1"
             :name="companion.name"
+            @preview="emit('preview', companion.default_card.id)"
         >
             <deck-companion-actions-menu
                 v-if="isOwner"
@@ -44,13 +40,7 @@ defineProps<{
             <card-image-preview
                 :src="companion.default_card.card_image_0"
                 :alt="companion.name"
-                @preview="
-                    emit('preview', {
-                        name: companion.name,
-                        cardImage0: companion.default_card.card_image_0,
-                        cardImage1: companion.default_card.card_image_1
-                    })
-                "
+                @preview="emit('preview', companion.default_card.id)"
             >
                 <span class="card__qty">1x </span>{{ companion.name }}
             </card-image-preview>

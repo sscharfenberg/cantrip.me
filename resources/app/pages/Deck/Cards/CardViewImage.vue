@@ -9,6 +9,7 @@ import FaceImageLazy from "@/pages/Deck/Cards/FaceImageLazy.vue";
 import DeckCompanionSection from "@/pages/Deck/Sections/DeckCompanionSection.vue";
 import DeckGroupHeadline from "@/pages/Deck/Sections/DeckGroupHeadline.vue";
 import type { DeckCardGroup } from "@/utils/deckGrouping.ts";
+import CardPreviewModal from "Components/Card/CardPreviewModal.vue";
 import Icon from "Components/UI/Icon.vue";
 import Paragraph from "Components/UI/Paragraph.vue";
 import { useDeckSections } from "Composables/useDeckSections.ts";
@@ -47,6 +48,17 @@ const { t } = useI18n();
 const draggedTypeGroup = ref<DeckCardGroup | null>(null);
 /** Oracle id of a card just added via quick-add — used to flash its row briefly. */
 const recentlyAddedId = useRecentlyAddedId();
+/**
+ * Preview-modal endpoint URL, or null when hidden. `quantity` is sent
+ * for deck cards (so the modal can show the deck's copy count + implied
+ * total) and omitted for commanders / companion (always 1 — modal stays
+ * clean).
+ */
+const previewUrl = ref<string | null>(null);
+const openPreview = (id: string | null, quantity?: number): void => {
+    if (!id) return;
+    previewUrl.value = quantity ? `/cards/${id}/preview?quantity=${quantity}` : `/cards/${id}/preview`;
+};
 const { allGroups } = useDeckSections(
     () => props.cards,
     () => props.commanders,
@@ -70,6 +82,7 @@ const { allGroups } = useDeckSections(
                     :card-image0="commander.default_card.card_image_0"
                     :card-image1="commander.default_card.card_image_1"
                     :name="commander.name"
+                    @preview="openPreview(commander.default_card.id)"
                 >
                     <deck-commander-actions-menu
                         v-if="isOwner"
@@ -92,6 +105,7 @@ const { allGroups } = useDeckSections(
                 variant="image"
                 :is-owner="isOwner"
                 :hero-card-id="deck.hero_card?.id ?? null"
+                @preview="id => openPreview(id)"
             />
         </section>
         <section v-for="group in allGroups" :key="group.key" class="image-card-group">
@@ -104,6 +118,7 @@ const { allGroups } = useDeckSections(
                     :card-image1="card.default_card.card_image_1"
                     :name="card.name"
                     :class="{ 'card--just-added': recentlyAddedId === card.oracle_card_id }"
+                    @preview="openPreview(card.default_card.id, card.quantity)"
                 >
                     <icon
                         v-if="card.is_game_changer && deck.uses_game_changer_list"
@@ -150,4 +165,5 @@ const { allGroups } = useDeckSections(
         </section>
     </div>
     <paragraph v-if="!commanders.length && !allGroups.length">{{ $t("pages.deck.no_cards") }}</paragraph>
+    <card-preview-modal v-if="previewUrl" :preview-url="previewUrl" @close="previewUrl = null" />
 </template>

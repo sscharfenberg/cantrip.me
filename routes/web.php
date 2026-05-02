@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\CardStackPreviewController;
+use App\Http\Controllers\Api\DefaultCardPreviewController;
 use App\Http\Controllers\Collection\CardStackController;
 use App\Http\Controllers\Collection\CollectionController;
 use App\Http\Controllers\Collection\ContainerController;
@@ -214,6 +215,8 @@ Route::get('containers/{container}', [ContainerController::class, 'show'])
     ->name('container.show');
 Route::get('collection/cardstack/{cardStack}/preview', [CardStackPreviewController::class, 'show'])
     ->name('cardstack.preview');
+Route::get('cards/{defaultCard}/preview', [DefaultCardPreviewController::class, 'show'])
+    ->name('card.preview');
 
 /******************************************************************************
  * Dev pages (no auth, not linked from anywhere)

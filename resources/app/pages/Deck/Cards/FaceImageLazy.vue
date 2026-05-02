@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref } from "vue";
 import Icon from "Components/UI/Icon.vue";
+/** @emits preview — Fired when the front/back face image is clicked. */
+const emit = defineEmits<{ preview: [] }>();
 defineProps<{
     /** Front face image URL. */
     cardImage0: string | null;
@@ -55,6 +57,7 @@ onBeforeUnmount(() => {
             :alt="name"
             loading="lazy"
             class="face-image__front"
+            @click="emit('preview')"
         />
         <img
             v-if="loaded && cardImage1"
@@ -62,6 +65,7 @@ onBeforeUnmount(() => {
             :alt="name"
             loading="lazy"
             class="face-image__back"
+            @click="emit('preview')"
         />
         <button v-if="cardImage1" type="button" class="face-image__flip" @click.stop="onFlip">
             <icon name="flip" />

@@ -1,4 +1,3 @@
-@use "sass:math"; // https://sass-lang.com/documentation/modules/math/
 @use "sass:map"; // https://sass-lang.com/documentation/modules/map
 @use "../../global-size-tokens" as s;
 
@@ -104,11 +103,6 @@ $deck: (
     "image-view": (
         "groups-gap": 1rem,
         "group-gap": 0.5rem
-    ),
-    "card-preview": (
-        "card-image-max": 24rem,
-        "flip-size": 2rem,
-        "radius": math.round(map.get(s.$radius, "featured") * 1.45)
     ),
     "zone-btn": (
         "padding": 0.5rem 1rem,

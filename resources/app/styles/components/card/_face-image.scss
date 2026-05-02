@@ -24,6 +24,8 @@
 
         border-radius: inherit;
 
+        cursor: pointer;
+
         transition:
             transform map.get(ti.$timings, "medium") ease,
             filter map.get(ti.$timings, "medium") ease;
