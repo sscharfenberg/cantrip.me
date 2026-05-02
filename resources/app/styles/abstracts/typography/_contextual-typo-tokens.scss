@@ -34,6 +34,13 @@ $pages: (
     )
 ) !default;
 
+// typo for components
+$components: (
+    "rulings": (
+        "source": map.get(t.$font, "headline")
+    )
+) !default;
+
 // typo for form elements
 $form: (
     "textarea": map.get(t.$font, "mono")

@@ -25,8 +25,8 @@ class CardPreviewService
     /**
      * Build the card-level preview payload for the given default card.
      *
-     * Caller is responsible for eager-loading `set`, `artist` and
-     * `oracle.legalities` to avoid N+1 queries.
+     * Caller is responsible for eager-loading `set`, `artist`,
+     * `oracle.legalities`, and `oracle.rulings` to avoid N+1 queries.
      *
      * @return array<string, mixed>
      */
@@ -56,6 +56,15 @@ class CardPreviewService
                     'legality' => $match?->legality->value ?? CardLegality::NotLegal->value,
                 ];
             })->all(),
+            'rulings' => $card->oracle?->rulings
+                ->sortBy('published_at')
+                ->values()
+                ->map(fn ($ruling) => [
+                    'source' => $ruling->source->value,
+                    'published_at' => $ruling->published_at?->toDateString(),
+                    'comment' => $ruling->comment,
+                ])
+                ->all() ?? [],
         ];
     }
 }

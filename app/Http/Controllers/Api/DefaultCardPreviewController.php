@@ -24,7 +24,7 @@ class DefaultCardPreviewController extends Controller
      */
     public function show(ShowDefaultCardPreviewRequest $request, DefaultCard $defaultCard): JsonResponse
     {
-        $defaultCard->load('set', 'artist', 'oracle.legalities');
+        $defaultCard->load('set', 'artist', 'oracle.legalities', 'oracle.rulings');
 
         $currency = $request->user()?->currency
             ?? Locale::from(app()->getLocale())->defaultCurrency();

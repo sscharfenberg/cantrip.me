@@ -1229,6 +1229,9 @@
             "commander_partners": "Benötigt einen Commander. Zwei Partner-Commander dürfen sich den Slot teilen; beide zählen zur Deckgröße und starten in der Commandzone.",
             "color_identity": "Alle Karten müssen innerhalb der Farbidentität des Commanders liegen.",
             "signature_spell": "Benötigt einen Signature Spell – einen Spontanzauber oder eine Hexerei in der Farbidentität des Oathbreakers. Er zählt zur Deckgröße und wird aus der Commandzone gewirkt, während der Oathbreaker im Spiel ist."
+        },
+        "rulings": {
+            "title": "Rulings"
         }
     }
 }

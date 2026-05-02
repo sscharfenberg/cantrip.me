@@ -33,7 +33,7 @@ class CardStackPreviewController extends Controller
      */
     public function show(ShowCardStackPreviewRequest $request, CardStack $cardStack): JsonResponse
     {
-        $cardStack->load('defaultCard.set', 'defaultCard.artist', 'defaultCard.oracle.legalities');
+        $cardStack->load('defaultCard.set', 'defaultCard.artist', 'defaultCard.oracle.legalities', 'defaultCard.oracle.rulings');
 
         $card = $cardStack->defaultCard;
         $currency = $request->user()?->currency

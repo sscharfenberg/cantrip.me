@@ -6,6 +6,7 @@ use App\Enums\CardFormat;
 use App\Enums\CardLegality;
 use App\Enums\Scryfall\ScryfallCardLayout;
 use App\Enums\Scryfall\ScryfallLang;
+use App\Services\Scryfall\RulingsService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
@@ -109,6 +110,17 @@ class OracleCard extends Model
     public function faces(): HasMany
     {
         return $this->hasMany(OracleCardFace::class);
+    }
+
+    /**
+     * Get the rulings for this oracle card. Populated from Scryfall's
+     * rulings bulk export via {@see RulingsService}.
+     *
+     * @return HasMany<Ruling>
+     */
+    public function rulings(): HasMany
+    {
+        return $this->hasMany(Ruling::class, 'oracle_card_id');
     }
 
     /**

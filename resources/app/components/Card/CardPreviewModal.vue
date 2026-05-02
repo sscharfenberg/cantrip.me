@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import CardFaceImage from "Components/Card/CardFaceImage.vue";
 import CardLegalities from "Components/Card/CardLegalities.vue";
+import CardRulings from "Components/Card/CardRulings.vue";
 import ManaCost from "Components/Card/ManaCost.vue";
 import CardStackClaimBadge from "Components/Collection/CardStackClaimBadge.vue";
 import Modal from "Components/Modal/Modal.vue";
@@ -117,8 +118,8 @@ onMounted(async () => {
                     <template v-if="card.set_code && card.set_name && card.set_path">
                         <dt>{{ t("form.fields.set_name") }}</dt>
                         <dd class="cardstack-preview__set">
-                            [{{ card.set_code.toUpperCase() }}] {{ card.set_name }}
                             <img :src="card.set_path" :alt="`[${card.set_code.toUpperCase()}] ${card.set_name}`" />
+                            [{{ card.set_code.toUpperCase() }}] {{ card.set_name }}
                         </dd>
                     </template>
                     <template v-if="card.produced_mana?.length">
@@ -150,7 +151,6 @@ onMounted(async () => {
                         </dd>
                     </template>
                 </dl>
-                <card-legalities v-if="card.legalities.length" :legalities="card.legalities" />
                 <br />
                 <a
                     v-if="card.scryfall_uri"
@@ -163,6 +163,10 @@ onMounted(async () => {
                     {{ t("components.card_preview.scryfall") }}
                 </a>
             </div>
+        </div>
+        <div v-if="card && (card.legalities.length || card.rulings.length)" class="cardstack-preview__meta">
+            <card-legalities v-if="card.legalities.length" :legalities="card.legalities" />
+            <card-rulings v-if="card.rulings.length" :rulings="card.rulings" />
         </div>
     </modal>
 </template>

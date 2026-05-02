@@ -6,6 +6,13 @@ export interface CardLegality {
     legality: string;
 }
 
+/** A single ruling for a card. */
+export interface CardRuling {
+    source: string;
+    published_at: string | null;
+    comment: string;
+}
+
 /**
  * Response shape from the card preview endpoints.
  *
@@ -34,6 +41,8 @@ export interface CardPreview {
      */
     produced_mana: string[] | null;
     legalities: CardLegality[];
+    /** Rulings for this card, sorted by published_at ascending. Empty when none. */
+    rulings: CardRuling[];
     amount?: number;
     condition?: string | null;
     finish?: string | null;

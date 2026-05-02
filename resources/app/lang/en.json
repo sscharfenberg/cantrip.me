@@ -1229,6 +1229,9 @@
             "commander_partners": "Requires a commander. Two partner commanders may share the slot; both count toward the deck size and start in the command zone.",
             "color_identity": "All cards must fall within the commander's color identity.",
             "signature_spell": "Requires a signature spell — an instant or sorcery matching the oathbreaker's color identity. It counts toward the deck size and is cast from the command zone while the oathbreaker is on the battlefield."
+        },
+        "rulings": {
+            "title": "Rulings"
         }
     }
 }
