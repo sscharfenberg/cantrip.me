@@ -84,6 +84,9 @@ class OracleCardsService
         if (array_key_exists('color_identity', $card) && count($card['color_identity']) > 0) {
             $arr['color_identity'] = implode('', $card['color_identity']);
         }
+        if (array_key_exists('produced_mana', $card) && is_array($card['produced_mana']) && count($card['produced_mana']) > 0) {
+            $arr['produced_mana'] = implode('', $card['produced_mana']);
+        }
         // insert into db
         try {
             $newCard = OracleCard::create($arr);

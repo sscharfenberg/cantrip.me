@@ -70,6 +70,10 @@ class UpdateEverything extends Command
             $waitTime += $this->sleep();
             $this->call('scryfall:default_cards');
             $waitTime += $this->sleep();
+            // import rulings (depends on oracle_cards being present;
+            // does not need images, so runs before the image download)
+            $this->call('scryfall:rulings');
+            $waitTime += $this->sleep();
             // download missing art crop and card images to local disk
             $this->call('scryfall:images');
             $waitTime += $this->sleep();

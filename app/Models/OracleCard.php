@@ -64,6 +64,7 @@ class OracleCard extends Model
         'lang',
         'cmc',
         'color_identity',
+        'produced_mana',
         'reserved',
         'game_changer',
         'scryfall_uri',

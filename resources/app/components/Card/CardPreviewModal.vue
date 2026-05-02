@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import CardFaceImage from "Components/Card/CardFaceImage.vue";
 import CardLegalities from "Components/Card/CardLegalities.vue";
+import ManaCost from "Components/Card/ManaCost.vue";
 import CardStackClaimBadge from "Components/Collection/CardStackClaimBadge.vue";
 import Modal from "Components/Modal/Modal.vue";
 import Icon from "Components/UI/Icon.vue";
@@ -118,6 +119,12 @@ onMounted(async () => {
                         <dd class="cardstack-preview__set">
                             [{{ card.set_code.toUpperCase() }}] {{ card.set_name }}
                             <img :src="card.set_path" :alt="`[${card.set_code.toUpperCase()}] ${card.set_name}`" />
+                        </dd>
+                    </template>
+                    <template v-if="card.produced_mana?.length">
+                        <dt>{{ t("form.fields.produced_mana") }}</dt>
+                        <dd>
+                            <mana-cost :mana-cost="card.produced_mana.map(m => `{${m}}`).join('')" />
                         </dd>
                     </template>
                     <template v-if="card.price">

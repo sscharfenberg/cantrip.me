@@ -23,6 +23,7 @@ return new class extends Migration
             $table->string('lang', 8);
             $table->decimal('cmc', 8, 1);
             $table->string('color_identity', 5)->nullable();
+            $table->string('produced_mana', 6)->nullable();
             $table->boolean('reserved')->default(false);
             $table->boolean('game_changer')->default(false);
             $table->string('scryfall_uri', 255);

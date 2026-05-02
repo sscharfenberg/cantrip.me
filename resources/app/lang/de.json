@@ -1035,6 +1035,7 @@
             "qty": "Anzahl",
             "finish": "Finish",
             "language": "Sprache",
+            "produced_mana": "Erzeugt",
             "price": "Preis",
             "total_price": "Gesamt",
             "artist": "Künstler",

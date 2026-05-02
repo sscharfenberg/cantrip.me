@@ -45,6 +45,9 @@ class CardPreviewService
             'artist' => $card->artist?->name,
             'price' => (float) ($card->{$priceColumn} ?? 0),
             'scryfall_uri' => $card->oracle?->scryfall_uri,
+            'produced_mana' => $card->oracle?->produced_mana
+                ? str_split($card->oracle->produced_mana)
+                : null,
             'legalities' => collect(CardFormat::cases())->map(function (CardFormat $format) use ($card) {
                 $match = $card->oracle?->legalities->first(fn ($l) => $l->format === $format->value);
 

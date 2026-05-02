@@ -27,6 +27,12 @@ export interface CardPreview {
     artist: string | null;
     price: number;
     scryfall_uri: string | null;
+    /**
+     * Mana this card can produce (single-letter codes: W/U/B/R/G/C),
+     * aggregated across all faces by Scryfall. Null when the card
+     * produces no mana.
+     */
+    produced_mana: string[] | null;
     legalities: CardLegality[];
     amount?: number;
     condition?: string | null;
