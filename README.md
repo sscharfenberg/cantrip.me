@@ -99,7 +99,8 @@ scryfall:sets           → fetch set metadata + download set icon SVGs
 scryfall:symbols        → fetch mana/ability symbols + download symbol SVGs
 scryfall:bulk           → download bulk data metadata (URLs, expected filesizes)
 scryfall:oracle         → import oracle cards from bulk JSON into oracle_cards table
-scryfall:default_cards  → import default cards from bulk JSON into default_cards + artists tables
+scryfall:default_cards  → import default cards from bulk JSON into default_cards + artists tables; also captures `all_parts` printing pairs into default_card_relations
+scryfall:rulings        → import rulings from bulk JSON into rulings table
 scryfall:images         → download missing/outdated art crops + card images to local disk
 scryfall:resolve-paths  → update Scryfall URLs in database to point at local image paths
 scryfall:cache          → pre-warm the welcome-page Scryfall stats cache so the next visitor lands on a warm page
@@ -133,11 +134,17 @@ Fetches bulk data metadata from Scryfall (download URLs and expected filesizes) 
 
 ### `php artisan scryfall:oracle`
 
-Downloads the `oracle_cards` bulk JSON from Scryfall (if not already cached), truncates the `oracle_cards` table, and stream-parses the JSON to insert each card. Image columns (`card_image_0`, `card_image_1`) are stored as Scryfall URLs; local path resolution happens later via `scryfall:resolve-paths`.
+Downloads the `oracle_cards` bulk JSON from Scryfall (if not already cached), truncates the `oracle_cards`, `oracle_card_faces`, and `legalities` tables, and stream-parses the JSON to insert each card along with its faces and legalities. Card-level fields including `produced_mana` (the mana colors a card can produce, used to render the "Produces" row in the card preview modal) live on `oracle_cards`; per-face data lives on `oracle_card_faces`. Image columns (`card_image_0`, `card_image_1`) are stored as Scryfall URLs; local path resolution happens later via `scryfall:resolve-paths`.
 
 ### `php artisan scryfall:default_cards`
 
-Downloads the `default_cards` bulk JSON from Scryfall (if not already cached), truncates the `default_cards` and `artists` tables, and stream-parses the JSON to insert each card. Image columns (`card_image_0`, `card_image_1`, `art_crop`) are stored as Scryfall URLs; local path resolution happens later via `scryfall:resolve-paths`.
+Downloads the `default_cards` bulk JSON from Scryfall (if not already cached), truncates the `default_cards`, `default_card_relations`, and `artists` tables, and stream-parses the JSON to insert each card. Image columns (`card_image_0`, `card_image_1`, `art_crop`) are stored as Scryfall URLs; local path resolution happens later via `scryfall:resolve-paths`.
+
+`all_parts` (Scryfall's printing-level edges to related cards — tokens, meld parts, meld results, combo pieces) is captured during the same file walk into `default_card_relations`. Edges are buffered in memory throughout the stream and bulk-inserted (in 5 000-row chunks to stay under MySQL's 65 535-placeholder per-statement cap) once at the end of traversal — by then every printing referenced by an edge has been inserted, so foreign-key constraints are satisfied without a dependency-ordered traversal of Scryfall's bulk. Edges are keyed at the printing level so the deck view can later show the *matching* token printing for a given card printing (MM2 Bitterblossom → MM2 Faerie Rogue, not a random reprint). See `app/Services/Scryfall/DefaultCardsService.php` and the `ScryfallRelatedComponent` enum.
+
+### `php artisan scryfall:rulings`
+
+Downloads the `rulings` bulk JSON from Scryfall (~25 MB, much smaller than the card bulks), truncates the `rulings` table, and stream-parses the JSON to insert each ruling. Pre-loads existing `oracle_cards.id` values into an in-memory hash so rulings whose `oracle_id` doesn't reference a card we have (tokens, cards not yet imported) are silently skipped without per-row FK lookups. Inserts in 500-row batches via `Ruling::insert()`. Logs both parsed and skipped counts. Used by the card preview modal to render rulings sorted by `published_at`.
 
 ### `php artisan scryfall:images`
 
