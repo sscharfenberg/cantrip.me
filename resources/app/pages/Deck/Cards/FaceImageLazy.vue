@@ -73,3 +73,14 @@ onBeforeUnmount(() => {
         <slot />
     </li>
 </template>
+
+<style lang="scss" scoped>
+// FaceImageLazy is always click-to-preview (img click emits `preview`).
+// CardFaceImage shares the same .face-image__front/__back classes but
+// has no built-in click handler, so the cursor lives here, not in the
+// shared component partial.
+:deep(.face-image__front),
+:deep(.face-image__back) {
+    cursor: pointer;
+}
+</style>

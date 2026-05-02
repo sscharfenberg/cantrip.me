@@ -11,11 +11,13 @@ import type {
     DeckCommander,
     DeckCompanion,
     DeckMeta,
+    DeckToken,
     DeckViolation
 } from "Types/deckPage.ts";
 import CardViewImage from "./Cards/CardViewImage.vue";
 import CardViewText from "./Cards/CardViewText.vue";
 import DeckHeader from "./DeckHeader.vue";
+import DeckTokensPanel from "./DeckTokensPanel.vue";
 import DeckNavigation from "./Navigation/DeckNavigation.vue";
 const props = defineProps<{
     /**
@@ -65,6 +67,12 @@ const props = defineProps<{
         has_container: boolean;
         claimed_count: number;
     } | null;
+    /**
+     * Tokens (and other `all_parts` printing edges) created by cards in
+     * this deck — already deduped on the related printing id and
+     * sorted alphabetically server-side.
+     */
+    tokens: DeckToken[];
 }>();
 const { setBreadcrumbs } = useBreadcrumbs();
 setBreadcrumbs([{ labelKey: "pages.decks.link", href: "/decks", icon: "deck" }, { label: props.deck.name }]);
@@ -130,5 +138,17 @@ const commanderColorIdentity = computed(() => combineCI(props.commanders.map(c =
         :is-singleton="deck.is_singleton"
         :collection-mode="collectionMode"
     />
-
+    <div v-if="tokens.length" class="deck-stats">
+        <deck-tokens-panel v-if="tokens.length" :tokens="tokens" />
+    </div>
 </template>
+
+<style lang="scss" scoped>
+.deck-stats {
+    display: flex;
+    flex-direction: column;
+
+    margin-top: 1rem;
+    gap: 0.5rem;
+}
+</style>

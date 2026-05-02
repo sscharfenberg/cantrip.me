@@ -18,8 +18,9 @@ class DatabaseSeeder extends Seeder
         $this->call([
             UserSeeder::class,
             ContainerSeeder::class,
+            DeckSeeder::class,
         ]);
         $execution = hrtime(true) - $start;
-        echo("Database seeding took \033[92m".$execution/1e+9."\033[39m seconds.\n\n");
+        echo "Database seeding took \033[92m".$execution / 1e+9."\033[39m seconds.\n\n";
     }
 }

@@ -108,6 +108,20 @@ export interface DeckCategoryRow {
 }
 
 /**
+ * A token (or other related printing) created by one of the deck's
+ * cards. Captured at the printing layer so the displayed token
+ * matches the printing of its source card (MM2 Bitterblossom →
+ * MM2 Faerie Rogue). Extends {@link DefaultCardImage} so the
+ * `<CardFaceImage>` component can render it directly. The added
+ * `color_identity` field comes from the token's oracle card and
+ * drives the WUBRG sort in `DeckTokensPanel`.
+ */
+export interface DeckToken extends DefaultCardImage {
+    /** WUBRG-ordered concatenation of color letters, or null for colorless. */
+    color_identity: string | null;
+}
+
+/**
  * i18n suffix identifying which per-card companion rule was broken. Yorion
  * is excluded — its violation type is `companion_size_restriction` and
  * always maps to the `yorion` message.

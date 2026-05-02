@@ -194,7 +194,7 @@
                     "explanation": "Die Anzahl von Decks die in cantrip.me gebaut wurden."
                 },
                 "worth": {
-                    "title": "Sammlungen Gesamtwert",
+                    "title": "Gesamtwert",
                     "explanation": "Der Gesamtwert der Karten die in cantrip.me Sammlungen erfasst wurden."
                 }
             }
@@ -815,6 +815,9 @@
                     "yorion": "Yorion benötigt mindestens {min} Karten im Startdeck — dein Deck hat {current}.",
                     "zirda": "{count} bleibende Karte hat keine aktivierte Fähigkeit (Zirda). | {count} bleibende Karten haben keine aktivierte Fähigkeit (Zirda)."
                 }
+            },
+            "tokens": {
+                "title": "Dieses Deck benötigt {count} Token | Dieses Deck benötigt {count} Tokens"
             },
             "companion": {
                 "heading": "Companion",

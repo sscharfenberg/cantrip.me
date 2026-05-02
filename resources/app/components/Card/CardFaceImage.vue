@@ -53,7 +53,7 @@ function onFlip() {
                     :title="`${card.set.code.toUpperCase()} - ${card.set.name}`"
                     v-tooltip="{
                         content: `${card.set.code.toUpperCase()} - ${card.set.name}`,
-                        container: tooltipContainer ?? false
+                        container: tooltipContainer ?? 'body'
                     }"
                 />
             </span>

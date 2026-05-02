@@ -86,7 +86,11 @@ onMounted(async () => {
             <p>{{ t("components.card_preview.error") }}</p>
         </div>
         <div v-else-if="card" class="cardstack-preview">
-            <card-face-image v-if="faceImage?.card_image_0" :card="faceImage" />
+            <card-face-image
+                v-if="faceImage?.card_image_0"
+                :card="faceImage"
+                tooltip-container="#modal-body"
+            />
             <div class="col">
                 <dl class="cardstack-preview__details">
                     <template v-if="card.amount">

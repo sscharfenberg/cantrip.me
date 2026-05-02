@@ -7,6 +7,8 @@ use App\Enums\CardFormat;
 use App\Enums\ContainerType;
 use App\Enums\ContainerVisibility;
 use App\Enums\DeckState;
+use App\Enums\Finish;
+use App\Enums\Scryfall\ScryfallRelatedComponent;
 use App\Formats\FormatProfile;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Decks\ClearDeckCollectionAssignmentsRequest;
@@ -26,6 +28,7 @@ use App\Models\Deck;
 use App\Models\DeckCard;
 use App\Models\DeckCategory;
 use App\Models\DefaultCard;
+use App\Models\DefaultCardRelation;
 use App\Models\OracleCard;
 use App\Services\CommandZoneService;
 use App\Services\DeckCollectionModeService;
@@ -53,7 +56,8 @@ class DecksController extends Controller
     {
         $decks = Deck::query()
             ->where('user_id', $request->user()->id)
-            ->withCount(['deckCards', 'commanders'])
+            ->withCount(['commanders'])
+            ->withSum('deckCards as deck_cards_quantity', 'quantity')
             ->addSelect([
                 'last_card_update' => DB::table('deck_cards')
                     ->selectRaw('MAX(deck_cards.updated_at)')
@@ -64,7 +68,7 @@ class DecksController extends Controller
             ])
             ->get()
             ->each(function (Deck $deck) {
-                $deck->card_count = $deck->deck_cards_count + $deck->commanders_count;
+                $deck->card_count = (int) $deck->deck_cards_quantity + $deck->commanders_count;
                 $deck->last_activity = max(array_filter([
                     $deck->updated_at,
                     $deck->last_card_update,
@@ -279,7 +283,7 @@ class DecksController extends Controller
             ];
         }
 
-        $cardCount = $deck->deckCards->count() + $deck->commanders->count();
+        $cardCount = (int) $deck->deckCards->sum('quantity') + $deck->commanders->count();
         $lastActivity = max(array_filter([
             $deck->updated_at?->toIso8601String(),
             $deck->deckCards->max('updated_at')?->toIso8601String(),
@@ -357,6 +361,48 @@ class DecksController extends Controller
             }
         }
 
+        // Tokens (and other `all_parts` printing edges) for every card
+        // in the deck — commanders, companion, deck cards. Captured at
+        // the printing layer so a deck running MM2 Bitterblossom shows
+        // the matching MM2 Faerie Rogue token, not a random reprint.
+        // Deduped on the related printing id so the same token only
+        // appears once even if multiple deck cards reference it.
+        $sourceDefaultCardIds = $deck->commanders
+            ->pluck('pivot.default_card_id')
+            ->merge($deck->deckCards->pluck('default_card_id'))
+            ->merge([$companion['default_card']['id'] ?? null])
+            ->filter()
+            ->unique()
+            ->values();
+
+        $tokens = DefaultCardRelation::query()
+            ->where('component', ScryfallRelatedComponent::Token->value)
+            ->whereIn('source_default_card_id', $sourceDefaultCardIds)
+            ->with([
+                'relatedCard:id,oracle_id,name,card_image_0,card_image_1,collector_number,finishes,artist_id,set_id',
+                'relatedCard.oracle:id,color_identity',
+                'relatedCard.set:id,name,code,path',
+                'relatedCard.artist:id,name',
+            ])
+            ->get()
+            ->map(fn (DefaultCardRelation $rel) => [
+                'id' => $rel->relatedCard->id,
+                'name' => $rel->relatedCard->name,
+                'card_image_0' => $rel->relatedCard->card_image_0,
+                'card_image_1' => $rel->relatedCard->card_image_1,
+                'artist' => $rel->relatedCard->artist?->name,
+                'cn' => $rel->relatedCard->collector_number,
+                'finishes' => Finish::labelsFromMask($rel->relatedCard->finishes),
+                'color_identity' => $rel->relatedCard->oracle?->color_identity,
+                'set' => $rel->relatedCard->set ? [
+                    'name' => $rel->relatedCard->set->name,
+                    'code' => $rel->relatedCard->set->code,
+                    'path' => $rel->relatedCard->set->path,
+                ] : null,
+            ])
+            ->unique('id')
+            ->values();
+
         return Inertia::render('Deck/DeckPage', [
             'isOwner' => $request->user()?->id === $deck->user_id,
             'deck' => [
@@ -400,6 +446,7 @@ class DecksController extends Controller
             'collectionMode' => $collectionMode,
             'collectionBadgeMode' => $collectionBadgeMode,
             'collectionModeContext' => $collectionModeContext,
+            'tokens' => $tokens,
         ]);
     }
 

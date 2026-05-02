@@ -816,6 +816,9 @@
                     "zirda": "{count} permanent card has no activated ability (Zirda). | {count} permanent cards have no activated ability (Zirda)."
                 }
             },
+            "tokens": {
+                "title": "This deck needs {count} Token | This deck needs {count} Tokens"
+            },
             "companion": {
                 "heading": "Companion",
                 "add": "Companion",
