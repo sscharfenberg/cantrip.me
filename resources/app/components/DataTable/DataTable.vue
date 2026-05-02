@@ -34,6 +34,22 @@ const props = withDefaults(
         baseUrl: ""
     }
 );
+/**
+ * Explicit slot contract — vue-tsc loses prop inference for slots that
+ * sit inside a nested `<template v-if … #default>` (the `actions` slot
+ * lives inside the DataTableActions wrapper below). Declaring it here
+ * keeps the consumer's destructure (`{ row, close }`) typed correctly.
+ *
+ * Cell and header slots are column-driven, so the catch-all index
+ * signature allows arbitrary slot names without enumerating columns.
+ */
+defineSlots<{
+    actions(props: { row: T; close: () => void }): unknown;
+    'toolbar-actions'(props: { selectedIds: string[] }): unknown;
+    empty(): unknown;
+     
+    [name: string]: (props?: any) => unknown;
+}>();
 const { t } = useI18n();
 const slots = useSlots();
 /** Filter slots to only cell-* and actions slots for forwarding. */
