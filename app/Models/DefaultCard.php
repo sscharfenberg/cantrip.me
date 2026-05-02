@@ -5,9 +5,11 @@ namespace App\Models;
 use App\Enums\Scryfall\ScryfallCardLayout;
 use App\Enums\Scryfall\ScryfallLang;
 use App\Enums\Scryfall\ScryfallRarity;
+use App\Enums\Scryfall\ScryfallRelatedComponent;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class DefaultCard extends Model
 {
@@ -127,5 +129,58 @@ class DefaultCard extends Model
     public function artist(): BelongsTo
     {
         return $this->belongsTo(Artist::class, 'artist_id', 'id');
+    }
+
+    /**
+     * All printing-level edges out of this card (tokens it creates,
+     * meld parts/results it pairs with, combo pieces). Captured from
+     * Scryfall's `all_parts` array per default-card so the matching
+     * printing is preserved (MM2 Bitterblossom → MM2 Faerie Rogue).
+     *
+     * @return HasMany<DefaultCardRelation>
+     */
+    public function relations(): HasMany
+    {
+        return $this->hasMany(DefaultCardRelation::class, 'source_default_card_id');
+    }
+
+    /**
+     * Token printings created by this card.
+     *
+     * @return HasMany<DefaultCardRelation>
+     */
+    public function tokens(): HasMany
+    {
+        return $this->relations()->where('component', ScryfallRelatedComponent::Token->value);
+    }
+
+    /**
+     * Meld pieces this card pairs with (front-half cards in a meld pair).
+     *
+     * @return HasMany<DefaultCardRelation>
+     */
+    public function meldParts(): HasMany
+    {
+        return $this->relations()->where('component', ScryfallRelatedComponent::MeldPart->value);
+    }
+
+    /**
+     * Meld result this card produces when melded.
+     *
+     * @return HasMany<DefaultCardRelation>
+     */
+    public function meldResults(): HasMany
+    {
+        return $this->relations()->where('component', ScryfallRelatedComponent::MeldResult->value);
+    }
+
+    /**
+     * Cards this card combos with (Scryfall's "combo_piece" component).
+     *
+     * @return HasMany<DefaultCardRelation>
+     */
+    public function comboPieces(): HasMany
+    {
+        return $this->relations()->where('component', ScryfallRelatedComponent::ComboPiece->value);
     }
 }

@@ -4,7 +4,9 @@ namespace App\Services\Scryfall;
 
 use App\Enums\Finish;
 use App\Enums\Game;
+use App\Enums\Scryfall\ScryfallRelatedComponent;
 use App\Models\DefaultCard;
+use App\Models\DefaultCardRelation;
 use App\Services\CardNameNormalizer;
 use App\Services\FormatService;
 use Cerbero\JsonParser\JsonParser;
@@ -23,6 +25,11 @@ use Illuminate\Support\Facades\Storage;
  *   - DefaultCardsService         → database (import, stores Scryfall URLs)
  *   - ImageDownloadService        → filesystem (downloading images to disk)
  *   - ResolveImagePathsService    → database (URL → local path resolution)
+ *
+ * Also captures `all_parts` printing-pair edges into default_card_relations
+ * during the same file walk — buffered in memory throughout traversal and
+ * flushed once at the end so every printing referenced by an edge has
+ * already been inserted (Scryfall's bulk isn't dependency-ordered).
  */
 class DefaultCardsService
 {
@@ -34,6 +41,17 @@ class DefaultCardsService
 
     private BulkdataService $bulkdataService;
 
+    /**
+     * Buffered all_parts edges, flushed at the end of the file walk.
+     *
+     * @var array<array{source_default_card_id: string, related_default_card_id: string, component: string}>
+     */
+    private array $relationsBuffer = [];
+
+    private int $relationsInserted = 0;
+
+    private int $relationsSkippedComponent = 0;
+
     public function __construct()
     {
         $this->imageService = new ScryfallImageService;
@@ -43,16 +61,18 @@ class DefaultCardsService
     }
 
     /**
-     * Truncate the default_cards and artists tables before a fresh import.
+     * Truncate the default_cards, default_card_relations and artists
+     * tables before a fresh import.
      *
      * Temporarily disables foreign key checks to allow truncation.
      */
     private function preRunCleanup(): void
     {
         DB::statement('SET FOREIGN_KEY_CHECKS=0;');
+        DefaultCardRelation::truncate();
         DefaultCard::truncate();
         DB::statement('SET FOREIGN_KEY_CHECKS=1;');
-        Log::channel('scryfall')->notice('truncated default_cards table.');
+        Log::channel('scryfall')->notice('truncated default_cards and default_card_relations tables.');
         $this->artistsService->truncate();
     }
 
@@ -109,7 +129,74 @@ class DefaultCardsService
     }
 
     /**
-     * Stream-parse the bulk JSON file and insert each card.
+     * Buffer a card's `all_parts` edges as default_card_relations rows.
+     *
+     * Skips entries with an unknown `component` value (Scryfall could
+     * theoretically add a fifth) and self-references (Scryfall sometimes
+     * lists the source itself as a `combo_piece`). FK safety is implicit:
+     * the buffer is only flushed at the end of the file walk by
+     * {@see flushRelationsBuffer()}, by which point every printing
+     * referenced here has been inserted by {@see insertCard()}.
+     *
+     * Periodic mid-walk flushing is deliberately NOT done — a relation
+     * row whose related_id sits later in the bulk would FK-fail if
+     * flushed before its target card was inserted. ~120 k rows × ~50 B
+     * = ~6 MB peak, freed after the single end-of-walk flush.
+     *
+     * @param  array  $card  A single card object from the bulk JSON.
+     */
+    private function bufferRelations(array $card): void
+    {
+        if (! isset($card['all_parts']) || ! is_array($card['all_parts'])) {
+            return;
+        }
+
+        foreach ($card['all_parts'] as $part) {
+            $component = ScryfallRelatedComponent::tryFrom($part['component'] ?? '');
+            if ($component === null) {
+                $this->relationsSkippedComponent++;
+
+                continue;
+            }
+            $relatedId = $part['id'] ?? null;
+            if ($relatedId === null || $relatedId === $card['id']) {
+                continue;
+            }
+            $this->relationsBuffer[] = [
+                'source_default_card_id' => $card['id'],
+                'related_default_card_id' => $relatedId,
+                'component' => $component->value,
+            ];
+        }
+    }
+
+    /**
+     * Bulk-insert the buffered relations in chunks and clear the buffer.
+     *
+     * Chunked to stay under MySQL's 65 535-placeholder ceiling per
+     * prepared statement (3 columns × 5 000 rows = 15 000 placeholders,
+     * comfortable headroom). `insertOrIgnore` silently drops duplicate
+     * composite keys (Scryfall sometimes emits the same edge twice across
+     * reprints) and any rare orphan that slipped through (related_id
+     * pointing to a printing not in the bulk).
+     */
+    private function flushRelationsBuffer(): void
+    {
+        if (empty($this->relationsBuffer)) {
+            return;
+        }
+
+        foreach (array_chunk($this->relationsBuffer, 5000) as $chunk) {
+            $this->relationsInserted += DefaultCardRelation::insertOrIgnore($chunk);
+        }
+        $this->relationsBuffer = [];
+    }
+
+    /**
+     * Stream-parse the bulk JSON file and insert each card. Card edges
+     * (all_parts → default_card_relations) are buffered during the walk
+     * and flushed once at the end so FK constraints hold without a
+     * dependency-ordered traversal.
      *
      * Uses JsonParser to avoid loading the entire file into memory,
      * which is critical for the large Scryfall bulk exports.
@@ -123,11 +210,15 @@ class DefaultCardsService
         Log::channel('scryfall')->notice("begin traversing $fileName.");
         JsonParser::parse(Storage::disk('scryfall-bulk')->get($fileName))->traverse(function (mixed $value, string|int $key, JsonParser $parser) use (&$count) {
             $this->insertCard($value);
+            $this->bufferRelations($value);
             $count++;
         });
+        $this->flushRelationsBuffer();
         $ms = $start->diffInMilliseconds(now());
         $numCards = number_format($count, 0, ',', '.');
-        Log::channel('scryfall')->notice("finished inserting $numCards cards into database in ".$this->formatService->formatMs($ms).'.');
+        $numRelations = number_format($this->relationsInserted, 0, ',', '.');
+        $numSkipped = number_format($this->relationsSkippedComponent, 0, ',', '.');
+        Log::channel('scryfall')->notice("finished inserting $numCards cards and $numRelations relations into database in ".$this->formatService->formatMs($ms)." (skipped $numSkipped relations for unknown component).");
     }
 
     /**
