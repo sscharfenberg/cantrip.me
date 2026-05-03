@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 import Headline from "Components/UI/Headline.vue";
 import type { ManaCurveBucket } from "Composables/useDeckStats.ts";
@@ -14,22 +14,21 @@ const props = defineProps<{
     curve: ManaCurveBucket[];
     /** Average mana value across non-land cards (lands excluded, commanders included, quantity-weighted). */
     average: number;
+    /** Controlled selection — owned by the deck page so categories/manacurve stay mutually exclusive. */
+    selectedCmc: number | null;
 }>();
 const { t, locale } = useI18n();
 /** Locale-aware 2-decimal formatter for the average mana value (e.g. "2.45" / "2,45"). */
 const formattedAverage = computed(() =>
     props.average.toLocaleString(locale.value, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 );
-/** Currently-clicked bucket's `cmc`, or `null` when nothing is selected. */
-const selectedCmc = ref<number | null>(null);
 /**
- * Toggle: clicking the active column clears the selection, clicking a
- * different column moves it. Either way the new value is emitted so the
- * parent can mirror it onto the deck card views.
+ * Toggle on click: clicking the active column emits null (clear),
+ * clicking a different column emits its cmc. The component is
+ * controlled — the parent's prop drives the visual selection.
  */
 const onColumnClick = (cmc: number): void => {
-    selectedCmc.value = selectedCmc.value === cmc ? null : cmc;
-    emit("select", selectedCmc.value);
+    emit("select", props.selectedCmc === cmc ? null : cmc);
 };
 /** Tallest bucket — divisor for relative heights. Floored at 1 so empty decks don't divide by zero. */
 const max = computed(() => Math.max(1, ...props.curve.map(b => b.total)));
@@ -121,6 +120,7 @@ const segmentsFor = (bucket: ManaCurveBucket): { kind: "permanents" | "spells"; 
 <style lang="scss" scoped>
 @use "sass:map";
 @use "Abstracts/colors" as c;
+@use "Abstracts/mixins" as m;
 @use "Abstracts/sizes" as s;
 @use "Abstracts/timings" as ti;
 
@@ -155,6 +155,14 @@ const segmentsFor = (bucket: ManaCurveBucket): { kind: "permanents" | "spells"; 
         gap: map.get(s.$components, "mana-curve", "gap");
 
         list-style: none;
+
+        @include m.mq("landscape") {
+            gap: #{map.get(s.$components, "mana-curve", "gap") * 2};
+        }
+
+        @include m.mq("desktop") {
+            gap: #{map.get(s.$components, "mana-curve", "gap") * 4};
+        }
     }
 
     &__bar {
@@ -186,6 +194,7 @@ const segmentsFor = (bucket: ManaCurveBucket): { kind: "permanents" | "spells"; 
         flex-direction: column-reverse;
 
         height: 100%;
+        padding: 0;
         border: 0;
 
         background: transparent;

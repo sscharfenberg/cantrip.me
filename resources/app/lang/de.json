@@ -42,6 +42,16 @@
             "banned": "Banned",
             "restricted": "Restricted"
         },
+        "card_types": {
+            "Creature": "Kreaturen",
+            "Planeswalker": "Planeswalker",
+            "Battle": "Kämpfe",
+            "Artifact": "Artefakte",
+            "Enchantment": "Verzauberungen",
+            "Instant": "Spontanzauber",
+            "Sorcery": "Hexereien",
+            "Land": "Länder"
+        },
         "ruling_sources": {
             "wotc": "Wizards of the Coast",
             "scryfall": "Scryfall"
@@ -711,6 +721,7 @@
             "no_cards": "Noch keine Karten in diesem Deck.",
             "illegal": "Diese Karte ist in diesem Deck nicht legal.",
             "game_changer": "Diese Karte steht auf der Game-Changer-Liste.",
+            "clear_selection": "Alle Auswahlen aufheben",
             "collection_status": {
                 "claimed_for_this_deck": "Aus deiner Sammlung für dieses Deck reserviert.",
                 "available": "Du besitzt ein Exemplar, das noch keinem Deck zugeordnet ist.",
@@ -828,6 +839,18 @@
                     "permanents": "Bleibende Karten",
                     "spells": "Sprüche",
                     "bar_aria": "Manakosten {cmc}: {total} Karten ({permanents} bleibende, {spells} Sprüche)"
+                },
+                "categories": {
+                    "title": "Karten - Verteilung",
+                    "view_picker": "Anzeige",
+                    "view": {
+                        "types": "Kartentypen",
+                        "categories": "Eigene Kategorien",
+                        "subtypes": "Untertypen"
+                    },
+                    "subtype_picker": "Kartentyp",
+                    "no_subtype": "Ohne Untertyp",
+                    "bar_aria": "{label}: {count} Karten ({percent}%)"
                 }
             },
             "companion": {

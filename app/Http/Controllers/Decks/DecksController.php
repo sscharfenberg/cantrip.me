@@ -221,6 +221,7 @@ class DecksController extends Controller
                 'color_identity' => $companionOracle->color_identity,
                 'produced_mana' => $companionOracle->produced_mana ? str_split($companionOracle->produced_mana) : null,
                 'cmc' => $companionOracle->cmc,
+                'type_line' => $companionOracle->faces->firstWhere('face_index', 0)?->type_line ?? '',
                 'mana_cost' => $companionOracle->faces->sortBy('face_index')->pluck('mana_cost')->values()->all(),
                 'default_card' => [
                     'id' => $companionDefault->id ?? null,

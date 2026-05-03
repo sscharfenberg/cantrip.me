@@ -122,6 +122,26 @@ function isLand(typeLine: string): boolean {
     return typeLine.includes("Land");
 }
 
+/**
+ * Split a Scryfall type line into its card types (left of the em-dash)
+ * and subtypes (right). Supertypes and types share the left side and
+ * aren't separated here — the caller filters by `TYPE_LABELS` to get
+ * the card types it cares about.
+ *
+ *   "Legendary Creature — Human Soldier" → { types: ["Creature"], subtypes: ["Human", "Soldier"] }
+ *   "Artifact"                            → { types: ["Artifact"], subtypes: [] }
+ *   "Artifact Creature — Construct"       → { types: ["Artifact", "Creature"], subtypes: ["Construct"] }
+ */
+function parseTypeLine(typeLine: string): { types: string[]; subtypes: string[] } {
+    const [leftRaw = "", rightRaw = ""] = typeLine.split(/\s*—\s*/, 2);
+    const leftTokens = leftRaw.split(/\s+/).filter(Boolean);
+    const types = leftTokens.filter((t): t is (typeof TYPE_LABELS)[number] =>
+        (TYPE_LABELS as readonly string[]).includes(t)
+    );
+    const subtypes = rightRaw.split(/\s+/).filter(Boolean);
+    return { types, subtypes };
+}
+
 /** True when the front-face type line resolves as a permanent (creature/artifact/enchantment/planeswalker/battle). */
 function isPermanent(typeLine: string): boolean {
     return /Creature|Artifact|Enchantment|Planeswalker|Battle/.test(typeLine);
@@ -180,6 +200,19 @@ export function useDeckStats(
     costPips: ComputedRef<ColorPipTally>;
     productionPips: ComputedRef<ColorPipTally>;
     typeCounts: ComputedRef<BreakdownBucket[]>;
+    /**
+     * Subtype breakdown per card type. Keys are the card type labels
+     * from `TYPE_LABELS`; values are subtype buckets sorted by count
+     * descending (with a "No subtype" entry merged in by count, not
+     * pinned). Includes commanders + companion in both numerator and
+     * denominator. Card types with zero cards are omitted entirely
+     * (so the second-dropdown picker can iterate over keys).
+     *
+     * Percent denominator is `count / cards-of-this-type` — the user
+     * has already filtered by type, so the natural intuition is "of
+     * my creatures, X% are humans".
+     */
+    subtypeBreakdowns: ComputedRef<Record<string, BreakdownBucket[]>>;
     categoryCounts: ComputedRef<BreakdownBucket[]>;
     /** Sum of `quantity` across the 99 (excludes commanders + companion). Drives percent computations. */
     totalNonCommanderCards: ComputedRef<number>;
@@ -280,7 +313,60 @@ export function useDeckStats(
             label,
             count: counts[label],
             percent: (counts[label] / total) * 100,
-        }));
+        }))
+            .filter(b => b.count > 0)
+            .sort((a, b) => b.count - a.count);
+    });
+
+    const subtypeBreakdowns = computed<Record<string, BreakdownBucket[]>>(() => {
+        type Acc = { typeTotal: number; subtypes: Map<string, number>; noSubtype: number };
+        const accByType: Record<string, Acc> = Object.fromEntries(
+            TYPE_LABELS.map(label => [label, { typeTotal: 0, subtypes: new Map(), noSubtype: 0 }])
+        );
+
+        const tally = (typeLine: string, quantity: number): void => {
+            const { types, subtypes } = parseTypeLine(typeLine);
+            for (const cardType of types) {
+                const acc = accByType[cardType];
+                if (!acc) continue;
+                acc.typeTotal += quantity;
+                if (subtypes.length === 0) {
+                    acc.noSubtype += quantity;
+                } else {
+                    for (const st of subtypes) {
+                        acc.subtypes.set(st, (acc.subtypes.get(st) ?? 0) + quantity);
+                    }
+                }
+            }
+        };
+
+        for (const card of cards()) tally(card.type_line, card.quantity);
+        for (const cmd of commanders()) tally(cmd.type_line, 1);
+        const cmp = companion();
+        if (cmp !== null) tally(cmp.type_line, 1);
+
+        const result: Record<string, BreakdownBucket[]> = {};
+        for (const cardType of TYPE_LABELS) {
+            const acc = accByType[cardType];
+            if (acc.typeTotal === 0) continue;
+            const buckets: BreakdownBucket[] = [...acc.subtypes.entries()].map(([label, count]) => ({
+                key: label,
+                label,
+                count,
+                percent: (count / acc.typeTotal) * 100,
+            }));
+            if (acc.noSubtype > 0) {
+                buckets.push({
+                    key: "__no_subtype",
+                    label: "__no_subtype",
+                    count: acc.noSubtype,
+                    percent: (acc.noSubtype / acc.typeTotal) * 100,
+                });
+            }
+            buckets.sort((a, b) => b.count - a.count);
+            result[cardType] = buckets;
+        }
+        return result;
     });
 
     const categoryCounts = computed<BreakdownBucket[]>(() => {
@@ -332,6 +418,7 @@ export function useDeckStats(
         costPips,
         productionPips,
         typeCounts,
+        subtypeBreakdowns,
         categoryCounts,
         totalNonCommanderCards,
     };

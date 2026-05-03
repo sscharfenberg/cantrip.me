@@ -35,6 +35,8 @@ export interface DeckCompanion {
     /** Mana this card can produce (W/U/B/R/G/C). Null when the card produces no mana. */
     produced_mana: string[] | null;
     cmc: number;
+    /** Front-face type line — used by deck-stats subtype/type breakdowns. */
+    type_line: string;
     mana_cost: (string | null)[];
     default_card: DeckCommanderDefaultCard;
 }
@@ -118,6 +120,37 @@ export interface DeckCategoryRow {
     id: string;
     name: string;
 }
+
+/**
+ * The active selection coming out of `DeckStatsCategories`. Mirrored
+ * onto the card views so they can highlight cards matching the bar
+ * the user clicked. Mutually exclusive with mana-curve selection at
+ * the deck-page level — only one is non-null at a time.
+ *
+ * - `type`: matches when `card.type_line.includes(label)`.
+ * - `category`: matches when `card.category_id === id`. `id: null`
+ *   represents the synthetic "Uncategorized" bucket.
+ * - `subtype`: matches when the card's type line carries the chosen
+ *   `cardType` AND its subtypes (right of the em-dash) include
+ *   `subtype`. `subtype: null` represents the "No subtype" bucket.
+ */
+export type DeckStatsSelection =
+    | { kind: "type"; label: string }
+    | { kind: "category"; id: string | null }
+    | { kind: "subtype"; cardType: string; subtype: string | null };
+
+/**
+ * Single source of truth for "what's currently highlighting cards in
+ * this deck view". Owned by `DeckPage`; each child panel projects its
+ * own slice via a computed prop. Modeling all axes as one discriminated
+ * union enforces mutual exclusion at the type level — at most one
+ * panel can have a selection at any time. Add new variants here as
+ * additional stats panels (color distribution, etc.) get clickable
+ * facets.
+ */
+export type DeckHighlight =
+    | { axis: "mv"; value: number }
+    | { axis: "category"; selection: DeckStatsSelection };
 
 /**
  * A token (or other related printing) created by one of the deck's

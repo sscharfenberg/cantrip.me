@@ -114,20 +114,24 @@
     }
 }
 
-.text-card-groups:has(.mv-selected) {
-    .card.mv-selected {
+.text-card-groups:has(.mv-selected),
+.text-card-groups:has(.cat-selected) {
+    .card.mv-selected,
+    .card.cat-selected {
         background-color: map.get(c.$pages, "deck", "card", "selected-background");
         color: map.get(c.$pages, "deck", "card", "selected-surface");
         border-color: map.get(c.$pages, "deck", "card", "selected-border");
     }
 }
 
-.image-card-groups:has(.mv-selected) {
+.image-card-groups:has(.mv-selected),
+.image-card-groups:has(.cat-selected) {
     .face-image {
         opacity: 0.4;
     }
 
-    .face-image.mv-selected {
+    .face-image.mv-selected,
+    .face-image.cat-selected {
         opacity: 1;
     }
 }

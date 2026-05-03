@@ -18,7 +18,14 @@ import { useDeckSections } from "Composables/useDeckSections.ts";
 import type { DeckSort } from "Composables/useDeckSort.ts";
 import { useRecentlyAddedId } from "Composables/useRecentlyAdded.ts";
 import { useResponsiveColumns } from "Composables/useResponsiveColumns.ts";
-import type { DeckCardRow, DeckCategoryRow, DeckCommander, DeckCompanion, DeckMeta } from "Types/deckPage.ts";
+import type {
+    DeckCardRow,
+    DeckCategoryRow,
+    DeckCommander,
+    DeckCompanion,
+    DeckMeta,
+    DeckStatsSelection
+} from "Types/deckPage.ts";
 const props = defineProps<{
     /** Full deck meta (for companion capabilities + format flags). */
     deck: DeckMeta;
@@ -53,6 +60,12 @@ const props = defineProps<{
      * upcoming filter/highlight integration.
      */
     selectedManaValue: number | null;
+    /**
+     * Type / category / subtype bar the user clicked in the deck-stats
+     * categories panel, or null when nothing is selected. Mutually
+     * exclusive with `selectedManaValue`.
+     */
+    selectedCategory: DeckStatsSelection | null;
 }>();
 const { t } = useI18n();
 /** Oracle id of a card just added via quick-add — used to flash its row briefly. */
@@ -107,6 +120,28 @@ const isMvSelected = (cmc: number): boolean => {
     const floored = Math.floor(cmc);
     return props.selectedManaValue === 8 ? floored >= 8 : floored === props.selectedManaValue;
 };
+/**
+ * True when this card matches the type/category/subtype bar the user
+ * clicked in the deck-stats categories panel. Commanders pass
+ * `categoryId === undefined` so the `category` kind never matches them
+ * (they have no category).
+ */
+const isCatSelected = (typeLine: string, categoryId: string | null | undefined): boolean => {
+    const sel = props.selectedCategory;
+    if (sel === null) return false;
+    if (sel.kind === "type") return typeLine.includes(sel.label);
+    if (sel.kind === "category") {
+        if (categoryId === undefined) return false;
+        return categoryId === sel.id;
+    }
+    // subtype: card must include the chosen card type AND its subtypes
+    // (right of the em-dash) must include the chosen subtype, with
+    // `null` representing the "no subtype" bucket.
+    if (!typeLine.includes(sel.cardType)) return false;
+    const right = typeLine.split(/\s*—\s*/, 2)[1] ?? "";
+    const subtypes = right.split(/\s+/).filter(Boolean);
+    return sel.subtype === null ? subtypes.length === 0 : subtypes.includes(sel.subtype);
+};
 </script>
 
 <template>
@@ -129,7 +164,10 @@ const isMvSelected = (cmc: number): boolean => {
                             v-for="commander in section.commanders"
                             :key="commander.oracle_card_id"
                             class="card"
-                            :class="{ 'mv-selected': isMvSelected(commander.cmc) }"
+                            :class="{
+                                'mv-selected': isMvSelected(commander.cmc),
+                                'cat-selected': isCatSelected(commander.type_line, undefined)
+                            }"
                         >
                             <card-image-preview
                                 :src="commander.default_card.card_image_0"
@@ -197,7 +235,8 @@ const isMvSelected = (cmc: number): boolean => {
                             class="card"
                             :class="{
                                 'card--just-added': recentlyAddedId === card.oracle_card_id,
-                                'mv-selected': isMvSelected(card.cmc)
+                                'mv-selected': isMvSelected(card.cmc),
+                                'cat-selected': isCatSelected(card.type_line, card.category_id)
                             }"
                         >
                             <span v-if="isOwner" class="card__drag-handle"><icon name="drag" :size="1" /></span>

@@ -42,6 +42,16 @@
             "banned": "Banned",
             "restricted": "Restricted"
         },
+        "card_types": {
+            "Creature": "Creatures",
+            "Planeswalker": "Planeswalkers",
+            "Battle": "Battles",
+            "Artifact": "Artifacts",
+            "Enchantment": "Enchantments",
+            "Instant": "Instants",
+            "Sorcery": "Sorceries",
+            "Land": "Lands"
+        },
         "ruling_sources": {
             "wotc": "Wizards of the Coast",
             "scryfall": "Scryfall"
@@ -711,6 +721,7 @@
             "no_cards": "No cards in this deck yet.",
             "illegal": "This card is illegal in this deck.",
             "game_changer": "This card is on the Game Changer list.",
+            "clear_selection": "Clear all selections",
             "collection_status": {
                 "claimed_for_this_deck": "Claimed from your collection for this deck.",
                 "available": "You own a copy that is not yet claimed by any deck.",
@@ -823,11 +834,23 @@
             "stats": {
                 "title": "Deck statistics",
                 "curve": {
-                    "title": "Mana Curve",
+                    "title": "Mana curve",
                     "average": "This deck has an average mana value of {avg} (excluding lands).",
                     "permanents": "Permanents",
                     "spells": "Spells",
                     "bar_aria": "Mana value {cmc}: {total} cards ({permanents} permanents, {spells} spells)"
+                },
+                "categories": {
+                    "title": "Card distribution",
+                    "view_picker": "Show",
+                    "view": {
+                        "types": "Types",
+                        "categories": "Custom categories",
+                        "subtypes": "Subtypes"
+                    },
+                    "subtype_picker": "Card type",
+                    "no_subtype": "No subtype",
+                    "bar_aria": "{label}: {count} cards ({percent}%)"
                 }
             },
             "companion": {
