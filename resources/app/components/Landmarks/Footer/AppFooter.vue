@@ -15,18 +15,18 @@ if (currentYear > startYear) {
         <section class="inner">
             &copy; Sven Scharfenberg {{ copyrightDate }}
             <link-group :label="$t('footer.nav_label')">
-                <labelled-link href="/about">{{ $t("pages.about.link") }}</labelled-link>
-                <labelled-link href="/privacy">{{ $t("pages.privacy.link") }}</labelled-link>
-                <labelled-link href="/imprint">{{ $t("pages.imprint.link") }}</labelled-link>
+                <labelled-link href="https://discord.gg/jCc5fmXyq" :aria-label="$t('footer.discord')" icon=""
+                    ><icon name="discord"
+                /></labelled-link>
                 <labelled-link
                     href="https://github.com/sscharfenberg/cantrip.me"
                     :aria-label="$t('footer.github')"
                     icon=""
                     ><icon name="github"
                 /></labelled-link>
-                <labelled-link href="https://discord.gg/jCc5fmXyq" :aria-label="$t('footer.discord')" icon=""
-                    ><icon name="discord"
-                /></labelled-link>
+                <labelled-link href="/about">{{ $t("pages.about.link") }}</labelled-link>
+                <labelled-link href="/privacy">{{ $t("pages.privacy.link") }}</labelled-link>
+                <labelled-link href="/imprint">{{ $t("pages.imprint.link") }}</labelled-link>
             </link-group>
         </section>
         <section class="inner gap">
