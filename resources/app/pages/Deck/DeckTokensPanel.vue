@@ -77,7 +77,7 @@ ul {
     list-style: none;
 
     @include m.mq("portrait") {
-        grid-template-columns: repeat(auto-fit, minmax(min(12rem, 100%), 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(min(10rem, 100%), 1fr));
     }
 }
 

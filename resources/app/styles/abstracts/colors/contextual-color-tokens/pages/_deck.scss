@@ -19,7 +19,10 @@ $deck: (
         "border": light-dark(
                 color.adjust(map.get(c.$grey, "iron"), $alpha: -0.25),
                 color.adjust(map.get(c.$grey, "charcoal"), $alpha: -0.25)
-            )
+            ),
+        "selected-background": light-dark(map.get(c.$brand, "light2", "color"), map.get(c.$brand, "dark2", "color")),
+        "selected-surface": light-dark(map.get(c.$brand, "light2", "contrast"), map.get(c.$brand, "dark2", "contrast")),
+        "selected-border": light-dark(map.get(c.$brand, "light2", "contrast"), map.get(c.$brand, "dark2", "contrast"))
     ),
     "companion": (
         "background": light-dark(

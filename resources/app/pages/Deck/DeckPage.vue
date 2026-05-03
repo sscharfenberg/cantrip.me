@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { Head } from "@inertiajs/vue3";
-import { computed } from "vue";
+import { computed, ref } from "vue";
 import { combineCI } from "@/utils/colorIdentity.ts";
+import DeckStatsSection from "Components/Deck/DeckStats/DeckStatsSection.vue";
 import { useBreadcrumbs } from "Composables/useBreadcrumbs.ts";
 import { useDeckSort } from "Composables/useDeckSort.ts";
 import { useDeckView } from "Composables/useDeckView.ts";
@@ -68,7 +69,7 @@ const props = defineProps<{
         claimed_count: number;
     } | null;
     /**
-     * Tokens (and other `all_parts` printing edges) created by cards in
+     * Tokens (and other `all_parts` printing edges) created by cards inDeckSta
      * this deck — already deduped on the related printing id and
      * sorted alphabetically server-side.
      */
@@ -82,6 +83,13 @@ const { viewMode } = useDeckView(props.deck.id);
 const { sortMode } = useDeckSort(props.deck.id);
 /** Combined commander color identity — shared by navigation and both card views. */
 const commanderColorIdentity = computed(() => combineCI(props.commanders.map(c => c.color_identity)));
+/**
+ * The mana value the user clicked on in the curve, or null when nothing
+ * is selected. Mirrored onto the card views so the active selection can
+ * drive filtering or highlighting downstream. `8` represents the "8+"
+ * overflow bucket — consumers should treat it as `cmc >= 8`.
+ */
+const selectedManaValue = ref<number | null>(null);
 </script>
 
 <template>
@@ -123,6 +131,7 @@ const commanderColorIdentity = computed(() => combineCI(props.commanders.map(c =
         :max-copies="deck.max_copies"
         :is-singleton="deck.is_singleton"
         :collection-mode="collectionMode"
+        :selected-mana-value="selectedManaValue"
     />
     <card-view-image
         v-if="viewMode === 'cards'"
@@ -137,9 +146,18 @@ const commanderColorIdentity = computed(() => combineCI(props.commanders.map(c =
         :max-copies="deck.max_copies"
         :is-singleton="deck.is_singleton"
         :collection-mode="collectionMode"
+        :selected-mana-value="selectedManaValue"
     />
-    <div v-if="tokens.length" class="deck-stats">
+    <div v-if="tokens.length || cards.length || commanders.length || companion || categories.length" class="deck-stats">
         <deck-tokens-panel v-if="tokens.length" :tokens="tokens" />
+        <deck-stats-section
+            v-if="cards.length || commanders.length || companion || categories.length"
+            :cards="cards"
+            :commanders="commanders"
+            :companion="companion"
+            :categories="categories"
+            @select-mana-value="selectedManaValue = $event"
+        />
     </div>
 </template>
 
@@ -148,7 +166,7 @@ const commanderColorIdentity = computed(() => combineCI(props.commanders.map(c =
     display: flex;
     flex-direction: column;
 
-    margin-top: 1rem;
-    gap: 0.5rem;
+    margin: 1lh 0;
+    gap: 1lh;
 }
 </style>

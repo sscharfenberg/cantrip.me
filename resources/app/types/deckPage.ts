@@ -13,7 +13,15 @@ export interface DeckCommander {
     oracle_card_id: string;
     name: string;
     color_identity: string | null;
+    /** Mana this card can produce (W/U/B/R/G/C). Null when the card produces no mana. */
+    produced_mana: string[] | null;
     cmc: number;
+    /**
+     * Front-face type line. Used by the deck-stats mana curve to bucket
+     * commanders as permanents vs. spells (signature spells in
+     * Oathbreaker resolve as instant/sorcery).
+     */
+    type_line: string;
     mana_cost: (string | null)[];
     is_partner: boolean;
     default_card: DeckCommanderDefaultCard;
@@ -24,6 +32,8 @@ export interface DeckCompanion {
     oracle_card_id: string;
     name: string;
     color_identity: string | null;
+    /** Mana this card can produce (W/U/B/R/G/C). Null when the card produces no mana. */
+    produced_mana: string[] | null;
     cmc: number;
     mana_cost: (string | null)[];
     default_card: DeckCommanderDefaultCard;
@@ -72,6 +82,8 @@ export interface DeckCardRow {
     oracle_card_id: string;
     name: string;
     color_identity: string | null;
+    /** Mana this card can produce (W/U/B/R/G/C). Null when the card produces no mana. */
+    produced_mana: string[] | null;
     cmc: number;
     type_line: string;
     mana_cost: (string | null)[];

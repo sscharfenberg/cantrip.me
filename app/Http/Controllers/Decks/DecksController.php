@@ -165,7 +165,7 @@ class DecksController extends Controller
             'commanders.defaults' => fn ($q) => $q
                 ->select('id', 'oracle_id', 'card_image_0', 'card_image_1'),
             'deckCards.oracleCard',
-            'commanders.faces:oracle_card_id,face_index,mana_cost',
+            'commanders.faces:oracle_card_id,face_index,type_line,mana_cost',
             'deckCards.oracleCard.faces:oracle_card_id,face_index,type_line,mana_cost,oracle_text',
             'deckCards.oracleCard.legalities' => fn ($q) => $q->where('format', $deck->format->value),
             'deckCards.defaultCard:id,name,card_image_0,card_image_1,set_id,oracle_id',
@@ -219,6 +219,7 @@ class DecksController extends Controller
                 'oracle_card_id' => $companionOracle->id,
                 'name' => $companionOracle->name,
                 'color_identity' => $companionOracle->color_identity,
+                'produced_mana' => $companionOracle->produced_mana ? str_split($companionOracle->produced_mana) : null,
                 'cmc' => $companionOracle->cmc,
                 'mana_cost' => $companionOracle->faces->sortBy('face_index')->pluck('mana_cost')->values()->all(),
                 'default_card' => [
@@ -294,7 +295,9 @@ class DecksController extends Controller
             'oracle_card_id' => $oracle->id,
             'name' => $oracle->name,
             'color_identity' => $oracle->color_identity,
+            'produced_mana' => $oracle->produced_mana ? str_split($oracle->produced_mana) : null,
             'cmc' => $oracle->cmc,
+            'type_line' => $oracle->faces->firstWhere('face_index', 0)?->type_line ?? '',
             'mana_cost' => $oracle->faces->sortBy('face_index')->pluck('mana_cost')->values()->all(),
             'is_partner' => (bool) $oracle->pivot->is_partner,
             'default_card' => [
@@ -311,6 +314,7 @@ class DecksController extends Controller
             'oracle_card_id' => $dc->oracle_card_id,
             'name' => $dc->oracleCard->name,
             'color_identity' => $dc->oracleCard->color_identity,
+            'produced_mana' => $dc->oracleCard->produced_mana ? str_split($dc->oracleCard->produced_mana) : null,
             'cmc' => $dc->oracleCard->cmc,
             'type_line' => $dc->oracleCard->faces->firstWhere('face_index', 0)?->type_line ?? '',
             'mana_cost' => $dc->oracleCard->faces->sortBy('face_index')->pluck('mana_cost')->values()->all(),

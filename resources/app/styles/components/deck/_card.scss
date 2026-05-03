@@ -114,6 +114,24 @@
     }
 }
 
+.text-card-groups:has(.mv-selected) {
+    .card.mv-selected {
+        background-color: map.get(c.$pages, "deck", "card", "selected-background");
+        color: map.get(c.$pages, "deck", "card", "selected-surface");
+        border-color: map.get(c.$pages, "deck", "card", "selected-border");
+    }
+}
+
+.image-card-groups:has(.mv-selected) {
+    .face-image {
+        opacity: 0.4;
+    }
+
+    .face-image.mv-selected {
+        opacity: 1;
+    }
+}
+
 @keyframes card-just-added-flash {
     0% {
         background-color: map.get(c.$pages, "deck", "quick-add", "flash-background");

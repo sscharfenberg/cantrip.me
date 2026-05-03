@@ -1,0 +1,46 @@
+@use "sass:map"; // https://sass-lang.com/documentation/modules/map
+@use "sass:color"; // https://sass-lang.com/documentation/modules/map
+@use "../../global-color-tokens" as c;
+
+$mana-curve: (
+    "avg": (
+        "background": light-dark(map.get(c.$grey, "infra"), map.get(c.$grey, "abbey")),
+        "surface": light-dark(#000, #fff),
+        "border": light-dark(#000, #fff)
+    ),
+    "permanents": (
+        "background": linear-gradient(
+                to bottom right,
+                light-dark(map.get(c.$brand, "light1", "color"), map.get(c.$brand, "dark1", "color")),
+                light-dark(
+                    color.adjust(map.get(c.$brand, "light1", "color"), $lightness: 10%),
+                    color.adjust(map.get(c.$brand, "dark1", "color"), $lightness: 10%)
+                )
+            ),
+        "surface": light-dark(map.get(c.$brand, "light1", "contrast"), map.get(c.$brand, "dark1", "contrast")),
+        "border": light-dark(
+                color.adjust(map.get(c.$brand, "light1", "contrast"), $lightness: -20%),
+                color.adjust(map.get(c.$brand, "dark1", "contrast"), $lightness: -20%)
+            )
+    ),
+    "spells": (
+        "background": linear-gradient(
+                to bottom right,
+                light-dark(map.get(c.$brand, "light2", "color"), map.get(c.$brand, "dark2", "color")),
+                light-dark(
+                    color.adjust(map.get(c.$brand, "light2", "color"), $lightness: 20%),
+                    color.adjust(map.get(c.$brand, "dark2", "color"), $lightness: 10%)
+                )
+            ),
+        "surface": light-dark(map.get(c.$brand, "light2", "contrast"), map.get(c.$brand, "dark2", "contrast")),
+        "border": light-dark(
+                color.adjust(map.get(c.$brand, "light2", "contrast"), $lightness: 20%),
+                color.adjust(map.get(c.$brand, "dark2", "contrast"), $lightness: -20%)
+            )
+    ),
+    "selected": (
+        "background": light-dark(map.get(c.$brand, "light2", "contrast"), map.get(c.$brand, "dark1", "contrast")),
+        "surface": light-dark(map.get(c.$brand, "light2", "color"), map.get(c.$brand, "dark1", "color")),
+        "border": light-dark(map.get(c.$brand, "light2", "contrast"), map.get(c.$brand, "dark1", "contrast"))
+    )
+);

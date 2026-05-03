@@ -819,6 +819,16 @@
             "tokens": {
                 "title": "Dieses Deck benötigt {count} Token | Dieses Deck benötigt {count} Tokens"
             },
+            "stats": {
+                "title": "Deckstatistiken",
+                "curve": {
+                    "title": "Manakurve",
+                    "average": "Dieses Deck hat einen durchschnittlichen Manawert von {avg} (ohne Länder).",
+                    "permanents": "Bleibende Karten",
+                    "spells": "Sprüche",
+                    "bar_aria": "Manakosten {cmc}: {total} Karten ({permanents} bleibende, {spells} Sprüche)"
+                }
+            },
             "companion": {
                 "heading": "Companion",
                 "add": "Companion",

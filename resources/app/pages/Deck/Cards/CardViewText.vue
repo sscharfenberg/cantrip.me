@@ -46,6 +46,13 @@ const props = defineProps<{
     isSingleton: boolean;
     /** Effective collection-integration mode — only mode C renders per-card status badges. */
     collectionMode: "A" | "B" | "C";
+    /**
+     * Mana value the user clicked in the deck-stats curve, or null when
+     * nothing is selected. `8` represents the "8+" overflow bucket
+     * (interpret as `cmc >= 8`). Not yet consumed — wired through for
+     * upcoming filter/highlight integration.
+     */
+    selectedManaValue: number | null;
 }>();
 const { t } = useI18n();
 /** Oracle id of a card just added via quick-add — used to flash its row briefly. */
@@ -90,6 +97,16 @@ const openPreview = (id: string | null, quantity?: number): void => {
     if (!id) return;
     previewUrl.value = quantity ? `/cards/${id}/preview?quantity=${quantity}` : `/cards/${id}/preview`;
 };
+/**
+ * True when the card's mana value matches the bucket the user clicked
+ * in the deck-stats curve. `selectedManaValue === 8` is the "8+"
+ * overflow bucket — interpret as `cmc >= 8`.
+ */
+const isMvSelected = (cmc: number): boolean => {
+    if (props.selectedManaValue === null) return false;
+    const floored = Math.floor(cmc);
+    return props.selectedManaValue === 8 ? floored >= 8 : floored === props.selectedManaValue;
+};
 </script>
 
 <template>
@@ -108,7 +125,12 @@ const openPreview = (id: string | null, quantity?: number): void => {
                         >{{ $t("pages.deck.commanders") }} ({{ section.commanders.length }})</deck-group-headline
                     >
                     <ul class="text-card-group__list">
-                        <li v-for="commander in section.commanders" :key="commander.oracle_card_id" class="card">
+                        <li
+                            v-for="commander in section.commanders"
+                            :key="commander.oracle_card_id"
+                            class="card"
+                            :class="{ 'mv-selected': isMvSelected(commander.cmc) }"
+                        >
                             <card-image-preview
                                 :src="commander.default_card.card_image_0"
                                 :alt="commander.name"
@@ -173,7 +195,10 @@ const openPreview = (id: string | null, quantity?: number): void => {
                             :key="card.id"
                             :data-card-id="card.id"
                             class="card"
-                            :class="{ 'card--just-added': recentlyAddedId === card.oracle_card_id }"
+                            :class="{
+                                'card--just-added': recentlyAddedId === card.oracle_card_id,
+                                'mv-selected': isMvSelected(card.cmc)
+                            }"
                         >
                             <span v-if="isOwner" class="card__drag-handle"><icon name="drag" :size="1" /></span>
                             <card-image-preview

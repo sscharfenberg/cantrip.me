@@ -819,6 +819,16 @@
             "tokens": {
                 "title": "This deck needs {count} Token | This deck needs {count} Tokens"
             },
+            "stats": {
+                "title": "Deck statistics",
+                "curve": {
+                    "title": "Mana Curve",
+                    "average": "This deck has an average mana value of {avg} (excluding lands).",
+                    "permanents": "Permanents",
+                    "spells": "Spells",
+                    "bar_aria": "Mana value {cmc}: {total} cards ({permanents} permanents, {spells} spells)"
+                }
+            },
             "companion": {
                 "heading": "Companion",
                 "add": "Companion",

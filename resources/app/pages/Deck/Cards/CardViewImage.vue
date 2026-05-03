@@ -42,6 +42,13 @@ const props = defineProps<{
     isSingleton: boolean;
     /** Effective collection-integration mode — only mode C renders per-card status badges. */
     collectionMode: "A" | "B" | "C";
+    /**
+     * Mana value the user clicked in the deck-stats curve, or null when
+     * nothing is selected. `8` represents the "8+" overflow bucket
+     * (interpret as `cmc >= 8`). Not yet consumed — wired through for
+     * upcoming filter/highlight integration.
+     */
+    selectedManaValue: number | null;
 }>();
 const { t } = useI18n();
 /** Image view has no drag — category moves happen via the actions menu. */
@@ -58,6 +65,16 @@ const previewUrl = ref<string | null>(null);
 const openPreview = (id: string | null, quantity?: number): void => {
     if (!id) return;
     previewUrl.value = quantity ? `/cards/${id}/preview?quantity=${quantity}` : `/cards/${id}/preview`;
+};
+/**
+ * True when the card's mana value matches the bucket the user clicked
+ * in the deck-stats curve. `selectedManaValue === 8` is the "8+"
+ * overflow bucket — interpret as `cmc >= 8`.
+ */
+const isMvSelected = (cmc: number): boolean => {
+    if (props.selectedManaValue === null) return false;
+    const floored = Math.floor(cmc);
+    return props.selectedManaValue === 8 ? floored >= 8 : floored === props.selectedManaValue;
 };
 const { allGroups } = useDeckSections(
     () => props.cards,
@@ -82,6 +99,7 @@ const { allGroups } = useDeckSections(
                     :card-image0="commander.default_card.card_image_0"
                     :card-image1="commander.default_card.card_image_1"
                     :name="commander.name"
+                    :class="{ 'mv-selected': isMvSelected(commander.cmc) }"
                     @preview="openPreview(commander.default_card.id)"
                 >
                     <deck-commander-actions-menu
@@ -117,7 +135,10 @@ const { allGroups } = useDeckSections(
                     :card-image0="card.default_card.card_image_0"
                     :card-image1="card.default_card.card_image_1"
                     :name="card.name"
-                    :class="{ 'card--just-added': recentlyAddedId === card.oracle_card_id }"
+                    :class="{
+                        'card--just-added': recentlyAddedId === card.oracle_card_id,
+                        'mv-selected': isMvSelected(card.cmc)
+                    }"
                     @preview="openPreview(card.default_card.id, card.quantity)"
                 >
                     <icon
