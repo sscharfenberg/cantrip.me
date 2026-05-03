@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from "vue";
+import { useI18n } from "vue-i18n";
 import CardFaceImage from "Components/Card/CardFaceImage.vue";
 import Accordion from "Components/UI/Accordion.vue";
 import Icon from "Components/UI/Icon.vue";
@@ -7,7 +8,15 @@ import type { DeckToken } from "Types/deckPage.ts";
 const props = defineProps<{
     /** Tokens created by cards in this deck — printing-correct, deduped server-side. */
     tokens: DeckToken[];
+    /**
+     * Lookup of `default_card_id → card name` for everything in the deck
+     * (commanders + companion + the 99). Used to resolve each token's
+     * `source_default_card_ids` into card names for the "Needed for: …"
+     * tooltip.
+     */
+    cardNameByDefaultCardId: Record<string, string>;
 }>();
+const { t } = useI18n();
 /**
  * Build a sort key from a token's `color_identity` so WUBRG order is
  * preserved without a chained comparator: each color letter maps to its
@@ -35,6 +44,18 @@ const sortedTokens = computed(() =>
         return colorCompare !== 0 ? colorCompare : a.name.localeCompare(b.name);
     })
 );
+/**
+ * Build the "Needed for: …" tooltip for a token. Resolves each
+ * `source_default_card_id` to the matching deck card's name via the
+ * lookup, dedupes (a card with multiple printings would otherwise
+ * appear once per printing), sorts alphabetically, joins with `<br>`.
+ */
+const tooltipFor = (token: DeckToken): string => {
+    const names = Array.from(
+        new Set(token.source_default_card_ids.map(id => props.cardNameByDefaultCardId[id]).filter(Boolean))
+    ).sort();
+    return [t("pages.deck.tokens.needed_for"), ...names].join("<br />");
+};
 </script>
 
 <template>
@@ -53,7 +74,11 @@ const sortedTokens = computed(() =>
         </template>
         <template #body>
             <ul v-if="sortedTokens.length">
-                <li v-for="token in sortedTokens" :key="token.id">
+                <li
+                    v-for="token in sortedTokens"
+                    :key="token.id"
+                    v-tooltip="{ content: tooltipFor(token), html: true }"
+                >
                     <card-face-image :card="token" />
                 </li>
             </ul>

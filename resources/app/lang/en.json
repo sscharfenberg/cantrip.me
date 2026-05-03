@@ -817,7 +817,8 @@
                 }
             },
             "tokens": {
-                "title": "This deck needs {count} Token | This deck needs {count} Tokens"
+                "title": "This deck requests {count} Token | This deck requests {count} Tokens",
+                "needed_for": "Token requested by:"
             },
             "stats": {
                 "title": "Deck statistics",

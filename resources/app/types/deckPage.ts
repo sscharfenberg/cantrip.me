@@ -126,11 +126,16 @@ export interface DeckCategoryRow {
  * MM2 Faerie Rogue). Extends {@link DefaultCardImage} so the
  * `<CardFaceImage>` component can render it directly. The added
  * `color_identity` field comes from the token's oracle card and
- * drives the WUBRG sort in `DeckTokensPanel`.
+ * drives the WUBRG sort in `DeckTokensPanel`. The added
+ * `source_default_card_ids` lists the deck cards (by their printing
+ * id) that create this token — resolved to names client-side for the
+ * "Needed for: …" tooltip.
  */
 export interface DeckToken extends DefaultCardImage {
     /** WUBRG-ordered concatenation of color letters, or null for colorless. */
     color_identity: string | null;
+    /** `default_card.id` of every deck card that produces this token. */
+    source_default_card_ids: string[];
 }
 
 /**

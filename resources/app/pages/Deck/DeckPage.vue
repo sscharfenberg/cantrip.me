@@ -90,6 +90,24 @@ const commanderColorIdentity = computed(() => combineCI(props.commanders.map(c =
  * overflow bucket — consumers should treat it as `cmc >= 8`.
  */
 const selectedManaValue = ref<number | null>(null);
+/**
+ * Lookup `default_card_id → card name` covering everything in the deck
+ * (commanders + companion + the 99). Powers the `DeckTokensPanel`
+ * tooltip without requiring the panel to know about the deck shape.
+ */
+const cardNameByDefaultCardId = computed<Record<string, string>>(() => {
+    const map: Record<string, string> = {};
+    for (const card of props.cards) {
+        if (card.default_card.id) map[card.default_card.id] = card.name;
+    }
+    for (const cmd of props.commanders) {
+        if (cmd.default_card.id) map[cmd.default_card.id] = cmd.name;
+    }
+    if (props.companion?.default_card.id) {
+        map[props.companion.default_card.id] = props.companion.name;
+    }
+    return map;
+});
 </script>
 
 <template>
@@ -149,7 +167,11 @@ const selectedManaValue = ref<number | null>(null);
         :selected-mana-value="selectedManaValue"
     />
     <div v-if="tokens.length || cards.length || commanders.length || companion || categories.length" class="deck-stats">
-        <deck-tokens-panel v-if="tokens.length" :tokens="tokens" />
+        <deck-tokens-panel
+            v-if="tokens.length"
+            :tokens="tokens"
+            :card-name-by-default-card-id="cardNameByDefaultCardId"
+        />
         <deck-stats-section
             v-if="cards.length || commanders.length || companion || categories.length"
             :cards="cards"

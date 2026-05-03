@@ -379,6 +379,10 @@ class DecksController extends Controller
             ->unique()
             ->values();
 
+        // Group by token printing id; ship the source `default_card_id`s
+        // alongside each token so the panel can render a "Needed for: …"
+        // tooltip without an extra eager-load — names get resolved
+        // client-side from props the deck page already holds.
         $tokens = DefaultCardRelation::query()
             ->where('component', ScryfallRelatedComponent::Token->value)
             ->whereIn('source_default_card_id', $sourceDefaultCardIds)
@@ -389,22 +393,31 @@ class DecksController extends Controller
                 'relatedCard.artist:id,name',
             ])
             ->get()
-            ->map(fn (DefaultCardRelation $rel) => [
-                'id' => $rel->relatedCard->id,
-                'name' => $rel->relatedCard->name,
-                'card_image_0' => $rel->relatedCard->card_image_0,
-                'card_image_1' => $rel->relatedCard->card_image_1,
-                'artist' => $rel->relatedCard->artist?->name,
-                'cn' => $rel->relatedCard->collector_number,
-                'finishes' => Finish::labelsFromMask($rel->relatedCard->finishes),
-                'color_identity' => $rel->relatedCard->oracle?->color_identity,
-                'set' => $rel->relatedCard->set ? [
-                    'name' => $rel->relatedCard->set->name,
-                    'code' => $rel->relatedCard->set->code,
-                    'path' => $rel->relatedCard->set->path,
-                ] : null,
-            ])
-            ->unique('id')
+            ->groupBy(fn (DefaultCardRelation $rel) => $rel->relatedCard->id)
+            ->map(function ($group) {
+                $token = $group->first()->relatedCard;
+
+                return [
+                    'id' => $token->id,
+                    'name' => $token->name,
+                    'card_image_0' => $token->card_image_0,
+                    'card_image_1' => $token->card_image_1,
+                    'artist' => $token->artist?->name,
+                    'cn' => $token->collector_number,
+                    'finishes' => Finish::labelsFromMask($token->finishes),
+                    'color_identity' => $token->oracle?->color_identity,
+                    'set' => $token->set ? [
+                        'name' => $token->set->name,
+                        'code' => $token->set->code,
+                        'path' => $token->set->path,
+                    ] : null,
+                    'source_default_card_ids' => $group
+                        ->pluck('source_default_card_id')
+                        ->unique()
+                        ->values()
+                        ->all(),
+                ];
+            })
             ->values();
 
         return Inertia::render('Deck/DeckPage', [
