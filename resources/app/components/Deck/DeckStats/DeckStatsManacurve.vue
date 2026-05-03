@@ -2,33 +2,28 @@
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 import Headline from "Components/UI/Headline.vue";
+import { useDeckHighlight } from "Composables/useDeckHighlight.ts";
 import type { ManaCurveBucket } from "Composables/useDeckStats.ts";
-/**
- * @emits select — Fired with the clicked bucket's `cmc` (0..8, where 8
- * means "8 or more"). Re-clicking the same column emits `null` to
- * clear the filter; the parent decides what "selected" means downstream.
- */
-const emit = defineEmits<{ select: [cmc: number | null] }>();
 const props = defineProps<{
     /** 9 buckets, cmc 0..8+ in order. */
     curve: ManaCurveBucket[];
     /** Average mana value across non-land cards (lands excluded, commanders included, quantity-weighted). */
     average: number;
-    /** Controlled selection — owned by the deck page so categories/manacurve stay mutually exclusive. */
-    selectedCmc: number | null;
 }>();
 const { t, locale } = useI18n();
+const { selectedManaValue, setManaValue } = useDeckHighlight();
 /** Locale-aware 2-decimal formatter for the average mana value (e.g. "2.45" / "2,45"). */
 const formattedAverage = computed(() =>
     props.average.toLocaleString(locale.value, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 );
 /**
- * Toggle on click: clicking the active column emits null (clear),
- * clicking a different column emits its cmc. The component is
- * controlled — the parent's prop drives the visual selection.
+ * Toggle on click: clicking the active column clears the highlight,
+ * clicking a different column sets it. Mutual exclusion across stats
+ * panels lives in the composable (the union type) — this component
+ * only ever drives the `mv` axis.
  */
 const onColumnClick = (cmc: number): void => {
-    emit("select", props.selectedCmc === cmc ? null : cmc);
+    setManaValue(selectedManaValue.value === cmc ? null : cmc);
 };
 /** Tallest bucket — divisor for relative heights. Floored at 1 so empty decks don't divide by zero. */
 const max = computed(() => Math.max(1, ...props.curve.map(b => b.total)));
@@ -85,9 +80,9 @@ const segmentsFor = (bucket: ManaCurveBucket): { kind: "permanents" | "spells"; 
                 <button
                     type="button"
                     class="mana-curve__column"
-                    :class="{ 'mana-curve__column--selected': selectedCmc === bucket.cmc }"
+                    :class="{ 'mana-curve__column--selected': selectedManaValue === bucket.cmc }"
                     :aria-label="ariaFor(bucket)"
-                    :aria-pressed="selectedCmc === bucket.cmc"
+                    :aria-pressed="selectedManaValue === bucket.cmc"
                     @click="onColumnClick(bucket.cmc)"
                 >
                     <template v-for="seg in segmentsFor(bucket)" :key="seg.kind">
@@ -201,8 +196,20 @@ const segmentsFor = (bucket: ManaCurveBucket): { kind: "permanents" | "spells"; 
 
         cursor: pointer;
 
-        &--selected .mana-curve__segment--permanents,
-        &--selected .mana-curve__segment--spells {
+        // Hover paints both segments. The selected rule chains the parent
+        // class (`&--selected#{&}` → `.mana-curve__column--selected.mana-curve__column`)
+        // plus the always-present `[type]` attribute so its specificity
+        // (0,6,0) sits one step above the hover rule's (0,5,0) in scoped
+        // CSS — selected columns keep their selected colors while hovered.
+        &:hover .mana-curve__segment--permanents,
+        &:hover .mana-curve__segment--spells {
+            background: map.get(c.$components, "mana-curve", "hover", "background");
+            color: map.get(c.$components, "mana-curve", "hover", "surface");
+            border-color: map.get(c.$components, "mana-curve", "hover", "border");
+        }
+
+        &--selected#{&}[type] .mana-curve__segment--permanents,
+        &--selected#{&}[type] .mana-curve__segment--spells {
             background: map.get(c.$components, "mana-curve", "selected", "background");
             color: map.get(c.$components, "mana-curve", "selected", "surface");
             border-color: map.get(c.$components, "mana-curve", "selected", "border");

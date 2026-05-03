@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { Head } from "@inertiajs/vue3";
-import { computed, ref } from "vue";
+import { computed } from "vue";
 import { combineCI } from "@/utils/colorIdentity.ts";
 import DeckStatsSection from "Components/Deck/DeckStats/DeckStatsSection.vue";
 import Icon from "Components/UI/Icon.vue";
 import { useBreadcrumbs } from "Composables/useBreadcrumbs.ts";
+import { provideDeckHighlight } from "Composables/useDeckHighlight.ts";
 import { useDeckSort } from "Composables/useDeckSort.ts";
 import { useDeckView } from "Composables/useDeckView.ts";
 import type {
@@ -12,9 +13,7 @@ import type {
     DeckCategoryRow,
     DeckCommander,
     DeckCompanion,
-    DeckHighlight,
     DeckMeta,
-    DeckStatsSelection,
     DeckToken,
     DeckViolation
 } from "Types/deckPage.ts";
@@ -87,35 +86,13 @@ const { sortMode } = useDeckSort(props.deck.id);
 /** Combined commander color identity — shared by navigation and both card views. */
 const commanderColorIdentity = computed(() => combineCI(props.commanders.map(c => c.color_identity)));
 /**
- * Single source of truth for "what's currently highlighting cards on
- * this deck page". One discriminated value across all stats panels
- * means mutual exclusion is structural — at most one axis can be
- * selected at a time, by construction.
+ * Provide the deck highlight api once at the page root. Stats panels
+ * (manacurve, categories, color distribution) and card views (text /
+ * image) inject it via `useDeckHighlight()`. Mutual exclusion across
+ * axes is enforced by the discriminated union inside the composable —
+ * at most one axis can be active at a time, by construction.
  */
-const highlight = ref<DeckHighlight | null>(null);
-/**
- * Per-axis projections for the consumers that care about a specific
- * slice. Card views and inner stats panels keep their existing
- * single-purpose props; the union shape lives only at this layer.
- * `8` on `selectedManaValue` represents the "8+" overflow bucket
- * (interpret as `cmc >= 8`).
- */
-const selectedManaValue = computed<number | null>(() =>
-    highlight.value?.axis === "mv" ? highlight.value.value : null
-);
-const selectedCategory = computed<DeckStatsSelection | null>(() =>
-    highlight.value?.axis === "category" ? highlight.value.selection : null
-);
-const onSelectManaValue = (cmc: number | null): void => {
-    highlight.value = cmc === null ? null : { axis: "mv", value: cmc };
-};
-const onSelectCategory = (selection: DeckStatsSelection | null): void => {
-    highlight.value = selection === null ? null : { axis: "category", selection };
-};
-/** Drop the active highlight regardless of which axis it came from. */
-const clearHighlight = (): void => {
-    highlight.value = null;
-};
+const { hasHighlight, clear: clearHighlight } = provideDeckHighlight();
 /**
  * Lookup `default_card_id → card name` covering everything in the deck
  * (commanders + companion + the 99). Powers the `DeckTokensPanel`
@@ -162,7 +139,7 @@ const cardNameByDefaultCardId = computed<Record<string, string>>(() => {
         :companion-roster="companionRoster"
         :commander-color-identity="commanderColorIdentity"
     />
-    <div v-if="highlight !== null" class="selections">
+    <div v-if="hasHighlight" class="selections">
         <button type="button" class="btn-default" @click="clearHighlight">
             <icon name="close" />
             {{ $t("pages.deck.clear_selection") }}
@@ -181,8 +158,6 @@ const cardNameByDefaultCardId = computed<Record<string, string>>(() => {
         :max-copies="deck.max_copies"
         :is-singleton="deck.is_singleton"
         :collection-mode="collectionMode"
-        :selected-mana-value="selectedManaValue"
-        :selected-category="selectedCategory"
     />
     <card-view-image
         v-if="viewMode === 'cards'"
@@ -197,8 +172,6 @@ const cardNameByDefaultCardId = computed<Record<string, string>>(() => {
         :max-copies="deck.max_copies"
         :is-singleton="deck.is_singleton"
         :collection-mode="collectionMode"
-        :selected-mana-value="selectedManaValue"
-        :selected-category="selectedCategory"
     />
     <div v-if="tokens.length || cards.length || commanders.length || companion || categories.length" class="deck-stats">
         <deck-tokens-panel
@@ -212,11 +185,6 @@ const cardNameByDefaultCardId = computed<Record<string, string>>(() => {
             :commanders="commanders"
             :companion="companion"
             :categories="categories"
-            :selected-mana-value="selectedManaValue"
-            :selected-category="selectedCategory"
-            @select-mana-value="onSelectManaValue"
-            @select-category="onSelectCategory"
-            @clear="clearHighlight"
         />
     </div>
 </template>

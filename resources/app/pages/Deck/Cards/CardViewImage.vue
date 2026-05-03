@@ -12,17 +12,11 @@ import type { DeckCardGroup } from "@/utils/deckGrouping.ts";
 import CardPreviewModal from "Components/Card/CardPreviewModal.vue";
 import Icon from "Components/UI/Icon.vue";
 import Paragraph from "Components/UI/Paragraph.vue";
+import { useDeckHighlight } from "Composables/useDeckHighlight.ts";
 import { useDeckSections } from "Composables/useDeckSections.ts";
 import type { DeckSort } from "Composables/useDeckSort.ts";
 import { useRecentlyAddedId } from "Composables/useRecentlyAdded.ts";
-import type {
-    DeckCardRow,
-    DeckCategoryRow,
-    DeckCommander,
-    DeckCompanion,
-    DeckMeta,
-    DeckStatsSelection
-} from "Types/deckPage.ts";
+import type { DeckCardRow, DeckCategoryRow, DeckCommander, DeckCompanion, DeckMeta } from "Types/deckPage.ts";
 const props = defineProps<{
     /** Full deck meta (for companion capabilities + format flags). */
     deck: DeckMeta;
@@ -49,21 +43,9 @@ const props = defineProps<{
     isSingleton: boolean;
     /** Effective collection-integration mode — only mode C renders per-card status badges. */
     collectionMode: "A" | "B" | "C";
-    /**
-     * Mana value the user clicked in the deck-stats curve, or null when
-     * nothing is selected. `8` represents the "8+" overflow bucket
-     * (interpret as `cmc >= 8`). Not yet consumed — wired through for
-     * upcoming filter/highlight integration.
-     */
-    selectedManaValue: number | null;
-    /**
-     * Type / category / subtype bar the user clicked in the deck-stats
-     * categories panel, or null when nothing is selected. Mutually
-     * exclusive with `selectedManaValue`.
-     */
-    selectedCategory: DeckStatsSelection | null;
 }>();
 const { t } = useI18n();
+const { isHighlighted } = useDeckHighlight();
 /** Image view has no drag — category moves happen via the actions menu. */
 const draggedTypeGroup = ref<DeckCardGroup | null>(null);
 /** Oracle id of a card just added via quick-add — used to flash its row briefly. */
@@ -78,35 +60,6 @@ const previewUrl = ref<string | null>(null);
 const openPreview = (id: string | null, quantity?: number): void => {
     if (!id) return;
     previewUrl.value = quantity ? `/cards/${id}/preview?quantity=${quantity}` : `/cards/${id}/preview`;
-};
-/**
- * True when the card's mana value matches the bucket the user clicked
- * in the deck-stats curve. `selectedManaValue === 8` is the "8+"
- * overflow bucket — interpret as `cmc >= 8`.
- */
-const isMvSelected = (cmc: number): boolean => {
-    if (props.selectedManaValue === null) return false;
-    const floored = Math.floor(cmc);
-    return props.selectedManaValue === 8 ? floored >= 8 : floored === props.selectedManaValue;
-};
-/**
- * True when this card matches the type/category/subtype bar the user
- * clicked in the deck-stats categories panel. Commanders pass
- * `categoryId === undefined` so the `category` kind never matches them
- * (they have no category).
- */
-const isCatSelected = (typeLine: string, categoryId: string | null | undefined): boolean => {
-    const sel = props.selectedCategory;
-    if (sel === null) return false;
-    if (sel.kind === "type") return typeLine.includes(sel.label);
-    if (sel.kind === "category") {
-        if (categoryId === undefined) return false;
-        return categoryId === sel.id;
-    }
-    if (!typeLine.includes(sel.cardType)) return false;
-    const right = typeLine.split(/\s*—\s*/, 2)[1] ?? "";
-    const subtypes = right.split(/\s+/).filter(Boolean);
-    return sel.subtype === null ? subtypes.length === 0 : subtypes.includes(sel.subtype);
 };
 const { allGroups } = useDeckSections(
     () => props.cards,
@@ -131,10 +84,7 @@ const { allGroups } = useDeckSections(
                     :card-image0="commander.default_card.card_image_0"
                     :card-image1="commander.default_card.card_image_1"
                     :name="commander.name"
-                    :class="{
-                        'mv-selected': isMvSelected(commander.cmc),
-                        'cat-selected': isCatSelected(commander.type_line, undefined)
-                    }"
+                    :class="{ highlighted: isHighlighted(commander) }"
                     @preview="openPreview(commander.default_card.id)"
                 >
                     <deck-commander-actions-menu
@@ -172,8 +122,7 @@ const { allGroups } = useDeckSections(
                     :name="card.name"
                     :class="{
                         'card--just-added': recentlyAddedId === card.oracle_card_id,
-                        'mv-selected': isMvSelected(card.cmc),
-                        'cat-selected': isCatSelected(card.type_line, card.category_id)
+                        highlighted: isHighlighted(card)
                     }"
                     @preview="openPreview(card.default_card.id, card.quantity)"
                 >

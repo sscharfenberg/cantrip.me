@@ -20,5 +20,9 @@ $deck-categories: (
     "selected": (
         "background": light-dark(map.get(c.$brand, "light2", "contrast"), map.get(c.$brand, "dark1", "contrast")),
         "border": light-dark(map.get(c.$brand, "light2", "contrast"), map.get(c.$brand, "dark1", "contrast"))
+    ),
+    "hover": (
+        "background": light-dark(map.get(c.$brand, "light1", "contrast"), map.get(c.$brand, "dark1", "contrast")),
+        "border": light-dark(map.get(c.$brand, "light1", "color"), map.get(c.$brand, "dark1", "contrast"))
     )
 );

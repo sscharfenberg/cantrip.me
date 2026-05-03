@@ -1,31 +1,18 @@
 <script setup lang="ts">
-import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 import DeckStatsCategories from "Components/Deck/DeckStats/DeckStatsCategories.vue";
 import DeckStatsColors from "Components/Deck/DeckStats/DeckStatsColors.vue";
 import DeckStatsManacurve from "Components/Deck/DeckStats/DeckStatsManacurve.vue";
 import Accordion from "Components/UI/Accordion.vue";
 import Icon from "Components/UI/Icon.vue";
+import { useDeckHighlight } from "Composables/useDeckHighlight.ts";
 import { useDeckStats } from "Composables/useDeckStats.ts";
-import type { DeckCardRow, DeckCategoryRow, DeckCommander, DeckCompanion, DeckStatsSelection } from "Types/deckPage.ts";
-// `selectManaValue` and `selectCategory` are forwarded from the two
-// inner panels when the user clicks a column / bar. The deck page
-// mirrors them onto the card views so the active selection can drive
-// highlighting; mutual exclusion (only one non-null at a time) is
-// enforced one level up.
-const emit = defineEmits<{
-    (e: "selectManaValue", cmc: number | null): void;
-    (e: "selectCategory", selection: DeckStatsSelection | null): void;
-    (e: "clear"): void;
-}>();
+import type { DeckCardRow, DeckCategoryRow, DeckCommander, DeckCompanion } from "Types/deckPage.ts";
 const props = defineProps<{
     cards: DeckCardRow[];
     commanders: DeckCommander[];
     companion: DeckCompanion | null;
     categories: DeckCategoryRow[];
-    /** Controlled selections — owned by DeckPage, threaded down to the inner panels. */
-    selectedManaValue: number | null;
-    selectedCategory: DeckStatsSelection | null;
 }>();
 const { t } = useI18n();
 const { manaCurve, averageManaValue, costPips, productionPips, typeCounts, subtypeBreakdowns, categoryCounts } =
@@ -35,8 +22,7 @@ const { manaCurve, averageManaValue, costPips, productionPips, typeCounts, subty
         () => props.companion,
         () => props.categories
     );
-/** True when any axis is currently selected — drives the "clear all" button visibility. */
-const hasSelection = computed(() => props.selectedManaValue !== null || props.selectedCategory !== null);
+const { hasHighlight, clear } = useDeckHighlight();
 </script>
 
 <template>
@@ -46,23 +32,16 @@ const hasSelection = computed(() => props.selectedManaValue !== null || props.se
         >
         <template #body>
             <div class="stats__body">
-                <button v-if="hasSelection" type="button" class="btn-default" @click="emit('clear')">
+                <button v-if="hasHighlight" type="button" class="btn-default" @click="clear">
                     <icon name="close" />
                     {{ t("pages.deck.clear_selection") }}
                 </button>
-                <deck-stats-manacurve
-                    :curve="manaCurve"
-                    :average="averageManaValue"
-                    :selected-cmc="props.selectedManaValue"
-                    @select="emit('selectManaValue', $event)"
-                />
+                <deck-stats-manacurve :curve="manaCurve" :average="averageManaValue" />
                 <deck-stats-colors :cost="costPips" :production="productionPips" />
                 <deck-stats-categories
                     :types="typeCounts"
                     :categories="categoryCounts"
                     :subtype-breakdowns="subtypeBreakdowns"
-                    :selected-category="props.selectedCategory"
-                    @select="emit('selectCategory', $event)"
                 />
             </div>
         </template>

@@ -4,9 +4,9 @@ import { useI18n } from "vue-i18n";
 import FormGroup from "Components/Form/FormGroup.vue";
 import MonoSelect from "Components/Form/Select/MonoSelect.vue";
 import Headline from "Components/UI/Headline.vue";
+import { useDeckHighlight } from "Composables/useDeckHighlight.ts";
 import type { BreakdownBucket } from "Composables/useDeckStats.ts";
 import type { DeckStatsSelection } from "Types/deckPage.ts";
-const emit = defineEmits<{ select: [selection: DeckStatsSelection | null] }>();
 const props = defineProps<{
     /** Additive type breakdown (Creature, Planeswalker, Battle, Artifact, Enchantment, Instant, Sorcery, Land). */
     types: BreakdownBucket[];
@@ -14,10 +14,9 @@ const props = defineProps<{
     categories: BreakdownBucket[];
     /** Subtype buckets per card type. Keys are English type labels; values pre-sorted by count desc. */
     subtypeBreakdowns: Record<string, BreakdownBucket[]>;
-    /** Controlled selection — owned by the deck page so manacurve/categories stay mutually exclusive. */
-    selectedCategory: DeckStatsSelection | null;
 }>();
 const { t, te } = useI18n();
+const { selectedCategory, setCategory } = useDeckHighlight();
 type ViewKind = "types" | "categories" | "subtypes";
 /** Active view in the first dropdown. */
 const view = ref<ViewKind>("types");
@@ -30,6 +29,25 @@ const localizeBucket = (bucket: BreakdownBucket): string =>
     bucket.label === "__no_subtype" ? t("pages.deck.stats.categories.no_subtype") : bucket.label;
 /** Card types present in the deck — only those with at least one card show up in the second dropdown. */
 const availableSubtypeCardTypes = computed(() => Object.keys(props.subtypeBreakdowns));
+/**
+ * Threshold above which subtype / category bars don't fit comfortably
+ * as side-by-side columns at landscape+ (label collisions, label
+ * truncation). Creature subtypes routinely blow past this; user-defined
+ * categories can too. Types (always 8) and other subtypes (Land,
+ * Artifact, …) stay below it. Tuned by eye — bump if labels start
+ * crowding before the threshold trips.
+ */
+const HORIZONTAL_BUCKET_THRESHOLD = 6;
+/**
+ * Force the one-bar-per-row layout when the active slice has too many
+ * buckets to fit as columns. Only applied to the user-driven slices
+ * (subtypes, custom categories); the fixed type breakdown is sized to
+ * fit and stays as columns regardless.
+ */
+const forceHorizontal = computed<boolean>(() => {
+    if (view.value !== "subtypes" && view.value !== "categories") return false;
+    return buckets.value.length > HORIZONTAL_BUCKET_THRESHOLD;
+});
 /**
  * True when the deck has at least one user-defined category that
  * contains cards. The synthetic "Uncategorized" bucket (keyed
@@ -103,9 +121,9 @@ const selectionFor = (bucket: BreakdownBucket): DeckStatsSelection | null => {
     }
     return null;
 };
-/** True when a given bar is the one currently reflected in the parent's selection prop. */
+/** True when a given bar is the one currently reflected in the active highlight. */
 const isBarSelected = (bucket: BreakdownBucket): boolean => {
-    const sel = props.selectedCategory;
+    const sel = selectedCategory.value;
     if (sel === null) return false;
     if (sel.kind === "type" && view.value === "types") return sel.label === bucket.label;
     if (sel.kind === "category" && view.value === "categories") {
@@ -119,9 +137,9 @@ const isBarSelected = (bucket: BreakdownBucket): boolean => {
     }
     return false;
 };
-/** Toggle on click: the active bar emits null (clear), a different bar emits the new selection. */
+/** Toggle on click: the active bar clears the highlight, a different bar replaces it. */
 const onBarClick = (bucket: BreakdownBucket): void => {
-    emit("select", isBarSelected(bucket) ? null : selectionFor(bucket));
+    setCategory(isBarSelected(bucket) ? null : selectionFor(bucket));
 };
 /** When the user picks "subtypes" without a card type yet, default to the first available one. */
 watch(
@@ -147,12 +165,12 @@ watch(
  * visible bar.
  */
 watch([view, subtypeCardType], () => {
-    if (props.selectedCategory !== null) emit("select", null);
+    if (selectedCategory.value !== null) setCategory(null);
 });
 </script>
 
 <template>
-    <section class="stats">
+    <section class="stats" :class="{ 'stats--horizontal': forceHorizontal }">
         <headline :size="4">{{ t("pages.deck.stats.categories.title") }}</headline>
         <form-group :label="t('pages.deck.stats.categories.view_picker')">
             <mono-select
@@ -167,6 +185,7 @@ watch([view, subtypeCardType], () => {
         <form-group
             v-if="view === 'subtypes' && subtypeCardTypeOptions.length"
             :label="t('pages.deck.stats.categories.subtype_picker')"
+            style="margin-top: 0.5rem"
         >
             <mono-select
                 :options="subtypeCardTypeOptions"
@@ -205,10 +224,12 @@ watch([view, subtypeCardType], () => {
 @use "Abstracts/sizes" as s;
 @use "Abstracts/timings" as ti;
 
-// Mobile (default): horizontal bars — each row is [label, track, count, percent].
+// Default layout: horizontal bars — each row is [label, track, count, percent].
 // Bars share a single grid (li and button both pass through via display: contents
-// / subgrid) so columns line up vertically across rows.
-// Landscape and up: vertical bars matching the mana curve layout.
+// / subgrid) so columns line up vertically across rows. At landscape+ the layout
+// flips to vertical columns matching the mana curve, EXCEPT when the parent
+// section carries `--horizontal` (e.g. creature subtypes — too many buckets to
+// fit side-by-side as columns).
 .stats {
     &__bars {
         display: grid;
@@ -216,42 +237,22 @@ watch([view, subtypeCardType], () => {
         grid-template-columns: minmax(6rem, max-content) 1fr min-content min-content;
 
         padding: map.get(s.$components, "deck-categories", "gap") 0 0;
-        margin: 0;
+        margin: #{map.get(s.$components, "deck-categories", "gap") * 2} 0 0;
         gap: map.get(s.$components, "deck-categories", "gap");
 
         list-style: none;
-
-        @include m.mq("landscape") {
-            align-items: stretch;
-            grid-template-columns: none;
-            grid-auto-columns: 1fr;
-            grid-auto-flow: column;
-
-            height: map.get(s.$components, "deck-categories", "height");
-            gap: #{map.get(s.$components, "deck-categories", "gap") * 2};
-        }
-
-        @include m.mq("desktop") {
-            gap: #{map.get(s.$components, "deck-categories", "gap") * 4};
-        }
     }
 
     &__bar {
-        // Mobile: pass through so the inner button can subgrid against
-        // the parent ol's columns. Landscape: real flex item per column.
+        // Pass through so the inner button can subgrid against the
+        // parent ol's columns.
         display: contents;
-
-        @include m.mq("landscape") {
-            display: flex;
-
-            min-width: 0;
-        }
     }
 
     &__btn {
-        // Mobile: subgrid against `__bars` so all rows share the same
-        // four-column track and the count / percent columns line up
-        // across bars regardless of digit count.
+        // Subgrid against `__bars` so all rows share the same four-column
+        // track and the count / percent columns line up across bars
+        // regardless of digit count.
         display: grid;
         align-items: center;
         grid-template-columns: subgrid;
@@ -267,27 +268,21 @@ watch([view, subtypeCardType], () => {
 
         cursor: pointer;
 
-        &--selected .stats__fill {
+        // Hover paints the fill. The selected rule chains the parent class
+        // (`&--selected#{&}` → `.stats__btn--selected.stats__btn`) plus the
+        // always-present `[type]` attribute, putting its specificity at
+        // (0,6,0) in scoped CSS — one step above the hover rule's (0,5,0).
+        // That way a selected bar keeps its selected colors even while
+        // hovered, regardless of cascade order or scoped-CSS quirks around
+        // `:not()`.
+        &:hover .stats__fill {
+            background: map.get(c.$components, "deck-categories", "hover", "background");
+            border-color: map.get(c.$components, "deck-categories", "hover", "border");
+        }
+
+        &--selected#{&}[type] .stats__fill {
             background: map.get(c.$components, "deck-categories", "selected", "background");
-            color: map.get(c.$components, "deck-categories", "selected", "surface");
-        }
-
-        @include m.mq("landscape") {
-            grid-template-columns: none;
-            grid-template-rows: auto 1fr auto auto;
-            grid-column: auto;
-            justify-items: center;
-
-            width: 100%;
-            height: 100%;
-
-            text-align: center;
-        }
-    }
-
-    &__label {
-        @include m.mq("landscape") {
-            order: 3;
+            border-color: map.get(c.$components, "deck-categories", "selected", "border");
         }
     }
 
@@ -299,14 +294,6 @@ watch([view, subtypeCardType], () => {
 
         width: 100%;
         height: map.get(s.$components, "deck-categories", "track-height");
-
-        @include m.mq("landscape") {
-            order: 2;
-            place-self: stretch stretch;
-
-            width: 100%;
-            height: 100%;
-        }
     }
 
     &__fill {
@@ -327,29 +314,78 @@ watch([view, subtypeCardType], () => {
         @media (prefers-reduced-motion: reduce) {
             transition: none;
         }
-
-        @include m.mq("landscape") {
-            position: absolute;
-            inset: auto 0 0;
-
-            width: 100%;
-            height: calc(var(--frac, 0) * 100%);
-        }
     }
 
-    &__count {
-        font-variant-numeric: tabular-nums;
-
-        @include m.mq("landscape") {
-            order: 1;
-        }
-    }
-
+    &__count,
     &__percent {
         font-variant-numeric: tabular-nums;
+    }
 
+    // Landscape+: flip to vertical columns. Skipped when `--horizontal` is set
+    // so callers with too many buckets (creature subtypes) keep one-bar-per-row.
+    &:not(&--horizontal) {
         @include m.mq("landscape") {
-            order: 4;
+            .stats__bars {
+                align-items: stretch;
+                grid-template-columns: none;
+                grid-auto-columns: 1fr;
+                grid-auto-flow: column;
+
+                height: map.get(s.$components, "deck-categories", "height");
+                gap: #{map.get(s.$components, "deck-categories", "gap") * 2};
+            }
+
+            .stats__bar {
+                display: flex;
+
+                min-width: 0;
+            }
+
+            .stats__btn {
+                grid-template-columns: none;
+                grid-template-rows: auto 1fr auto auto;
+                grid-column: auto;
+                justify-items: center;
+
+                width: 100%;
+                height: 100%;
+
+                text-align: center;
+            }
+
+            .stats__label {
+                order: 3;
+            }
+
+            .stats__track {
+                order: 2;
+                place-self: stretch stretch;
+
+                width: 100%;
+                height: 100%;
+            }
+
+            .stats__fill {
+                position: absolute;
+                inset: auto 0 0;
+
+                width: 100%;
+                height: calc(var(--frac, 0) * 100%);
+            }
+
+            .stats__count {
+                order: 1;
+            }
+
+            .stats__percent {
+                order: 4;
+            }
+        }
+
+        @include m.mq("desktop") {
+            .stats__bars {
+                gap: #{map.get(s.$components, "deck-categories", "gap") * 4};
+            }
         }
     }
 }

@@ -141,16 +141,21 @@ export type DeckStatsSelection =
 
 /**
  * Single source of truth for "what's currently highlighting cards in
- * this deck view". Owned by `DeckPage`; each child panel projects its
- * own slice via a computed prop. Modeling all axes as one discriminated
- * union enforces mutual exclusion at the type level — at most one
- * panel can have a selection at any time. Add new variants here as
- * additional stats panels (color distribution, etc.) get clickable
- * facets.
+ * this deck view". Owned by `useDeckHighlight()` (provided once at
+ * `DeckPage` level). Modeling all axes as one discriminated union
+ * enforces mutual exclusion at the type level — at most one panel can
+ * have a selection at any time. The matcher in `useDeckHighlight`
+ * switches on `axis` to decide whether a given card is highlighted.
+ *
+ * `color` is a single uppercase WUBRG letter; colorless mana ({C}) is
+ * intentionally not addressable as a highlight axis (a colorless
+ * production / consumption bar wouldn't usefully partition the deck).
  */
 export type DeckHighlight =
     | { axis: "mv"; value: number }
-    | { axis: "category"; selection: DeckStatsSelection };
+    | { axis: "category"; selection: DeckStatsSelection }
+    | { axis: "color-production"; color: "W" | "U" | "B" | "R" | "G" }
+    | { axis: "color-consumption"; color: "W" | "U" | "B" | "R" | "G" };
 
 /**
  * A token (or other related printing) created by one of the deck's
