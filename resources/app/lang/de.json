@@ -841,7 +841,7 @@
                     "bar_aria": "Manakosten {cmc}: {total} Karten ({permanents} bleibende, {spells} Sprüche)"
                 },
                 "categories": {
-                    "title": "Typ - Verteilung",
+                    "title": "Typen Verteilung",
                     "view_picker": "Anzeige",
                     "view": {
                         "types": "Kartentypen",
