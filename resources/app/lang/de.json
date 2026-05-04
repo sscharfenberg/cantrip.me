@@ -841,7 +841,7 @@
                     "bar_aria": "Manakosten {cmc}: {total} Karten ({permanents} bleibende, {spells} Sprüche)"
                 },
                 "categories": {
-                    "title": "Karten - Verteilung",
+                    "title": "Typ - Verteilung",
                     "view_picker": "Anzeige",
                     "view": {
                         "types": "Kartentypen",
@@ -851,6 +851,28 @@
                     "subtype_picker": "Kartentyp",
                     "no_subtype": "Ohne Untertyp",
                     "bar_aria": "{label}: {count} Karten ({percent}%)"
+                },
+                "colors": {
+                    "title": "Farb Verteilung",
+                    "outer": "Äußerer Ring: Kosten",
+                    "inner": "Innerer Ring: Produktion",
+                    "row": "{color} {count} Pips, {percent}% aller farbigen Pips",
+                    "cost_aria": "Kosten — {color}: {count} Pips ({percent}%)",
+                    "production_aria": "Produktion — {color}: {count} Pips ({percent}%)",
+                    "karsten": {
+                        "title": "Manaquellen",
+                        "sufficient": "{color} {have} Quellen, {need} empfohlen.",
+                        "short": "{color} {have} Quellen, {need} empfohlen ({short} zu wenig)",
+                        "attribution": "Analyse basiert auf der Forschung von Frank Karsten. {link}",
+                        "attribution_link": "Artikel lesen"
+                    },
+                    "color": {
+                        "W": "Weiß",
+                        "U": "Blau",
+                        "B": "Schwarz",
+                        "R": "Rot",
+                        "G": "Grün"
+                    }
                 }
             },
             "companion": {

@@ -1,4 +1,6 @@
 import { computed, type ComputedRef } from "vue";
+import { breakdownCard, sourcesNeeded } from "@/utils/frankKarstenAnalysis";
+import type { HighlightColor } from "Composables/useDeckHighlight.ts";
 import type { DeckCardRow, DeckCategoryRow, DeckCommander, DeckCompanion } from "Types/deckPage.ts";
 
 // ---------------------------------------------------------------------------
@@ -27,6 +29,19 @@ export interface ColorPipTally {
     B: number;
     R: number;
     G: number;
+}
+
+/**
+ * One row of the per-color Karsten analysis: how many sources of this
+ * color the deck has, how many Karsten recommends for the deck's most
+ * demanding card of this color, and the shortfall (zero if sufficient).
+ */
+export interface KarstenColorAnalysis {
+    color: HighlightColor;
+    have: number;
+    need: number;
+    /** `max(0, need - have)`. Zero ⇒ sufficient. */
+    short: number;
 }
 
 /**
@@ -188,6 +203,7 @@ export function useDeckStats(
     commanders: () => DeckCommander[],
     companion: () => DeckCompanion | null,
     categories: () => DeckCategoryRow[],
+    format: () => string,
 ): {
     manaCurve: ComputedRef<ManaCurveBucket[]>;
     /**
@@ -199,6 +215,12 @@ export function useDeckStats(
     averageManaValue: ComputedRef<number>;
     costPips: ComputedRef<ColorPipTally>;
     productionPips: ComputedRef<ColorPipTally>;
+    /**
+     * Per-color Karsten analysis. Only colors with a non-zero
+     * requirement (i.e. at least one card consumes them) appear. Empty
+     * array when the deck has no colored costs at all.
+     */
+    karstenAnalysis: ComputedRef<KarstenColorAnalysis[]>;
     typeCounts: ComputedRef<BreakdownBucket[]>;
     /**
      * Subtype breakdown per card type. Keys are the card type labels
@@ -296,6 +318,53 @@ export function useDeckStats(
             tallyProducedManaInto(tally, cmp.produced_mana, 1, allowed);
         }
         return tally;
+    });
+
+    /**
+     * Per-color Karsten analysis. For each color X, scans every
+     * non-land card (including commanders + companion), and for each
+     * card that consumes X, looks up Karsten's recommended source
+     * count for `(cmc, pipsForX)` — the deck's requirement is the max
+     * across all such cards (set by the most demanding cast). The
+     * "have" side reuses `productionPips`, which already counts a card
+     * once per produced color × quantity (a 5-color dork in a Boros
+     * deck contributes only to W and R, since `allowed` clamps to the
+     * commander color identity — the same convention applies here).
+     */
+    const karstenAnalysis = computed<KarstenColorAnalysis[]>(() => {
+        const fmt = format();
+        const need: Record<HighlightColor, number> = { W: 0, U: 0, B: 0, R: 0, G: 0 };
+
+        const considerCard = (faces: (string | null)[], cmc: number, typeLine: string): void => {
+            if (isLand(typeLine)) return;
+            const { pips } = breakdownCard(faces, cmc);
+            for (const color of COLORS) {
+                if (pips[color] === 0) continue;
+                const required = sourcesNeeded(fmt, cmc, pips[color]);
+                if (required !== null && required > need[color]) {
+                    need[color] = required;
+                }
+            }
+        };
+
+        for (const card of cards()) {
+            considerCard(card.mana_cost, card.cmc, card.type_line);
+        }
+        for (const cmd of commanders()) {
+            considerCard(cmd.mana_cost, cmd.cmc, cmd.type_line);
+        }
+        const cmp = companion();
+        if (cmp !== null) {
+            considerCard(cmp.mana_cost, cmp.cmc, cmp.type_line);
+        }
+
+        const have = productionPips.value;
+        return COLORS.filter(color => need[color] > 0).map(color => ({
+            color,
+            have: have[color],
+            need: need[color],
+            short: Math.max(0, need[color] - have[color]),
+        }));
     });
 
     const typeCounts = computed<BreakdownBucket[]>(() => {
@@ -417,6 +486,7 @@ export function useDeckStats(
         averageManaValue,
         costPips,
         productionPips,
+        karstenAnalysis,
         typeCounts,
         subtypeBreakdowns,
         categoryCounts,

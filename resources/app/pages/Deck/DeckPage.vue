@@ -185,6 +185,7 @@ const cardNameByDefaultCardId = computed<Record<string, string>>(() => {
             :commanders="commanders"
             :companion="companion"
             :categories="categories"
+            :format="deck.format"
         />
     </div>
 </template>

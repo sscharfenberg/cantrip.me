@@ -841,7 +841,7 @@
                     "bar_aria": "Mana value {cmc}: {total} cards ({permanents} permanents, {spells} spells)"
                 },
                 "categories": {
-                    "title": "Card distribution",
+                    "title": "Type distribution",
                     "view_picker": "Show",
                     "view": {
                         "types": "Types",
@@ -851,6 +851,28 @@
                     "subtype_picker": "Card type",
                     "no_subtype": "No subtype",
                     "bar_aria": "{label}: {count} cards ({percent}%)"
+                },
+                "colors": {
+                    "title": "Color distribution",
+                    "outer": "Outer ring: cost",
+                    "inner": "Inner ring: production",
+                    "row": "{color} {count} pips, {percent}% of all colored pips",
+                    "cost_aria": "Cost — {color}: {count} pips ({percent}%)",
+                    "production_aria": "Production — {color}: {count} pips ({percent}%)",
+                    "karsten": {
+                        "title": "Mana sources",
+                        "sufficient": "{color} {have} sources, {need} recommended.",
+                        "short": "{color} {have} sources, {need} recommended (short by {short})",
+                        "attribution": "Analysis according to Frank Karsten's research. {link}",
+                        "attribution_link": "Read the article"
+                    },
+                    "color": {
+                        "W": "White",
+                        "U": "Blue",
+                        "B": "Black",
+                        "R": "Red",
+                        "G": "Green"
+                    }
                 }
             },
             "companion": {
