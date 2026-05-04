@@ -142,20 +142,22 @@ export type DeckStatsSelection =
 /**
  * Single source of truth for "what's currently highlighting cards in
  * this deck view". Owned by `useDeckHighlight()` (provided once at
- * `DeckPage` level). Modeling all axes as one discriminated union
- * enforces mutual exclusion at the type level — at most one panel can
- * have a selection at any time. The matcher in `useDeckHighlight`
- * switches on `axis` to decide whether a given card is highlighted.
+ * `DeckPage` level). Each axis is independently set or cleared; the
+ * matcher in `useDeckHighlight` ANDs together the predicates of all
+ * currently-set axes — a card highlights only if it satisfies every
+ * active axis. An "empty" highlight (all axes `null`) means no
+ * selection at all.
  *
  * `color` is a single uppercase WUBRG letter; colorless mana ({C}) is
  * intentionally not addressable as a highlight axis (a colorless
  * production / consumption bar wouldn't usefully partition the deck).
  */
-export type DeckHighlight =
-    | { axis: "mv"; value: number }
-    | { axis: "category"; selection: DeckStatsSelection }
-    | { axis: "color-production"; color: "W" | "U" | "B" | "R" | "G" }
-    | { axis: "color-consumption"; color: "W" | "U" | "B" | "R" | "G" };
+export type DeckHighlight = {
+    mv: number | null;
+    category: DeckStatsSelection | null;
+    colorProduction: "W" | "U" | "B" | "R" | "G" | null;
+    colorConsumption: "W" | "U" | "B" | "R" | "G" | null;
+};
 
 /**
  * A token (or other related printing) created by one of the deck's

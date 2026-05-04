@@ -88,9 +88,9 @@ const commanderColorIdentity = computed(() => combineCI(props.commanders.map(c =
 /**
  * Provide the deck highlight api once at the page root. Stats panels
  * (manacurve, categories, color distribution) and card views (text /
- * image) inject it via `useDeckHighlight()`. Mutual exclusion across
- * axes is enforced by the discriminated union inside the composable —
- * at most one axis can be active at a time, by construction.
+ * image) inject it via `useDeckHighlight()`. Each axis (mana value,
+ * category, color production, color consumption) is independent; a
+ * card highlights only when it satisfies every active axis.
  */
 const { hasHighlight, clear: clearHighlight } = provideDeckHighlight();
 /**

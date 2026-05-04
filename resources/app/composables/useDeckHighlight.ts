@@ -1,4 +1,4 @@
-import { computed, inject, provide, ref, type ComputedRef, type InjectionKey } from "vue";
+import { computed, inject, provide, reactive, type ComputedRef, type InjectionKey } from "vue";
 import type { DeckHighlight, DeckStatsSelection } from "Types/deckPage.ts";
 
 /**
@@ -29,7 +29,7 @@ export interface HighlightableCard {
  * matcher the card views use to drive the `.highlighted` class.
  */
 export interface DeckHighlightApi {
-    highlight: ComputedRef<DeckHighlight | null>;
+    highlight: ComputedRef<DeckHighlight>;
     hasHighlight: ComputedRef<boolean>;
 
     selectedManaValue: ComputedRef<number | null>;
@@ -60,76 +60,94 @@ const consumesColor = (manaCost: (string | null)[], color: HighlightColor): bool
     return manaCost.some(face => face !== null && re.test(face));
 };
 
+const matchesManaValue = (card: HighlightableCard, value: number): boolean => {
+    const floored = Math.floor(card.cmc);
+    return value === 8 ? floored >= 8 : floored === value;
+};
+
+const matchesCategory = (card: HighlightableCard, sel: DeckStatsSelection): boolean => {
+    if (sel.kind === "type") return card.type_line.includes(sel.label);
+    if (sel.kind === "category") {
+        if (card.category_id === undefined) return false;
+        return card.category_id === sel.id;
+    }
+    // subtype: card must include the chosen card type AND its
+    // subtypes (right of the em-dash) must include the chosen
+    // subtype, with `null` representing the "no subtype" bucket.
+    if (!card.type_line.includes(sel.cardType)) return false;
+    const right = card.type_line.split(/\s*—\s*/, 2)[1] ?? "";
+    const subtypes = right.split(/\s+/).filter(Boolean);
+    return sel.subtype === null ? subtypes.length === 0 : subtypes.includes(sel.subtype);
+};
+
+const emptyHighlight = (): DeckHighlight => ({
+    mv: null,
+    category: null,
+    colorProduction: null,
+    colorConsumption: null
+});
+
 /**
  * Called once at the page root (DeckPage). Returns the api so the page
  * can also read it directly (e.g. for the page-level "clear selection"
  * button) without going through a second `inject` call.
  */
 export const provideDeckHighlight = (): DeckHighlightApi => {
-    const highlight = ref<DeckHighlight | null>(null);
+    const highlight = reactive<DeckHighlight>(emptyHighlight());
 
-    const hasHighlight = computed(() => highlight.value !== null);
+    const hasHighlight = computed(
+        () =>
+            highlight.mv !== null ||
+            highlight.category !== null ||
+            highlight.colorProduction !== null ||
+            highlight.colorConsumption !== null
+    );
 
-    const selectedManaValue = computed<number | null>(() =>
-        highlight.value?.axis === "mv" ? highlight.value.value : null
-    );
-    const selectedCategory = computed<DeckStatsSelection | null>(() =>
-        highlight.value?.axis === "category" ? highlight.value.selection : null
-    );
-    const selectedColorProduction = computed<HighlightColor | null>(() =>
-        highlight.value?.axis === "color-production" ? highlight.value.color : null
-    );
-    const selectedColorConsumption = computed<HighlightColor | null>(() =>
-        highlight.value?.axis === "color-consumption" ? highlight.value.color : null
-    );
+    const selectedManaValue = computed<number | null>(() => highlight.mv);
+    const selectedCategory = computed<DeckStatsSelection | null>(() => highlight.category);
+    const selectedColorProduction = computed<HighlightColor | null>(() => highlight.colorProduction);
+    const selectedColorConsumption = computed<HighlightColor | null>(() => highlight.colorConsumption);
 
     const setManaValue = (cmc: number | null): void => {
-        highlight.value = cmc === null ? null : { axis: "mv", value: cmc };
+        highlight.mv = cmc;
     };
     const setCategory = (selection: DeckStatsSelection | null): void => {
-        highlight.value = selection === null ? null : { axis: "category", selection };
+        highlight.category = selection;
     };
     const setColorProduction = (color: HighlightColor | null): void => {
-        highlight.value = color === null ? null : { axis: "color-production", color };
+        highlight.colorProduction = color;
     };
     const setColorConsumption = (color: HighlightColor | null): void => {
-        highlight.value = color === null ? null : { axis: "color-consumption", color };
+        highlight.colorConsumption = color;
     };
     const clear = (): void => {
-        highlight.value = null;
+        highlight.mv = null;
+        highlight.category = null;
+        highlight.colorProduction = null;
+        highlight.colorConsumption = null;
     };
 
+    /**
+     * AND across every active axis: a card highlights only if it
+     * satisfies *every* set axis. With nothing set, returns false so
+     * card views render their default (un-highlighted) state.
+     */
     const isHighlighted = (card: HighlightableCard): boolean => {
-        const h = highlight.value;
-        if (h === null) return false;
-        if (h.axis === "mv") {
-            const floored = Math.floor(card.cmc);
-            return h.value === 8 ? floored >= 8 : floored === h.value;
-        }
-        if (h.axis === "category") {
-            const sel = h.selection;
-            if (sel.kind === "type") return card.type_line.includes(sel.label);
-            if (sel.kind === "category") {
-                if (card.category_id === undefined) return false;
-                return card.category_id === sel.id;
-            }
-            // subtype: card must include the chosen card type AND its
-            // subtypes (right of the em-dash) must include the chosen
-            // subtype, with `null` representing the "no subtype" bucket.
-            if (!card.type_line.includes(sel.cardType)) return false;
-            const right = card.type_line.split(/\s*—\s*/, 2)[1] ?? "";
-            const subtypes = right.split(/\s+/).filter(Boolean);
-            return sel.subtype === null ? subtypes.length === 0 : subtypes.includes(sel.subtype);
-        }
-        if (h.axis === "color-production") {
-            return card.produced_mana?.includes(h.color) ?? false;
-        }
-        // color-consumption
-        return consumesColor(card.mana_cost, h.color);
+        if (!hasHighlight.value) return false;
+        if (highlight.mv !== null && !matchesManaValue(card, highlight.mv)) return false;
+        if (highlight.category !== null && !matchesCategory(card, highlight.category)) return false;
+        if (highlight.colorProduction !== null && !(card.produced_mana?.includes(highlight.colorProduction) ?? false))
+            return false;
+        return !(highlight.colorConsumption !== null && !consumesColor(card.mana_cost, highlight.colorConsumption));
     };
 
     const api: DeckHighlightApi = {
-        highlight: computed(() => highlight.value),
+        highlight: computed(() => ({
+            mv: highlight.mv,
+            category: highlight.category,
+            colorProduction: highlight.colorProduction,
+            colorConsumption: highlight.colorConsumption
+        })),
         hasHighlight,
         selectedManaValue,
         selectedCategory,
