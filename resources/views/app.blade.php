@@ -14,16 +14,7 @@
         <meta name="apple-mobile-web-app-title" content="cantrip.me" />
         <link rel="manifest" href="/favicons/site.webmanifest" />
 
-        @if (file_exists(public_path('hot')))
-            <meta name="hot" content="true" />
-            @vite(['resources/app/main.ts'])
-        @else
-            @php
-                $manifest = json_decode(file_get_contents(public_path('build/manifest.json')), true);
-            @endphp
-            <link rel="stylesheet" href="/build/{{$manifest['resources/app/main.ts']['css'][0]}}">
-            <script type="module" src="/build/{{$manifest['resources/app/main.ts']['file']}}" defer></script>
-        @endif
+        @vite(['resources/app/main.ts'])
         @inertiaHead
     </head>
     <body>
