@@ -12,9 +12,11 @@ use App\Enums\Scryfall\ScryfallRelatedComponent;
 use App\Formats\FormatProfile;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Decks\ClearDeckCollectionAssignmentsRequest;
+use App\Http\Requests\Decks\DeckQrSvgRequest;
 use App\Http\Requests\Decks\DeleteDeckRequest;
 use App\Http\Requests\Decks\EditDeckRequest;
 use App\Http\Requests\Decks\FinalizeDeckRequest;
+use App\Http\Requests\Decks\GenerateDeckQrRequest;
 use App\Http\Requests\Decks\PromoteDeckCollectionModeRequest;
 use App\Http\Requests\Decks\SetDeckCommanderHeroImageRequest;
 use App\Http\Requests\Decks\SetDeckCompanionHeroImageRequest;
@@ -37,6 +39,8 @@ use App\Services\DeckCollectionStatusService;
 use App\Services\DeckFinalizeService;
 use App\Services\DeckService;
 use App\Services\DeckValidator;
+use App\Services\QrCodeService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -1032,5 +1036,40 @@ class DecksController extends Controller
         $request->session()->flash('type', 'success');
 
         return redirect(route('decks'));
+    }
+
+    /**
+     * Display the QR code generation page.
+     *
+     * When a deck is provided via route model binding, it is pre-selected
+     * and ownership is verified by {@see GenerateDeckQrRequest}. Otherwise
+     * the user can pick from all their decks.
+     *
+     * @param  Deck|null  $deck  Pre-selected deck, or null when accessed without an ID.
+     */
+    public function generateQr(GenerateDeckQrRequest $request, ?Deck $deck = null): Response
+    {
+        $decks = Deck::query()
+            ->where('user_id', $request->user()->id)
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
+        return Inertia::render('Deck/DeckQrCode', [
+            'deck' => $deck ? ['id' => $deck->id, 'name' => $deck->name] : null,
+            'decks' => $decks,
+        ]);
+    }
+
+    /**
+     * Generate a QR code SVG for a deck's detail page.
+     *
+     * Returns the SVG markup as JSON so the frontend can embed it inline.
+     */
+    public function qrSvg(DeckQrSvgRequest $request, Deck $deck): JsonResponse
+    {
+        $url = route('decks.show', $deck);
+        $svg = QrCodeService::generateSvg($url);
+
+        return response()->json(['svg' => $svg]);
     }
 }

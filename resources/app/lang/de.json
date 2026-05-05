@@ -632,6 +632,17 @@
             "loading": "QR Code wird generiert...",
             "no_selection": "Bitte wähle einen Container."
         },
+        "deck_qr": {
+            "link": "QR code generieren",
+            "title": "QR code für {name} generieren",
+            "any": "eines deiner Decks",
+            "explanation": "Erzeuge einen QR Code für {name}. Der QR Code verlinkt auf die Detailseite des Decks - drucke den QR Code auf einen Aufkleber aus und platziere ihn auf der Deckbox.",
+            "select_placeholder": "Deck auswählen",
+            "download_svg": ".svg",
+            "download_png": ".png",
+            "loading": "QR Code wird generiert...",
+            "no_selection": "Bitte wähle ein Deck."
+        },
         "import": {
             "title": "CSV importieren",
             "link": "CSV importieren",
@@ -1088,6 +1099,9 @@
                 "visibility": "Sichtbarkeit",
                 "visibility_private": "Privat - nur du kannst diesen Container sehen.",
                 "visibility_public": "Öffentlich - jeder kann diesen Container sehen."
+            },
+            "deck": {
+                "id": "Deck"
             },
             "card": "Karte",
             "name": "Kartenname",

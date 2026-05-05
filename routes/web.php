@@ -131,6 +131,12 @@ Route::middleware(array_filter(['auth', Features::enabled(Features::emailVerific
     Route::post('/decks/add', [DecksController::class, 'store'])
         ->middleware([HandleControllerPrecognitiveRequest::class])
         ->name('decks.store');
+    Route::get('/decks/qr', [DecksController::class, 'generateQr'])
+        ->name('decks.qr');
+    Route::get('/decks/{deck}/qr', [DecksController::class, 'generateQr'])
+        ->name('deck.qr');
+    Route::post('/decks/{deck}/qr', [DecksController::class, 'qrSvg'])
+        ->name('deck.qr.svg');
     Route::get('/decks/{deck}/edit', [DecksController::class, 'edit'])
         ->name('decks.edit');
     Route::patch('/decks/{deck}/visibility', [DecksController::class, 'setVisibility'])

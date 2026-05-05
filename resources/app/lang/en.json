@@ -632,6 +632,17 @@
             "loading": "Generating QR code...",
             "no_selection": "Please select a container."
         },
+        "deck_qr": {
+            "link": "Create QR code",
+            "title": "Create QR code for {name}",
+            "any": "one of your decks",
+            "explanation": "Generate a QR Code for {name}. The QR code points to the detail page of the deck - print the QR code on a sticker and place it on the deck box.",
+            "select_placeholder": "Select a deck",
+            "download_svg": ".svg",
+            "download_png": ".png",
+            "loading": "Generating QR code...",
+            "no_selection": "Please select a deck."
+        },
         "import": {
             "title": "Import CSV",
             "link": "Import CSV",
@@ -1088,6 +1099,9 @@
                 "visibility": "Visibility",
                 "visibility_private": "Private - only you can view this container.",
                 "visibility_public": "Public - everyone view this container."
+            },
+            "deck": {
+                "id": "Deck"
             },
             "card": "Card",
             "name": "Card name",

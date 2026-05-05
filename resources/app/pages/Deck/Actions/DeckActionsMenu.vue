@@ -66,6 +66,11 @@ function onEditSettings(): void {
     closePopover();
     router.visit(`/decks/${props.deck.id}/edit`);
 }
+/** Navigate to the QR code page for this deck. */
+function onQrClick(): void {
+    closePopover();
+    router.visit(`/decks/${props.deck.id}/qr`);
+}
 /**
  * Flip the deck between private and public via the dedicated quick-toggle
  * endpoint. The controller redirects back to the deck show page with a
@@ -165,6 +170,12 @@ function onDeleteClick(): void {
                 <button class="popover-list-item" @click="openCustomGroups">
                     <icon name="edit" :size="1" />
                     {{ $t("pages.deck.custom_groups.link") }}
+                </button>
+            </li>
+            <li>
+                <button class="popover-list-item" @click="onQrClick">
+                    <icon name="qr-code" :size="1" />
+                    {{ $t("pages.deck_qr.link") }}
                 </button>
             </li>
             <li>

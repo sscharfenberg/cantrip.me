@@ -46,6 +46,14 @@ function onEditClick(): void {
     router.visit(`/decks/${props.deck.id}/edit`);
 }
 /**
+ * Navigate to the QR code page for this deck. Same programmatic-visit
+ * rationale as `onEditClick` — the row is already wrapped in a `<Link>`.
+ */
+function onQrClick(): void {
+    closePopover();
+    router.visit(`/decks/${props.deck.id}/qr`);
+}
+/**
  * Delete button handler. Skips the confirm prompt entirely for "empty"
  * decks — no cards, no companion, no description, no custom image — and
  * fires the DELETE directly. Anything worth losing opens the modal first.
@@ -99,6 +107,12 @@ function onDeleteClick(): void {
                     <button class="popover-list-item" @click.prevent="onEditClick">
                         <icon name="edit" :size="1" />
                         {{ t("pages.create_deck.edit_link") }}
+                    </button>
+                </li>
+                <li>
+                    <button class="popover-list-item" @click.prevent="onQrClick">
+                        <icon name="qr-code" :size="1" />
+                        {{ t("pages.deck_qr.link") }}
                     </button>
                 </li>
                 <li>
