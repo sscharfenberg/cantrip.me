@@ -8,7 +8,6 @@ use Illuminate\Support\Facades\Log;
 
 class ArtistsService
 {
-
     /**
      * In-memory cache of artist name → UUID.
      *
@@ -24,8 +23,6 @@ class ArtistsService
      *
      * Called from DefaultCardsService::preRunCleanup() since artists are
      * derived from card data and must be rebuilt alongside default_cards.
-     *
-     * @return void
      */
     public function truncate(): void
     {
@@ -41,7 +38,7 @@ class ArtistsService
      * Returns null when the card has no artist (e.g. tokens, art cards).
      *
      * @param  string|null  $name  The artist name from the Scryfall card object.
-     * @return string|null  The artist UUID.
+     * @return string|null The artist UUID.
      */
     public function resolveArtistId(?string $name): ?string
     {
@@ -58,5 +55,4 @@ class ArtistsService
 
         return $artist->id;
     }
-
 }

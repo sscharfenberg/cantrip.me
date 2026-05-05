@@ -70,13 +70,12 @@ class Symbol extends Model
      * @var array
      */
     protected $casts = [
-        'represents_mana'       => 'boolean',
+        'represents_mana' => 'boolean',
         'appears_in_mana_costs' => 'boolean',
-        'transposable'          => 'boolean',
-        'hybrid'                => 'boolean',
-        'phyrexian'             => 'boolean',
-        'funny'                 => 'boolean',
-        'cmc'                   => 'integer',
+        'transposable' => 'boolean',
+        'hybrid' => 'boolean',
+        'phyrexian' => 'boolean',
+        'funny' => 'boolean',
+        'cmc' => 'integer',
     ];
-
 }

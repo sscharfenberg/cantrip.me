@@ -69,5 +69,4 @@ class Artist extends Model
     {
         return $this->hasMany(DefaultCard::class, 'artist_id', 'id');
     }
-
 }

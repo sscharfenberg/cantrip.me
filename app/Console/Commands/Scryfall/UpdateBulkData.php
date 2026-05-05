@@ -24,13 +24,14 @@ class UpdateBulkData extends Command
     protected $description = 'Get bulk data from scryfall';
 
     private FormatService $formatService;
+
     private BulkdataService $bulkdataService;
 
     public function __construct()
     {
         parent::__construct();
-        $this->formatService = new FormatService();
-        $this->bulkdataService = new BulkdataService();
+        $this->formatService = new FormatService;
+        $this->bulkdataService = new BulkdataService;
     }
 
     /**
@@ -40,14 +41,14 @@ class UpdateBulkData extends Command
     {
         $start = now();
         $this->info("artisan command 'scryfall:bulk' started.");
-        Log::channel('scryfall')->info("=======================================================");
+        Log::channel('scryfall')->info('=======================================================');
         Log::channel('scryfall')->info("artisan command 'scryfall:bulk' started.");
-        Log::channel('scryfall')->info("=======================================================");
+        Log::channel('scryfall')->info('=======================================================');
         $this->bulkdataService->getBulkMetadata();
         $ms = $start->diffInMilliseconds(now());
-        Log::channel('scryfall')->info("=======================================================");
-        Log::channel('scryfall')->info("artisan command 'scryfall:bulk' finished in ".$this->formatService->formatMs($ms).".");
-        Log::channel('scryfall')->info("=======================================================");
-        $this->info("artisan command 'scryfall:bulk' finished in ".$this->formatService->formatMs($ms).".");
+        Log::channel('scryfall')->info('=======================================================');
+        Log::channel('scryfall')->info("artisan command 'scryfall:bulk' finished in ".$this->formatService->formatMs($ms).'.');
+        Log::channel('scryfall')->info('=======================================================');
+        $this->info("artisan command 'scryfall:bulk' finished in ".$this->formatService->formatMs($ms).'.');
     }
 }

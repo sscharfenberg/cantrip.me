@@ -24,13 +24,14 @@ class DownloadImages extends Command
     protected $description = 'Download art crop and card images from Scryfall and cache them locally.';
 
     private FormatService $formatService;
+
     private ImageDownloadService $imageDownloadService;
 
     public function __construct()
     {
         parent::__construct();
-        $this->formatService = new FormatService();
-        $this->imageDownloadService = new ImageDownloadService();
+        $this->formatService = new FormatService;
+        $this->imageDownloadService = new ImageDownloadService;
     }
 
     /**
@@ -40,17 +41,17 @@ class DownloadImages extends Command
     {
         $start = now();
         $this->info("artisan command 'scryfall:images' started.");
-        Log::channel('scryfall')->info("=======================================================");
+        Log::channel('scryfall')->info('=======================================================');
         Log::channel('scryfall')->info("artisan command 'scryfall:images' started.");
-        Log::channel('scryfall')->info("=======================================================");
+        Log::channel('scryfall')->info('=======================================================');
         // download missing art crop images to disk
         $this->imageDownloadService->downloadArtCrops();
         // download missing card images (full scans) to disk
         $this->imageDownloadService->downloadCardImages();
         $ms = $start->diffInMilliseconds(now());
-        Log::channel('scryfall')->info("=======================================================");
-        Log::channel('scryfall')->info("artisan command 'scryfall:images' finished in ".$this->formatService->formatMs($ms).".");
-        Log::channel('scryfall')->info("=======================================================");
-        $this->info("artisan command 'scryfall:images' finished in ".$this->formatService->formatMs($ms).".");
+        Log::channel('scryfall')->info('=======================================================');
+        Log::channel('scryfall')->info("artisan command 'scryfall:images' finished in ".$this->formatService->formatMs($ms).'.');
+        Log::channel('scryfall')->info('=======================================================');
+        $this->info("artisan command 'scryfall:images' finished in ".$this->formatService->formatMs($ms).'.');
     }
 }

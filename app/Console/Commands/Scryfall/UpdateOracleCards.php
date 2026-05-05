@@ -24,13 +24,14 @@ class UpdateOracleCards extends Command
     protected $description = 'Update database with oracle cards from scryfall.';
 
     private FormatService $formatService;
+
     private OracleCardsService $oracleCardsService;
 
     public function __construct()
     {
         parent::__construct();
-        $this->formatService = new FormatService();
-        $this->oracleCardsService = new OracleCardsService();
+        $this->formatService = new FormatService;
+        $this->oracleCardsService = new OracleCardsService;
     }
 
     /**
@@ -40,14 +41,14 @@ class UpdateOracleCards extends Command
     {
         $start = now();
         $this->info("artisan command 'scryfall:oracle' started.");
-        Log::channel('scryfall')->info("=======================================================");
+        Log::channel('scryfall')->info('=======================================================');
         Log::channel('scryfall')->info("artisan command 'scryfall:oracle' started.");
-        Log::channel('scryfall')->info("=======================================================");
+        Log::channel('scryfall')->info('=======================================================');
         $this->oracleCardsService->updateOracleCards();
         $ms = $start->diffInMilliseconds(now());
-        Log::channel('scryfall')->info("=======================================================");
-        Log::channel('scryfall')->info("artisan command 'scryfall:oracle' finished in ".$this->formatService->formatMs($ms).".");
-        Log::channel('scryfall')->info("=======================================================");
-        $this->info("artisan command 'scryfall:oracle' finished in ".$this->formatService->formatMs($ms).".");
+        Log::channel('scryfall')->info('=======================================================');
+        Log::channel('scryfall')->info("artisan command 'scryfall:oracle' finished in ".$this->formatService->formatMs($ms).'.');
+        Log::channel('scryfall')->info('=======================================================');
+        $this->info("artisan command 'scryfall:oracle' finished in ".$this->formatService->formatMs($ms).'.');
     }
 }

@@ -8,15 +8,13 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
-
 class BulkdataService extends ScryfallService
 {
-
     private FormatService $formatService;
 
     public function __construct()
     {
-        $this->formatService = new FormatService();
+        $this->formatService = new FormatService;
     }
 
     /**
@@ -27,13 +25,14 @@ class BulkdataService extends ScryfallService
      * from the BulkData model to detect truncated downloads.
      *
      * @param  string  $type  The bulk-data type identifier (e.g. "oracle_cards").
-     * @return bool  True on success or if the file already exists, false on failure.
+     * @return bool True on success or if the file already exists, false on failure.
      */
     public function prepareJson(string $type): bool
     {
-        $fileName = $type.".json";
+        $fileName = $type.'.json';
         if (Storage::disk('scryfall-bulk')->exists($fileName)) {
             Log::channel('scryfall')->notice("JSON file '$fileName' already exists in disk 'scryfall-bulk'.");
+
             return true;
         }
         $start = now();
@@ -46,6 +45,7 @@ class BulkdataService extends ScryfallService
                 ->get($uri);
             if ($response->failed()) {
                 Log::channel('scryfall')->critical("error calling oracle uri '$uri' from scryfall: ".$response->body());
+
                 return false;
             } else {
                 Storage::disk('scryfall-bulk')->put($fileName, $response->body());
@@ -53,17 +53,20 @@ class BulkdataService extends ScryfallService
                 $realSizeFormatted = number_format($realSize, 0, ',', '.');
                 if ($realSize != $bd->size) {
                     Log::channel('scryfall')->error("downloaded size for '$fileName' ($realSize) differs from expected size ($bd->size).");
+
                     return false;
                 }
                 Log::channel('scryfall')->debug("downloaded '$fileName' from scryfall to disk 'scryfall-bulk'.");
-                Log::channel('scryfall')->debug("filesize for '$fileName' ($realSizeFormatted = ".$this->formatService->formatBytes($realSize).") as expected.");
+                Log::channel('scryfall')->debug("filesize for '$fileName' ($realSizeFormatted = ".$this->formatService->formatBytes($realSize).') as expected.');
                 $ms = $start->diffInMilliseconds(now());
-                Log::channel('scryfall')->notice("downloaded '$fileName' in ".$this->formatService->formatMs($ms).".");
+                Log::channel('scryfall')->notice("downloaded '$fileName' in ".$this->formatService->formatMs($ms).'.');
+
                 return true;
             }
         } catch (\Exception $e) {
             Log::channel('scryfall')->error("error downloading '$fileName': ".$e->getMessage());
             Log::channel('scryfall')->error($e->getTraceAsString());
+
             return false;
         }
     }
@@ -75,9 +78,8 @@ class BulkdataService extends ScryfallService
      * for debugging.
      *
      * @param  string  $fileName  The filename on the "scryfall-bulk" disk.
-     * @return void
      */
-    public function postRunCleanup ($fileName): void
+    public function postRunCleanup($fileName): void
     {
         if (app()->environment('production')) {
             Storage::disk('scryfall-bulk')->delete($fileName);
@@ -89,8 +91,6 @@ class BulkdataService extends ScryfallService
      * Truncate the bulk_data table before a fresh import.
      *
      * Temporarily disables foreign key checks to allow truncation.
-     *
-     * @return void
      */
     private function preRunCleanup(): void
     {
@@ -106,7 +106,6 @@ class BulkdataService extends ScryfallService
      * Maps the Scryfall API response fields to the BulkData model.
      *
      * @param  array  $bulk  A single item from the Scryfall /bulk-data response.
-     * @return void
      */
     private function insertBulkData(array $bulk): void
     {
@@ -133,8 +132,6 @@ class BulkdataService extends ScryfallService
      *
      * Truncates existing entries and replaces them with the latest
      * catalog so subsequent imports use up-to-date download URIs and sizes.
-     *
-     * @return void
      */
     public function getBulkMetadata(): void
     {
@@ -158,5 +155,4 @@ class BulkdataService extends ScryfallService
             Log::channel('scryfall')->error($exception->getMessage());
         }
     }
-
 }

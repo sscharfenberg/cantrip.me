@@ -68,6 +68,6 @@ class BulkData extends Model
      * @var array
      */
     protected $casts = [
-        'updated_at' => 'datetime'
+        'updated_at' => 'datetime',
     ];
 }

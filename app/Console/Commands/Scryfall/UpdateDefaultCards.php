@@ -24,13 +24,14 @@ class UpdateDefaultCards extends Command
     protected $description = 'Update database with the "default" cards from scryfall.';
 
     private FormatService $formatService;
+
     private DefaultCardsService $defaultCardsService;
 
     public function __construct()
     {
         parent::__construct();
-        $this->formatService = new FormatService();
-        $this->defaultCardsService = new DefaultCardsService();
+        $this->formatService = new FormatService;
+        $this->defaultCardsService = new DefaultCardsService;
     }
 
     /**
@@ -40,14 +41,14 @@ class UpdateDefaultCards extends Command
     {
         $start = now();
         $this->info("artisan command 'scryfall:default_cards' started.");
-        Log::channel('scryfall')->info("=======================================================");
+        Log::channel('scryfall')->info('=======================================================');
         Log::channel('scryfall')->info("artisan command 'scryfall:default_cards' started.");
-        Log::channel('scryfall')->info("=======================================================");
+        Log::channel('scryfall')->info('=======================================================');
         $this->defaultCardsService->updateAllCards();
         $ms = $start->diffInMilliseconds(now());
-        Log::channel('scryfall')->info("=======================================================");
-        Log::channel('scryfall')->info("artisan command 'scryfall:default_cards' finished in ".$this->formatService->formatMs($ms).".");
-        Log::channel('scryfall')->info("=======================================================");
-        $this->info("artisan command 'scryfall:default_cards' finished in ".$this->formatService->formatMs($ms).".");
+        Log::channel('scryfall')->info('=======================================================');
+        Log::channel('scryfall')->info("artisan command 'scryfall:default_cards' finished in ".$this->formatService->formatMs($ms).'.');
+        Log::channel('scryfall')->info('=======================================================');
+        $this->info("artisan command 'scryfall:default_cards' finished in ".$this->formatService->formatMs($ms).'.');
     }
 }

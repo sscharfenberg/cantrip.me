@@ -25,7 +25,6 @@ class ForgotUsernameNotification extends Notification
      * Uses translated strings for full locale support.
      *
      * @param  mixed  $notifiable
-     * @return MailMessage
      */
     public function toMail($notifiable): MailMessage
     {
@@ -35,6 +34,6 @@ class ForgotUsernameNotification extends Notification
             ->line(__('email.username.line1'))
             ->line(__('email.username.line2', ['name' => $notifiable->name]))
             ->line(__('email.username.line3'))
-            ->salutation(__('email.regards') . "\n" . __('email.team'));
+            ->salutation(__('email.regards')."\n".__('email.team'));
     }
 }

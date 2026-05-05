@@ -10,15 +10,12 @@ use Illuminate\Support\Facades\Storage;
 
 class SymbolsService extends ScryfallService
 {
-
     /**
      * Prepare the database for a symbols import by truncating the symbols table.
      *
      * SVGs are intentionally not purged — symbol SVGs are stable (Scryfall rarely
      * changes them) and getSymbolSvg() only downloads files that are missing,
      * so wiping cached SVGs would cause unnecessary re-downloads on every run.
-     *
-     * @return void
      */
     private function setup(): void
     {
@@ -36,14 +33,14 @@ class SymbolsService extends ScryfallService
      * Both curly braces and slashes are invalid or problematic in filenames/URLs.
      *
      * @param  array  $symbol  A single symbol object from the Scryfall /symbology response.
-     * @return string  e.g. "R.svg", "2-W.svg", "CHAOS.svg"
+     * @return string e.g. "R.svg", "2-W.svg", "CHAOS.svg"
      */
     private function buildFileName(array $symbol): string
     {
         $base = $symbol['loose_variant']
             ?? trim($symbol['symbol'], '{}');
 
-        return str_replace('/', '-', $base) . '.svg';
+        return str_replace('/', '-', $base).'.svg';
     }
 
     /**
@@ -53,7 +50,7 @@ class SymbolsService extends ScryfallService
      * download was needed.
      *
      * @param  array  $symbol  A single symbol object from the Scryfall /symbology response.
-     * @return string  The public-facing path to the stored SVG, e.g. "/symbol/R.svg".
+     * @return string The public-facing path to the stored SVG, e.g. "/symbol/R.svg".
      *
      * @throws ConnectionException
      */
@@ -70,6 +67,7 @@ class SymbolsService extends ScryfallService
                 Log::channel('scryfall')->error("error downloading symbol SVG '{$symbol['svg_uri']}': ".$response->body());
             }
         }
+
         return '/symbol/'.$fileName;
     }
 
@@ -77,7 +75,6 @@ class SymbolsService extends ScryfallService
      * Persist a single symbol from the Scryfall API response to the database.
      *
      * @param  array  $symbol  A single symbol object from the Scryfall /symbology response.
-     * @return void
      *
      * @throws ConnectionException
      */
@@ -85,19 +82,19 @@ class SymbolsService extends ScryfallService
     {
         $path = $this->getSymbolSvg($symbol);
         $newSymbol = Symbol::create([
-            'symbol'               => $symbol['symbol'],
-            'svg_uri'              => $symbol['svg_uri'],
-            'loose_variant'        => $symbol['loose_variant'] ?? null,
-            'english'              => $symbol['english'],
-            'represents_mana'      => $symbol['represents_mana'],
-            'appears_in_mana_costs'=> $symbol['appears_in_mana_costs'],
-            'transposable'         => $symbol['transposable'],
-            'hybrid'               => $symbol['hybrid'],
-            'phyrexian'            => $symbol['phyrexian'],
-            'funny'                => $symbol['funny'],
-            'cmc'                  => $symbol['cmc'] ?? null,
-            'colors'               => implode('', $symbol['colors']),
-            'path'                 => $path,
+            'symbol' => $symbol['symbol'],
+            'svg_uri' => $symbol['svg_uri'],
+            'loose_variant' => $symbol['loose_variant'] ?? null,
+            'english' => $symbol['english'],
+            'represents_mana' => $symbol['represents_mana'],
+            'appears_in_mana_costs' => $symbol['appears_in_mana_costs'],
+            'transposable' => $symbol['transposable'],
+            'hybrid' => $symbol['hybrid'],
+            'phyrexian' => $symbol['phyrexian'],
+            'funny' => $symbol['funny'],
+            'cmc' => $symbol['cmc'] ?? null,
+            'colors' => implode('', $symbol['colors']),
+            'path' => $path,
         ]);
         if ($newSymbol->wasRecentlyCreated) {
             Log::channel('scryfall')->debug("created symbol {$newSymbol->symbol} → $path");
@@ -108,8 +105,6 @@ class SymbolsService extends ScryfallService
      * Fetch all symbols from the Scryfall API and replace the local database.
      *
      * Runs setup() first to truncate existing data.
-     *
-     * @return void
      */
     public function updateSymbols(): void
     {
@@ -120,17 +115,16 @@ class SymbolsService extends ScryfallService
             if ($response->successful()) {
                 $symbols = $response->json();
                 if (array_key_exists('data', $symbols)) {
-                    collect($symbols['data'])->each(fn($symbol) => $this->insertSymbol($symbol));
+                    collect($symbols['data'])->each(fn ($symbol) => $this->insertSymbol($symbol));
                 } else {
                     Log::channel('scryfall')->error("Scryfall response successful, but json does not have a field 'data'.");
                 }
             } else {
-                Log::channel('scryfall')->error("Scryfall response failed: ".$response->body());
+                Log::channel('scryfall')->error('Scryfall response failed: '.$response->body());
             }
         } catch (\Exception $exception) {
             Log::channel('scryfall')->error($exception->getMessage());
             report($exception);
         }
     }
-
 }

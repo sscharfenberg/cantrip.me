@@ -18,9 +18,6 @@ class ForgotController extends Controller
      *
      * Renders the Inertia view where users can request a password reset link
      * or a username reminder by providing their email address.
-     *
-     * @param  Request  $request
-     * @return Response
      */
     public function show(Request $request): Response
     {
@@ -33,9 +30,6 @@ class ForgotController extends Controller
      * Validates the request and dispatches to the appropriate handler based
      * on the selected type. Uses precognitive validation for real-time
      * frontend feedback.
-     *
-     * @param  Request  $request
-     * @return RedirectResponse
      */
     public function store(Request $request): RedirectResponse
     {
@@ -52,8 +46,8 @@ class ForgotController extends Controller
                     'required_if:type,password',
                     'string',
                     'max:'.User::NAME_MAX,
-                    'min:'.User::NAME_MIN
-                ]
+                    'min:'.User::NAME_MIN,
+                ],
             ]);
         });
 
@@ -68,9 +62,6 @@ class ForgotController extends Controller
      *
      * Always returns a success flash regardless of whether the email exists,
      * preventing email enumeration.
-     *
-     * @param  Request  $request
-     * @return RedirectResponse
      */
     private function sendPasswordResetLink(Request $request): RedirectResponse
     {
@@ -96,9 +87,6 @@ class ForgotController extends Controller
      *
      * Only dispatches the notification if a matching user is found.
      * Always returns a success flash regardless, preventing email enumeration.
-     *
-     * @param  Request  $request
-     * @return RedirectResponse
      */
     private function sendUsernameReminder(Request $request): RedirectResponse
     {
@@ -106,7 +94,7 @@ class ForgotController extends Controller
 
         // only send username reminder if a user with that email exists.
         if ($user) {
-            $user->notify(new ForgotUsernameNotification());
+            $user->notify(new ForgotUsernameNotification);
         }
 
         $request->session()->flash('message', __('passwords.username_sent'));

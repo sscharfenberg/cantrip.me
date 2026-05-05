@@ -14,9 +14,6 @@ class ConfirmPasswordController extends Controller
      *
      * Sets `auth.password_confirmed_at` so that Fortify's `password.confirm`
      * middleware will pass for subsequent requests within the configured timeout.
-     *
-     * @param  Request  $request
-     * @return JsonResponse
      */
     public function store(Request $request): JsonResponse
     {

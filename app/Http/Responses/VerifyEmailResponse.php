@@ -4,6 +4,7 @@ namespace App\Http\Responses;
 
 use Illuminate\Http\JsonResponse;
 use Laravel\Fortify\Contracts\VerifyEmailResponse as VerifyEmailResponseContract;
+use Symfony\Component\HttpFoundation\Response;
 
 class VerifyEmailResponse implements VerifyEmailResponseContract
 {
@@ -15,9 +16,8 @@ class VerifyEmailResponse implements VerifyEmailResponseContract
      * for JSON/API consumers.
      *
      * @param  mixed  $request
-     * @return JsonResponse|\Symfony\Component\HttpFoundation\Response
      */
-    public function toResponse($request): JsonResponse|\Symfony\Component\HttpFoundation\Response
+    public function toResponse($request): JsonResponse|Response
     {
         $request->session()->flash('message', __('auth.email_verified'));
         $request->session()->flash('type', 'success');

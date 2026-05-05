@@ -24,13 +24,14 @@ class UpdateSymbols extends Command
     protected $description = 'Get all symbols from scryfall, save them to the public disk, and update the database';
 
     private FormatService $formatService;
+
     private SymbolsService $symbolsService;
 
     public function __construct()
     {
         parent::__construct();
-        $this->formatService = new FormatService();
-        $this->symbolsService = new SymbolsService();
+        $this->formatService = new FormatService;
+        $this->symbolsService = new SymbolsService;
     }
 
     /**
@@ -40,14 +41,14 @@ class UpdateSymbols extends Command
     {
         $start = now();
         $this->info("artisan command 'scryfall:symbols' started.");
-        Log::channel('scryfall')->info("=======================================================");
+        Log::channel('scryfall')->info('=======================================================');
         Log::channel('scryfall')->info("artisan command 'scryfall:symbols' started.");
-        Log::channel('scryfall')->info("=======================================================");
+        Log::channel('scryfall')->info('=======================================================');
         $this->symbolsService->updateSymbols();
         $ms = $start->diffInMilliseconds(now());
-        Log::channel('scryfall')->info("=======================================================");
-        Log::channel('scryfall')->info("artisan command 'scryfall:symbols' finished in ".$this->formatService->formatMs($ms).".");
-        Log::channel('scryfall')->info("=======================================================");
-        $this->info("artisan command 'scryfall:symbols' finished in ".$this->formatService->formatMs($ms).".");
+        Log::channel('scryfall')->info('=======================================================');
+        Log::channel('scryfall')->info("artisan command 'scryfall:symbols' finished in ".$this->formatService->formatMs($ms).'.');
+        Log::channel('scryfall')->info('=======================================================');
+        $this->info("artisan command 'scryfall:symbols' finished in ".$this->formatService->formatMs($ms).'.');
     }
 }

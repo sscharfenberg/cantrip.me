@@ -15,15 +15,14 @@ class EntropyController extends Controller
      * Provides a server-side strength estimate so the frontend can display
      * real-time feedback during registration or password changes.
      * Returns guess count, score (0-4), and estimated offline crack time.
-     *
-     * @param  Request  $request
-     * @return JsonResponse
      */
-    public function calculate(Request $request): JsonResponse {
-        $zxcvbn = new Zxcvbn();
+    public function calculate(Request $request): JsonResponse
+    {
+        $zxcvbn = new Zxcvbn;
         $password = $request->input('p');
-        if (!is_null($password)) {
+        if (! is_null($password)) {
             $entropy = $zxcvbn->passwordStrength($password);
+
             return response()->json([
                 'guesses' => $entropy['guesses'],
                 'score' => $entropy['score'],

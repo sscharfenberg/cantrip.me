@@ -5,6 +5,7 @@ namespace App\Http\Responses;
 use Illuminate\Http\JsonResponse;
 use Laravel\Fortify\Contracts\LogoutResponse as LogoutResponseContract;
 use Laravel\Fortify\Fortify;
+use Symfony\Component\HttpFoundation\Response;
 
 class LogoutResponse implements LogoutResponseContract
 {
@@ -12,7 +13,7 @@ class LogoutResponse implements LogoutResponseContract
      * Create the response for a successful logout.
      *
      * @param  mixed  $request
-     * @return \Symfony\Component\HttpFoundation\Response
+     * @return Response
      */
     public function toResponse($request)
     {

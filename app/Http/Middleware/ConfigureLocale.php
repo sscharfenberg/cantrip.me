@@ -10,11 +10,8 @@ use Illuminate\Support\Facades\Auth;
 
 class ConfigureLocale
 {
-
     /**
      * @function parse locale from browser header
-     * @param Request $request
-     * @return string
      */
     private function parseHttpLocale(Request $request): string
     {
@@ -29,6 +26,7 @@ class ConfigureLocale
             } else {
                 $mapping['factor'] = 1;
             }
+
             return $mapping;
         })->sortByDesc(function ($locale) {
             return $locale['factor'];
@@ -43,9 +41,6 @@ class ConfigureLocale
 
     /**
      * @function handle the request
-     * @param Request $request
-     * @param Closure $next
-     * @return mixed
      */
     public function handle(Request $request, Closure $next): mixed
     {
@@ -60,6 +55,7 @@ class ConfigureLocale
             session(['locale' => $browserLocale]);
             app()->setLocale($browserLocale);
         }
+
         return $next($request);
     }
 }

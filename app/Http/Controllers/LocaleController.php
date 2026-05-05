@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Enums\Locale;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class LocaleController extends Controller
@@ -18,7 +17,6 @@ class LocaleController extends Controller
      * for guests it is stored in the session.
      *
      * @param  string  $locale  The locale code to switch to (e.g. "en", "de").
-     * @return JsonResponse
      */
     public function update(string $locale): JsonResponse
     {
@@ -32,9 +30,7 @@ class LocaleController extends Controller
             $user = User::where('id', $userId)->first();
             $user->locale = $locale;
             $user->save();
-        }
-        else // set session locale
-        {
+        } else { // set session locale
             session(['locale' => $locale]);
         }
 

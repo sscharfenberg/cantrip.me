@@ -129,7 +129,7 @@ return [
     |--------------------------------------------------------------------------
     |
     */
-    'version' => "v".env('APP_VERSION', '1.0.0'),
+    'version' => 'v'.env('APP_VERSION', '1.0.0'),
     'contact' => env('APP_CONTACT', 'anonymous@localhost'),
 
 ];

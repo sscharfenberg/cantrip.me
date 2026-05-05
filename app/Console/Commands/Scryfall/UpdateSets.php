@@ -24,13 +24,14 @@ class UpdateSets extends Command
     protected $description = 'Get all sets from scryfall and update database';
 
     private FormatService $formatService;
+
     private SetsService $setsService;
 
     public function __construct()
     {
         parent::__construct();
-        $this->formatService = new FormatService();
-        $this->setsService = new SetsService();
+        $this->formatService = new FormatService;
+        $this->setsService = new SetsService;
     }
 
     /**
@@ -40,14 +41,14 @@ class UpdateSets extends Command
     {
         $start = now();
         $this->info("artisan command 'scryfall:sets' started.");
-        Log::channel('scryfall')->info("=======================================================");
+        Log::channel('scryfall')->info('=======================================================');
         Log::channel('scryfall')->info("artisan command 'scryfall:sets' started.");
-        Log::channel('scryfall')->info("=======================================================");
+        Log::channel('scryfall')->info('=======================================================');
         $this->setsService->updateSets();
         $ms = $start->diffInMilliseconds(now());
-        Log::channel('scryfall')->info("=======================================================");
-        Log::channel('scryfall')->info("artisan command 'scryfall:sets' finished in ".$this->formatService->formatMs($ms).".");
-        Log::channel('scryfall')->info("=======================================================");
-        $this->info("artisan command 'scryfall:sets' finished in ".$this->formatService->formatMs($ms).".");
+        Log::channel('scryfall')->info('=======================================================');
+        Log::channel('scryfall')->info("artisan command 'scryfall:sets' finished in ".$this->formatService->formatMs($ms).'.');
+        Log::channel('scryfall')->info('=======================================================');
+        $this->info("artisan command 'scryfall:sets' finished in ".$this->formatService->formatMs($ms).'.');
     }
 }

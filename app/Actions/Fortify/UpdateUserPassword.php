@@ -3,10 +3,10 @@
 namespace App\Actions\Fortify;
 
 use App\Models\User;
+use App\Traits\PasswordValidationRules;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Laravel\Fortify\Contracts\UpdatesUserPasswords;
-use App\Traits\PasswordValidationRules;
 
 class UpdateUserPassword implements UpdatesUserPasswords
 {
@@ -19,9 +19,7 @@ class UpdateUserPassword implements UpdatesUserPasswords
      * (minimum length + entropy) with confirmation, then hashes and
      * persists the new password.
      *
-     * @param  User  $user
      * @param  array<string, string>  $input
-     * @return void
      */
     public function update(User $user, array $input): void
     {

@@ -1,10 +1,9 @@
 <?php
+
 namespace App\Services;
-use Carbon\CarbonInterval;
 
 class FormatService
 {
-
     /**
      * Format a duration in milliseconds to a human-readable string.
      *
@@ -12,26 +11,26 @@ class FormatService
      * omitting zero-valued segments for brevity (e.g. "2m 30s 150ms").
      *
      * @param  float  $input  Duration in milliseconds.
-     * @return string
      */
     public function formatMs(float $input): string
     {
         $ms = $input % 1000;
-        $dateString = $ms."ms";
+        $dateString = $ms.'ms';
         $input = floor($input / 1000);
         $seconds = $input % 60;
         $input = floor($input / 60);
         $minutes = $input % 60;
         $hours = floor($input / 60);
         if ($seconds > 0) {
-            $dateString = $seconds."s ".$dateString;
+            $dateString = $seconds.'s '.$dateString;
         }
         if ($minutes > 0) {
-            $dateString = $minutes."m ".$dateString;
+            $dateString = $minutes.'m '.$dateString;
         }
         if ($hours > 0) {
-            $dateString = $hours."h ".$dateString;
+            $dateString = $hours.'h '.$dateString;
         }
+
         return $dateString;
     }
 
@@ -41,9 +40,8 @@ class FormatService
      * Automatically selects the most appropriate unit (B, KB, MB, GB, TB)
      * based on magnitude and rounds to the given precision.
      *
-     * @param  int|float  $bytes      The number of bytes.
-     * @param  int        $precision  Decimal places to round to.
-     * @return string
+     * @param  int|float  $bytes  The number of bytes.
+     * @param  int  $precision  Decimal places to round to.
      */
     public function formatBytes($bytes, int $precision = 2): string
     {
@@ -57,7 +55,6 @@ class FormatService
         // this will also work in place of the above line:
         // $bytes /= (1 << (10 * $pow));
 
-        return round($bytes, $precision) . $units[$pow];
+        return round($bytes, $precision).$units[$pow];
     }
-
 }

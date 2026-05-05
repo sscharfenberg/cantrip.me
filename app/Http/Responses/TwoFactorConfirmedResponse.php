@@ -4,6 +4,7 @@ namespace App\Http\Responses;
 
 use Illuminate\Http\JsonResponse;
 use Laravel\Fortify\Contracts\TwoFactorConfirmedResponse as TwoFactorConfirmedResponseContract;
+use Symfony\Component\HttpFoundation\Response;
 
 class TwoFactorConfirmedResponse implements TwoFactorConfirmedResponseContract
 {
@@ -19,7 +20,7 @@ class TwoFactorConfirmedResponse implements TwoFactorConfirmedResponseContract
      * the database — no manual locale override is needed here.
      *
      * @param  mixed  $request
-     * @return \Symfony\Component\HttpFoundation\Response
+     * @return Response
      */
     public function toResponse($request)
     {

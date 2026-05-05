@@ -19,9 +19,7 @@ class UpdateUserProfileInformation implements UpdatesUserProfileInformation
      * verified user, verification is revoked and a new verification
      * notification is dispatched.
      *
-     * @param  User  $user
      * @param  array<string, string>  $input
-     * @return void
      */
     public function update(User $user, array $input): void
     {
@@ -60,9 +58,7 @@ class UpdateUserProfileInformation implements UpdatesUserProfileInformation
      * Clears the email verification timestamp and sends a fresh
      * verification notification so the user must re-verify the new address.
      *
-     * @param  User  $user
      * @param  array<string, string>  $input
-     * @return void
      */
     protected function updateVerifiedUser(User $user, array $input): void
     {

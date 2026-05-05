@@ -17,9 +17,6 @@ class ResendVerificationController extends Controller
      *
      * Renders the Inertia view where users can request a new verification
      * email by providing their username and email address.
-     *
-     * @param  Request  $request
-     * @return Response|RedirectResponse
      */
     public function show(Request $request): Response|RedirectResponse
     {
@@ -33,9 +30,6 @@ class ResendVerificationController extends Controller
      * harder to enumerate accounts. Only sends the verification email if
      * the matched user has not yet verified. Always returns the same generic
      * success flash regardless of outcome to prevent information leakage.
-     *
-     * @param  Request  $request
-     * @return SymfonyResponse
      */
     public function store(Request $request): SymfonyResponse
     {
@@ -60,7 +54,7 @@ class ResendVerificationController extends Controller
             ->where('name', $request->name)
             ->first();
 
-        if ($user && !$user->hasVerifiedEmail()) {
+        if ($user && ! $user->hasVerifiedEmail()) {
             $user->sendEmailVerificationNotification();
         }
 

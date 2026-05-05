@@ -73,7 +73,7 @@ class Set extends Model
      * @var array
      */
     protected $casts = [
-        'digital'  => 'boolean',
+        'digital' => 'boolean',
         'released_at' => 'date',
         'set_type' => ScryfallSetType::class,
     ];
@@ -87,5 +87,4 @@ class Set extends Model
     {
         return $this->hasMany(DefaultCard::class, 'set_id', 'id');
     }
-
 }

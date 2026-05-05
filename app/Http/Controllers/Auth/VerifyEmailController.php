@@ -18,20 +18,18 @@ class VerifyEmailController extends Controller
      * route parameters, allowing verification even if the user is not logged in.
      * Dispatches the Verified event on first verification and redirects to login.
      *
-     * @param  Request  $request
-     * @param  string   $id    The user's primary key from the signed URL.
-     * @param  string   $hash  SHA-1 hash of the user's email for integrity verification.
-     * @return Response
+     * @param  string  $id  The user's primary key from the signed URL.
+     * @param  string  $hash  SHA-1 hash of the user's email for integrity verification.
      */
     public function __invoke(Request $request, string $id, string $hash): Response
     {
         $user = User::findOrFail($id);
 
-        if (!hash_equals(sha1($user->getEmailForVerification()), $hash)) {
+        if (! hash_equals(sha1($user->getEmailForVerification()), $hash)) {
             abort(403, 'Invalid verification link.');
         }
 
-        if (!$user->hasVerifiedEmail()) {
+        if (! $user->hasVerifiedEmail()) {
             $user->markEmailAsVerified();
             event(new Verified($user));
         }

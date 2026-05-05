@@ -4,6 +4,7 @@ namespace App\Http\Responses;
 
 use Illuminate\Http\JsonResponse;
 use Laravel\Fortify\Contracts\TwoFactorDisabledResponse as TwoFactorDisabledResponseContract;
+use Symfony\Component\HttpFoundation\Response;
 
 class TwoFactorDisabledResponse implements TwoFactorDisabledResponseContract
 {
@@ -15,7 +16,7 @@ class TwoFactorDisabledResponse implements TwoFactorDisabledResponseContract
      * no manual locale override is needed here.
      *
      * @param  mixed  $request
-     * @return \Symfony\Component\HttpFoundation\Response
+     * @return Response
      */
     public function toResponse($request)
     {

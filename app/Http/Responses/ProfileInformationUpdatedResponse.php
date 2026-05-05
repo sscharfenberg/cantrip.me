@@ -6,6 +6,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
 use Laravel\Fortify\Contracts\ProfileInformationUpdatedResponse as ProfileInformationUpdatedResponseContract;
 use Laravel\Fortify\Features;
+use Symfony\Component\HttpFoundation\Response;
 
 class ProfileInformationUpdatedResponse implements ProfileInformationUpdatedResponseContract
 {
@@ -17,9 +18,8 @@ class ProfileInformationUpdatedResponse implements ProfileInformationUpdatedResp
      * back with a success flash.
      *
      * @param  mixed  $request
-     * @return JsonResponse|\Symfony\Component\HttpFoundation\Response
      */
-    public function toResponse($request): JsonResponse|\Symfony\Component\HttpFoundation\Response
+    public function toResponse($request): JsonResponse|Response
     {
         if ($request->wantsJson()) {
             return new JsonResponse('', 200);

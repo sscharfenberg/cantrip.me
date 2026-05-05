@@ -14,7 +14,6 @@ class VerifyEmailNotification extends VerifyEmail
      * application's translated email strings and layout.
      *
      * @param  string  $url  The signed email verification URL.
-     * @return MailMessage
      */
     protected function buildMailMessage($url): MailMessage
     {
@@ -24,6 +23,6 @@ class VerifyEmailNotification extends VerifyEmail
             ->line(__('email.verification.line1'))
             ->action(__('email.verification.action'), $url)
             ->line(__('email.verification.line2'))
-            ->salutation(__('email.regards') . "\n" . __('email.team'));
+            ->salutation(__('email.regards')."\n".__('email.team'));
     }
 }

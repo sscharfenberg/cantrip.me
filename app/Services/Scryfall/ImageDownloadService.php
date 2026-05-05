@@ -20,14 +20,14 @@ use Illuminate\Support\Facades\Storage;
  */
 class ImageDownloadService extends ScryfallService
 {
-
     private ScryfallImageService $imageService;
+
     private FormatService $formatService;
 
     public function __construct()
     {
-        $this->imageService = new ScryfallImageService();
-        $this->formatService = new FormatService();
+        $this->imageService = new ScryfallImageService;
+        $this->formatService = new FormatService;
     }
 
     /**
@@ -37,8 +37,6 @@ class ImageDownloadService extends ScryfallService
      * checks the local disk for a cached version with the same timestamp,
      * and downloads if missing or outdated. Does not update the database —
      * path resolution happens in DefaultCardsService during the next import.
-     *
-     * @return void
      */
     public function downloadArtCrops(): void
     {
@@ -47,7 +45,7 @@ class ImageDownloadService extends ScryfallService
         $skipped = 0;
         $failed = 0;
 
-        Log::channel('scryfall')->notice("begin downloading art crop images.");
+        Log::channel('scryfall')->notice('begin downloading art crop images.');
 
         DefaultCard::whereNotNull('art_crop')
             ->where('art_crop', 'like', 'https://%')
@@ -67,8 +65,8 @@ class ImageDownloadService extends ScryfallService
         $total = $downloaded + $skipped + $failed;
         Log::channel('scryfall')->notice(
             "finished art crop download: $total cards processed "
-            . "($downloaded downloaded, $skipped skipped, $failed failed) "
-            . "in " . $this->formatService->formatMs($ms) . "."
+            ."($downloaded downloaded, $skipped skipped, $failed failed) "
+            .'in '.$this->formatService->formatMs($ms).'.'
         );
     }
 
@@ -79,8 +77,7 @@ class ImageDownloadService extends ScryfallService
      * downloads from Scryfall if not, and cleans up old versions.
      * Does not update the database — path resolution happens in DefaultCardsService.
      *
-     * @param  DefaultCard  $card
-     * @return string  'downloaded', 'skipped', or 'failed'
+     * @return string 'downloaded', 'skipped', or 'failed'
      */
     private function processArtCrop(DefaultCard $card): string
     {
@@ -88,8 +85,9 @@ class ImageDownloadService extends ScryfallService
         $timestamp = $this->imageService->parseTimestamp($scryfallUrl);
         $setCode = $card->set?->code;
 
-        if (!$setCode) {
+        if (! $setCode) {
             Log::channel('scryfall')->warning("card {$card->id} ({$card->name}) has no set, skipping art crop.");
+
             return 'failed';
         }
 
@@ -110,12 +108,15 @@ class ImageDownloadService extends ScryfallService
             if ($response->successful()) {
                 Storage::disk('art-crops')->put($diskPath, $response->body());
                 Log::channel('scryfall')->debug("downloaded art crop for [{$setCode}] {$card->name}.");
+
                 return 'downloaded';
             }
             Log::channel('scryfall')->error("failed to download art crop for {$card->name}: HTTP {$response->status()}");
+
             return 'failed';
         } catch (\Exception $e) {
             Log::channel('scryfall')->error("failed to download art crop for {$card->name}: {$e->getMessage()}");
+
             return 'failed';
         }
     }
@@ -127,8 +128,7 @@ class ImageDownloadService extends ScryfallService
      * and removes them before downloading the new version.
      *
      * @param  string  $setCode  The set code directory.
-     * @param  string  $uuid     The card UUID.
-     * @return void
+     * @param  string  $uuid  The card UUID.
      */
     private function cleanupOldVersions(string $setCode, string $uuid): void
     {
@@ -147,8 +147,6 @@ class ImageDownloadService extends ScryfallService
      * Walks every default_card that has Scryfall URLs in card_image_0 or card_image_1,
      * checks the local disk for each face (front/back), and downloads
      * if missing or outdated. Does not update the database.
-     *
-     * @return void
      */
     public function downloadCardImages(): void
     {
@@ -157,12 +155,12 @@ class ImageDownloadService extends ScryfallService
         $skipped = 0;
         $failed = 0;
 
-        Log::channel('scryfall')->notice("begin downloading card images.");
+        Log::channel('scryfall')->notice('begin downloading card images.');
 
         DefaultCard::where(function ($q) {
-                $q->where('card_image_0', 'like', 'https://%')
-                  ->orWhere('card_image_1', 'like', 'https://%');
-            })
+            $q->where('card_image_0', 'like', 'https://%')
+                ->orWhere('card_image_1', 'like', 'https://%');
+        })
             ->with('set:id,code')
             ->chunkById(200, function ($cards) use (&$downloaded, &$skipped, &$failed) {
                 foreach ($cards as $card) {
@@ -177,8 +175,8 @@ class ImageDownloadService extends ScryfallService
         $total = $downloaded + $skipped + $failed;
         Log::channel('scryfall')->notice(
             "finished card image download: $total images processed "
-            . "($downloaded downloaded, $skipped skipped, $failed failed) "
-            . "in " . $this->formatService->formatMs($ms) . "."
+            ."($downloaded downloaded, $skipped skipped, $failed failed) "
+            .'in '.$this->formatService->formatMs($ms).'.'
         );
     }
 
@@ -188,7 +186,6 @@ class ImageDownloadService extends ScryfallService
      * Checks card_image_0 and card_image_1 for Scryfall URLs and downloads
      * each face that is missing from the local disk.
      *
-     * @param  DefaultCard  $card
      * @return array{downloaded: int, skipped: int, failed: int}
      */
     private function processCardImages(DefaultCard $card): array
@@ -196,15 +193,16 @@ class ImageDownloadService extends ScryfallService
         $counts = ['downloaded' => 0, 'skipped' => 0, 'failed' => 0];
         $setCode = $card->set?->code;
 
-        if (!$setCode) {
+        if (! $setCode) {
             Log::channel('scryfall')->warning("card {$card->id} ({$card->name}) has no set, skipping card images.");
             $counts['failed']++;
+
             return $counts;
         }
 
         foreach ([0, 1] as $index) {
             $scryfallUrl = $card->{"card_image_$index"};
-            if ($scryfallUrl === null || !str_starts_with($scryfallUrl, 'https://')) {
+            if ($scryfallUrl === null || ! str_starts_with($scryfallUrl, 'https://')) {
                 continue;
             }
 
@@ -214,6 +212,7 @@ class ImageDownloadService extends ScryfallService
 
             if (Storage::disk('card-images')->exists($diskPath)) {
                 $counts['skipped']++;
+
                 continue;
             }
 
@@ -245,10 +244,9 @@ class ImageDownloadService extends ScryfallService
      * directory and removes them before downloading the new version.
      * Only deletes files for the specific face index, leaving other faces intact.
      *
-     * @param  string  $setCode    The set code directory.
-     * @param  string  $uuid       The card UUID.
-     * @param  int     $faceIndex  The face index (0 = front, 1 = back).
-     * @return void
+     * @param  string  $setCode  The set code directory.
+     * @param  string  $uuid  The card UUID.
+     * @param  int  $faceIndex  The face index (0 = front, 1 = back).
      */
     private function cleanupOldCardImages(string $setCode, string $uuid, int $faceIndex): void
     {
@@ -261,5 +259,4 @@ class ImageDownloadService extends ScryfallService
             }
         }
     }
-
 }
