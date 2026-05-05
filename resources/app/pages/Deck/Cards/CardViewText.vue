@@ -206,6 +206,12 @@ const openPreview = (id: string | null, quantity?: number): void => {
                                 name="balance"
                                 :additional-classes="['card__game-changer']"
                             />
+                            <icon
+                                v-if="card.is_mld && deck.uses_game_changer_list"
+                                v-tooltip="$t('pages.deck.mld')"
+                                name="landslide"
+                                :additional-classes="['card__mld']"
+                            />
                             <collection-status-badge
                                 v-if="collectionMode === 'C' && card.collection_status"
                                 :status="card.collection_status"

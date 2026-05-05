@@ -330,6 +330,7 @@ class DecksController extends Controller
             'is_unlimited' => $dc->oracleCard->hasUnlimitedCopiesRule(),
             'is_illegal' => isset($illegalDeckCardIds[$dc->id]),
             'is_game_changer' => (bool) $dc->oracleCard->game_changer,
+            'is_mld' => (bool) $dc->oracleCard->mld,
             'zone' => $dc->zone->value,
             'quantity' => $dc->quantity,
             'finish' => $dc->finish->value,

@@ -48,6 +48,8 @@ class CardPreviewService
             'produced_mana' => $card->oracle?->produced_mana
                 ? str_split($card->oracle->produced_mana)
                 : null,
+            'is_game_changer' => (bool) $card->oracle?->game_changer,
+            'is_mld' => (bool) $card->oracle?->mld,
             'legalities' => collect(CardFormat::cases())->map(function (CardFormat $format) use ($card) {
                 $match = $card->oracle?->legalities->first(fn ($l) => $l->format === $format->value);
 
@@ -57,7 +59,7 @@ class CardPreviewService
                 ];
             })->all(),
             'rulings' => $card->oracle?->rulings
-                ->sortBy('published_at')
+                ->sortByDesc('published_at')
                 ->values()
                 ->map(fn ($ruling) => [
                     'source' => $ruling->source->value,

@@ -732,6 +732,7 @@
             "no_cards": "No cards in this deck yet.",
             "illegal": "This card is illegal in this deck.",
             "game_changer": "This card is on the Game Changer list.",
+            "mld": "This card counts as mass land denial (bracket 4+).",
             "clear_selection": "Clear all selections",
             "collection_status": {
                 "claimed_for_this_deck": "Claimed from your collection for this deck.",
@@ -1238,7 +1239,9 @@
             "total_price": "Total ({amount}×)",
             "scryfall": "View on Scryfall",
             "loading": "Loading card details…",
-            "error": "Could not load card details."
+            "error": "Could not load card details.",
+            "game_changer": "This card is on the Commander Game Changer list.",
+            "mld": "This card counts as Mass Land Denial in Commander."
         },
         "commander_picker": {
             "title": "Choose commander",

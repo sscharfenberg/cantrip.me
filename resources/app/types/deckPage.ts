@@ -95,6 +95,8 @@ export interface DeckCardRow {
     is_illegal: boolean;
     /** True when the card is on Wizards' Game Changer list. Display gated by `DeckMeta.uses_game_changer_list`. */
     is_game_changer: boolean;
+    /** True when the card is tagged as mass land denial (Scryfall `otag:mass-land-denial`). Display gated by `DeckMeta.uses_game_changer_list` (same Commander-Bracket axis). */
+    is_mld: boolean;
     zone: string;
     quantity: number;
     finish: string;

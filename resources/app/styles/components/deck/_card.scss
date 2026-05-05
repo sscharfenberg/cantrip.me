@@ -35,7 +35,8 @@
             border-radius: map.get(s.$pages, "deck", "flags", "radius", "text");
         }
 
-        &__game-changer {
+        &__game-changer,
+        &__mld {
             flex-basis: map.get(s.$pages, "deck", "flags", "size");
 
             width: map.get(s.$pages, "deck", "flags", "size");
@@ -46,6 +47,12 @@
             background-color: map.get(c.$state, "warning", "background");
             color: map.get(c.$state, "warning", "surface");
             border-radius: map.get(s.$pages, "deck", "flags", "radius", "text");
+        }
+
+        &__mld {
+            background-color: map.get(c.$state, "error", "background");
+            color: map.get(c.$state, "error", "surface");
+            border-color: map.get(c.$state, "error", "border");
         }
 
         &__drag-handle {
@@ -91,7 +98,8 @@
             border-radius: map.get(s.$pages, "deck", "flags", "radius", "image");
         }
 
-        &__game-changer {
+        &__game-changer,
+        &__mld {
             position: absolute;
             right: 0.25rem;
             bottom: 0.25rem;
@@ -104,6 +112,17 @@
             background-color: map.get(c.$state, "warning", "background");
             color: map.get(c.$state, "warning", "surface");
             border-radius: map.get(s.$pages, "deck", "flags", "radius", "image");
+        }
+
+        &__mld {
+            background-color: map.get(c.$state, "error", "background");
+            color: map.get(c.$state, "error", "surface");
+            border-color: map.get(c.$state, "error", "border");
+        }
+
+        // When both badges render, push MLD up so the two don't overlap.
+        &__mld {
+            bottom: 2rem;
         }
 
         &--just-added {

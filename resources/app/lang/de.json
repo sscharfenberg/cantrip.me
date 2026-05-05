@@ -732,6 +732,7 @@
             "no_cards": "Noch keine Karten in diesem Deck.",
             "illegal": "Diese Karte ist in diesem Deck nicht legal.",
             "game_changer": "Diese Karte steht auf der Game-Changer-Liste.",
+            "mld": "Diese Karte zählt als Massen Landzerstörung (Bracket 4+).",
             "clear_selection": "Alle Auswahlen aufheben",
             "collection_status": {
                 "claimed_for_this_deck": "Aus deiner Sammlung für dieses Deck reserviert.",
@@ -1132,7 +1133,7 @@
             "deck_bracket_3": "Bracket 3 - Upgraded",
             "deck_bracket_4": "Bracket 4 - Optimized",
             "deck_bracket_5": "Bracket 5 - cEDH",
-            "deck_bracket_suggested_mld": "Empfohlenes Minimum: Bracket {minimum} — dein Deck enthält Mass Land Denial.",
+            "deck_bracket_suggested_mld": "Empfohlenes Minimum: Bracket {minimum} — dein Deck enthält Massen Landzerstörung.",
             "deck_bracket_suggested_gc": "Empfohlenes Minimum: Bracket {minimum} — dein Deck enthält {count} Game Changer.",
             "group_name": "Gruppenname",
             "format": "Format",
@@ -1238,7 +1239,9 @@
             "total_price": "Gesamt ({amount}×)",
             "scryfall": "Auf Scryfall ansehen",
             "loading": "Lade Kartendetails…",
-            "error": "Kartendetails konnten nicht geladen werden."
+            "error": "Kartendetails konnten nicht geladen werden.",
+            "game_changer": "Diese Karte steht auf der Commander Game-Changer-Liste.",
+            "mld": "Diese Karte zählt in Commander als Massen Landzerstörung."
         },
         "commander_picker": {
             "title": "Commander auswählen",

@@ -133,6 +133,13 @@ const { allGroups } = useDeckSections(
                         :size="2"
                         :additional-classes="['card__game-changer']"
                     />
+                    <icon
+                        v-if="card.is_mld && deck.uses_game_changer_list"
+                        v-tooltip="$t('pages.deck.mld')"
+                        name="landslide"
+                        :size="2"
+                        :additional-classes="['card__mld']"
+                    />
                     <span class="card__qty">{{ card.quantity }}x</span>
                     <icon
                         v-if="card.is_illegal"

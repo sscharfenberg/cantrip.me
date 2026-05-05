@@ -132,6 +132,20 @@ onMounted(async () => {
                             <mana-cost :mana-cost="card.produced_mana.map(m => `{${m}}`).join('')" />
                         </dd>
                     </template>
+                    <template v-if="card.is_game_changer">
+                        <dt></dt>
+                        <dd class="cardstack-preview__flag">
+                            <icon name="balance" :size="1" :additional-classes="['card__game-changer']" />
+                            {{ t("components.card_preview.game_changer") }}
+                        </dd>
+                    </template>
+                    <template v-if="card.is_mld">
+                        <dt></dt>
+                        <dd class="cardstack-preview__flag">
+                            <icon name="landslide" :size="1" :additional-classes="['card__mld']" />
+                            {{ t("components.card_preview.mld") }}
+                        </dd>
+                    </template>
                     <template v-if="card.price">
                         <dt>{{ t("form.fields.price") }}</dt>
                         <dd>{{ formatPrice(card.price) }}</dd>

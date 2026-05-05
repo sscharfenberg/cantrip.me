@@ -40,8 +40,12 @@ export interface CardPreview {
      * produces no mana.
      */
     produced_mana: string[] | null;
+    /** True when the card is on Wizards' Commander Game Changer list. Format-agnostic — surfaced in the preview modal regardless of caller context. */
+    is_game_changer: boolean;
+    /** True when the card is tagged as mass land denial (Scryfall `otag:mass-land-denial`). Format-agnostic. */
+    is_mld: boolean;
     legalities: CardLegality[];
-    /** Rulings for this card, sorted by published_at ascending. Empty when none. */
+    /** Rulings for this card, sorted by published_at descending (newest first). Empty when none. */
     rulings: CardRuling[];
     amount?: number;
     condition?: string | null;

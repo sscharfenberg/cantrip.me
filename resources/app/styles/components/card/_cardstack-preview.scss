@@ -56,6 +56,37 @@
         }
     }
 
+    // Flag rows (game changer, mass land denial). The chip-style rules
+    // for `.card__game-changer` / `.card__mld` in _card.scss are scoped
+    // to the deck-card grid parents, so the modal needs its own copy of
+    // the chip treatment to render them as badges next to the text.
+    &__flag {
+        display: flex;
+        align-items: center;
+
+        gap: 0.5rem;
+
+        .card__game-changer,
+        .card__mld {
+            flex-basis: 1.5rem;
+
+            width: 1.5rem;
+            height: 1.5rem;
+            padding: map.get(s.$pages, "deck", "flags", "padding");
+            border: map.get(s.$pages, "deck", "flags", "border") solid map.get(c.$state, "warning", "border");
+
+            background-color: map.get(c.$state, "warning", "background");
+            color: map.get(c.$state, "warning", "surface");
+            border-radius: map.get(s.$pages, "deck", "flags", "radius", "text");
+        }
+
+        .card__mld {
+            background-color: map.get(c.$state, "error", "background");
+            color: map.get(c.$state, "error", "surface");
+            border-color: map.get(c.$state, "error", "border");
+        }
+    }
+
     .col {
         flex-grow: 1;
     }
