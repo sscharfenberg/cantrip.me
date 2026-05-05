@@ -9,7 +9,7 @@
     ],
     "license": "MIT",
     "require": {
-        "php": "^8.2",
+        "php": "^8.4",
         "ext-intl": "*",
         "bjeavons/zxcvbn-php": "^1.4",
         "cerbero/json-parser": "^1.1",

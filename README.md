@@ -4,11 +4,11 @@ A Magic: The Gathering card collection manager with a focus on UX: Dark/Light mo
 
 **Work-In-Progress!**
 
-**Stack:** Laravel 13 / PHP 8.2 · Vue 3 + TypeScript · Inertia.js · Vite · SCSS · MariaDB · Vue-i18n (de/en) · Laravel Fortify (auth + 2FA TOTP)
+**Stack:** Laravel 13 / PHP 8.4 · Vue 3 + TypeScript · Inertia.js · Vite · SCSS · MariaDB · Vue-i18n (de/en) · Laravel Fortify (auth + 2FA TOTP)
 
 ## Requirements
 
-* PHP 8.2+
+* PHP 8.4+
 * Composer
 * Node 24.11+ / npm 11.3+
 * MariaDB
