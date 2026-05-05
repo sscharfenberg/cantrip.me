@@ -179,11 +179,12 @@ class DeckService
      * Validates command zone cards against format rules via CommandZoneService
      * search methods. Aborts with 422 if any validation fails.
      *
-     * @param  array{format: string, deck_name: string, deck_description?: string|null, commander_id?: string|null, companion_id?: string|null, signature_spell_id?: string|null}  $data
+     * @param  array{format: string, deck_name: string, deck_description?: string|null, bracket?: int|string|null, commander_id?: string|null, companion_id?: string|null, signature_spell_id?: string|null}  $data
      */
     public static function createDeck(User $user, array $data): Deck
     {
         $format = CardFormat::from($data['format']);
+        $bracket = $data['bracket'] ?? null;
 
         $deck = Deck::create([
             'user_id' => $user->id,
@@ -191,6 +192,7 @@ class DeckService
             'description' => $data['deck_description'] ?? null,
             'format' => $format,
             'colors' => null,
+            'bracket' => $bracket === null || $bracket === '' ? null : (int) $bracket,
         ]);
 
         self::setCommandZone(

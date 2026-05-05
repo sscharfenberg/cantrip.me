@@ -8,6 +8,7 @@ import { hasDeletableContent } from "@/utils/deleteDeck";
 import type { DeleteDeckTarget } from "@/utils/deleteDeck";
 import ColorIdentity from "Components/Card/ColorIdentity.vue";
 import DeckState from "Components/Deck/DeckState.vue";
+import Badge from "Components/UI/Badge.vue";
 import Icon from "Components/UI/Icon.vue";
 import PopOver from "Components/UI/PopOver.vue";
 import VisibilityBadge from "Components/UI/VisibilityBadge.vue";
@@ -69,9 +70,22 @@ function onDeleteClick(): void {
             {{ deck.card_count }}
             <span>{{ t("pages.decks.card_count_noun", deck.card_count) }}</span>
         </span>
-        <time class="decklist__timestamp" :datetime="deck.last_activity">
-            {{ formatDateTime(deck.last_activity) }}
-        </time>
+        <badge
+            v-tooltip="formatDateTime(deck.last_activity)"
+            class="decklist__timestamp"
+            type="info"
+        >
+            <icon name="calendar" :size="1" />
+        </badge>
+        <badge
+            v-if="deck.bracket"
+            v-tooltip="t('form.fields.deck_bracket_hint')"
+            class="deck-bracket"
+            type="info"
+        >
+            <icon name="swords" :size="1" />
+            <span>{{ deck.bracket }}</span>
+        </badge>
         <visibility-badge :visibility="deck.visibility" />
         <pop-over
             icon="more"
@@ -106,6 +120,14 @@ function onDeleteClick(): void {
 @use "Abstracts/mixins" as m;
 
 :deep(.visibility-badge) {
+    display: none;
+
+    @include m.mq("landscape") {
+        display: inline-flex;
+    }
+}
+
+.deck-bracket {
     display: none;
 
     @include m.mq("landscape") {

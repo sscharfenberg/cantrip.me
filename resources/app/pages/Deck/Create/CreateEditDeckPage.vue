@@ -7,6 +7,7 @@ import DeckFormatCapabilities from "Components/Deck/DeckFormatCapabilities.vue";
 import type { CommanderResult } from "Components/Deck/ShowCommanderOverview.vue";
 import ShowCommanderOverview from "Components/Deck/ShowCommanderOverview.vue";
 import FormGroup from "Components/Form/FormGroup.vue";
+import FormLegend from "Components/Form/FormLegend.vue";
 import RadioButtonGroup from "Components/Form/Radio/RadioButtonGroup.vue";
 import MonoSelect from "Components/Form/Select/MonoSelect.vue";
 import Headline from "Components/UI/Headline.vue";
@@ -28,6 +29,19 @@ export interface ExistingDeck {
      * tied to a container yet. Used to preselect the container picker.
      */
     container_id: string | null;
+    /** Currently chosen Commander Bracket (1-5), or null when unset. */
+    bracket: number | null;
+    /**
+     * Auto-suggested minimum bracket based on the deck's contents
+     * (game changers + mass land denial). Null when there's nothing to
+     * suggest. Surfaced as a hint, never a forced value.
+     */
+    suggestedBracket: {
+        minimum: number;
+        reason: "mld" | "game_changers";
+        game_changers: number;
+        mld: number;
+    } | null;
     commander: CommanderResult | null;
     companion: CommanderResult | null;
     signatureSpell: CommanderResult | null;
@@ -135,6 +149,22 @@ const visibility = ref<string>(initialVisibility);
  */
 const containerId = ref<string>(props.existingDeck?.container_id ?? "");
 /**
+ * Currently chosen Commander Bracket — optional, no preselection on
+ * create. Stored as a string ("1".."5" or "") so it round-trips through
+ * the MonoSelect's string-keyed options and the hidden input cleanly;
+ * the controller coerces back to int|null.
+ */
+const bracket = ref<string>(props.existingDeck?.bracket != null ? String(props.existingDeck.bracket) : "");
+const bracketOptions = computed(() =>
+    [1, 2, 3, 4, 5].map(n => ({ value: String(n), label: t(`form.fields.deck_bracket_${n}`) }))
+);
+/**
+ * Auto-suggested minimum bracket — server-computed from the deck's
+ * cards via {@see BracketSuggestionService}. Only available in edit
+ * mode (create mode has no cards to base a suggestion on).
+ */
+const bracketSuggestion = computed(() => props.existingDeck?.suggestedBracket ?? null);
+/**
  * MonoSelect options for the container picker. Server already sorted
  * deckboxes to the top; we only add the recommended-suffix hint to
  * deckbox-typed entries here so non-deckbox containers stay clean.
@@ -198,7 +228,7 @@ setBreadcrumbs(
         ? [
               { labelKey: "pages.decks.link", href: "/decks" },
               { label: props.existingDeck.name, href: `/decks/${props.existingDeck.id}` },
-              { labelKey: "pages.create_deck.edit_link" },
+              { labelKey: "pages.create_deck.edit_link" }
           ]
         : [{ labelKey: "pages.decks.link", href: "/decks" }, { labelKey: "pages.create_deck.link" }]
 );
@@ -365,6 +395,38 @@ setBreadcrumbs(
                 @change="visibility = ($event.target as HTMLInputElement).value"
             />
         </form-group>
+        <!-- Commander Bracket — optional, no preselection. Clearable so
+             the user can drop the choice after picking. Submitted as a
+             hidden input; the controller stores null when empty. -->
+        <form-group :label="$t('form.fields.deck_bracket')" :error="errors.bracket ?? ''" :invalid="!!errors?.bracket">
+            <mono-select
+                :options="bracketOptions"
+                :selected="bracket"
+                :placeholder="$t('form.fields.deck_bracket_unset')"
+                :sort="false"
+                addon-icon="swords"
+                max="100%"
+                @change="bracket = $event"
+            />
+            <input type="hidden" name="bracket" :value="bracket" />
+            <template #text>
+                <form-legend v-if="bracketSuggestion" :items="[{ slot: 'bracket-suggestion', icon: 'info' }]">
+                    <template #bracket-suggestion>
+                        <span v-if="bracketSuggestion.reason === 'mld'">{{
+                            $t("form.fields.deck_bracket_suggested_mld", {
+                                minimum: bracketSuggestion.minimum
+                            })
+                        }}</span>
+                        <span v-else>{{
+                            $t("form.fields.deck_bracket_suggested_gc", {
+                                minimum: bracketSuggestion.minimum,
+                                count: bracketSuggestion.game_changers
+                            })
+                        }}</span>
+                    </template>
+                </form-legend>
+            </template>
+        </form-group>
         <!-- Container picker is edit-only and only renders when the user
              actually has containers to pick from. In mode B the picker
              provides the anchor for "in this deckbox" counts; in mode C
@@ -393,11 +455,7 @@ setBreadcrumbs(
              at least two cards to choose from — with one card the answer is
              trivial and with zero there's nothing to pick. -->
         <template v-if="isEdit && existingDeck && existingDeck.cards.length >= 2">
-            <deck-hero-image-picker
-                v-model="selectedHeroCard"
-                :deck-id="existingDeck.id"
-                :cards="existingDeck.cards"
-            />
+            <deck-hero-image-picker v-model="selectedHeroCard" :deck-id="existingDeck.id" :cards="existingDeck.cards" />
             <input type="hidden" name="default_card_id" :value="selectedHeroCard?.id ?? ''" />
         </template>
         <form-group>

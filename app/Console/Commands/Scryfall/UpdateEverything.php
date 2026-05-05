@@ -68,6 +68,12 @@ class UpdateEverything extends Command
             // update oracle cards
             $this->call('scryfall:oracle');
             $waitTime += $this->sleep();
+            // sync oracle-tagger flags onto oracle_cards (mass land denial,
+            // …). Tags are not in bulk data — only reachable via the
+            // search endpoint, so the command hits the API directly with
+            // 1s-paced pagination.
+            $this->call('scryfall:oracle-tags');
+            $waitTime += $this->sleep();
             $this->call('scryfall:default_cards');
             $waitTime += $this->sleep();
             // import rulings (depends on oracle_cards being present;

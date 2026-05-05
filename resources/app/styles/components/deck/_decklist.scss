@@ -17,7 +17,7 @@
     list-style: none;
 
     @include m.mq("landscape") {
-        grid-template-columns: auto 1fr auto auto auto auto auto;
+        grid-template-columns: auto 1fr auto auto auto auto auto auto;
     }
 
     &__format {
@@ -89,7 +89,7 @@
         display: none;
 
         @include m.mq("landscape") {
-            display: block;
+            display: inline-flex;
         }
     }
 

@@ -30,6 +30,7 @@ use App\Models\DeckCategory;
 use App\Models\DefaultCard;
 use App\Models\DefaultCardRelation;
 use App\Models\OracleCard;
+use App\Services\BracketSuggestionService;
 use App\Services\CommandZoneService;
 use App\Services\DeckCollectionModeService;
 use App\Services\DeckCollectionStatusService;
@@ -86,6 +87,7 @@ class DecksController extends Controller
                 'state' => $deck->state->value,
                 'visibility' => $deck->visibility->value,
                 'colors' => $deck->colors,
+                'bracket' => $deck->bracket,
                 'card_count' => (int) $deck->card_count,
                 'last_activity' => $deck->last_activity,
                 // Non-destructive flags: the delete-confirm modal uses these
@@ -125,6 +127,7 @@ class DecksController extends Controller
                 'format' => ['required', 'string', Rule::enum(CardFormat::class)],
                 'deck_name' => ['required', 'string', 'max:'.Deck::NAME_MAX],
                 'deck_description' => ['nullable', 'string', 'max:'.Deck::DESCRIPTION_MAX],
+                'bracket' => ['nullable', 'integer', 'between:1,5'],
                 'commander_id' => [
                     $requiresCommander ? 'required' : 'nullable',
                     'string',
@@ -140,7 +143,7 @@ class DecksController extends Controller
         });
 
         $deck = DeckService::createDeck($request->user(), $request->only([
-            'format', 'deck_name', 'deck_description', 'commander_id', 'companion_id', 'signature_spell_id',
+            'format', 'deck_name', 'deck_description', 'bracket', 'commander_id', 'companion_id', 'signature_spell_id',
         ]));
 
         $request->session()->flash('message', __('decks.deck_created', ['name' => $deck->name]));
@@ -627,6 +630,7 @@ class DecksController extends Controller
                 'deck_name' => ['required', 'string', 'max:'.Deck::NAME_MAX],
                 'deck_description' => ['nullable', 'string', 'max:'.Deck::DESCRIPTION_MAX],
                 'deck_visibility' => ['required', Rule::enum(ContainerVisibility::class)],
+                'bracket' => ['nullable', 'integer', 'between:1,5'],
                 'commander_id' => [
                     $requiresCommander ? 'required' : 'nullable',
                     'string',
@@ -672,10 +676,12 @@ class DecksController extends Controller
             ]);
         });
 
+        $bracket = $request->input('bracket');
         $deck->update([
             'name' => $request->input('deck_name'),
             'description' => $request->input('deck_description'),
             'visibility' => ContainerVisibility::from($request->input('deck_visibility')),
+            'bracket' => $bracket === null || $bracket === '' ? null : (int) $bracket,
             'default_card_id' => $request->input('default_card_id') ?: null,
             'container_id' => $request->input('container_id') ?: null,
         ]);
@@ -728,7 +734,11 @@ class DecksController extends Controller
     {
         $deck->load([
             'commanders.faces:oracle_card_id,face_index,type_line,mana_cost,oracle_text',
-            'deckCards:id,deck_id,default_card_id',
+            // `oracle_card_id` is needed by the bracket auto-suggest so it
+            // can join against `oracle_cards.{game_changer,mld}` — the
+            // hero-image picker doesn't read it, but the cost is just
+            // one extra column on an existing select.
+            'deckCards:id,deck_id,default_card_id,oracle_card_id',
             'defaultCard:id,name,art_crop,artist_id,set_id',
             'defaultCard.set:id,name,code,path',
             'defaultCard.artist:id,name',
@@ -823,6 +833,12 @@ class DecksController extends Controller
                 'description' => $deck->description,
                 'format' => $deck->format->value,
                 'visibility' => $deck->visibility->value,
+                'bracket' => $deck->bracket,
+                // Auto-suggested *minimum* bracket based on the cards
+                // currently in the deck (game changers + MLD). Null when
+                // there's nothing to suggest. Surfaced as a hint, never a
+                // forced value — see {@see BracketSuggestionService}.
+                'suggestedBracket' => BracketSuggestionService::suggest($deck),
                 'container_id' => $deck->container_id,
                 'commander' => $commander,
                 'companion' => $companion,

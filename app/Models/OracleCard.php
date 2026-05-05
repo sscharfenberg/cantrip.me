@@ -68,6 +68,7 @@ class OracleCard extends Model
         'produced_mana',
         'reserved',
         'game_changer',
+        'mld',
         'scryfall_uri',
     ];
 
@@ -79,6 +80,7 @@ class OracleCard extends Model
     protected $casts = [
         'reserved' => 'boolean',
         'game_changer' => 'boolean',
+        'mld' => 'boolean',
         'layout' => ScryfallCardLayout::class,
         'lang' => ScryfallLang::class,
         'cmc' => 'float',

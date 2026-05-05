@@ -26,6 +26,11 @@ return new class extends Migration
             $table->string('produced_mana', 6)->nullable();
             $table->boolean('reserved')->default(false);
             $table->boolean('game_changer')->default(false);
+            // "Mass land denial" — populated from Scryfall's `otag:mass-land-denial`
+            // tagger search (not a top-level Card field, only reachable via the
+            // search endpoint). Synced by `scryfall:oracle-tags`. Used by the
+            // bracket auto-suggest hint on the deck-edit page.
+            $table->boolean('mld')->default(false);
             $table->string('scryfall_uri', 255);
 
             $table->index('searchable_name');

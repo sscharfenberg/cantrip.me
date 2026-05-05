@@ -99,6 +99,7 @@ scryfall:sets           → fetch set metadata + download set icon SVGs
 scryfall:symbols        → fetch mana/ability symbols + download symbol SVGs
 scryfall:bulk           → download bulk data metadata (URLs, expected filesizes)
 scryfall:oracle         → import oracle cards from bulk JSON into oracle_cards table
+scryfall:oracle-tags    → sync Scryfall oracle-tagger flags (mass land denial, …) onto oracle_cards via the search endpoint
 scryfall:default_cards  → import default cards from bulk JSON into default_cards + artists tables; also captures `all_parts` printing pairs into default_card_relations
 scryfall:rulings        → import rulings from bulk JSON into rulings table
 scryfall:images         → download missing/outdated art crops + card images to local disk
@@ -135,6 +136,14 @@ Fetches bulk data metadata from Scryfall (download URLs and expected filesizes) 
 ### `php artisan scryfall:oracle`
 
 Downloads the `oracle_cards` bulk JSON from Scryfall (if not already cached), truncates the `oracle_cards`, `oracle_card_faces`, and `legalities` tables, and stream-parses the JSON to insert each card along with its faces and legalities. Card-level fields including `produced_mana` (the mana colors a card can produce, used to render the "Produces" row in the card preview modal) live on `oracle_cards`; per-face data lives on `oracle_card_faces`. Image columns (`card_image_0`, `card_image_1`) are stored as Scryfall URLs; local path resolution happens later via `scryfall:resolve-paths`.
+
+### `php artisan scryfall:oracle-tags`
+
+Syncs Scryfall's oracle-tagger flags onto boolean columns on `oracle_cards`. Currently powers `oracle_cards.mld` (mass land denial — used by the bracket auto-suggest hint on the deck-edit page); the slug → column map in `OracleTagsService::TAG_TO_COLUMN` is the single place to add more tags.
+
+Tags from the tagger system are **not** included in Scryfall's bulk data — they're only reachable via `/cards/search?q=otag:<slug>`. This command paginates that endpoint (`has_more` + `next_page`), enforces a ≥1s delay between every Scryfall call (across pages and across multiple tag syncs in the same run), collects the unique `oracle_id`s, and applies them in a single transaction (clear column → bulk-update flagged ids in 1 000-row chunks). Zero results from a tag are treated as a sync failure (taxonomy probably renamed) and the column is **left untouched** rather than zeroed.
+
+Runs in `scryfall:update` immediately after `scryfall:oracle` (so the freshly inserted `oracle_cards` rows can be flagged in place) and before `scryfall:default_cards`. Typical duration on the current dataset: ~1.2 s for the single `mass-land-denial` tag (one paginated page, ~108 cards).
 
 ### `php artisan scryfall:default_cards`
 
