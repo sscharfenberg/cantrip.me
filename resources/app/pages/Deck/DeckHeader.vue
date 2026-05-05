@@ -10,6 +10,7 @@ import Paragraph from "Components/UI/Paragraph.vue";
 import VisibilityBadge from "Components/UI/VisibilityBadge.vue";
 import type { DeckCardRow, DeckCategoryRow, DeckCompanion, DeckMeta, DeckViolation } from "Types/deckPage.ts";
 import DeckActionsMenu from "./Actions/DeckActionsMenu.vue";
+import type { DeckActionsTarget } from "./Actions/DeckActionsMenu.vue";
 import DeckLegalityPanel from "./DeckLegalityPanel.vue";
 import CollectionModeModal from "./Modals/CollectionModeModal.vue";
 
@@ -60,6 +61,17 @@ const showCollectionModeModal = ref(false);
 const heroBackgroundStyle = computed<Record<string, string> | undefined>(() =>
     props.heroArtCrop ? { "--hero-art-crop": `url('${props.heroArtCrop}')` } : undefined
 );
+/** Adapt DeckMeta + companion into the lean shape DeckActionsMenu expects. */
+const deckActionsTarget = computed<DeckActionsTarget>(() => ({
+    id: props.deck.id,
+    name: props.deck.name,
+    state: props.deck.state,
+    visibility: props.deck.visibility,
+    card_count: props.deck.card_count,
+    has_companion: props.companion !== null,
+    has_description: props.deck.description !== null && props.deck.description !== "",
+    has_image: props.deck.hero_card !== null
+}));
 const { t } = useI18n();
 </script>
 
@@ -70,8 +82,7 @@ const { t } = useI18n();
             {{ deck.name.toUpperCase() }}
             <deck-actions-menu
                 v-if="isOwner"
-                :deck="deck"
-                :companion="companion"
+                :deck="deckActionsTarget"
                 :cards="cards"
                 :categories="categories"
                 :category-name-max="categoryNameMax"

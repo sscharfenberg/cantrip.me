@@ -947,7 +947,7 @@
                 "link": "Gruppen verwalten",
                 "delete": {
                     "link": "Löschen",
-                    "explanation": "Eine Gruppe zu löschen die Karten beinhaltet verschiebt diese Karten nach dem Löschen in die Standard Gruppe des Kartentyps. Es gibt keine weitere Bestätigungs Abfrage.",
+                    "explanation": "Eine Gruppe zu löschen die Karten beinhaltet, verschiebt diese Karten nach dem Löschen in die Standard Gruppe des Kartentyps. Es gibt keine weitere Bestätigungs Abfrage.",
                     "success": "Kategorie gelöscht."
                 }
             },

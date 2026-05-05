@@ -81,8 +81,8 @@ async function deleteCategory(categoryId: string): Promise<void> {
                     </button>
                 </li>
             </ul>
+            <paragraph v-if="!categories.length">{{ $t("pages.deck.no_categories") }}</paragraph>
         </div>
-        <p v-if="!categories.length">{{ $t("pages.deck.no_categories") }}</p>
         <template #footer>
             <button type="button" class="btn-primary" @click="showCreateModal = true">
                 <icon name="add" />
