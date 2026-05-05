@@ -21,7 +21,7 @@ jobs:
           tools: composer:v2
 
       - name: Install composer dependencies
-        uses: ramsey/composer-install@v3
+        uses: ramsey/composer-install@v4
 
       - name: Prepare environment
         run: |
@@ -45,7 +45,7 @@ jobs:
           tools: composer:v2
 
       - name: Install composer dependencies
-        uses: ramsey/composer-install@v3
+        uses: ramsey/composer-install@v4
 
       - name: Check code style
         run: vendor/bin/pint --test --format agent
