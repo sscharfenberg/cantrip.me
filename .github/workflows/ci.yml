@@ -23,6 +23,11 @@ jobs:
       - name: Install composer dependencies
         uses: ramsey/composer-install@v3
 
+      - name: Prepare environment
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+
       - name: Run tests
         run: composer test
 
