@@ -690,12 +690,10 @@
         "deck_import": {
             "title": "Import deck CSV",
             "link": "Import CSV",
-            "target": "Import to",
             "format": "Format",
             "file": "CSV file",
             "submit": "Start import",
             "source": "Source format",
-            "no_empty_decks": "Archidekt's export doesn't include the command zone, so it slots best into an empty deck that already has its commander(s) set. You don't have an empty deck — we suggest creating one first.",
             "sources": {
                 "cantrip": "cantrip.me",
                 "archidekt": "Archidekt"
@@ -705,7 +703,7 @@
                     "line1": "Use the file produced by \"Download CSV\". A new deck will be created with the format you pick below; commanders, companion and all cards come from the file."
                 },
                 "archidekt": {
-                    "line1": "Please enable the columns Quantity, Name, Edition Code, Collector Number, Category, Scryfall ID. Check \"Include Header line as first line\". Archidekt's export doesn't carry commanders — pick an empty deck that already has its commander(s) set."
+                    "line1": "Please enable the columns Quantity, Name, Edition Code, Collector Number, Category, Scryfall ID. Check \"Include Header line as first line\". A new deck will be created with the format you pick below; rows tagged \"Commander\" land in the command zone, and standard type categories (Creature, Artifact, …) drop into the deck's built-in groups instead of becoming custom ones."
                 }
             },
             "results": {

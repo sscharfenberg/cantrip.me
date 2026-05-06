@@ -5,7 +5,6 @@ namespace Tests\Feature;
 use App\Enums\CardFormat;
 use App\Enums\ContainerVisibility;
 use App\Enums\DeckImportSource;
-use App\Enums\DeckZone;
 use App\Models\CardStack;
 use App\Models\Deck;
 use App\Models\DeckCard;
@@ -63,37 +62,30 @@ class DeckCsvImportTest extends TestCase
     }
 
     #[Test]
-    public function archidekt_post_accepts_a_non_empty_target_and_appends_rows(): void
+    public function archidekt_post_creates_a_brand_new_deck_with_chosen_format(): void
     {
         $owner = $this->makeUser();
-        $deck = $this->makeDeck($owner, ContainerVisibility::Private);
         $bolt = $this->makeOracleCard('Lightning Bolt');
         $boltPrint = $this->makeDefaultCard($bolt, 'lea', '161');
-        DeckCard::create([
-            'deck_id' => $deck->id,
-            'oracle_card_id' => $bolt->id,
-            'default_card_id' => $boltPrint->id,
-            'zone' => DeckZone::Main->value,
-            'quantity' => 1,
-        ]);
-
-        $counter = $this->makeOracleCard('Counterspell');
-        $counterPrint = $this->makeDefaultCard($counter, 'lea', '54');
 
         $csv = "Quantity,Name,Edition Code,Collector Number,Category,Scryfall ID\n"
-            ."4,Counterspell,lea,54,,{$counterPrint->id}\n";
+            ."4,Lightning Bolt,lea,161,Instant,{$boltPrint->id}\n";
         $filename = $this->stashCsv($csv);
+
+        $deckCountBefore = Deck::query()->where('user_id', $owner->id)->count();
 
         $this->actingAs($owner)
             ->post('/decks/import', [
                 'source' => 'archidekt',
-                'deck' => $deck->id,
+                'format' => CardFormat::Modern->value,
                 'filename' => $filename,
             ])
             ->assertOk();
 
-        // The pre-existing Lightning Bolt row survives and the Counterspell row is appended.
-        $this->assertSame(2, DeckCard::query()->where('deck_id', $deck->id)->count());
+        $this->assertSame($deckCountBefore + 1, Deck::query()->where('user_id', $owner->id)->count());
+        $newDeck = Deck::query()->where('user_id', $owner->id)->orderByDesc('created_at')->first();
+        $this->assertSame(CardFormat::Modern->value, $newDeck->format->value);
+        $this->assertSame(1, DeckCard::query()->where('deck_id', $newDeck->id)->count());
     }
 
     #[Test]
@@ -152,6 +144,54 @@ class DeckCsvImportTest extends TestCase
         $this->assertNotNull($cat);
         $this->assertSame('Ramp', $cat->name);
         $this->assertSame($cat->id, $deckCards[0]->category_id);
+    }
+
+    #[Test]
+    public function archidekt_routes_commander_category_to_command_zone(): void
+    {
+        $owner = $this->makeUser();
+        $deck = $this->makeDeck($owner, ContainerVisibility::Private);
+        $atraxa = $this->makeOracleCard('Atraxa, Praetors\' Voice');
+        $atraxaPrint = $this->makeDefaultCard($atraxa, 'cmr', '347');
+
+        $csv = "Quantity,Name,Edition Code,Collector Number,Category,Scryfall ID\n"
+            ."1,Atraxa,cmr,347,Commander,{$atraxaPrint->id}\n";
+        $filename = $this->stashCsv($csv);
+
+        $results = DeckCsvImportService::import($owner, $deck, $filename, DeckImportSource::Archidekt);
+
+        $this->assertSame(0, $results['imported']);
+        $this->assertSame(1, $results['commanders']);
+        $this->assertSame(0, DeckCard::query()->where('deck_id', $deck->id)->count());
+
+        $row = DB::table('commanders')->where('deck_id', $deck->id)->first();
+        $this->assertNotNull($row);
+        $this->assertSame($atraxa->id, $row->oracle_card_id);
+    }
+
+    #[Test]
+    public function archidekt_drops_default_type_categories_so_no_custom_groups_are_created(): void
+    {
+        $owner = $this->makeUser();
+        $deck = $this->makeDeck($owner, ContainerVisibility::Private);
+        $sol = $this->makeOracleCard('Sol Ring');
+        $solPrint = $this->makeDefaultCard($sol, 'cmd', '263');
+        $bolt = $this->makeOracleCard('Lightning Bolt');
+        $boltPrint = $this->makeDefaultCard($bolt, 'lea', '161');
+
+        $csv = "Quantity,Name,Edition Code,Collector Number,Category,Scryfall ID\n"
+            ."1,Sol Ring,cmd,263,Artifact,{$solPrint->id}\n"
+            ."1,Lightning Bolt,lea,161,instant,{$boltPrint->id}\n";
+        $filename = $this->stashCsv($csv);
+
+        DeckCsvImportService::import($owner, $deck, $filename, DeckImportSource::Archidekt);
+
+        $this->assertSame(0, DeckCategory::query()->where('deck_id', $deck->id)->count());
+        $deckCards = DeckCard::query()->where('deck_id', $deck->id)->get();
+        $this->assertCount(2, $deckCards);
+        foreach ($deckCards as $dc) {
+            $this->assertNull($dc->category_id);
+        }
     }
 
     #[Test]

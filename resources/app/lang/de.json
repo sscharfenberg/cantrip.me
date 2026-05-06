@@ -690,12 +690,10 @@
         "deck_import": {
             "title": "Deck-CSV importieren",
             "link": "CSV importieren",
-            "target": "Importieren in",
             "format": "Format",
             "file": "CSV-Datei",
             "submit": "Import starten",
             "source": "Quellformat",
-            "no_empty_decks": "Archidekt-Exporte enthalten keine Kommandozone, daher passt der Import am besten in ein leeres Deck, in dem die Kommandeure bereits gesetzt sind. Du hast noch kein leeres Deck – wir empfehlen, zuerst eins anzulegen.",
             "sources": {
                 "cantrip": "cantrip.me",
                 "archidekt": "Archidekt"
@@ -705,7 +703,7 @@
                     "line1": "Verwende die Datei aus „CSV herunterladen“. Es wird ein neues Deck im unten gewählten Format erstellt; Kommandeure, Companion und alle Karten kommen aus der Datei."
                 },
                 "archidekt": {
-                    "line1": "Aktiviere bitte die Spalten Quantity, Name, Edition Code, Collector Number, Category, Scryfall ID und setze „Include Header line as first line“. Archidekt-Exporte enthalten keine Kommandeure – wähle ein leeres Deck, in dem die Kommandeure bereits gesetzt sind."
+                    "line1": "Aktiviere bitte die Spalten Quantity, Name, Edition Code, Collector Number, Category, Scryfall ID und setze „Include Header line as first line“. Es wird ein neues Deck im unten gewählten Format erstellt; Zeilen mit der Kategorie „Commander“ landen in der Kommandozone, und Standard-Typkategorien (Creature, Artifact, …) werden in die fest eingebauten Gruppen statt in eigene benutzerdefinierte Gruppen einsortiert."
                 }
             },
             "results": {

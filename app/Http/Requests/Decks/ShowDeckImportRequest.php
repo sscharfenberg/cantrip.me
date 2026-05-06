@@ -6,9 +6,8 @@ use Illuminate\Foundation\Http\FormRequest;
 
 /**
  * Authorises the deck CSV import page (GET). Any authenticated user
- * can reach the page — the form decides per-source whether a target
- * deck is needed (Archidekt) or a fresh one is created (cantrip), and
- * those checks happen on POST.
+ * can reach the page — both source paths mint a fresh deck on POST,
+ * so there's no per-deck authorisation to enforce here.
  */
 class ShowDeckImportRequest extends FormRequest
 {
