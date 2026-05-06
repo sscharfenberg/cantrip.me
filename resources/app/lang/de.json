@@ -687,6 +687,47 @@
                 "import_another": "Weitere Datei importieren"
             }
         },
+        "deck_import": {
+            "title": "Deck-CSV importieren",
+            "link": "CSV importieren",
+            "target": "Importieren in",
+            "format": "Format",
+            "file": "CSV-Datei",
+            "submit": "Import starten",
+            "source": "Quellformat",
+            "no_empty_decks": "Archidekt-Exporte enthalten keine Kommandozone, daher passt der Import am besten in ein leeres Deck, in dem die Kommandeure bereits gesetzt sind. Du hast noch kein leeres Deck – wir empfehlen, zuerst eins anzulegen.",
+            "sources": {
+                "cantrip": "cantrip.me",
+                "archidekt": "Archidekt"
+            },
+            "explanations": {
+                "cantrip": {
+                    "line1": "Verwende die Datei aus „CSV herunterladen“. Es wird ein neues Deck im unten gewählten Format erstellt; Kommandeure, Companion und alle Karten kommen aus der Datei."
+                },
+                "archidekt": {
+                    "line1": "Aktiviere bitte die Spalten Quantity, Name, Edition Code, Collector Number, Category, Scryfall ID und setze „Include Header line as first line“. Archidekt-Exporte enthalten keine Kommandeure – wähle ein leeres Deck, in dem die Kommandeure bereits gesetzt sind."
+                }
+            },
+            "results": {
+                "title": "Import-Ergebnis",
+                "imported": "{count} Karte(n) importiert",
+                "commanders": "{count} Kommandeur(e) importiert",
+                "companion": "Companion gesetzt",
+                "skipped": "{count} übersprungen",
+                "skipped_table": {
+                    "row": "Zeile",
+                    "name": "Karte",
+                    "reason": "Grund"
+                },
+                "reasons": {
+                    "card_not_found": "Karte in der Datenbank nicht gefunden",
+                    "missing_identifiers": "Weder Scryfall-ID noch Set + Sammlernummer angegeben",
+                    "unmappable": "Zeile konnte nicht verarbeitet werden"
+                },
+                "import_another": "Weitere Datei importieren",
+                "go_to_deck": "Deck öffnen"
+            }
+        },
         "decks": {
             "title": "Deine Decks",
             "link": "Decks",
@@ -704,7 +745,8 @@
                 "unarchive": "Wiederherstellen",
                 "set_planned": "Als geplant markieren",
                 "set_built": "Als fertig markieren",
-                "export": "CSV herunterladen"
+                "export": "CSV herunterladen",
+                "import": "CSV importieren"
             },
             "delete": {
                 "title": "Deck {name} löschen?",

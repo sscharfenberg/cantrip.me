@@ -16,13 +16,18 @@ const { t } = useI18n();
 const processing = ref(false);
 /**
  * Issue the DELETE. The controller flashes a success message and redirects
- * to the deck-list page, so no explicit reload is needed here — the Inertia
- * response already contains the updated page props.
+ * to the deck-list page. We close the modal and explicitly visit /decks
+ * on success — Inertia v3's client doesn't reliably follow the 303 from
+ * /decks/{id} → /decks, so the modal could otherwise leave the user on
+ * a stale (or 404'd) deck-show URL.
  */
 const onDelete = () => {
     processing.value = true;
     router.delete(`/decks/${props.target.id}`, {
-        onSuccess: () => emit("close"),
+        onSuccess: () => {
+            emit("close");
+            router.visit("/decks");
+        },
         onFinish: () => {
             processing.value = false;
         }

@@ -687,6 +687,47 @@
                 "import_another": "Import another file"
             }
         },
+        "deck_import": {
+            "title": "Import deck CSV",
+            "link": "Import CSV",
+            "target": "Import to",
+            "format": "Format",
+            "file": "CSV file",
+            "submit": "Start import",
+            "source": "Source format",
+            "no_empty_decks": "Archidekt's export doesn't include the command zone, so it slots best into an empty deck that already has its commander(s) set. You don't have an empty deck — we suggest creating one first.",
+            "sources": {
+                "cantrip": "cantrip.me",
+                "archidekt": "Archidekt"
+            },
+            "explanations": {
+                "cantrip": {
+                    "line1": "Use the file produced by \"Download CSV\". A new deck will be created with the format you pick below; commanders, companion and all cards come from the file."
+                },
+                "archidekt": {
+                    "line1": "Please enable the columns Quantity, Name, Edition Code, Collector Number, Category, Scryfall ID. Check \"Include Header line as first line\". Archidekt's export doesn't carry commanders — pick an empty deck that already has its commander(s) set."
+                }
+            },
+            "results": {
+                "title": "Import results",
+                "imported": "{count} card(s) imported",
+                "commanders": "{count} commander(s) imported",
+                "companion": "Companion set",
+                "skipped": "{count} skipped",
+                "skipped_table": {
+                    "row": "Row",
+                    "name": "Card",
+                    "reason": "Reason"
+                },
+                "reasons": {
+                    "card_not_found": "Card not found in database",
+                    "missing_identifiers": "No Scryfall ID and no set + collector number to fall back on",
+                    "unmappable": "Row could not be parsed"
+                },
+                "import_another": "Import another file",
+                "go_to_deck": "Open deck"
+            }
+        },
         "decks": {
             "title": "Your Decks",
             "link": "Decks",
@@ -704,7 +745,8 @@
                 "unarchive": "Unarchive",
                 "set_planned": "Set to planned",
                 "set_built": "Set to finished",
-                "export": "Download CSV"
+                "export": "Download CSV",
+                "import": "Import CSV"
             },
             "delete": {
                 "title": "Delete Deck {name}?",

@@ -111,6 +111,11 @@ function onExportClick(): void {
     closePopover();
     window.location.href = `/decks/${props.deck.id}/export`;
 }
+/** Navigate to the deck CSV import page. Owner-only. */
+function onImportClick(): void {
+    closePopover();
+    router.visit("/decks/import");
+}
 /**
  * Flip the deck between private and public via the dedicated quick-toggle
  * endpoint. The controller redirects back to the deck show page with a
@@ -157,6 +162,10 @@ function onSetPlanned(): void {
 /**
  * Delete button handler. Skips the confirm prompt for an effectively-empty
  * deck and fires the DELETE directly. Same UX as the deck-list link.
+ *
+ * Forces an explicit visit to /decks on success because the server's
+ * 303-to-/decks redirect is not always followed by Inertia v3's client
+ * when issued from the deck-show page.
  */
 function onDeleteClick(): void {
     closePopover();
@@ -164,7 +173,9 @@ function onDeleteClick(): void {
         showDeleteModal.value = true;
         return;
     }
-    router.delete(`/decks/${props.deck.id}`);
+    router.delete(`/decks/${props.deck.id}`, {
+        onSuccess: () => router.visit("/decks")
+    });
 }
 </script>
 
@@ -223,6 +234,12 @@ function onDeleteClick(): void {
                 <button class="popover-list-item" @click.prevent="onExportClick">
                     <icon name="download" :size="1" />
                     {{ $t("pages.decks.actions.export") }}
+                </button>
+            </li>
+            <li v-if="isOwner">
+                <button class="popover-list-item" @click.prevent="onImportClick">
+                    <icon name="upload" :size="1" />
+                    {{ $t("pages.decks.actions.import") }}
                 </button>
             </li>
             <li v-if="isOwner">

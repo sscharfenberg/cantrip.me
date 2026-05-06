@@ -51,4 +51,8 @@ return [
         ],
     ],
 
+    'import' => [
+        'default_deck_name' => 'Imported deck',
+    ],
+
 ];

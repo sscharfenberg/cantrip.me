@@ -69,10 +69,16 @@ function onFolderToggle(format: string, isOpen: boolean): void {
         <icon name="deck" :size="3" />
         {{ $t("pages.decks.title") }}
     </headline>
-    <Link class="btn-primary" href="/decks/add">
-        <icon name="add" />
-        {{ $t("pages.create_deck.link") }}
-    </Link>
+    <div class="deck-actions">
+        <Link class="btn-primary" href="/decks/add">
+            <icon name="add" />
+            {{ $t("pages.create_deck.link") }}
+        </Link>
+        <Link class="btn-default" href="/decks/import">
+            <icon name="upload" />
+            {{ $t("pages.deck_import.link") }}
+        </Link>
+    </div>
     <div v-if="sortedFormats.length" class="deck-folders">
         <deck-format-folder
             v-for="format in sortedFormats"
@@ -88,6 +94,13 @@ function onFolderToggle(format: string, isOpen: boolean): void {
 </template>
 
 <style lang="scss" scoped>
+.deck-actions {
+    display: flex;
+    flex-wrap: wrap;
+
+    gap: 0.5rem;
+}
+
 .deck-folders {
     display: flex;
     flex-direction: column;

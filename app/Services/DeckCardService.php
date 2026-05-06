@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Deck;
+use App\Models\OracleCard;
 use App\Models\OracleCardFace;
 
 /**
@@ -17,28 +18,24 @@ final class DeckCardService
     private const WUBRG = ['W', 'U', 'B', 'R', 'G'];
 
     /**
-     * Recalculate and persist the deck's colors from its cards' mana costs.
+     * Recalculate and persist the deck's colors.
      *
-     * Only applies to formats that do not enforce color identity (i.e.
-     * non-commander formats). Commander-like formats derive their color
-     * identity from the command zone, which is immutable during card
-     * adds/removes.
+     * Commander-like formats (those that enforce color identity) derive
+     * colors from the union of color identities of the command zone —
+     * commanders, signature spell, companion. Other formats derive colors
+     * from the union of colored mana symbols in their cards' mana costs,
+     * folding in the companion (if set) since it's still cast from outside
+     * the deck.
      *
-     * Unlike color identity (which includes mana symbols from oracle text),
-     * deck colors are strictly the union of colored mana symbols appearing
-     * in the *mana cost* of each card's faces. Hybrid `{W/U}`, phyrexian
-     * `{G/P}`, and monocolored hybrid `{2/W}` all contribute their colored
-     * component(s); colorless / generic / variable symbols are ignored.
-     *
-     * The deck's "Companion" keyword card (if any) is also folded in here:
-     * for non-commander formats the companion sits outside the deck list
-     * but is still considered part of the deck for color purposes (you'd
-     * be casting it, after all). Commander formats short-circuit above so
-     * companion-stack and command-zone don't fight for the same field.
+     * Hybrid `{W/U}`, phyrexian `{G/P}`, and monocolored hybrid `{2/W}`
+     * all contribute their colored component(s); colorless / generic /
+     * variable symbols are ignored.
      */
     public static function recalculateColors(Deck $deck): void
     {
         if ($deck->format->rules()->enforcesColorIdentity()) {
+            self::recalculateColorsFromCommandZone($deck);
+
             return;
         }
 
@@ -56,6 +53,46 @@ final class DeckCardService
         }
 
         $colors = self::extractColorsFromManaCosts(array_filter($manaCosts));
+
+        $deck->update(['colors' => $colors === '' ? null : $colors]);
+    }
+
+    /**
+     * Derive deck colors from the union of color identities of every card
+     * currently in the command zone (commanders + signature spell stored
+     * via the commanders pivot, plus the deck's companion).
+     */
+    private static function recalculateColorsFromCommandZone(Deck $deck): void
+    {
+        $oracleIds = $deck->commanders()->pluck('commanders.oracle_card_id')->all();
+        if ($deck->companion_oracle_card_id !== null) {
+            $oracleIds[] = $deck->companion_oracle_card_id;
+        }
+
+        if ($oracleIds === []) {
+            $deck->update(['colors' => null]);
+
+            return;
+        }
+
+        $identities = OracleCard::query()
+            ->whereIn('id', array_values(array_unique($oracleIds)))
+            ->pluck('color_identity')
+            ->all();
+
+        $present = [];
+        foreach ($identities as $identity) {
+            if ($identity === null || $identity === '') {
+                continue;
+            }
+            foreach (str_split($identity) as $component) {
+                if (in_array($component, self::WUBRG, true)) {
+                    $present[$component] = true;
+                }
+            }
+        }
+
+        $colors = implode('', array_filter(self::WUBRG, fn (string $c): bool => isset($present[$c])));
 
         $deck->update(['colors' => $colors === '' ? null : $colors]);
     }

@@ -15,6 +15,7 @@ use App\Http\Controllers\Decks\DeckCommanderController;
 use App\Http\Controllers\Decks\DeckCompanionController;
 use App\Http\Controllers\Decks\DecksController;
 use App\Http\Controllers\Decks\ExportController as DeckExportController;
+use App\Http\Controllers\Decks\ImportController as DeckImportController;
 use App\Http\Controllers\GuestController;
 use App\Http\Controllers\LocaleController;
 use App\Http\Controllers\User\CollectionIntegrationController;
@@ -134,6 +135,10 @@ Route::middleware(array_filter(['auth', Features::enabled(Features::emailVerific
         ->name('decks.store');
     Route::get('/decks/qr', [DecksController::class, 'generateQr'])
         ->name('decks.qr');
+    Route::get('/decks/import', [DeckImportController::class, 'show'])
+        ->name('decks.import');
+    Route::post('/decks/import', [DeckImportController::class, 'store'])
+        ->name('decks.import.store');
     Route::get('/decks/{deck}/qr', [DecksController::class, 'generateQr'])
         ->name('deck.qr');
     Route::post('/decks/{deck}/qr', [DecksController::class, 'qrSvg'])

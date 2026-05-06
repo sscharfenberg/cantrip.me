@@ -1031,10 +1031,9 @@ class DecksController extends Controller
         $name = $deck->name;
         $deck->delete();
 
-        $request->session()->flash('message', __('decks.deck_deleted', ['name' => $name]));
-        $request->session()->flash('type', 'success');
-
-        return redirect(route('decks'));
+        return to_route('decks')
+            ->with('message', __('decks.deck_deleted', ['name' => $name]))
+            ->with('type', 'success');
     }
 
     /**
