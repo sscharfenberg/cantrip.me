@@ -111,11 +111,6 @@ function onExportClick(): void {
     closePopover();
     window.location.href = `/decks/${props.deck.id}/export`;
 }
-/** Navigate to the deck CSV import page. Owner-only. */
-function onImportClick(): void {
-    closePopover();
-    router.visit("/decks/import");
-}
 /**
  * Flip the deck between private and public via the dedicated quick-toggle
  * endpoint. The controller redirects back to the deck show page with a
@@ -234,12 +229,6 @@ function onDeleteClick(): void {
                 <button class="popover-list-item" @click.prevent="onExportClick">
                     <icon name="download" :size="1" />
                     {{ $t("pages.decks.actions.export") }}
-                </button>
-            </li>
-            <li v-if="isOwner">
-                <button class="popover-list-item" @click.prevent="onImportClick">
-                    <icon name="upload" :size="1" />
-                    {{ $t("pages.decks.actions.import") }}
                 </button>
             </li>
             <li v-if="isOwner">

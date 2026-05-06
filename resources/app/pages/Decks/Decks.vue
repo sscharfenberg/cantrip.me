@@ -37,10 +37,37 @@ const sortedFormats = computed(() =>
         t(`enums.card_formats.${a}`).localeCompare(t(`enums.card_formats.${b}`))
     )
 );
+/**
+ * Format key with the most decks. Tiebreakers (in order): largest combined
+ * card count, then most-recently-active deck. Used as the default-open
+ * folder when the user lands on the page without a `#format` URL hash.
+ */
+const busiestFormat = computed<string | null>(() => {
+    const formats = Object.keys(props.decksByFormat);
+    if (formats.length === 0) return null;
+    const ranked = formats
+        .map(format => {
+            const decks = props.decksByFormat[format];
+            return {
+                format,
+                deckCount: decks.length,
+                cardSum: decks.reduce((sum, d) => sum + d.card_count, 0),
+                latest: decks.reduce((max, d) => (d.last_activity > max ? d.last_activity : max), "")
+            };
+        })
+        .sort((a, b) => {
+            if (b.deckCount !== a.deckCount) return b.deckCount - a.deckCount;
+            if (b.cardSum !== a.cardSum) return b.cardSum - a.cardSum;
+            return b.latest.localeCompare(a.latest);
+        });
+    return ranked[0].format;
+});
 /** The format key from the URL hash (e.g. "#commander" → "commander"). */
 const initialHash = window.location.hash.replace("#", "");
+/** Format folder to open on initial render: URL hash wins, else the busiest format. */
+const initialOpenFormat = initialHash || busiestFormat.value || "";
 /** Which format folder is currently open (null = all closed). */
-const openFormat = ref<string | null>(initialHash || null);
+const openFormat = ref<string | null>(initialOpenFormat || null);
 /** Template refs for each folder, keyed by format. */
 const folderRefs = useTemplateRef<InstanceType<typeof DeckFormatFolder>[]>("folderRefs");
 /**
@@ -74,7 +101,7 @@ function onFolderToggle(format: string, isOpen: boolean): void {
             <icon name="add" />
             {{ $t("pages.create_deck.link") }}
         </Link>
-        <Link class="btn-default" href="/decks/import">
+        <Link class="btn-primary" href="/decks/import">
             <icon name="upload" />
             {{ $t("pages.deck_import.link") }}
         </Link>
@@ -86,7 +113,7 @@ function onFolderToggle(format: string, isOpen: boolean): void {
             ref="folderRefs"
             :format="format"
             :decks="decksByFormat[format]"
-            :initial-open="format === initialHash"
+            :initial-open="format === initialOpenFormat"
             @toggle="onFolderToggle"
         />
     </div>

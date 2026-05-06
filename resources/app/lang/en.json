@@ -744,8 +744,7 @@
                 "unarchive": "Unarchive",
                 "set_planned": "Set to planned",
                 "set_built": "Set to finished",
-                "export": "Download CSV",
-                "import": "Import CSV"
+                "export": "Download CSV"
             },
             "delete": {
                 "title": "Delete Deck {name}?",

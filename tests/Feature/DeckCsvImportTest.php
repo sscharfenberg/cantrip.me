@@ -405,6 +405,32 @@ class DeckCsvImportTest extends TestCase
     }
 
     #[Test]
+    public function failed_import_does_not_leave_an_orphan_deck_behind(): void
+    {
+        $owner = $this->makeUser();
+
+        $csv = "Role,Scryfall ID,Name,Edition,Collector Number,Count,Zone\n"
+            ."card,abc,Lightning Bolt,LEA,161,4,main\n";
+        $filename = $this->stashCsv($csv);
+
+        $deckCountBefore = Deck::query()->where('user_id', $owner->id)->count();
+
+        $this->actingAs($owner)
+            ->post('/decks/import', [
+                'source' => 'archidekt',
+                'format' => CardFormat::Modern->value,
+                'filename' => $filename,
+            ])
+            ->assertSessionHasErrors('filename');
+
+        $this->assertSame(
+            $deckCountBefore,
+            Deck::query()->where('user_id', $owner->id)->count(),
+            'A failed import should not have created a deck.',
+        );
+    }
+
+    #[Test]
     public function rows_with_unknown_scryfall_id_are_reported_as_skipped(): void
     {
         $owner = $this->makeUser();

@@ -64,19 +64,28 @@ class ImportController extends Controller
             ]);
         }
 
-        $targetDeck = self::createBlankDeck($request->user(), $validated['format']);
+        // Wrap the deck creation, the CSV walk, and the final name update
+        // in a single transaction so a header / parser failure can't leave
+        // an empty placeholder deck behind. The inner transaction inside
+        // DeckCsvImportService::import becomes a savepoint, and any
+        // exception bubbling out of import() rolls everything back.
+        [$targetDeck, $results] = DB::transaction(function () use ($request, $validated, $source, $userSuppliedName) {
+            $deck = self::createBlankDeck($request->user(), $validated['format']);
 
-        $results = DeckCsvImportService::import(
-            $request->user(),
-            $targetDeck,
-            $validated['filename'],
-            $source,
-        );
+            $results = DeckCsvImportService::import(
+                $request->user(),
+                $deck,
+                $validated['filename'],
+                $source,
+            );
 
-        $finalName = $userSuppliedName !== ''
-            ? $userSuppliedName
-            : self::resolveAutoName($targetDeck);
-        $targetDeck->update(['name' => $finalName]);
+            $finalName = $userSuppliedName !== ''
+                ? $userSuppliedName
+                : self::resolveAutoName($deck);
+            $deck->update(['name' => $finalName]);
+
+            return [$deck, $results];
+        });
 
         return Inertia::render('Deck/Import/CsvImportPage', [
             'maxUploadBytes' => (int) config('cantrip.csv_upload.max_bytes'),
