@@ -26,27 +26,37 @@ export interface DeckActionsTarget {
     has_image: boolean;
 }
 
-const props = defineProps<{
-    /** Deck identity + the flags the delete-confirm summary needs. */
-    deck: DeckActionsTarget;
-    /**
-     * Effective collection-integration mode. When provided, drives "Set to
-     * finished": mode A patches the state directly, modes B and C open
-     * the wizard. When omitted, the state-flip items are hidden.
-     */
-    collectionMode?: "A" | "B" | "C";
-    /**
-     * All cards in the deck. When omitted (together with `categories` /
-     * `categoryNameMax`), the create-group + custom-groups items are
-     * hidden — useful for callers that don't have card-level data on hand
-     * (e.g. the deck-list row popover).
-     */
-    cards?: DeckCardRow[];
-    /** User-defined categories for this deck. */
-    categories?: DeckCategoryRow[];
-    /** Maximum length for a category name. */
-    categoryNameMax?: number;
-}>();
+const props = withDefaults(
+    defineProps<{
+        /** Deck identity + the flags the delete-confirm summary needs. */
+        deck: DeckActionsTarget;
+        /**
+         * True when the request user owns the deck. Owners see every
+         * action; non-owners (public-deck visitors) get a menu reduced
+         * to just "Download CSV". Defaults to true so the deck-list
+         * popover (own-decks page) doesn't have to pass it explicitly.
+         */
+        isOwner?: boolean;
+        /**
+         * Effective collection-integration mode. When provided, drives "Set to
+         * finished": mode A patches the state directly, modes B and C open
+         * the wizard. When omitted, the state-flip items are hidden.
+         */
+        collectionMode?: "A" | "B" | "C";
+        /**
+         * All cards in the deck. When omitted (together with `categories` /
+         * `categoryNameMax`), the create-group + custom-groups items are
+         * hidden — useful for callers that don't have card-level data on hand
+         * (e.g. the deck-list row popover).
+         */
+        cards?: DeckCardRow[];
+        /** User-defined categories for this deck. */
+        categories?: DeckCategoryRow[];
+        /** Maximum length for a category name. */
+        categoryNameMax?: number;
+    }>(),
+    { isOwner: true }
+);
 const { t } = useI18n();
 const popoverId = useId();
 const showCustomGroupsModal = ref(false);
@@ -90,6 +100,16 @@ function onEditSettings(): void {
 function onQrClick(): void {
     closePopover();
     router.visit(`/decks/${props.deck.id}/qr`);
+}
+/**
+ * Trigger the CSV export by navigating to the streaming endpoint. The
+ * server returns Content-Disposition: attachment, so the browser starts
+ * a download instead of a page navigation. We use a real link click so
+ * the download lands on the same tab without an Inertia round-trip.
+ */
+function onExportClick(): void {
+    closePopover();
+    window.location.href = `/decks/${props.deck.id}/export`;
 }
 /**
  * Flip the deck between private and public via the dedicated quick-toggle
@@ -157,49 +177,55 @@ function onDeleteClick(): void {
         width="14rem"
     >
         <ul class="popover-list">
-            <li>
+            <li v-if="isOwner">
                 <button class="popover-list-item" @click.prevent="onEditSettings">
                     <icon name="edit" :size="1" />
                     {{ $t("pages.create_deck.edit_link") }}
                 </button>
             </li>
-            <li>
+            <li v-if="isOwner">
                 <button class="popover-list-item" @click.prevent="onToggleVisibility">
                     <icon :name="deck.visibility === 'private' ? 'visibility-on' : 'visibility-off'" :size="1" />
                     {{ $t(deck.visibility === "private" ? "pages.decks.actions.set_public" : "pages.decks.actions.set_private") }}
                 </button>
             </li>
-            <li v-if="collectionMode !== undefined && deck.state === 'planned'">
+            <li v-if="isOwner && collectionMode !== undefined && deck.state === 'planned'">
                 <button class="popover-list-item" @click.prevent="onSetBuilt">
                     <icon name="finished" :size="1" />
                     {{ $t("pages.decks.actions.set_built") }}
                 </button>
             </li>
-            <li v-else-if="collectionMode !== undefined && deck.state === 'built'">
+            <li v-else-if="isOwner && collectionMode !== undefined && deck.state === 'built'">
                 <button class="popover-list-item" @click.prevent="onSetPlanned">
                     <icon name="planned" :size="1" />
                     {{ $t("pages.decks.actions.set_planned") }}
                 </button>
             </li>
-            <li v-if="showGroupActions">
+            <li v-if="isOwner && showGroupActions">
                 <button class="popover-list-item" @click.prevent="openCreateGroup">
                     <icon name="add" :size="1" />
                     {{ $t("pages.deck.create_group.link") }}
                 </button>
             </li>
-            <li v-if="showGroupActions">
+            <li v-if="isOwner && showGroupActions">
                 <button class="popover-list-item" @click.prevent="openCustomGroups">
                     <icon name="edit" :size="1" />
                     {{ $t("pages.deck.custom_groups.link") }}
                 </button>
             </li>
-            <li>
+            <li v-if="isOwner">
                 <button class="popover-list-item" @click.prevent="onQrClick">
                     <icon name="qr-code" :size="1" />
                     {{ $t("pages.deck_qr.link") }}
                 </button>
             </li>
             <li>
+                <button class="popover-list-item" @click.prevent="onExportClick">
+                    <icon name="download" :size="1" />
+                    {{ $t("pages.decks.actions.export") }}
+                </button>
+            </li>
+            <li v-if="isOwner">
                 <button class="popover-list-item popover-list-item--error" @click.prevent="onDeleteClick">
                     <icon name="delete" :size="1" />
                     {{ $t("pages.decks.actions.delete") }}

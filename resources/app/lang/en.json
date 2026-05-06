@@ -703,7 +703,8 @@
                 "archive": "Archive",
                 "unarchive": "Unarchive",
                 "set_planned": "Set to planned",
-                "set_built": "Set to finished"
+                "set_built": "Set to finished",
+                "export": "Download CSV"
             },
             "delete": {
                 "title": "Delete Deck {name}?",

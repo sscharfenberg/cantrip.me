@@ -703,7 +703,8 @@
                 "archive": "Archivieren",
                 "unarchive": "Wiederherstellen",
                 "set_planned": "Als geplant markieren",
-                "set_built": "Als fertig markieren"
+                "set_built": "Als fertig markieren",
+                "export": "CSV herunterladen"
             },
             "delete": {
                 "title": "Deck {name} löschen?",

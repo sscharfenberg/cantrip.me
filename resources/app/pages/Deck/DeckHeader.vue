@@ -81,8 +81,8 @@ const { t } = useI18n();
         <header class="deck-meta__name">
             {{ deck.name.toUpperCase() }}
             <deck-actions-menu
-                v-if="isOwner"
                 :deck="deckActionsTarget"
+                :is-owner="isOwner"
                 :cards="cards"
                 :categories="categories"
                 :category-name-max="categoryNameMax"

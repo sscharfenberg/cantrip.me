@@ -14,6 +14,7 @@ use App\Http\Controllers\Decks\DeckCategoryController;
 use App\Http\Controllers\Decks\DeckCommanderController;
 use App\Http\Controllers\Decks\DeckCompanionController;
 use App\Http\Controllers\Decks\DecksController;
+use App\Http\Controllers\Decks\ExportController as DeckExportController;
 use App\Http\Controllers\GuestController;
 use App\Http\Controllers\LocaleController;
 use App\Http\Controllers\User\CollectionIntegrationController;
@@ -217,6 +218,8 @@ Route::middleware(array_filter(['auth', Features::enabled(Features::emailVerific
  *****************************************************************************/
 Route::get('/decks/{deck}', [DecksController::class, 'show'])
     ->name('decks.show');
+Route::get('/decks/{deck}/export', [DeckExportController::class, 'deck'])
+    ->name('deck.export');
 Route::get('containers/{container}', [ContainerController::class, 'show'])
     ->name('container.show');
 Route::get('collection/cardstack/{cardStack}/preview', [CardStackPreviewController::class, 'show'])
