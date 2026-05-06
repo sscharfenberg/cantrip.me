@@ -2,9 +2,7 @@
 
 namespace App\Models;
 
-use App\Enums\CardLanguage;
 use App\Enums\DeckZone;
-use App\Enums\Finish;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -29,16 +27,12 @@ class DeckCard extends Model
         'category_id',
         'zone',
         'quantity',
-        'finish',
-        'language',
     ];
 
     protected function casts(): array
     {
         return [
             'zone' => DeckZone::class,
-            'finish' => Finish::class,
-            'language' => CardLanguage::class,
             'quantity' => 'integer',
         ];
     }

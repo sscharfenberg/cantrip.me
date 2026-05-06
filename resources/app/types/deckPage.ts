@@ -99,8 +99,6 @@ export interface DeckCardRow {
     is_mld: boolean;
     zone: string;
     quantity: number;
-    finish: string;
-    language: string;
     category_id: string | null;
     /**
      * Per-card collection status, computed only for owners in mode C

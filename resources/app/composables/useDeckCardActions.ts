@@ -269,8 +269,6 @@ export function useDeckCardActions(
                     && c.oracle_card_id === source.oracle_card_id
                     && c.default_card.id === source.default_card.id
                     && c.category_id === null
-                    && c.finish === source.finish
-                    && c.language === source.language
                 ) {
                     cards.splice(i, 1);
                 }

@@ -209,8 +209,6 @@ class DeckFinalizeService
                 'category_id' => $deckCard->category_id,
                 'zone' => $deckCard->zone->value,
                 'quantity' => $leftover,
-                'finish' => $deckCard->finish->value,
-                'language' => $deckCard->language->value,
             ]);
         }
 

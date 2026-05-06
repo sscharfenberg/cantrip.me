@@ -142,8 +142,6 @@ class DeckCardController extends Controller
                 ->where('oracle_card_id', $deckCard->oracle_card_id)
                 ->where('default_card_id', $deckCard->default_card_id)
                 ->where('zone', $targetZone)
-                ->where('finish', $deckCard->finish->value)
-                ->where('language', $deckCard->language->value)
                 ->whereNull('category_id')
                 ->orderBy('created_at')
                 ->get();
@@ -162,8 +160,6 @@ class DeckCardController extends Controller
                     'default_card_id' => $deckCard->default_card_id,
                     'zone' => $targetZone,
                     'quantity' => 1,
-                    'finish' => $deckCard->finish->value,
-                    'language' => $deckCard->language->value,
                     'category_id' => null,
                 ]);
             }
@@ -216,8 +212,6 @@ class DeckCardController extends Controller
                     'category_id' => $deckCard->category_id,
                     'zone' => $deckCard->zone->value,
                     'quantity' => $entry['quantity'],
-                    'finish' => $deckCard->finish->value,
-                    'language' => $deckCard->language->value,
                 ]);
             }
         });

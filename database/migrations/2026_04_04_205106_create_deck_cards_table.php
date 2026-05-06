@@ -1,6 +1,5 @@
 <?php
 
-use App\Enums\CardLanguage;
 use App\Enums\DeckZone;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
@@ -34,8 +33,6 @@ return new class extends Migration
             $table->string('zone', 16)
                 ->default(DeckZone::Main->value);
             $table->unsignedTinyInteger('quantity')->default(1);
-            $table->unsignedTinyInteger('finish')->default(1);
-            $table->string('language', 3)->default(CardLanguage::En->value);
             $table->timestamps();
 
             $table->index(['deck_id', 'zone']);

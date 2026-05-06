@@ -333,8 +333,6 @@ class DecksController extends Controller
             'is_mld' => (bool) $dc->oracleCard->mld,
             'zone' => $dc->zone->value,
             'quantity' => $dc->quantity,
-            'finish' => $dc->finish->value,
-            'language' => $dc->language->value,
             'category_id' => $dc->category_id,
             'collection_status' => $collectionStatuses[$dc->id] ?? null,
             'collection_implicit_status' => $collectionImplicitStatuses[$dc->id] ?? null,
