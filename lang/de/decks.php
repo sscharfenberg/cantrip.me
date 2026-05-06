@@ -26,8 +26,8 @@ return [
     'deck_updated' => 'Deck ":name" wurde aktualisiert.',
     'deck_deleted' => 'Deck ":name" wurde gelöscht.',
     'deck_hero_changed' => 'Bannerbild des Decks ":name" wurde auf ":card" geändert.',
-    'deck_visibility_public' => 'Deck ":name" ist jetzt öffentlich — jeder mit dem Link kann es ansehen.',
-    'deck_visibility_private' => 'Deck ":name" ist jetzt privat — nur du kannst es ansehen.',
+    'deck_visibility_public' => 'Deck ":name" ist jetzt öffentlich - jeder mit dem Link kann es ansehen.',
+    'deck_visibility_private' => 'Deck ":name" ist jetzt privat - nur du kannst es ansehen.',
     'deck_state_planned' => 'Deck ":name" ist jetzt geplant.',
     'deck_state_built' => 'Deck ":name" ist jetzt fertig.',
     'deck_state_archived' => 'Deck ":name" wurde archiviert.',
@@ -53,6 +53,7 @@ return [
 
     'import' => [
         'default_deck_name' => 'Importiertes Deck',
+        'default_deck_name_with_timestamp' => 'Importiertes Deck :timestamp',
     ],
 
 ];

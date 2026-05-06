@@ -273,7 +273,7 @@
             "deck_view": {
                 "headline": "Standard-Deckansicht",
                 "link": "Deckansicht",
-                "intro": "Wähle, welche Ansicht standardmäßig verwendet wird, wenn du ein Deck öffnest. Einzelne Decks merken sich ihre eigene Ansicht, sobald du sie änderst — diese Einstellung gilt nur für Decks ohne eigene Ansicht.",
+                "intro": "Wähle, welche Ansicht standardmäßig verwendet wird, wenn du ein Deck öffnest. Einzelne Decks merken sich ihre eigene Ansicht, sobald du sie änderst - diese Einstellung gilt nur für Decks ohne eigene Ansicht.",
                 "radio_label": "Standardansicht",
                 "apply_existing": "Auch auf bestehende Decks anwenden",
                 "apply_existing_hint": "Wenn aktiviert, werden alle bereits gesetzten Deck-Ansichten auf den neuen Standardwert zurückgesetzt.",
@@ -282,7 +282,7 @@
             "deck_sort": {
                 "headline": "Standard-Decksortierung",
                 "link": "Decksortierung",
-                "intro": "Wähle, welche Sortierung standardmäßig verwendet wird, wenn du ein Deck öffnest. Einzelne Decks merken sich ihre eigene Sortierung, sobald du sie änderst — diese Einstellung gilt nur für Decks ohne eigene Sortierung.",
+                "intro": "Wähle, welche Sortierung standardmäßig verwendet wird, wenn du ein Deck öffnest. Einzelne Decks merken sich ihre eigene Sortierung, sobald du sie änderst - diese Einstellung gilt nur für Decks ohne eigene Sortierung.",
                 "radio_label": "Standardsortierung",
                 "apply_existing": "Auch auf bestehende Decks anwenden",
                 "apply_existing_hint": "Wenn aktiviert, werden alle bereits gesetzten Deck-Sortierungen auf den neuen Standardwert zurückgesetzt.",
@@ -291,7 +291,7 @@
             "collection_integration": {
                 "headline": "Sammlung in Decks anzeigen",
                 "link": "Sammlungs-Integration",
-                "intro": "Cantrip kann pro Deck-Karte anzeigen, ob du ein physisches Exemplar in deiner Sammlung besitzt — und dir erlauben, beim Fertigstellen eines Decks gezielt Stapel zu reservieren.",
+                "intro": "Cantrip kann pro Deck-Karte anzeigen, ob du ein physisches Exemplar in deiner Sammlung besitzt - und dir erlauben, beim Fertigstellen eines Decks gezielt Stapel zu reservieren.",
                 "toggle_label": "Sammlungsstatus in meinen Decks anzeigen",
                 "help": "Aus hält die Deckansicht frei von Sammlungsindikatoren, selbst wenn deine Sammlung Karten enthält. Standard ist an; du kannst es jederzeit wieder einschalten.",
                 "submit": "Einstellung aktualisieren"
@@ -401,7 +401,7 @@
             "legal_interest_title": "Berechtigte Interessen (Art. 6 Abs. 1 S. 1 lit. f) DSGVO)",
             "legal_interest_text": "Die Verarbeitung ist zur Wahrung der berechtigten Interessen des Verantwortlichen oder eines Dritten notwendig, vorausgesetzt, dass die Interessen, Grundrechte und Grundfreiheiten der betroffenen Person, die den Schutz personenbezogener Daten verlangen, nicht überwiegen.",
             "national_regulations_title": "Nationale Datenschutzregelungen in Deutschland:",
-            "national_regulations_text": "Zusätzlich zu den Datenschutzregelungen der DSGVO gelten nationale Regelungen zum Datenschutz in Deutschland. Hierzu gehört insbesondere das Gesetz zum Schutz vor Missbrauch personenbezogener Daten bei der Datenverarbeitung (Bundesdatenschutzgesetz – BDSG). Das BDSG enthält insbesondere Spezialregelungen zum Recht auf Auskunft, zum Recht auf Löschung, zum Widerspruchsrecht, zur Verarbeitung besonderer Kategorien personenbezogener Daten, zur Verarbeitung für andere Zwecke und zur Übermittlung sowie automatisierten Entscheidungsfindung im Einzelfall einschließlich Profiling. Ferner können Landesdatenschutzgesetze der einzelnen Bundesländer zur Anwendung gelangen.",
+            "national_regulations_text": "Zusätzlich zu den Datenschutzregelungen der DSGVO gelten nationale Regelungen zum Datenschutz in Deutschland. Hierzu gehört insbesondere das Gesetz zum Schutz vor Missbrauch personenbezogener Daten bei der Datenverarbeitung (Bundesdatenschutzgesetz - BDSG). Das BDSG enthält insbesondere Spezialregelungen zum Recht auf Auskunft, zum Recht auf Löschung, zum Widerspruchsrecht, zur Verarbeitung besonderer Kategorien personenbezogener Daten, zur Verarbeitung für andere Zwecke und zur Übermittlung sowie automatisierten Entscheidungsfindung im Einzelfall einschließlich Profiling. Ferner können Landesdatenschutzgesetze der einzelnen Bundesländer zur Anwendung gelangen.",
             "security_measures": "Sicherheitsmaßnahmen",
             "security_measures_text_1": "Wir treffen nach Maßgabe der gesetzlichen Vorgaben unter Berücksichtigung des Stands der Technik, der Implementierungskosten und der Art, des Umfangs, der Umstände und der Zwecke der Verarbeitung sowie der unterschiedlichen Eintrittswahrscheinlichkeiten und des Ausmaßes der Bedrohung der Rechte und Freiheiten natürlicher Personen geeignete technische und organisatorische Maßnahmen, um ein dem Risiko angemessenes Schutzniveau zu gewährleisten.",
             "security_measures_text_2": "Zu den Maßnahmen gehören insbesondere die Sicherung der Vertraulichkeit, Integrität und Verfügbarkeit von Daten durch Kontrolle des physischen und elektronischen Zugangs zu den Daten als auch des sie betreffenden Zugriffs, der Eingabe, der Weitergabe, der Sicherung der Verfügbarkeit und ihrer Trennung. Des Weiteren haben wir Verfahren eingerichtet, die eine Wahrnehmung von Betroffenenrechten, die Löschung von Daten und Reaktionen auf die Gefährdung der Daten gewährleisten. Ferner berücksichtigen wir den Schutz personenbezogener Daten bereits bei der Entwicklung bzw. Auswahl von Hardware, Software sowie Verfahren entsprechend dem Prinzip des Datenschutzes, durch Technikgestaltung und durch datenschutzfreundliche Voreinstellungen.",
@@ -552,7 +552,7 @@
         "containers": {
             "title": "Meine Container",
             "link": "Meine Container",
-            "explanation": "Container sind das Rückgrat deiner Sammlung – organisiere deine Karten digital, genau wie du es mit den echten Pappkarten tust.",
+            "explanation": "Container sind das Rückgrat deiner Sammlung - organisiere deine Karten digital, genau wie du es mit den echten Pappkarten tust.",
             "none": "Du hast noch keine Container erstellt. Beginne deine Sammlung zu organisieren indem du welche erstellst!",
             "showing": "Zeige {filtered} / {total} Container.",
             "search": "Suchen",
@@ -694,6 +694,7 @@
             "file": "CSV-Datei",
             "submit": "Import starten",
             "source": "Quellformat",
+            "deck_name_placeholder": "Optional - leer lassen, um den Commander-Namen oder „Importiertes Deck <Zeitstempel>“ zu nutzen",
             "sources": {
                 "cantrip": "cantrip.me",
                 "archidekt": "Archidekt"
@@ -749,7 +750,7 @@
             "delete": {
                 "title": "Deck {name} löschen?",
                 "question": "Möchtest du dieses Deck wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.",
-                "warning": "Das Deck und alle enthaltenen Daten — Karten, Gefährte, Beschreibung und eigenes Deck-Bild — werden unwiderruflich gelöscht.",
+                "warning": "Das Deck und alle enthaltenen Daten - Karten, Gefährte, Beschreibung und eigenes Deck-Bild - werden unwiderruflich gelöscht.",
                 "aff": "Ja, löschen",
                 "neg": "Nein, abbrechen"
             }
@@ -813,7 +814,7 @@
                 "why": {
                     "master_switch_off": "Du hast die Sammlungs-Integration in den Einstellungen deaktiviert.",
                     "no_stacks": "Du hast noch keine Karten in deiner Sammlung.",
-                    "no_container": "Du hast für dieses Deck noch keine Deckbox gewählt — ohne Anker gibt es keinen impliziten Zählwert.",
+                    "no_container": "Du hast für dieses Deck noch keine Deckbox gewählt - ohne Anker gibt es keinen impliziten Zählwert.",
                     "implicit": "Du besitzt Karten, hast aber noch keine konkreten Exemplare für dieses Deck reserviert.",
                     "explicit_pinned": "Du hast mindestens ein Exemplar für dieses Deck reserviert (oder das Deck explizit auf exemplargenaues Tracking festgelegt)."
                 },
@@ -826,7 +827,7 @@
                     "set_container": "Deck bearbeiten",
                     "set_container_hint": "Wähle im Deck-Bearbeitungs-Formular eine Deckbox, damit die implizite Zählung einen Anker hat.",
                     "promote": "Auf exemplargenaues Tracking umstellen",
-                    "promote_hint": "Markiert das Deck so, dass der „Physisches Exemplar zuordnen“-Picker pro Karte verfügbar wird. Es werden keine Exemplare automatisch reserviert — du entscheidest pro Zeile.",
+                    "promote_hint": "Markiert das Deck so, dass der „Physisches Exemplar zuordnen“-Picker pro Karte verfügbar wird. Es werden keine Exemplare automatisch reserviert - du entscheidest pro Zeile.",
                     "clear": "Alle Reservierungen entfernen",
                     "clear_hint": "Trennt alle reservierten Stapel von diesem Deck und setzt es zurück auf implizites Tracking. Die Stapel selbst bleiben in deiner Sammlung erhalten.",
                     "clear_confirm_heading": "Alle Reservierungen entfernen?",
@@ -838,15 +839,15 @@
             "finalize": {
                 "title": "{name} fertigstellen",
                 "heading": "Ordne dem Deck physische Kartenstapel zu",
-                "intro": "Wähle die Stapel aus deiner Sammlung, die du für dieses Deck reservieren möchtest. Du kannst diesen Schritt komplett überspringen oder einzelne Zeilen leer lassen — du kannst jederzeit zurückkommen.",
+                "intro": "Wähle die Stapel aus deiner Sammlung, die du für dieses Deck reservieren möchtest. Du kannst diesen Schritt komplett überspringen oder einzelne Zeilen leer lassen - du kannst jederzeit zurückkommen.",
                 "col_needed": "Benötigt im Deck",
                 "col_assignment": "Aus deiner Sammlung zuordnen",
                 "no_match": "Kein passender Stapel in deiner Sammlung.",
                 "stack_label": "{type}: {name} (×{amount})",
                 "stack_unsorted": "Unsortiert (×{amount})",
                 "container_heading": "Container für dieses Deck",
-                "container_hint": "Optional. Eine Deck Box ist der empfohlene Container-Typ — Auswahl aus deiner Sammlung.",
-                "container_unset": "— Kein Container —",
+                "container_hint": "Optional. Eine Deck Box ist der empfohlene Container-Typ - Auswahl aus deiner Sammlung.",
+                "container_unset": "- Kein Container -",
                 "deckbox_hint": "Empfohlen",
                 "partial_coverage": "{claimed} von {needed} werden reserviert; der Rest bleibt offen.",
                 "buy_new": {
@@ -855,7 +856,7 @@
                     "fully_covered": "Bereits durch deine Auswahl gedeckt."
                 },
                 "submit": "Deck fertigstellen",
-                "skip": "Überspringen — ohne Reservierung fertigstellen",
+                "skip": "Überspringen - ohne Reservierung fertigstellen",
                 "back": "Zurück zum Deck"
             },
             "legality": {
@@ -863,9 +864,9 @@
                 "pool_legality": "{count} Karte ist in diesem Format nicht legal. | {count} Karten sind in diesem Format nicht legal.",
                 "copy_limit": "{count} Karte überschreitet das Maximum an erlaubten Kopieen. | {count} Karten überschreiten das Maximum an erlaubten Kopieen.",
                 "color_identity": "{count} Karte verletzt die Farbidentität des Commanders. | {count} Karten verletzen die Farbidentität des Commanders.",
-                "deck_size_min": "Das Hauptdeck hat {current} Karten – mindestens erforderlich sind {min}.",
-                "deck_size_max": "Das Hauptdeck hat {current} Karten – maximal erlaubt sind {max}.",
-                "sideboard_size_max": "Das Sideboard hat {current} Karten – maximal erlaubt sind {max}.",
+                "deck_size_min": "Das Hauptdeck hat {current} Karten - mindestens erforderlich sind {min}.",
+                "deck_size_max": "Das Hauptdeck hat {current} Karten - maximal erlaubt sind {max}.",
+                "sideboard_size_max": "Das Sideboard hat {current} Karten - maximal erlaubt sind {max}.",
                 "commander_banned": "{count} Commander ist in diesem Format gebannt. | {count} Commander sind in diesem Format gebannt.",
                 "companion_restriction": {
                     "gyruda": "{count} Karte verletzt Gyrudas Einschränkung (gerade Manakosten oder Land). | {count} Karten verletzen Gyrudas Einschränkung (gerade Manakosten oder Land).",
@@ -876,7 +877,7 @@
                     "lutri": "{count} Karte verletzt Lutris Singleton-Einschränkung. | {count} Karten verletzen Lutris Singleton-Einschränkung.",
                     "obosh": "{count} Karte verletzt Oboshs Einschränkung (ungerade Manakosten oder Land). | {count} Karten verletzen Oboshs Einschränkung (ungerade Manakosten oder Land).",
                     "umori": "{count} Nicht-Land-Karte bricht Umoris gemeinsamer-Kartentyp-Einschränkung. | {count} Nicht-Land-Karten brechen Umoris gemeinsamer-Kartentyp-Einschränkung.",
-                    "yorion": "Yorion benötigt mindestens {min} Karten im Startdeck — dein Deck hat {current}.",
+                    "yorion": "Yorion benötigt mindestens {min} Karten im Startdeck - dein Deck hat {current}.",
                     "zirda": "{count} bleibende Karte hat keine aktivierte Fähigkeit (Zirda). | {count} bleibende Karten haben keine aktivierte Fähigkeit (Zirda)."
                 }
             },
@@ -910,8 +911,8 @@
                     "outer": "Äußerer Ring: Kosten",
                     "inner": "Innerer Ring: Produktion",
                     "row": "{color} {count} Pips, {percent}% aller farbigen Pips",
-                    "cost_aria": "Kosten — {color}: {count} Pips ({percent}%)",
-                    "production_aria": "Produktion — {color}: {count} Pips ({percent}%)",
+                    "cost_aria": "Kosten - {color}: {count} Pips ({percent}%)",
+                    "production_aria": "Produktion - {color}: {count} Pips ({percent}%)",
                     "karsten": {
                         "title": "Manaquellen",
                         "sufficient": "{color} {have} Quellen, {need} empfohlen.",
@@ -968,8 +969,8 @@
             "create_group": {
                 "title": "Neue Gruppe erstellen",
                 "link": "Neue Gruppe",
-                "explanation": "Erstelle eine neue benutzerdefinierte Gruppe für die Karte {card} — danach kannst du weitere Karten in diese Gruppe ziehen. Nutze dies für Gruppen wie 'Interaktion', 'Massenentfernung', 'Kartenziehen' usw.",
-                "explanation_empty": "Erstelle eine neue benutzerdefinierte Gruppe — danach kannst du Karten in diese Gruppe ziehen. Nutze dies für Gruppen wie 'Interaktion', 'Massenentfernung', 'Kartenziehen' usw.",
+                "explanation": "Erstelle eine neue benutzerdefinierte Gruppe für die Karte {card} - danach kannst du weitere Karten in diese Gruppe ziehen. Nutze dies für Gruppen wie 'Interaktion', 'Massenentfernung', 'Kartenziehen' usw.",
+                "explanation_empty": "Erstelle eine neue benutzerdefinierte Gruppe - danach kannst du Karten in diese Gruppe ziehen. Nutze dies für Gruppen wie 'Interaktion', 'Massenentfernung', 'Kartenziehen' usw.",
                 "submit": "Gruppe erstellen"
             },
             "move_to_group": {
@@ -1025,7 +1026,7 @@
                 "no_stacks": "Du besitzt diesen Druck noch nicht.",
                 "currently_assigned": "Aktuell zugeordnet",
                 "claimed_by_other_deck": "Reserviert für {deck}",
-                "stack_label_with_container": "{container_type} — {container_name}",
+                "stack_label_with_container": "{container_type} - {container_name}",
                 "stack_label_unsorted": "Unsortiert",
                 "amount": "×{amount}",
                 "clear": "Zuordnung entfernen",
@@ -1161,8 +1162,8 @@
             "artist": "Künstler",
             "deck_name": "Deckname",
             "deck_visibility": "Sichtbarkeit",
-            "deck_visibility_private": "Privat – nur du kannst dieses Deck sehen.",
-            "deck_visibility_public": "Öffentlich – jeder mit dem Link kann dieses Deck sehen.",
+            "deck_visibility_private": "Privat - nur du kannst dieses Deck sehen.",
+            "deck_visibility_public": "Öffentlich - jeder mit dem Link kann dieses Deck sehen.",
             "deck_container": "Deckbox",
             "deck_container_hint": "Optional. Der Container, der die physischen Karten dieses Decks enthält. Eine Deckbox ist der empfohlene Container-Typ - Auswahl aus deiner Sammlung.",
             "deck_container_unset": "Nicht festgelegt",
@@ -1174,8 +1175,8 @@
             "deck_bracket_3": "Bracket 3 - Upgraded",
             "deck_bracket_4": "Bracket 4 - Optimized",
             "deck_bracket_5": "Bracket 5 - cEDH",
-            "deck_bracket_suggested_mld": "Empfohlenes Minimum: Bracket {minimum} — dein Deck enthält Massen Landzerstörung.",
-            "deck_bracket_suggested_gc": "Empfohlenes Minimum: Bracket {minimum} — dein Deck enthält {count} Game Changer.",
+            "deck_bracket_suggested_mld": "Empfohlenes Minimum: Bracket {minimum} - dein Deck enthält Massen Landzerstörung.",
+            "deck_bracket_suggested_gc": "Empfohlenes Minimum: Bracket {minimum} - dein Deck enthält {count} Game Changer.",
             "group_name": "Gruppenname",
             "format": "Format",
             "created_at": "Hinzugefügt",
@@ -1288,13 +1289,13 @@
             "title": "Commander auswählen",
             "no_results": "Keine Commander gefunden.",
             "color_identity": "Farbidentität",
-            "partner_tooltip": "Partner — du kannst einen zusätzlichen Commander auswählen",
+            "partner_tooltip": "Partner - du kannst einen zusätzlichen Commander auswählen",
             "partner_with_tooltip": "Partner mit {name}",
             "partner_with_label": "Partner hinzufügen: {name}",
-            "background_tooltip": "Hintergrund wählen — du kannst einen Hintergrund als zweiten Commander auswählen",
+            "background_tooltip": "Hintergrund wählen - du kannst einen Hintergrund als zweiten Commander auswählen",
             "include_rule0": "Einschließlich Rule 0 / nicht-legale Commander",
             "selected": "Ausgewählter Commander",
-            "is_also_companion_hint": "{name} ist außerdem eine „Gefährten\"-Karte. Als Commander zählt sie nicht automatisch als dein Gefährte — du kannst trotzdem einen separaten Gefährten zu diesem Deck hinzufügen.",
+            "is_also_companion_hint": "{name} ist außerdem eine „Gefährten\"-Karte. Als Commander zählt sie nicht automatisch als dein Gefährte - du kannst trotzdem einen separaten Gefährten zu diesem Deck hinzufügen.",
             "change": "Ändern",
             "change_commander_and_partner": "Commander und Partner ändern",
             "change_commander_and_friends_forever": "Commander und Freund ändern",
@@ -1305,19 +1306,19 @@
             "partner_no_results": "Keine Partner-Commander gefunden.",
             "partner_change": "Partner ändern",
             "partner_select": "Partner wählen",
-            "friends_forever_tooltip": "Friends forever — du kannst einen zusätzlichen Commander mit Friends forever auswählen",
+            "friends_forever_tooltip": "Friends forever - du kannst einen zusätzlichen Commander mit Friends forever auswählen",
             "friends_forever_search": "Freund suchen",
             "friends_forever_selected": "Ausgewählter Freund",
             "friends_forever_no_results": "Keine Friends-forever-Commander gefunden.",
             "friends_forever_change": "Freund ändern",
             "friends_forever_select": "Select friend",
-            "doctors_companion_tooltip": "Time Lord Doctor — du kannst einen Doctor's Companion als Partner auswählen",
+            "doctors_companion_tooltip": "Time Lord Doctor - du kannst einen Doctor's Companion als Partner auswählen",
             "doctors_companion_search": "Partner suchen",
             "doctors_companion_selected": "Ausgewählter Partner",
             "doctors_companion_no_results": "Keine Doctor's Companions gefunden.",
             "doctors_companion_change": "Partner ändern",
             "doctors_companion_select": "Companion wählen",
-            "partner_type_tooltip": "Partner—{type} — du kannst einen zusätzlichen Commander mit Partner—{type} auswählen",
+            "partner_type_tooltip": "Partner-{type} - du kannst einen zusätzlichen Commander mit Partner-{type} auswählen",
             "partner_type_search": "Partner suchen",
             "partner_type_selected": "Ausgewählter Partner",
             "partner_type_no_results": "Keine passenden Partner gefunden.",
@@ -1354,7 +1355,7 @@
             "commander": "Benötigt einen Commander. Der Commander zählt zur Deckgröße und startet in der Commandzone.",
             "commander_partners": "Benötigt einen Commander. Zwei Partner-Commander dürfen sich den Slot teilen; beide zählen zur Deckgröße und starten in der Commandzone.",
             "color_identity": "Alle Karten müssen innerhalb der Farbidentität des Commanders liegen.",
-            "signature_spell": "Benötigt einen Signature Spell – einen Spontanzauber oder eine Hexerei in der Farbidentität des Oathbreakers. Er zählt zur Deckgröße und wird aus der Commandzone gewirkt, während der Oathbreaker im Spiel ist."
+            "signature_spell": "Benötigt einen Signature Spell - einen Spontanzauber oder eine Hexerei in der Farbidentität des Oathbreakers. Er zählt zur Deckgröße und wird aus der Commandzone gewirkt, während der Oathbreaker im Spiel ist."
         },
         "rulings": {
             "title": "Rulings"

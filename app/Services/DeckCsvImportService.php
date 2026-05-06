@@ -427,17 +427,13 @@ class DeckCsvImportService
      */
     private static function validateRequiredHeaders(DeckCsvRowMapper $mapper, array $headerMap, $handle): void
     {
-        $missing = [];
         foreach ($mapper->requiredHeaders() as $required) {
             if (! array_key_exists($required, $headerMap)) {
-                $missing[] = $required;
+                fclose($handle);
+                throw ValidationException::withMessages([
+                    'filename' => [__('validation.custom.file.wrong_source_format')],
+                ]);
             }
-        }
-        if ($missing !== []) {
-            fclose($handle);
-            throw ValidationException::withMessages([
-                'filename' => [__('validation.custom.file.csv_missing_headers', ['headers' => implode(', ', $missing)])],
-            ]);
         }
     }
 

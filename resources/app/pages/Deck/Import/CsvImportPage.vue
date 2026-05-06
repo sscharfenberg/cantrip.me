@@ -21,6 +21,8 @@ const props = defineProps<{
     sources: string[];
     /** All available CardFormat values, for the format dropdown. */
     formats: string[];
+    /** Maximum length of `decks.name` (Deck::NAME_MAX). */
+    nameMax: number;
     /** Import results from the controller, null on initial GET. */
     results?: {
         imported: number;
@@ -52,6 +54,7 @@ const formatOptions = computed(() =>
 );
 const selectedSource = ref<string>(props.sources.includes("cantrip") ? "cantrip" : props.sources[0]);
 const selectedFormat = ref<string>("");
+const deckName = ref<string>("");
 /** Server-generated tmp filename, set after the XHR upload succeeds. */
 const uploadedFilename = ref("");
 /** XHR upload error (file too large, not parseable, etc.). */
@@ -117,6 +120,24 @@ const canSubmit = computed(() => Boolean(uploadedFilename.value) && !isUploading
                     @change="selectedFormat = $event"
                 />
                 <input type="hidden" name="format" v-model="selectedFormat" />
+            </form-group>
+
+            <form-group
+                for-id="deck_name"
+                :label="$t('form.fields.deck_name')"
+                :error="errors.deck_name ?? ''"
+                :invalid="!!errors.deck_name"
+                addon-icon="container-name"
+            >
+                <input
+                    v-model="deckName"
+                    type="text"
+                    name="deck_name"
+                    id="deck_name"
+                    class="form-input"
+                    :maxlength="nameMax"
+                    :placeholder="$t('pages.deck_import.deck_name_placeholder')"
+                />
             </form-group>
 
             <form-group

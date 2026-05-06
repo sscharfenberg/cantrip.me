@@ -10,6 +10,7 @@ use App\Http\Requests\Decks\StoreDeckImportRequest;
 use App\Models\Deck;
 use App\Models\User;
 use App\Services\DeckCsvImportService;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
@@ -31,6 +32,7 @@ class ImportController extends Controller
             'allowedTypes' => config('cantrip.csv_upload.allowed_types'),
             'sources' => array_column(DeckImportSource::cases(), 'value'),
             'formats' => array_column(CardFormat::cases(), 'value'),
+            'nameMax' => Deck::NAME_MAX,
             'results' => null,
         ]);
     }
@@ -40,7 +42,9 @@ class ImportController extends Controller
      *
      * Both source paths (cantrip + Archidekt) mint a brand-new deck
      * with the chosen format, then hand off to
-     * {@see DeckCsvImportService::import} which walks the CSV.
+     * {@see DeckCsvImportService::import} which walks the CSV. The
+     * deck's final name is resolved after import so commander-based
+     * auto-naming has access to the just-inserted commander rows.
      *
      * @throws ValidationException When the upload doesn't exist on the
      *                             tmp disk or the CSV is unparseable /
@@ -50,6 +54,9 @@ class ImportController extends Controller
     {
         $validated = $request->validated();
         $source = DeckImportSource::from($validated['source']);
+        $userSuppliedName = isset($validated['deck_name'])
+            ? trim($validated['deck_name'])
+            : '';
 
         if (! Storage::disk('tmp')->exists($validated['filename'])) {
             throw ValidationException::withMessages([
@@ -66,11 +73,17 @@ class ImportController extends Controller
             $source,
         );
 
+        $finalName = $userSuppliedName !== ''
+            ? $userSuppliedName
+            : self::resolveAutoName($targetDeck);
+        $targetDeck->update(['name' => $finalName]);
+
         return Inertia::render('Deck/Import/CsvImportPage', [
             'maxUploadBytes' => (int) config('cantrip.csv_upload.max_bytes'),
             'allowedTypes' => config('cantrip.csv_upload.allowed_types'),
             'sources' => array_column(DeckImportSource::cases(), 'value'),
             'formats' => array_column(CardFormat::cases(), 'value'),
+            'nameMax' => Deck::NAME_MAX,
             'results' => $results + [
                 'deck' => [
                     'id' => $targetDeck->id,
@@ -86,7 +99,8 @@ class ImportController extends Controller
      * Minted directly via Eloquent rather than {@see DeckService::createDeck},
      * because that service enforces "format X requires a commander" —
      * for an import, the commanders (if any) arrive *after* the deck
-     * is created, when the import service walks the CSV.
+     * is created, when the import service walks the CSV. The name is
+     * a placeholder; {@see store} replaces it once the import is done.
      */
     private static function createBlankDeck(User $user, string $format): Deck
     {
@@ -97,5 +111,41 @@ class ImportController extends Controller
             'colors' => null,
             'bracket' => null,
         ]);
+    }
+
+    /**
+     * Resolve the deck's auto-name when the user didn't supply one.
+     *
+     * For commander-like formats: the name of the first non-partner
+     * commander on the deck (Atraxa for partners, the planeswalker for
+     * Oathbreaker, etc.). Falls back to the timestamped default when
+     * the import didn't yield a primary commander.
+     *
+     * For all other formats: "Imported Deck {locale-formatted now()}".
+     */
+    private static function resolveAutoName(Deck $deck): string
+    {
+        if ($deck->format->rules()->requiresCommander()) {
+            $primaryCommanderName = DB::table('commanders')
+                ->join('oracle_cards', 'oracle_cards.id', '=', 'commanders.oracle_card_id')
+                ->where('commanders.deck_id', $deck->id)
+                ->where('commanders.is_partner', false)
+                ->orderBy('commanders.created_at')
+                ->orderBy('oracle_cards.name')
+                ->value('oracle_cards.name');
+            if (is_string($primaryCommanderName) && $primaryCommanderName !== '') {
+                return mb_substr($primaryCommanderName, 0, Deck::NAME_MAX);
+            }
+        }
+
+        $timestamp = now()
+            ->locale(app()->getLocale())
+            ->isoFormat('L LT');
+
+        return mb_substr(
+            __('decks.import.default_deck_name_with_timestamp', ['timestamp' => $timestamp]),
+            0,
+            Deck::NAME_MAX,
+        );
     }
 }

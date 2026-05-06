@@ -69,6 +69,7 @@ return [
             'max' => 'Die Datei darf nicht größer als :max MB sein.',
             'csv_not_parseable' => 'Die Datei scheint keine gültige CSV-Datei zu sein.',
             'missing_headers' => 'Der CSV-Datei fehlen erforderliche Spalten: :headers',
+            'wrong_source_format' => 'Die hochgeladene Datei passt nicht zum gewählten Quellformat. Bitte prüfe, ob die Datei dem ausgewählten Quellformat entspricht.',
             'not_found' => 'Die hochgeladene Datei wurde nicht gefunden. Bitte erneut hochladen.',
         ],
     ],

@@ -18,6 +18,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -113,6 +114,78 @@ class DeckCsvImportTest extends TestCase
         $newDeck = Deck::query()->where('user_id', $owner->id)->orderByDesc('created_at')->first();
         $this->assertSame(CardFormat::Legacy->value, $newDeck->format->value);
         $this->assertSame(1, DeckCard::query()->where('deck_id', $newDeck->id)->count());
+    }
+
+    #[Test]
+    public function user_supplied_deck_name_wins_over_auto_naming(): void
+    {
+        $owner = $this->makeUser();
+        $bolt = $this->makeOracleCard('Lightning Bolt');
+        $boltPrint = $this->makeDefaultCard($bolt, 'lea', '161');
+
+        $csv = "Role,Deck Card ID,Scryfall ID,Name,Edition,Collector Number,Count,Zone,Category,Is Partner,Card Stack ID\n"
+            ."card,,{$boltPrint->id},Lightning Bolt,LEA,161,4,main,,,\n";
+        $filename = $this->stashCsv($csv);
+
+        $this->actingAs($owner)
+            ->post('/decks/import', [
+                'source' => 'cantrip',
+                'format' => CardFormat::Legacy->value,
+                'deck_name' => '  My Burn Deck  ',
+                'filename' => $filename,
+            ])
+            ->assertOk();
+
+        $newDeck = Deck::query()->where('user_id', $owner->id)->orderByDesc('created_at')->first();
+        $this->assertSame('My Burn Deck', $newDeck->name);
+    }
+
+    #[Test]
+    public function commander_format_without_user_name_inherits_primary_commander_name(): void
+    {
+        $owner = $this->makeUser();
+        $atraxa = $this->makeOracleCard('Atraxa, Praetors\' Voice');
+        $atraxaPrint = $this->makeDefaultCard($atraxa, 'cmr', '347');
+
+        $csv = "Role,Deck Card ID,Scryfall ID,Name,Edition,Collector Number,Count,Zone,Category,Is Partner,Card Stack ID\n"
+            ."commander,,{$atraxaPrint->id},Atraxa,CMR,347,1,,,false,\n";
+        $filename = $this->stashCsv($csv);
+
+        $this->actingAs($owner)
+            ->post('/decks/import', [
+                'source' => 'cantrip',
+                'format' => CardFormat::Commander->value,
+                'filename' => $filename,
+            ])
+            ->assertOk();
+
+        $newDeck = Deck::query()->where('user_id', $owner->id)->orderByDesc('created_at')->first();
+        $this->assertSame('Atraxa, Praetors\' Voice', $newDeck->name);
+    }
+
+    #[Test]
+    public function non_commander_format_without_user_name_falls_back_to_timestamped_default(): void
+    {
+        $owner = $this->makeUser();
+        $owner->update(['locale' => 'en']);
+        $bolt = $this->makeOracleCard('Lightning Bolt');
+        $boltPrint = $this->makeDefaultCard($bolt, 'lea', '161');
+
+        $csv = "Role,Deck Card ID,Scryfall ID,Name,Edition,Collector Number,Count,Zone,Category,Is Partner,Card Stack ID\n"
+            ."card,,{$boltPrint->id},Lightning Bolt,LEA,161,4,main,,,\n";
+        $filename = $this->stashCsv($csv);
+
+        $this->actingAs($owner)
+            ->post('/decks/import', [
+                'source' => 'cantrip',
+                'format' => CardFormat::Modern->value,
+                'filename' => $filename,
+            ])
+            ->assertOk();
+
+        $newDeck = Deck::query()->where('user_id', $owner->id)->orderByDesc('created_at')->first();
+        $this->assertStringStartsWith('Imported deck ', $newDeck->name);
+        $this->assertNotSame('Imported deck', $newDeck->name);
     }
 
     #[Test]
@@ -302,6 +375,33 @@ class DeckCsvImportTest extends TestCase
         DeckCsvImportService::import($owner, $deck, $filename, DeckImportSource::Archidekt);
 
         $this->assertSame(1, DB::table('commanders')->where('deck_id', $deck->id)->count());
+    }
+
+    #[Test]
+    public function uploading_a_file_that_does_not_match_the_chosen_source_format_is_reported(): void
+    {
+        app()->setLocale('en');
+
+        $owner = $this->makeUser();
+        $deck = $this->makeDeck($owner, ContainerVisibility::Private);
+
+        // Cantrip-flavored CSV (uses "Edition" / "Count"), uploaded as Archidekt
+        // (which expects "Edition Code" / "Quantity"). The header check should
+        // surface the wrong-source-format message rather than the raw missing
+        // headers list.
+        $csv = "Role,Scryfall ID,Name,Edition,Collector Number,Count,Zone\n"
+            ."card,abc,Lightning Bolt,LEA,161,4,main\n";
+        $filename = $this->stashCsv($csv);
+
+        try {
+            DeckCsvImportService::import($owner, $deck, $filename, DeckImportSource::Archidekt);
+            $this->fail('Expected ValidationException for wrong source format.');
+        } catch (ValidationException $e) {
+            $this->assertArrayHasKey('filename', $e->errors());
+            $message = $e->errors()['filename'][0];
+            $this->assertStringContainsString('does not match the chosen source format', $message);
+            $this->assertStringNotContainsString('validation.custom.file', $message);
+        }
     }
 
     #[Test]

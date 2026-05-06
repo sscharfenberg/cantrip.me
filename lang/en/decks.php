@@ -26,8 +26,8 @@ return [
     'deck_updated' => 'Deck ":name" has been updated.',
     'deck_deleted' => 'Deck ":name" has been deleted.',
     'deck_hero_changed' => 'Changed hero image of deck ":name" to ":card".',
-    'deck_visibility_public' => 'Deck ":name" is now public — anyone with the link can view it.',
-    'deck_visibility_private' => 'Deck ":name" is now private — only you can view it.',
+    'deck_visibility_public' => 'Deck ":name" is now public - anyone with the link can view it.',
+    'deck_visibility_private' => 'Deck ":name" is now private - only you can view it.',
     'deck_state_planned' => 'Deck ":name" is now planned.',
     'deck_state_built' => 'Deck ":name" is now finished.',
     'deck_state_archived' => 'Deck ":name" has been archived.',
@@ -53,6 +53,7 @@ return [
 
     'import' => [
         'default_deck_name' => 'Imported deck',
+        'default_deck_name_with_timestamp' => 'Imported deck :timestamp',
     ],
 
 ];
