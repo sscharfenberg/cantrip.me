@@ -235,7 +235,7 @@ function onDeleteClick(): void {
                     {{ $t("pages.deck.custom_groups.link") }}
                 </button>
             </li>
-            <li v-if="isOwner && containers !== undefined && deck.state !== 'built'">
+            <li v-if="isOwner">
                 <button class="popover-list-item" @click.prevent="openAddAllToCollection">
                     <icon name="add-all" :size="1" />
                     {{ $t("pages.deck.add_all_to_collection.link") }}

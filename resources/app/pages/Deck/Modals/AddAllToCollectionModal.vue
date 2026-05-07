@@ -5,7 +5,7 @@
  * that has no pivot row yet and attaches them, optionally pinning the
  * deck to Built and/or routing the new stacks into a chosen container.
  *****************************************************************************/
-import { useForm } from "@inertiajs/vue3";
+import { router, useForm } from "@inertiajs/vue3";
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 import Checkbox from "Components/Form/Checkbox.vue";
@@ -49,7 +49,17 @@ const containerOptions = computed(() =>
 function submit(): void {
     form.post(`/decks/${props.deckId}/add-all-to-collection`, {
         preserveScroll: true,
-        onSuccess: () => emit("close")
+        onSuccess: () => {
+            emit("close");
+            // The redirect already revisits the deck show page, but
+            // observed in practice that command-zone rows occasionally
+            // miss the freshly-claimed badge until the next render —
+            // an explicit reload of the relevant props fixes the
+            // partial-update without a hard refresh.
+            router.reload({
+                only: ["commanders", "companion", "cards", "deck", "collectionMode", "collectionBadgeMode"]
+            });
+        }
     });
 }
 </script>
