@@ -837,6 +837,17 @@
                     "clear_cancel": "Abbrechen"
                 }
             },
+            "add_all_to_collection": {
+                "link": "Alle Karten zur Sammlung hinzufügen",
+                "title": "Alle Karten zur Sammlung hinzufügen",
+                "explanation": "Füge in einem Schritt alle Karten dieses Decks zu deiner Sammlung hinzu, die noch nicht reserviert sind. Pro Zeile wird ein frischer Stapel angelegt und für dieses Deck reserviert. Bereits bestehende Reservierungen bleiben unangetastet.",
+                "container_label": "Container",
+                "container_hint": "Optional - alle neu angelegten Stapel landen in diesem Container. Leer lassen, um sie unsortiert anzulegen.",
+                "container_unset": "- Kein Container -",
+                "deckbox_hint": "Empfohlen",
+                "set_built_label": "Den Status dieses Decks zusätzlich auf „fertig\" setzen",
+                "submit": "Alle hinzufügen"
+            },
             "finalize": {
                 "title": "{name} fertigstellen",
                 "heading": "Ordne dem Deck physische Kartenstapel zu",

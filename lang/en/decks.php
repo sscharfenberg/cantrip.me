@@ -36,6 +36,10 @@ return [
         'flash_built' => 'Deck ":name" is finished.',
     ],
 
+    'add_all_to_collection' => [
+        'flash_success' => 'All cards from deck ":name" have been added to your collection.',
+    ],
+
     'collection_mode' => [
         'promoted_flash' => 'Deck ":name" is now using per-copy tracking.',
         'cleared_flash' => 'All collection assignments cleared from ":name".',

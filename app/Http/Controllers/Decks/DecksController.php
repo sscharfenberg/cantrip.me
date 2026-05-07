@@ -12,6 +12,7 @@ use App\Enums\Locale;
 use App\Enums\Scryfall\ScryfallRelatedComponent;
 use App\Formats\FormatProfile;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Decks\AddAllToCollectionRequest;
 use App\Http\Requests\Decks\ClearDeckCollectionAssignmentsRequest;
 use App\Http\Requests\Decks\DeckQrSvgRequest;
 use App\Http\Requests\Decks\DeleteDeckRequest;
@@ -35,6 +36,7 @@ use App\Models\DefaultCardRelation;
 use App\Models\OracleCard;
 use App\Services\BracketSuggestionService;
 use App\Services\CommandZoneService;
+use App\Services\DeckBulkAddCollectionService;
 use App\Services\DeckCollectionModeService;
 use App\Services\DeckCollectionStatusService;
 use App\Services\DeckFinalizeService;
@@ -279,6 +281,7 @@ class DecksController extends Controller
         $collectionStatuses = [];
         $collectionImplicitStatuses = [];
         $collectionModeContext = null;
+        $containers = collect();
         if ($request->user()?->id === $deck->user_id) {
             $collectionMode = DeckCollectionStatusService::effectiveMode($request->user(), $deck);
             if ($collectionMode === DeckCollectionStatusService::MODE_C) {
@@ -321,6 +324,21 @@ class DecksController extends Controller
                 'has_container' => $deck->container_id !== null,
                 'claimed_count' => $claimedCount,
             ];
+
+            // Container picker options for the owner-only "Add all to
+            // collection" modal — same shape as the finalize wizard ships
+            // (deckboxes pinned to the top via `is_deckbox`).
+            $containers = $request->user()->containers()
+                ->orderBy('sort_order')
+                ->get(['id', 'name', 'type'])
+                ->map(fn (Container $c) => [
+                    'id' => $c->id,
+                    'name' => $c->name,
+                    'type' => $c->type->value,
+                    'is_deckbox' => $c->type === ContainerType::Deckbox,
+                ])
+                ->sortByDesc('is_deckbox')
+                ->values();
         }
 
         $cardCount = (int) $deck->deckCards->sum('quantity') + $deck->commanders->count();
@@ -525,6 +543,7 @@ class DecksController extends Controller
             'collectionMode' => $collectionMode,
             'collectionBadgeMode' => $collectionBadgeMode,
             'collectionModeContext' => $collectionModeContext,
+            'containers' => $containers,
             'tokens' => $tokens,
         ]);
     }
@@ -967,6 +986,33 @@ class DecksController extends Controller
 
         $request->session()->flash('message', __(
             'decks.collection_mode.cleared_flash',
+            ['name' => $deck->name],
+        ));
+        $request->session()->flash('type', 'success');
+
+        return redirect(route('decks.show', $deck));
+    }
+
+    /**
+     * Bulk-add every deck card without an existing pivot row to the user's
+     * collection — owner-only "Add all cards to collection" action.
+     *
+     * For each deck_card with no claimed stacks, mints a fresh card_stack
+     * (language en / nonfoil / no condition, optional container_id) and
+     * attaches it via the pivot. Pins the deck to mode C as a side effect
+     * whenever any pivot row is written. With `set_built` true, also flips
+     * planned → built.
+     */
+    public function addAllToCollection(AddAllToCollectionRequest $request, Deck $deck): RedirectResponse
+    {
+        $validated = $request->validated();
+        $containerId = $validated['container_id'] ?? null;
+        $setBuilt = (bool) ($validated['set_built'] ?? false);
+
+        DeckBulkAddCollectionService::addAll($deck, $containerId, $setBuilt);
+
+        $request->session()->flash('message', __(
+            'decks.add_all_to_collection.flash_success',
             ['name' => $deck->name],
         ));
         $request->session()->flash('type', 'success');

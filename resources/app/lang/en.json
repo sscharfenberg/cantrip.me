@@ -837,6 +837,17 @@
                     "clear_cancel": "Cancel"
                 }
             },
+            "add_all_to_collection": {
+                "link": "Add all cards to collection",
+                "title": "Add all cards to collection",
+                "explanation": "Bulk-add every card in this deck that isn't already claimed from your collection. A fresh stack is created for each row and reserved for this deck. Existing claims are left alone.",
+                "container_label": "Container",
+                "container_hint": "Optional - all newly created stacks will land in this container. Leave empty to add them as unsorted.",
+                "container_unset": "- No container -",
+                "deckbox_hint": "Recommended",
+                "set_built_label": "Also set this deck's state to finished",
+                "submit": "Add all to collection"
+            },
             "finalize": {
                 "title": "Finalize {name}",
                 "heading": "Please assign physical card stacks to finalize the deck",

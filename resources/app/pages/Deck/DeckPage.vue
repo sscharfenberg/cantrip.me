@@ -71,6 +71,11 @@ const props = defineProps<{
         claimed_count: number;
     } | null;
     /**
+     * Owner's containers — drives the "Add all cards to collection" modal
+     * inside `DeckActionsMenu`. Empty array for non-owners.
+     */
+    containers: { id: string; name: string; type: string; is_deckbox: boolean }[];
+    /**
      * Tokens (and other `all_parts` printing edges) created by cards inDeckSta
      * this deck — already deduped on the related printing id and
      * sorted alphabetically server-side.
@@ -130,6 +135,7 @@ const cardNameByDefaultCardId = computed<Record<string, string>>(() => {
         :collection-mode="collectionMode"
         :collection-badge-mode="collectionBadgeMode"
         :collection-mode-context="collectionModeContext"
+        :containers="containers"
     />
     <deck-navigation
         :deck="deck"

@@ -7,9 +7,18 @@ import type { DeleteDeckTarget } from "@/utils/deleteDeck.ts";
 import Icon from "Components/UI/Icon.vue";
 import PopOver from "Components/UI/PopOver.vue";
 import type { DeckCardRow, DeckCategoryRow } from "Types/deckPage.ts";
+import AddAllToCollectionModal from "../Modals/AddAllToCollectionModal.vue";
 import DeckAddGroupModal from "../Modals/DeckAddGroupModal.vue";
 import DeckCustomGroupsModal from "../Modals/DeckCustomGroupsModal.vue";
 import DeleteDeckModal from "../Modals/DeleteDeckModal.vue";
+
+/** Container option shipped to the AddAllToCollectionModal dropdown. */
+export interface DeckActionsContainer {
+    id: string;
+    name: string;
+    type: string;
+    is_deckbox: boolean;
+}
 
 /**
  * Lean deck shape this menu needs. Both the deck-show page (DeckMeta +
@@ -54,6 +63,12 @@ const props = withDefaults(
         categories?: DeckCategoryRow[];
         /** Maximum length for a category name. */
         categoryNameMax?: number;
+        /**
+         * Owner's containers — when provided, drives the "Add all cards to
+         * collection" entry. Omitted from the deck-list popover (which has
+         * no need for the bulk-add modal).
+         */
+        containers?: DeckActionsContainer[];
     }>(),
     { isOwner: true }
 );
@@ -62,11 +77,9 @@ const popoverId = useId();
 const showCustomGroupsModal = ref(false);
 const showCreateGroupModal = ref(false);
 const showDeleteModal = ref(false);
+const showAddAllToCollectionModal = ref(false);
 const showGroupActions = computed(
-    () =>
-        props.cards !== undefined
-        && props.categories !== undefined
-        && props.categoryNameMax !== undefined
+    () => props.cards !== undefined && props.categories !== undefined && props.categoryNameMax !== undefined
 );
 const deleteTarget = computed<DeleteDeckTarget>(() => ({
     id: props.deck.id,
@@ -90,6 +103,11 @@ function openCustomGroups(): void {
 function openCreateGroup(): void {
     closePopover();
     showCreateGroupModal.value = true;
+}
+/** Open the bulk "Add all cards to collection" modal and close the popover. */
+function openAddAllToCollection(): void {
+    closePopover();
+    showAddAllToCollectionModal.value = true;
 }
 /** Navigate to the deck-settings edit page. */
 function onEditSettings(): void {
@@ -130,11 +148,7 @@ function onToggleVisibility(): void {
 function onSetBuilt(): void {
     closePopover();
     if (props.collectionMode === "A" || props.collectionMode === undefined) {
-        router.patch(
-            `/decks/${props.deck.id}/state`,
-            { state: "built" },
-            { preserveScroll: true }
-        );
+        router.patch(`/decks/${props.deck.id}/state`, { state: "built" }, { preserveScroll: true });
         return;
     }
     router.visit(`/decks/${props.deck.id}/finalize`);
@@ -148,11 +162,7 @@ function onSetBuilt(): void {
  */
 function onSetPlanned(): void {
     closePopover();
-    router.patch(
-        `/decks/${props.deck.id}/state`,
-        { state: "planned" },
-        { preserveScroll: true }
-    );
+    router.patch(`/decks/${props.deck.id}/state`, { state: "planned" }, { preserveScroll: true });
 }
 /**
  * Delete button handler. Skips the confirm prompt for an effectively-empty
@@ -192,7 +202,13 @@ function onDeleteClick(): void {
             <li v-if="isOwner">
                 <button class="popover-list-item" @click.prevent="onToggleVisibility">
                     <icon :name="deck.visibility === 'private' ? 'visibility-on' : 'visibility-off'" :size="1" />
-                    {{ $t(deck.visibility === "private" ? "pages.decks.actions.set_public" : "pages.decks.actions.set_private") }}
+                    {{
+                        $t(
+                            deck.visibility === "private"
+                                ? "pages.decks.actions.set_public"
+                                : "pages.decks.actions.set_private"
+                        )
+                    }}
                 </button>
             </li>
             <li v-if="isOwner && collectionMode !== undefined && deck.state === 'planned'">
@@ -217,6 +233,12 @@ function onDeleteClick(): void {
                 <button class="popover-list-item" @click.prevent="openCustomGroups">
                     <icon name="edit" :size="1" />
                     {{ $t("pages.deck.custom_groups.link") }}
+                </button>
+            </li>
+            <li v-if="isOwner && containers !== undefined && deck.state !== 'built'">
+                <button class="popover-list-item" @click.prevent="openAddAllToCollection">
+                    <icon name="add-all" :size="1" />
+                    {{ $t("pages.deck.add_all_to_collection.link") }}
                 </button>
             </li>
             <li v-if="isOwner">
@@ -254,4 +276,10 @@ function onDeleteClick(): void {
         @close="showCreateGroupModal = false"
     />
     <delete-deck-modal v-if="showDeleteModal" :target="deleteTarget" @close="showDeleteModal = false" />
+    <add-all-to-collection-modal
+        v-if="showAddAllToCollectionModal && containers !== undefined"
+        :deck-id="props.deck.id"
+        :containers="containers"
+        @close="showAddAllToCollectionModal = false"
+    />
 </template>

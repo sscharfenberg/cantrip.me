@@ -11,7 +11,7 @@ import VisibilityBadge from "Components/UI/VisibilityBadge.vue";
 import { useFormatting } from "Composables/useFormatting.ts";
 import type { DeckCardRow, DeckCategoryRow, DeckCompanion, DeckMeta, DeckViolation } from "Types/deckPage.ts";
 import DeckActionsMenu from "./Actions/DeckActionsMenu.vue";
-import type { DeckActionsTarget } from "./Actions/DeckActionsMenu.vue";
+import type { DeckActionsContainer, DeckActionsTarget } from "./Actions/DeckActionsMenu.vue";
 import DeckLegalityPanel from "./DeckLegalityPanel.vue";
 import CollectionModeModal from "./Modals/CollectionModeModal.vue";
 
@@ -56,6 +56,11 @@ const props = defineProps<{
      * (the badge is gated on `isOwner`, so the modal never opens for them).
      */
     collectionModeContext: CollectionModeContext | null;
+    /**
+     * Owner-only container list for the "Add all cards to collection"
+     * modal — empty for non-owners.
+     */
+    containers: DeckActionsContainer[];
 }>();
 /** Controls visibility of the collection-mode explainer modal. */
 const showCollectionModeModal = ref(false);
@@ -89,6 +94,7 @@ const { formatPrice } = useFormatting();
                 :categories="categories"
                 :category-name-max="categoryNameMax"
                 :collection-mode="collectionMode"
+                :containers="isOwner ? containers : undefined"
             />
         </header>
         <div class="deck-meta__badges">

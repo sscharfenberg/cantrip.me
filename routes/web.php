@@ -153,6 +153,8 @@ Route::middleware(array_filter(['auth', Features::enabled(Features::emailVerific
         ->name('decks.collection-mode.promote');
     Route::delete('/decks/{deck}/collection-mode/assignments', [DecksController::class, 'clearCollectionAssignments'])
         ->name('decks.collection-mode.clear');
+    Route::post('/decks/{deck}/add-all-to-collection', [DecksController::class, 'addAllToCollection'])
+        ->name('decks.add-all-to-collection');
     Route::get('/decks/{deck}/finalize', [DecksController::class, 'finalize'])
         ->name('decks.finalize');
     Route::post('/decks/{deck}/finalize', [DecksController::class, 'storeFinalize'])

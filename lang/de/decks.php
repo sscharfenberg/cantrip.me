@@ -36,6 +36,10 @@ return [
         'flash_built' => 'Deck ":name" ist fertig.',
     ],
 
+    'add_all_to_collection' => [
+        'flash_success' => 'Alle Karten aus Deck „:name" wurden zur Sammlung hinzugefügt.',
+    ],
+
     'collection_mode' => [
         'promoted_flash' => 'Deck „:name" nutzt jetzt exemplargenaues Tracking.',
         'cleared_flash' => 'Alle Sammlungs-Reservierungen für „:name" entfernt.',
