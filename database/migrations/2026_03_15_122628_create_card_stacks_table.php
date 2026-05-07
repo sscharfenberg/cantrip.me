@@ -28,6 +28,11 @@ return new class extends Migration
             $table->string('condition', 16)->nullable();
             $table->unsignedTinyInteger('finish')->default(1);
             $table->string('language', 3)->default(CardLanguage::En->value);
+            // Storage-only flag for proxy cards. UI surfacing (toggle in the
+            // create/edit form, badge in the collection view, status badge
+            // semantics in modes B/C, price-aggregation handling) is a
+            // separate follow-up — see PLAN doc / project memory.
+            $table->boolean('proxy')->default(false);
             $table->timestamps();
 
             $table->index(['user_id', 'container_id']);

@@ -17,7 +17,7 @@ class ShowDeckCompanionPrintingsRequest extends FormRequest
 
         return $deck instanceof Deck
             && $deck->user_id === $this->user()->id
-            && $deck->companion_oracle_card_id !== null;
+            && $deck->companion()->exists();
     }
 
     /**

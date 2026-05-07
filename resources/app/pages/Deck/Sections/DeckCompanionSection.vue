@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import CardImagePreview from "Components/Card/CardImagePreview.vue";
 import ManaCost from "Components/Card/ManaCost.vue";
+import CollectionImplicitBadge from "Components/Deck/CollectionImplicitBadge.vue";
+import CollectionStatusBadge from "Components/Deck/CollectionStatusBadge.vue";
 import type { DeckCompanion } from "Types/deckPage.ts";
 import DeckCompanionActionsMenu from "../Actions/DeckCompanionActionsMenu.vue";
 import FaceImageLazy from "../Cards/FaceImageLazy.vue";
@@ -14,6 +16,8 @@ defineProps<{
     isOwner: boolean;
     /** Current deck hero printing id, or null — forwarded into the actions menu. */
     heroCardId: string | null;
+    /** Effective collection-integration mode — drives which badge renders. */
+    collectionMode: "A" | "B" | "C";
 }>();
 </script>
 
@@ -25,12 +29,25 @@ defineProps<{
             :name="companion.name"
             @preview="emit('preview', companion.default_card.id)"
         >
+            <collection-status-badge
+                v-if="collectionMode === 'C' && companion.collection_status"
+                :status="companion.collection_status"
+                variant="corner"
+            />
+            <collection-implicit-badge
+                v-if="collectionMode === 'B' && companion.collection_implicit_status"
+                :status="companion.collection_implicit_status"
+                :quantity="1"
+                variant="corner"
+            />
             <deck-companion-actions-menu
                 v-if="isOwner"
                 :deck-id="deckId"
+                :deck-card-id="companion.deck_card_id"
                 :companion-name="companion.name"
                 :default-card-id="companion.default_card.id"
                 :hero-card-id="heroCardId"
+                :collection-mode="collectionMode"
                 :is-medium-button="true"
             />
         </face-image-lazy>
@@ -44,13 +61,26 @@ defineProps<{
             >
                 <span class="card__qty">1x </span>{{ companion.name }}
             </card-image-preview>
+            <collection-status-badge
+                v-if="collectionMode === 'C' && companion.collection_status"
+                :status="companion.collection_status"
+                variant="inline"
+            />
+            <collection-implicit-badge
+                v-if="collectionMode === 'B' && companion.collection_implicit_status"
+                :status="companion.collection_implicit_status"
+                :quantity="1"
+                variant="inline"
+            />
             <mana-cost :mana-cost="companion.mana_cost" />
             <deck-companion-actions-menu
                 v-if="isOwner"
                 :deck-id="deckId"
+                :deck-card-id="companion.deck_card_id"
                 :companion-name="companion.name"
                 :default-card-id="companion.default_card.id"
                 :hero-card-id="heroCardId"
+                :collection-mode="collectionMode"
             />
         </li>
     </ul>

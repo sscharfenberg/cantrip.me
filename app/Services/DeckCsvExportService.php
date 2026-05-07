@@ -76,32 +76,42 @@ class DeckCsvExportService
      */
     private static function writeCommanderRows($handle, Deck $deck): void
     {
-        $rows = DB::table('commanders')
-            ->join('default_cards', 'commanders.default_card_id', '=', 'default_cards.id')
+        // Post-consolidation, command-zone cards live in `deck_cards`
+        // with `zone='command'` and `role in (commander, partner,
+        // signature_spell)`. The CSV mirrors the database: `Role` carries
+        // the real role string, `Zone` carries the real zone, and
+        // `Is Partner` stays as a derived convenience column (true for
+        // any non-primary command-zone slot) so older importers that
+        // only knew about Role='commander' + Is Partner can still route
+        // the row.
+        $rows = DB::table('deck_cards')
+            ->join('default_cards', 'deck_cards.default_card_id', '=', 'default_cards.id')
             ->leftJoin('sets', 'default_cards.set_id', '=', 'sets.id')
-            ->where('commanders.deck_id', $deck->id)
-            ->orderBy('commanders.is_partner') // primary first, partner second
-            ->orderBy('commanders.created_at')
+            ->where('deck_cards.deck_id', $deck->id)
+            ->where('deck_cards.zone', 'command')
+            ->orderByRaw("CASE deck_cards.role WHEN 'commander' THEN 0 ELSE 1 END")
+            ->orderBy('deck_cards.created_at')
             ->get([
                 'default_cards.id as scryfall_id',
                 'default_cards.name as card_name',
                 'default_cards.collector_number',
                 'sets.code as set_code',
-                'commanders.is_partner',
+                'deck_cards.role',
             ]);
 
         foreach ($rows as $row) {
+            $isPartner = $row->role !== 'commander';
             fputcsv($handle, [
-                'commander',
+                $row->role,
                 '',
                 $row->scryfall_id ?? '',
                 $row->card_name ?? '',
                 strtoupper($row->set_code ?? ''),
                 $row->collector_number ?? '',
                 1,
+                'command',
                 '',
-                '',
-                $row->is_partner ? 'true' : 'false',
+                $isPartner ? 'true' : 'false',
                 '',
             ]);
         }
@@ -112,13 +122,11 @@ class DeckCsvExportService
      */
     private static function writeCompanionRow($handle, Deck $deck): void
     {
-        if ($deck->companion_default_card_id === null) {
-            return;
-        }
-
-        $row = DB::table('default_cards')
+        $row = DB::table('deck_cards')
+            ->join('default_cards', 'deck_cards.default_card_id', '=', 'default_cards.id')
             ->leftJoin('sets', 'default_cards.set_id', '=', 'sets.id')
-            ->where('default_cards.id', $deck->companion_default_card_id)
+            ->where('deck_cards.deck_id', $deck->id)
+            ->where('deck_cards.role', 'companion')
             ->first([
                 'default_cards.id as scryfall_id',
                 'default_cards.name as card_name',
@@ -138,7 +146,7 @@ class DeckCsvExportService
             strtoupper($row->set_code ?? ''),
             $row->collector_number ?? '',
             1,
-            '',
+            'companion',
             '',
             '',
             '',
@@ -168,11 +176,15 @@ class DeckCsvExportService
                 ->map(fn ($group) => $group->pluck('card_stack_id')->all())
             : collect();
 
+        // Command zone and companion are written separately above —
+        // exclude them here so a deck_cards consolidation doesn't cause
+        // them to be emitted twice in the CSV.
         $rows = DB::table('deck_cards')
             ->join('default_cards', 'deck_cards.default_card_id', '=', 'default_cards.id')
             ->leftJoin('sets', 'default_cards.set_id', '=', 'sets.id')
             ->leftJoin('deck_categories', 'deck_cards.category_id', '=', 'deck_categories.id')
             ->where('deck_cards.deck_id', $deck->id)
+            ->whereNotIn('deck_cards.zone', ['command', 'companion'])
             ->orderBy('deck_cards.zone') // main before side
             ->orderBy('deck_categories.name')
             ->orderBy('default_cards.name')

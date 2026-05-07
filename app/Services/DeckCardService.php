@@ -2,9 +2,9 @@
 
 namespace App\Services;
 
+use App\Enums\DeckZone;
 use App\Models\Deck;
 use App\Models\OracleCard;
-use App\Models\OracleCardFace;
 
 /**
  * Manages deck card operations that affect the deck itself.
@@ -39,18 +39,13 @@ final class DeckCardService
             return;
         }
 
+        // Companion is now a deck_card row (zone=companion), so the same
+        // single join naturally folds in its mana costs alongside the rest
+        // of the deck.
         $manaCosts = $deck->deckCards()
             ->join('oracle_card_faces', 'deck_cards.oracle_card_id', '=', 'oracle_card_faces.oracle_card_id')
             ->pluck('oracle_card_faces.mana_cost')
             ->all();
-
-        if ($deck->companion_oracle_card_id !== null) {
-            $companionCosts = OracleCardFace::query()
-                ->where('oracle_card_id', $deck->companion_oracle_card_id)
-                ->pluck('mana_cost')
-                ->all();
-            $manaCosts = array_merge($manaCosts, $companionCosts);
-        }
 
         $colors = self::extractColorsFromManaCosts(array_filter($manaCosts));
 
@@ -59,15 +54,16 @@ final class DeckCardService
 
     /**
      * Derive deck colors from the union of color identities of every card
-     * currently in the command zone (commanders + signature spell stored
-     * via the commanders pivot, plus the deck's companion).
+     * currently in the command zone plus the Magic-keyword companion (if
+     * set). Post-consolidation, both live in `deck_cards` keyed by
+     * `zone in (command, companion)`.
      */
     private static function recalculateColorsFromCommandZone(Deck $deck): void
     {
-        $oracleIds = $deck->commanders()->pluck('commanders.oracle_card_id')->all();
-        if ($deck->companion_oracle_card_id !== null) {
-            $oracleIds[] = $deck->companion_oracle_card_id;
-        }
+        $oracleIds = $deck->deckCards()
+            ->whereIn('zone', [DeckZone::Command->value, DeckZone::Companion->value])
+            ->pluck('oracle_card_id')
+            ->all();
 
         if ($oracleIds === []) {
             $deck->update(['colors' => null]);

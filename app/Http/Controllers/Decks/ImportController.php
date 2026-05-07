@@ -135,11 +135,11 @@ class ImportController extends Controller
     private static function resolveAutoName(Deck $deck): string
     {
         if ($deck->format->rules()->requiresCommander()) {
-            $primaryCommanderName = DB::table('commanders')
-                ->join('oracle_cards', 'oracle_cards.id', '=', 'commanders.oracle_card_id')
-                ->where('commanders.deck_id', $deck->id)
-                ->where('commanders.is_partner', false)
-                ->orderBy('commanders.created_at')
+            $primaryCommanderName = DB::table('deck_cards')
+                ->join('oracle_cards', 'oracle_cards.id', '=', 'deck_cards.oracle_card_id')
+                ->where('deck_cards.deck_id', $deck->id)
+                ->where('deck_cards.role', 'commander')
+                ->orderBy('deck_cards.created_at')
                 ->orderBy('oracle_cards.name')
                 ->value('oracle_cards.name');
             if (is_string($primaryCommanderName) && $primaryCommanderName !== '') {

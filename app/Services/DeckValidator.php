@@ -70,9 +70,9 @@ final class DeckValidator
             $violations[] = ['type' => 'copy_limit', 'card_ids' => array_values($copyIds)];
         }
 
-        $bannedCommanderNames = self::bannedCommanderNames($deck, $profile);
-        if ($bannedCommanderNames !== []) {
-            $violations[] = ['type' => 'commander_banned', 'names' => $bannedCommanderNames];
+        $bannedCommander = self::bannedCommanderViolation($deck, $profile);
+        if ($bannedCommander !== null) {
+            $violations[] = $bannedCommander;
         }
 
         $mainSize = self::zoneSize($deck, DeckZone::Main);
@@ -85,6 +85,9 @@ final class DeckValidator
         if ($profile->maxDeckSize() !== null && $mainSize > $profile->maxDeckSize()) {
             $violations[] = ['type' => 'deck_size_max', 'current' => $mainSize, 'max' => $profile->maxDeckSize()];
         }
+        // Note: `$deck->commanders` is now a HasMany<DeckCard> filtered to
+        // zone=command (post-consolidation), so `->count()` still returns
+        // the right number even though the underlying shape changed.
 
         $sideSize = self::zoneSize($deck, DeckZone::Side);
         if ($sideSize > $profile->maxSideboardSize()) {
@@ -122,11 +125,17 @@ final class DeckValidator
      */
     private static function companionRestrictionViolation(Deck $deck, array $priorViolations): ?array
     {
-        if ($deck->companion === null) {
+        $companionDeckCard = $deck->companion;
+        if ($companionDeckCard === null) {
             return null;
         }
 
-        $profile = CompanionRegistry::profileFor($deck->companion);
+        $companionOracle = $companionDeckCard->oracleCard;
+        if ($companionOracle === null) {
+            return null;
+        }
+
+        $profile = CompanionRegistry::profileFor($companionOracle);
         if ($profile === null) {
             return null;
         }
@@ -205,6 +214,13 @@ final class DeckValidator
         $commanderIdentity = self::combinedColorIdentity($deck->commanders);
         $ids = [];
         foreach ($deck->deckCards as $deckCard) {
+            // Command-zone rows ARE the source of the deck's color
+            // identity; checking them against themselves is trivially
+            // pass-through. The Magic-keyword companion is also exempt
+            // (its own per-companion validator handles it).
+            if ($deckCard->zone === DeckZone::Command || $deckCard->zone === DeckZone::Companion) {
+                continue;
+            }
             if (! self::respectsColorIdentity($deckCard->oracleCard->color_identity, $commanderIdentity)) {
                 $ids[$deckCard->id] = $deckCard->id;
             }
@@ -247,24 +263,41 @@ final class DeckValidator
     }
 
     /**
-     * Names of commanders that appear on the format's banned-as-commander
-     * overlay. Returns the empty list when the format has no overlay or
-     * none of the deck's commanders match.
+     * Build the `commander_banned` violation when one or more command-zone
+     * cards appear on the format's banned-as-commander overlay. Returns
+     * both `names` (for the LegalityPanel's existing display) and
+     * `card_ids` (so {@see illegalDeckCardIds} aggregates them and the
+     * per-row "illegal" indicator lights up on the offending commander).
      *
-     * @return array<int, string>
+     * @return array{type: 'commander_banned', names: array<int, string>, card_ids: array<int, string>}|null
      */
-    private static function bannedCommanderNames(Deck $deck, FormatProfile $profile): array
+    private static function bannedCommanderViolation(Deck $deck, FormatProfile $profile): ?array
     {
         $banned = $profile->bannedAsCommander();
         if ($banned === []) {
-            return [];
+            return null;
         }
 
-        return $deck->commanders
-            ->filter(fn (OracleCard $commander): bool => in_array($commander->name, $banned, true))
-            ->pluck('name')
-            ->values()
-            ->all();
+        $names = [];
+        $cardIds = [];
+        foreach ($deck->commanders as $row) {
+            $oracle = $row->oracleCard;
+            if ($oracle === null || ! in_array($oracle->name, $banned, true)) {
+                continue;
+            }
+            $names[] = $oracle->name;
+            $cardIds[] = $row->id;
+        }
+
+        if ($names === []) {
+            return null;
+        }
+
+        return [
+            'type' => 'commander_banned',
+            'names' => $names,
+            'card_ids' => $cardIds,
+        ];
     }
 
     private static function zoneSize(Deck $deck, DeckZone $zone): int
@@ -290,16 +323,17 @@ final class DeckValidator
     }
 
     /**
-     * @param  iterable<OracleCard>  $commanders
+     * @param  iterable<DeckCard>  $commandZone
      */
-    private static function combinedColorIdentity(iterable $commanders): string
+    private static function combinedColorIdentity(iterable $commandZone): string
     {
         $letters = [];
-        foreach ($commanders as $commander) {
-            if ($commander->color_identity === null) {
+        foreach ($commandZone as $deckCard) {
+            $oracle = $deckCard->oracleCard;
+            if ($oracle === null || $oracle->color_identity === null) {
                 continue;
             }
-            foreach (str_split($commander->color_identity) as $letter) {
+            foreach (str_split($oracle->color_identity) as $letter) {
                 $letters[$letter] = true;
             }
         }

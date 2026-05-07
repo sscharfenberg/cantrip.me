@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Enums\CardFormat;
 use App\Enums\ContainerVisibility;
+use App\Enums\DeckCardRole;
 use App\Enums\DeckZone;
 use App\Models\CardStack;
 use App\Models\Container;
@@ -54,20 +55,25 @@ class DeckCsvExportTest extends TestCase
 
         $atraxa = $this->makeOracleCard('Atraxa, Praetors\' Voice');
         $atraxaPrint = $this->makeDefaultCard($atraxa, 'cmr', '347');
-        DB::table('commanders')->insert([
+        DeckCard::create([
             'deck_id' => $deck->id,
             'oracle_card_id' => $atraxa->id,
             'default_card_id' => $atraxaPrint->id,
-            'is_partner' => false,
-            'created_at' => now(),
-            'updated_at' => now(),
+            'zone' => DeckZone::Command->value,
+            'role' => DeckCardRole::Commander->value,
+            'quantity' => 1,
         ]);
 
         $lurrus = $this->makeOracleCard('Lurrus of the Dream-Den');
         $lurrusPrint = $this->makeDefaultCard($lurrus, 'iko', '226');
-        $deck->companion_oracle_card_id = $lurrus->id;
-        $deck->companion_default_card_id = $lurrusPrint->id;
-        $deck->save();
+        DeckCard::create([
+            'deck_id' => $deck->id,
+            'oracle_card_id' => $lurrus->id,
+            'default_card_id' => $lurrusPrint->id,
+            'zone' => DeckZone::Companion->value,
+            'role' => DeckCardRole::Companion->value,
+            'quantity' => 1,
+        ]);
 
         $rows = $this->exportRows($owner, $deck);
         $this->assertSame([
@@ -75,16 +81,19 @@ class DeckCsvExportTest extends TestCase
             'Count', 'Zone', 'Category', 'Is Partner', 'Card Stack ID',
         ], $rows[0]);
 
-        // Roles emitted in order: commanders → companion → cards.
+        // Roles emitted in order: commanders → companion → cards. Role
+        // and Zone columns mirror the deck_cards row exactly.
         $this->assertSame('commander', $rows[1][0]);
         $this->assertSame('Atraxa, Praetors\' Voice', $rows[1][3]);
         $this->assertSame('CMR', $rows[1][4]);
+        $this->assertSame('command', $rows[1][7]);
         $this->assertSame('false', $rows[1][9]);
         $this->assertSame('', $rows[1][10]);
 
         $this->assertSame('companion', $rows[2][0]);
         $this->assertSame('Lurrus of the Dream-Den', $rows[2][3]);
         $this->assertSame('IKO', $rows[2][4]);
+        $this->assertSame('companion', $rows[2][7]);
 
         $this->assertSame('card', $rows[3][0]);
         $this->assertSame($deckCard->id, $rows[3][1]);
@@ -126,29 +135,34 @@ class DeckCsvExportTest extends TestCase
         $partnerOracle = $this->makeOracleCard('Bruse Tarl, Boorish Herder');
         $partnerPrint = $this->makeDefaultCard($partnerOracle, 'cmr', '237');
 
-        DB::table('commanders')->insert([
-            [
-                'deck_id' => $deck->id,
-                'oracle_card_id' => $primaryOracle->id,
-                'default_card_id' => $primaryPrint->id,
-                'is_partner' => false,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
-            [
-                'deck_id' => $deck->id,
-                'oracle_card_id' => $partnerOracle->id,
-                'default_card_id' => $partnerPrint->id,
-                'is_partner' => true,
-                'created_at' => now()->addSecond(),
-                'updated_at' => now()->addSecond(),
-            ],
+        DeckCard::create([
+            'deck_id' => $deck->id,
+            'oracle_card_id' => $primaryOracle->id,
+            'default_card_id' => $primaryPrint->id,
+            'zone' => DeckZone::Command->value,
+            'role' => DeckCardRole::Commander->value,
+            'quantity' => 1,
+        ]);
+        DeckCard::create([
+            'deck_id' => $deck->id,
+            'oracle_card_id' => $partnerOracle->id,
+            'default_card_id' => $partnerPrint->id,
+            'zone' => DeckZone::Command->value,
+            'role' => DeckCardRole::Partner->value,
+            'quantity' => 1,
         ]);
 
         $rows = $this->exportRows($owner, $deck);
+        // Primary commander → Role='commander', Is Partner=false.
+        $this->assertSame('commander', $rows[1][0]);
         $this->assertSame('Akiri, Line-Slinger', $rows[1][3]);
+        $this->assertSame('command', $rows[1][7]);
         $this->assertSame('false', $rows[1][9]);
+        // Partner → Role='partner' (real role string, not 'commander'),
+        // Is Partner=true (kept for backward-compat with old importers).
+        $this->assertSame('partner', $rows[2][0]);
         $this->assertSame('Bruse Tarl, Boorish Herder', $rows[2][3]);
+        $this->assertSame('command', $rows[2][7]);
         $this->assertSame('true', $rows[2][9]);
     }
 

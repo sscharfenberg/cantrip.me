@@ -87,14 +87,34 @@ const { allGroups } = useDeckSections(
                     :class="{ highlighted: isHighlighted(commander) }"
                     @preview="openPreview(commander.default_card.id)"
                 >
+                    <icon
+                        v-if="commander.is_illegal"
+                        v-tooltip="$t('pages.deck.illegal')"
+                        name="error"
+                        :size="2"
+                        :additional-classes="['card__illegal']"
+                    />
+                    <collection-status-badge
+                        v-if="collectionMode === 'C' && commander.collection_status"
+                        :status="commander.collection_status"
+                        variant="corner"
+                    />
+                    <collection-implicit-badge
+                        v-if="collectionMode === 'B' && commander.collection_implicit_status"
+                        :status="commander.collection_implicit_status"
+                        :quantity="1"
+                        variant="corner"
+                    />
                     <deck-commander-actions-menu
                         v-if="isOwner"
                         :deck-id="deck.id"
+                        :deck-card-id="commander.deck_card_id"
                         :oracle-card-id="commander.oracle_card_id"
                         :commander-name="commander.name"
                         :format="deck.format"
                         :default-card-id="commander.default_card.id"
                         :hero-card-id="deck.hero_card?.id ?? null"
+                        :collection-mode="collectionMode"
                         :is-medium-button="true"
                     />
                 </face-image-lazy>
@@ -108,6 +128,7 @@ const { allGroups } = useDeckSections(
                 variant="image"
                 :is-owner="isOwner"
                 :hero-card-id="deck.hero_card?.id ?? null"
+                :collection-mode="collectionMode"
                 @preview="id => openPreview(id)"
             />
         </section>

@@ -3,7 +3,9 @@
 namespace App\Services;
 
 use App\Contracts\DeckCsvRowMapper;
+use App\Enums\DeckCardRole;
 use App\Enums\DeckImportSource;
+use App\Enums\DeckZone;
 use App\Jobs\CleanupTempUploads;
 use App\Models\CardStack;
 use App\Models\Deck;
@@ -148,14 +150,32 @@ class DeckCsvImportService
                     continue;
                 }
 
-                if ($mapped['role'] === 'commander') {
-                    DB::table('commanders')->insert([
+                if (in_array($mapped['role'], ['commander', 'partner', 'signature_spell'], true)) {
+                    // Three valid command-zone role strings:
+                    //  - `commander` (legacy or fresh): primary commander.
+                    //    For backward-compat with pre-consolidation CSVs
+                    //    that only had `Role=commander` + `Is Partner`,
+                    //    we still honour `is_partner=true` to derive
+                    //    `partner` (Commander format) or `signature_spell`
+                    //    (Oathbreaker).
+                    //  - `partner` / `signature_spell` (post-consolidation):
+                    //    explicit role string; used directly.
+                    if ($mapped['role'] === 'commander') {
+                        $role = $mapped['is_partner']
+                            ? ($deck->format->rules()->hasSignatureSpell()
+                                ? DeckCardRole::SignatureSpell->value
+                                : DeckCardRole::Partner->value)
+                            : DeckCardRole::Commander->value;
+                    } else {
+                        $role = $mapped['role'];
+                    }
+                    DeckCard::create([
                         'deck_id' => $deck->id,
                         'oracle_card_id' => $oracleId,
                         'default_card_id' => $defaultCardId,
-                        'is_partner' => $mapped['is_partner'],
-                        'created_at' => now(),
-                        'updated_at' => now(),
+                        'zone' => DeckZone::Command->value,
+                        'role' => $role,
+                        'quantity' => 1,
                     ]);
                     $commanders++;
 
@@ -164,13 +184,19 @@ class DeckCsvImportService
 
                 if ($mapped['role'] === 'companion') {
                     // First companion row wins; duplicates silently
-                    // discarded — a deck can only have one companion.
+                    // discarded — `UNIQUE(deck_id, role)` would reject
+                    // a second insert anyway.
                     if ($companion > 0) {
                         continue;
                     }
-                    $deck->companion_oracle_card_id = $oracleId;
-                    $deck->companion_default_card_id = $defaultCardId;
-                    $deck->save();
+                    DeckCard::create([
+                        'deck_id' => $deck->id,
+                        'oracle_card_id' => $oracleId,
+                        'default_card_id' => $defaultCardId,
+                        'zone' => DeckZone::Companion->value,
+                        'role' => DeckCardRole::Companion->value,
+                        'quantity' => 1,
+                    ]);
                     $companion++;
 
                     continue;

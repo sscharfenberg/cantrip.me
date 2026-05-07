@@ -26,7 +26,12 @@ class CantripDeckMapper implements DeckCsvRowMapper
     public function mapRow(array $row): ?array
     {
         $role = strtolower(trim($row['role'] ?? ''));
-        if (! in_array($role, ['card', 'commander', 'companion'], true)) {
+        // Accept the explicit role names emitted by the post-consolidation
+        // export (`partner`, `signature_spell`) alongside the legacy
+        // `commander` / `companion` / `card` strings. Any of the three
+        // command-zone roles routes through the same downstream logic
+        // in DeckCsvImportService.
+        if (! in_array($role, ['card', 'commander', 'partner', 'signature_spell', 'companion'], true)) {
             return null;
         }
 

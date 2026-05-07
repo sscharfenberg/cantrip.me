@@ -3,7 +3,10 @@
 namespace Tests\Feature;
 
 use App\Enums\CardFormat;
+use App\Enums\DeckCardRole;
+use App\Enums\DeckZone;
 use App\Models\Deck;
+use App\Models\DeckCard;
 use App\Models\DefaultCard;
 use App\Models\OracleCard;
 use App\Models\Set;
@@ -42,11 +45,15 @@ class DeckValidatorCommanderBanTest extends TestCase
         $user = User::factory()->create();
         $breya = $this->makeOracleCard('Breya, Etherium Shaper');
         $deck = $this->makeDeck($user->id, CardFormat::Duel);
-        $deck->commanders()->attach($breya->id, [
+        DeckCard::create([
+            'deck_id' => $deck->id,
+            'oracle_card_id' => $breya->id,
             'default_card_id' => $this->makeDefaultCard($breya)->id,
-            'is_partner' => false,
+            'zone' => DeckZone::Command->value,
+            'role' => DeckCardRole::Commander->value,
+            'quantity' => 1,
         ]);
-        $deck->load(['commanders', 'companion', 'deckCards']);
+        $deck->load(['commanders.oracleCard', 'companion', 'deckCards.oracleCard']);
 
         $violations = DeckValidator::validate($deck);
 
@@ -61,11 +68,15 @@ class DeckValidatorCommanderBanTest extends TestCase
         $user = User::factory()->create();
         $breya = $this->makeOracleCard('Breya, Etherium Shaper');
         $deck = $this->makeDeck($user->id, CardFormat::Commander);
-        $deck->commanders()->attach($breya->id, [
+        DeckCard::create([
+            'deck_id' => $deck->id,
+            'oracle_card_id' => $breya->id,
             'default_card_id' => $this->makeDefaultCard($breya)->id,
-            'is_partner' => false,
+            'zone' => DeckZone::Command->value,
+            'role' => DeckCardRole::Commander->value,
+            'quantity' => 1,
         ]);
-        $deck->load(['commanders', 'companion', 'deckCards']);
+        $deck->load(['commanders.oracleCard', 'companion', 'deckCards.oracleCard']);
 
         $violations = DeckValidator::validate($deck);
 

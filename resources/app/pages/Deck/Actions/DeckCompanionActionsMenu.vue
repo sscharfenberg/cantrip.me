@@ -4,16 +4,24 @@ import { ref, useId } from "vue";
 import Icon from "Components/UI/Icon.vue";
 import PopOver from "Components/UI/PopOver.vue";
 import type { DeckPrinting } from "Types/defaultCardImage.ts";
+import DeckCardAssignStackModal from "../Modals/DeckCardAssignStackModal.vue";
 import DeckCardSwitchPrintingModal from "../Modals/DeckCardSwitchPrintingModal.vue";
 const props = defineProps<{
     /** UUID of the deck. */
     deckId: string;
+    /** UUID of the companion's deck_card row — used for the unified hero-image endpoint. */
+    deckCardId: string;
     /** Current companion name — interpolated into the switch-printing modal title. */
     companionName: string;
     /** Companion's current printing id — compared against `heroCardId`. */
     defaultCardId: string;
     /** Current deck hero printing id, or null. Hides "Use as hero image" when the companion already is the hero. */
     heroCardId: string | null;
+    /**
+     * Effective collection-integration mode. The "Assign physical copy"
+     * entry is only rendered in mode C — same gating as mainboard rows.
+     */
+    collectionMode: "A" | "B" | "C";
     /** Whether this sits on top of a card image (tweaks PopOver trigger size). */
     isMediumButton?: boolean;
 }>();
@@ -21,6 +29,7 @@ const popoverId = useId();
 const page = usePage();
 const removing = ref(false);
 const showSwitchPrintingModal = ref(false);
+const showAssignStackModal = ref(false);
 /** Dismiss the popover menu via the native popover API. */
 function closePopover(): void {
     const el = document.getElementById(popoverId);
@@ -30,6 +39,32 @@ function closePopover(): void {
 function openSwitchPrinting(): void {
     closePopover();
     showSwitchPrintingModal.value = true;
+}
+/** Close the menu and open the assign-stack picker. */
+function openAssignStack(): void {
+    closePopover();
+    showAssignStackModal.value = true;
+}
+/**
+ * PATCH the chosen stack id (or null to clear) for the companion's
+ * deck_card row. Reuses the deck_card-keyed endpoints because companions
+ * are deck_cards too post-consolidation.
+ */
+async function assignStack(stackId: string | null): Promise<void> {
+    const response = await fetch(
+        `/api/decks/${props.deckId}/cards/${props.deckCardId}/assigned-stacks`,
+        {
+            method: "PATCH",
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRF-TOKEN": page.props.csrfToken as string,
+                Accept: "application/json"
+            },
+            body: JSON.stringify({ card_stack_id: stackId })
+        }
+    );
+    if (!response.ok) return;
+    router.reload({ only: ["companion"] });
 }
 /**
  * Remove the companion from the deck. `removing` guards against double-
@@ -95,9 +130,15 @@ async function switchPrinting(printing: DeckPrinting): Promise<void> {
                     {{ $t("pages.deck.switch_printing.link") }}
                 </button>
             </li>
+            <li v-if="props.collectionMode === 'C'">
+                <button type="button" class="popover-list-item" @click="openAssignStack">
+                    <icon name="storage" :size="1" />
+                    {{ $t("pages.deck.assign_stack.link") }}
+                </button>
+            </li>
             <li v-if="props.defaultCardId !== props.heroCardId">
                 <Link
-                    :href="`/decks/${props.deckId}/companion/use-as-hero`"
+                    :href="`/decks/${props.deckId}/cards/${props.deckCardId}/use-as-hero`"
                     method="patch"
                     as="button"
                     class="popover-list-item"
@@ -126,5 +167,12 @@ async function switchPrinting(printing: DeckPrinting): Promise<void> {
         :name="props.companionName"
         @select="switchPrinting"
         @close="showSwitchPrintingModal = false"
+    />
+    <deck-card-assign-stack-modal
+        v-if="showAssignStackModal"
+        :stacks-url="`/api/decks/${props.deckId}/cards/${props.deckCardId}/assignable-stacks`"
+        :name="props.companionName"
+        @select="assignStack"
+        @close="showAssignStackModal = false"
     />
 </template>

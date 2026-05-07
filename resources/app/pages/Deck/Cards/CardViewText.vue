@@ -123,15 +123,35 @@ const openPreview = (id: string | null, quantity?: number): void => {
                             >
                                 <span class="card__qty">1x </span>{{ commander.name }}
                             </card-image-preview>
+                            <icon
+                                v-if="commander.is_illegal"
+                                v-tooltip="$t('pages.deck.illegal')"
+                                name="error"
+                                :size="1"
+                                :additional-classes="['card__illegal']"
+                            />
+                            <collection-status-badge
+                                v-if="collectionMode === 'C' && commander.collection_status"
+                                :status="commander.collection_status"
+                                variant="inline"
+                            />
+                            <collection-implicit-badge
+                                v-if="collectionMode === 'B' && commander.collection_implicit_status"
+                                :status="commander.collection_implicit_status"
+                                :quantity="1"
+                                variant="inline"
+                            />
                             <mana-cost :mana-cost="commander.mana_cost" />
                             <deck-commander-actions-menu
                                 v-if="isOwner"
                                 :deck-id="deck.id"
+                                :deck-card-id="commander.deck_card_id"
                                 :oracle-card-id="commander.oracle_card_id"
                                 :commander-name="commander.name"
                                 :format="deck.format"
                                 :default-card-id="commander.default_card.id"
                                 :hero-card-id="deck.hero_card?.id ?? null"
+                                :collection-mode="collectionMode"
                             />
                         </li>
                     </ul>
@@ -148,6 +168,7 @@ const openPreview = (id: string | null, quantity?: number): void => {
                         variant="text"
                         :is-owner="isOwner"
                         :hero-card-id="deck.hero_card?.id ?? null"
+                        :collection-mode="collectionMode"
                         @preview="id => openPreview(id)"
                     />
                 </section>

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Decks;
 
+use App\Enums\DeckZone;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Decks\ChangeDeckCommandZoneRequest;
 use App\Http\Requests\Decks\ShowDeckCommanderPrintingsRequest;
@@ -30,11 +31,10 @@ class DeckCommanderController extends Controller
      */
     public function printings(ShowDeckCommanderPrintingsRequest $request, Deck $deck, OracleCard $oracleCard): JsonResponse
     {
-        $currentDefaultCardId = $deck->commanders()
+        $currentDefaultCardId = $deck->deckCards()
+            ->where('zone', DeckZone::Command->value)
             ->where('oracle_card_id', $oracleCard->id)
-            ->first()
-            ?->pivot
-            ?->default_card_id;
+            ->value('default_card_id');
 
         return response()->json(DeckPrintingsService::listForOracle(
             $request->user()->id,
@@ -46,22 +46,22 @@ class DeckCommanderController extends Controller
     /**
      * Swap the printing shown for a single commander.
      *
-     * Only updates the `commanders` pivot row's `default_card_id`. Color
+     * Updates the command-zone deck_card row's `default_card_id`. Color
      * identity, partner / signature-spell pairing, and bracket are all
      * derived from the oracle card and stay unchanged.
      */
     public function updatePrinting(UpdateDeckCommanderPrintingRequest $request, Deck $deck, OracleCard $oracleCard): JsonResponse
     {
         $newPrinting = $request->validated()['default_card_id'];
-        $oldPrinting = $deck->commanders()
+        $deckCard = $deck->deckCards()
+            ->where('zone', DeckZone::Command->value)
             ->where('oracle_card_id', $oracleCard->id)
-            ->first()
-            ?->pivot
-            ?->default_card_id;
+            ->first();
+        $oldPrinting = $deckCard?->default_card_id;
 
-        $deck->commanders()->updateExistingPivot($oracleCard->id, [
-            'default_card_id' => $newPrinting,
-        ]);
+        if ($deckCard !== null) {
+            $deckCard->update(['default_card_id' => $newPrinting]);
+        }
 
         if ($oldPrinting !== null) {
             $deck->remapHeroImage($oldPrinting, $newPrinting);

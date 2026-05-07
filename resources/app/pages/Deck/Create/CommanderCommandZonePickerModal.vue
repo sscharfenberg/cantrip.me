@@ -13,7 +13,14 @@ const props = defineProps<{ format: string }>();
 const emit = defineEmits<{
     /** Fired when the modal should be dismissed. */
     close: [];
-    /** Fired when the user confirms the command zone selection. */
+    /**
+     * Fired when the user confirms the command zone selection. The
+     * picker's rule-0 toggle only widens the search to surface non-legal
+     * candidates — it doesn't need to round-trip to the parent because
+     * `setCommandZone` no longer re-checks legality. Any banned /
+     * non-legal pick the user makes is flagged post-save by the deck
+     * legality panel and the per-row illegal indicator instead.
+     */
     confirm: [commander: CommanderResult, companion: CommanderResult | null];
 }>();
 const searchInput = useTemplateRef<HTMLInputElement>("searchInput");

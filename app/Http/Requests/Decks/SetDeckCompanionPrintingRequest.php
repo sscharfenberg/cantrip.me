@@ -20,7 +20,7 @@ class SetDeckCompanionPrintingRequest extends FormRequest
 
         return $deck instanceof Deck
             && $deck->user_id === $this->user()->id
-            && $deck->companion_oracle_card_id !== null;
+            && $deck->companion()->exists();
     }
 
     /**
@@ -49,7 +49,8 @@ class SetDeckCompanionPrintingRequest extends FormRequest
 
             $defaultCard = DefaultCard::query()->find($defaultCardId);
 
-            if ($defaultCard === null || $defaultCard->oracle_id !== $deck->companion_oracle_card_id) {
+            $companionOracleId = $deck->companion?->oracle_card_id;
+            if ($defaultCard === null || $defaultCard->oracle_id !== $companionOracleId) {
                 $validator->errors()->add('default_card_id', 'The selected printing does not belong to the companion.');
             }
         });

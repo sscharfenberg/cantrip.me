@@ -318,10 +318,13 @@ final class DeckCardSearchService
 
         // Resolve the companion's profile once (if any). Each result is
         // probed against `failsAddingCard()` so the frontend can render a
-        // soft warning badge on cards that would break the rule.
-        $deck->loadMissing('companion');
-        $companionProfile = $deck->companion !== null
-            ? CompanionRegistry::profileFor($deck->companion)
+        // soft warning badge on cards that would break the rule. Post-
+        // consolidation, `$deck->companion` is a DeckCard row; the profile
+        // lookup wants the underlying OracleCard.
+        $deck->loadMissing('companion.oracleCard');
+        $companionOracle = $deck->companion?->oracleCard;
+        $companionProfile = $companionOracle !== null
+            ? CompanionRegistry::profileFor($companionOracle)
             : null;
 
         // Two-phase search to avoid the `LIKE '%term%'` running on the much

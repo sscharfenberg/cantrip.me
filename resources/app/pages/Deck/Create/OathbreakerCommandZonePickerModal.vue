@@ -13,6 +13,7 @@ const emit = defineEmits<{
     /** Fired when the modal should be dismissed. */
     close: [];
     /** Fired when the user confirms the command zone selection. */
+    /** Fired when the user confirms the command zone selection. */
     confirm: [planeswalker: CommanderResult, signatureSpell: CommanderResult];
 }>();
 

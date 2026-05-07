@@ -32,12 +32,23 @@ return new class extends Migration
                 ->nullOnDelete();
             $table->string('zone', 16)
                 ->default(DeckZone::Main->value);
+            // Optional role tag, orthogonal to `zone`. NULL for normal
+            // mainboard / sideboard / maybeboard rows. Set to one of
+            // `commander | partner | signature_spell | companion` for
+            // the special slots that used to live in the now-defunct
+            // `commanders` table and `decks.companion_*` columns.
+            $table->string('role', 32)->nullable();
             $table->unsignedTinyInteger('quantity')->default(1);
             $table->timestamps();
 
             $table->index(['deck_id', 'zone']);
             $table->index(['oracle_card_id']);
             $table->index(['default_card_id']);
+            // `(deck_id, role)` is unique at the schema level so a deck
+            // can never have two commanders / two partners / two
+            // signature spells / two companions. MySQL UNIQUE allows
+            // multiple NULLs, so mainboard rows are unaffected.
+            $table->unique(['deck_id', 'role']);
         });
     }
 

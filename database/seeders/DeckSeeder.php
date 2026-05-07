@@ -31,13 +31,14 @@ class DeckSeeder extends Seeder
     private const DECK_DESCRIPTION = 'Yoshimaru aggro - cast yoshi, cast legendarys, attack with Yoshi until someone dies.';
 
     /**
-     * Command zone — Rograkh as the "primary" commander, Yoshimaru as
-     * the partner. Symmetric in Commander rules; the assignment matters
-     * only for the pivot's `is_partner` flag.
+     * Command zone — Yoshimaru as the "primary" commander, Rograkh as
+     * the partner. Symmetric in Commander rules, but the deck's theme
+     * ("Yoshi aggro") puts Yoshimaru in the lead, so the seeded primary
+     * matches the deck name and description.
      */
-    private const COMMANDER_NAME = 'Rograkh, Son of Rohgahh';
+    private const COMMANDER_NAME = 'Yoshimaru, Ever Faithful';
 
-    private const PARTNER_NAME = 'Yoshimaru, Ever Faithful';
+    private const PARTNER_NAME = 'Rograkh, Son of Rohgahh';
 
     /**
      * The 99 (everything outside the command zone). Keyed by exact
@@ -205,7 +206,10 @@ class DeckSeeder extends Seeder
                 'default_card_id' => $printing->id,
                 'quantity' => $quantity,
             ]);
-            $inserted++;
+            // Sum quantity, not row count — basic-land rows carry quantities
+            // larger than 1 and they should count as their full pile size in
+            // the final tally rather than as a single inserted row.
+            $inserted += $quantity;
         }
 
         $this->command->info("Seeded deck '".self::DECK_NAME."' with $inserted cards (+ 2 commanders).");

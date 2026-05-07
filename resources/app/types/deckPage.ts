@@ -10,6 +10,8 @@ export interface DeckCommanderDefaultCard {
 
 /** A commander in the deck's command zone. */
 export interface DeckCommander {
+    /** UUID of the underlying deck_card row — drives the unified hero-image endpoint and any per-row claim flows. */
+    deck_card_id: string;
     oracle_card_id: string;
     name: string;
     color_identity: string | null;
@@ -24,11 +26,19 @@ export interface DeckCommander {
     type_line: string;
     mana_cost: (string | null)[];
     is_partner: boolean;
+    /** True when this command-zone row breaks a legality rule (banned-as-commander via rule 0). */
+    is_illegal: boolean;
+    /** Mode-C explicit per-card status — null in modes A / B. */
+    collection_status: CollectionStatus | null;
+    /** Mode-B implicit deckbox counts — null in modes A / C. */
+    collection_implicit_status: CollectionImplicitStatus | null;
     default_card: DeckCommanderDefaultCard;
 }
 
 /** A Magic "Companion" keyword card attached to the deck. */
 export interface DeckCompanion {
+    /** UUID of the underlying deck_card row — drives the unified hero-image endpoint and any per-row claim flows. */
+    deck_card_id: string;
     oracle_card_id: string;
     name: string;
     color_identity: string | null;
@@ -38,6 +48,10 @@ export interface DeckCompanion {
     /** Front-face type line — used by deck-stats subtype/type breakdowns. */
     type_line: string;
     mana_cost: (string | null)[];
+    /** Mode-C explicit per-card status — null in modes A / B. */
+    collection_status: CollectionStatus | null;
+    /** Mode-B implicit deckbox counts — null in modes A / C. */
+    collection_implicit_status: CollectionImplicitStatus | null;
     default_card: DeckCommanderDefaultCard;
 }
 

@@ -2,7 +2,9 @@
 
 namespace App\Models;
 
+use App\Enums\DeckCardRole;
 use App\Enums\DeckZone;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -26,6 +28,7 @@ class DeckCard extends Model
         'default_card_id',
         'category_id',
         'zone',
+        'role',
         'quantity',
     ];
 
@@ -33,8 +36,49 @@ class DeckCard extends Model
     {
         return [
             'zone' => DeckZone::class,
+            'role' => DeckCardRole::class,
             'quantity' => 'integer',
         ];
+    }
+
+    /**
+     * Mainboard / sideboard / maybeboard rows (anything without a special role).
+     *
+     * @param  Builder<DeckCard>  $query
+     */
+    public function scopeRoleless(Builder $query): void
+    {
+        $query->whereNull('role');
+    }
+
+    /**
+     * Command-zone rows: commander / partner / signature spell.
+     *
+     * @param  Builder<DeckCard>  $query
+     */
+    public function scopeCommandZone(Builder $query): void
+    {
+        $query->where('zone', DeckZone::Command->value);
+    }
+
+    /**
+     * The deck's primary commander row, if any.
+     *
+     * @param  Builder<DeckCard>  $query
+     */
+    public function scopePrimaryCommander(Builder $query): void
+    {
+        $query->where('role', DeckCardRole::Commander->value);
+    }
+
+    /**
+     * The deck's companion row, if any.
+     *
+     * @param  Builder<DeckCard>  $query
+     */
+    public function scopeCompanion(Builder $query): void
+    {
+        $query->where('role', DeckCardRole::Companion->value);
     }
 
     /**

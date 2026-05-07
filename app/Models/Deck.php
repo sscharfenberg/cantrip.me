@@ -4,13 +4,14 @@ namespace App\Models;
 
 use App\Enums\CardFormat;
 use App\Enums\ContainerVisibility;
+use App\Enums\DeckCardRole;
 use App\Enums\DeckState;
+use App\Enums\DeckZone;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Deck extends Model
 {
@@ -41,8 +42,6 @@ class Deck extends Model
         'bracket',
         'default_card_id',
         'container_id',
-        'companion_oracle_card_id',
-        'companion_default_card_id',
         'collection_mode',
     ];
 
@@ -85,49 +84,48 @@ class Deck extends Model
     }
 
     /**
-     * The commander cards for this deck (Commander/Oathbreaker/Brawl formats).
-     *
-     * Pivots on oracle_card_id (logical identity) and includes default_card_id
-     * (specific printing for display).
-     *
-     * @return BelongsToMany<OracleCard>
-     */
-    public function commanders(): BelongsToMany
-    {
-        return $this->belongsToMany(OracleCard::class, 'commanders', 'deck_id', 'oracle_card_id')
-            ->using(Commander::class)
-            ->withPivot('default_card_id', 'is_partner')
-            ->withTimestamps();
-    }
-
-    /**
-     * The Magic "Companion" keyword card selected for this deck (Lurrus, Yorion, …).
-     *
-     * Distinct from command-zone partner pairings stored on the `commanders` pivot.
-     *
-     * @return BelongsTo<OracleCard, Deck>
-     */
-    public function companion(): BelongsTo
-    {
-        return $this->belongsTo(OracleCard::class, 'companion_oracle_card_id');
-    }
-
-    /**
-     * The specific printing chosen for the companion (for display).
-     *
-     * @return BelongsTo<DefaultCard, Deck>
-     */
-    public function companionDefaultCard(): BelongsTo
-    {
-        return $this->belongsTo(DefaultCard::class, 'companion_default_card_id');
-    }
-
-    /**
      * @return HasMany<DeckCard>
      */
     public function deckCards(): HasMany
     {
         return $this->hasMany(DeckCard::class);
+    }
+
+    /**
+     * Command-zone deck_cards (zone=command). Ordered with the primary
+     * commander first, secondary slot (partner / signature spell) second.
+     * Eager-loadable via `with('commanders')` — same call site as before
+     * the consolidation.
+     *
+     * @return HasMany<DeckCard>
+     */
+    public function commanders(): HasMany
+    {
+        return $this->hasMany(DeckCard::class)
+            ->where('zone', DeckZone::Command->value)
+            ->orderByRaw("CASE role WHEN 'commander' THEN 0 WHEN 'partner' THEN 1 WHEN 'signature_spell' THEN 1 ELSE 2 END");
+    }
+
+    /**
+     * The deck's primary commander row, if any.
+     *
+     * @return HasOne<DeckCard>
+     */
+    public function primaryCommander(): HasOne
+    {
+        return $this->hasOne(DeckCard::class)
+            ->where('role', DeckCardRole::Commander->value);
+    }
+
+    /**
+     * The deck's Magic-keyword companion row, if any. Eager-loadable.
+     *
+     * @return HasOne<DeckCard>
+     */
+    public function companion(): HasOne
+    {
+        return $this->hasOne(DeckCard::class)
+            ->where('role', DeckCardRole::Companion->value);
     }
 
     /**
@@ -154,12 +152,14 @@ class Deck extends Model
 
     /**
      * Clear the hero image when its printing is no longer attached to
-     * the deck in any role (deck card, commander pivot, or companion).
+     * the deck in any role. Single source of truth post-consolidation:
+     * every card in the deck (mainboard, sideboard, command zone,
+     * companion) lives in `deck_cards`, so a single existence check
+     * suffices.
      *
      * The deck-update form validator requires the submitted hero to
      * match an attached printing, so any mutation that can detach the
-     * current hero must call this afterwards — otherwise the next
-     * `decks.update` save fails with "default_card_id is invalid".
+     * current hero must call this afterwards.
      */
     public function syncHeroImage(): void
     {
@@ -167,15 +167,10 @@ class Deck extends Model
             return;
         }
 
-        $isAttached = $this->default_card_id === $this->companion_default_card_id
-            || DeckCard::query()
-                ->where('deck_id', $this->id)
-                ->where('default_card_id', $this->default_card_id)
-                ->exists()
-            || DB::table('commanders')
-                ->where('deck_id', $this->id)
-                ->where('default_card_id', $this->default_card_id)
-                ->exists();
+        $isAttached = DeckCard::query()
+            ->where('deck_id', $this->id)
+            ->where('default_card_id', $this->default_card_id)
+            ->exists();
 
         if (! $isAttached) {
             $this->update(['default_card_id' => null]);

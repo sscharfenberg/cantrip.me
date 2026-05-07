@@ -110,6 +110,7 @@ const canSubmit = computed(() => Boolean(uploadedFilename.value) && !isUploading
                 :label="$t('pages.deck_import.format')"
                 :error="errors.format"
                 :invalid="!!errors.format"
+                :required="true"
                 for-id="format"
             >
                 <mono-select

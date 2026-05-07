@@ -7,11 +7,14 @@ import type { CommanderResult } from "Components/Deck/ShowCommanderOverview.vue"
 import Icon from "Components/UI/Icon.vue";
 import PopOver from "Components/UI/PopOver.vue";
 import type { DeckPrinting } from "Types/defaultCardImage.ts";
+import DeckCardAssignStackModal from "../Modals/DeckCardAssignStackModal.vue";
 import DeckCardSwitchPrintingModal from "../Modals/DeckCardSwitchPrintingModal.vue";
 const props = defineProps<{
     /** UUID of the deck. */
     deckId: string;
-    /** UUID of the commander's oracle card — picks which pivot row is updated. */
+    /** UUID of the commander's deck_card row — used for the unified hero-image endpoint. */
+    deckCardId: string;
+    /** UUID of the commander's oracle card — picks which deck_card is updated for printing swaps. */
     oracleCardId: string;
     /** Commander name — interpolated into the switch-printing modal title. */
     commanderName: string;
@@ -21,6 +24,13 @@ const props = defineProps<{
     defaultCardId: string;
     /** Current deck hero printing id, or null. Hides "Use as hero image" when this commander already is the hero. */
     heroCardId: string | null;
+    /**
+     * Effective collection-integration mode. The "Assign physical copy"
+     * entry is only rendered in mode C — modes A and B are silent (mode
+     * A means no collection at all; mode B is the implicit-deckbox
+     * mode). Same gating that mainboard rows use.
+     */
+    collectionMode: "A" | "B" | "C";
     /** Whether this sits on top of a card image (tweaks PopOver trigger size). */
     isMediumButton?: boolean;
 }>();
@@ -28,6 +38,7 @@ const popoverId = useId();
 const page = usePage();
 const showSwitchPrintingModal = ref(false);
 const showChangeCommanderModal = ref(false);
+const showAssignStackModal = ref(false);
 /** Oathbreaker has its own picker (planeswalker + signature spell) — every other commander-family format uses the standard picker. */
 const isOathbreaker = computed(() => props.format === "oathbreaker");
 /** Dismiss the popover menu via the native popover API. */
@@ -44,6 +55,33 @@ function openSwitchPrinting(): void {
 function openChangeCommander(): void {
     closePopover();
     showChangeCommanderModal.value = true;
+}
+/** Close the menu and open the assign-stack picker. */
+function openAssignStack(): void {
+    closePopover();
+    showAssignStackModal.value = true;
+}
+/**
+ * PATCH the chosen stack id (or null to clear) and refresh the
+ * `commanders` payload so the per-row collection-status badge reflects
+ * the new pivot state. Reuses the deck_card-keyed endpoints because
+ * commanders are deck_cards too post-consolidation.
+ */
+async function assignStack(stackId: string | null): Promise<void> {
+    const response = await fetch(
+        `/api/decks/${props.deckId}/cards/${props.deckCardId}/assigned-stacks`,
+        {
+            method: "PATCH",
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRF-TOKEN": page.props.csrfToken as string,
+                Accept: "application/json"
+            },
+            body: JSON.stringify({ card_stack_id: stackId })
+        }
+    );
+    if (!response.ok) return;
+    router.reload({ only: ["commanders"] });
 }
 /**
  * Swap this commander's display printing (the `commanders` pivot row's
@@ -113,9 +151,15 @@ async function changeCommander(commander: CommanderResult, second: CommanderResu
                     {{ $t("pages.deck.change_commander.link") }}
                 </button>
             </li>
+            <li v-if="props.collectionMode === 'C'">
+                <button type="button" class="popover-list-item" @click="openAssignStack">
+                    <icon name="storage" :size="1" />
+                    {{ $t("pages.deck.assign_stack.link") }}
+                </button>
+            </li>
             <li v-if="props.defaultCardId !== props.heroCardId">
                 <Link
-                    :href="`/decks/${props.deckId}/commander/${props.oracleCardId}/use-as-hero`"
+                    :href="`/decks/${props.deckId}/cards/${props.deckCardId}/use-as-hero`"
                     method="patch"
                     as="button"
                     class="popover-list-item"
@@ -145,5 +189,12 @@ async function changeCommander(commander: CommanderResult, second: CommanderResu
         :format="props.format"
         @confirm="changeCommander"
         @close="showChangeCommanderModal = false"
+    />
+    <deck-card-assign-stack-modal
+        v-if="showAssignStackModal"
+        :stacks-url="`/api/decks/${props.deckId}/cards/${props.deckCardId}/assignable-stacks`"
+        :name="props.commanderName"
+        @select="assignStack"
+        @close="showAssignStackModal = false"
     />
 </template>

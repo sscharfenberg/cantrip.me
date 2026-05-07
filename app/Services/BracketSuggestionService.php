@@ -31,10 +31,11 @@ class BracketSuggestionService
      */
     public static function suggest(Deck $deck): ?array
     {
-        $oracleIds = collect()
-            ->merge($deck->deckCards->pluck('oracle_card_id'))
-            ->merge($deck->commanders->pluck('id'))
-            ->push($deck->companion_oracle_card_id)
+        // Post-consolidation, every card in the deck (mainboard, sideboard,
+        // command zone, companion) lives in `deck_cards`, so a single
+        // pluck covers what used to span three sources.
+        $oracleIds = $deck->deckCards
+            ->pluck('oracle_card_id')
             ->filter()
             ->unique()
             ->values();

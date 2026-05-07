@@ -164,10 +164,6 @@ Route::middleware(array_filter(['auth', Features::enabled(Features::emailVerific
         ->name('decks.update');
     Route::patch('/decks/{deck}/cards/{deckCard}/use-as-hero', [DecksController::class, 'setHeroImage'])
         ->name('decks.set-hero-image');
-    Route::patch('/decks/{deck}/commander/{oracleCard}/use-as-hero', [DecksController::class, 'setCommanderHeroImage'])
-        ->name('decks.set-commander-hero-image');
-    Route::patch('/decks/{deck}/companion/use-as-hero', [DecksController::class, 'setCompanionHeroImage'])
-        ->name('decks.set-companion-hero-image');
     Route::delete('/decks/{deck}', [DecksController::class, 'destroy'])
         ->name('decks.destroy');
     Route::get('/api/decks/{deck}/card-search/oracle', [DeckCardSearchController::class, 'oracle'])

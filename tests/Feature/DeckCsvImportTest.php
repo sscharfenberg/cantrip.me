@@ -4,7 +4,9 @@ namespace Tests\Feature;
 
 use App\Enums\CardFormat;
 use App\Enums\ContainerVisibility;
+use App\Enums\DeckCardRole;
 use App\Enums\DeckImportSource;
+use App\Enums\DeckZone;
 use App\Models\CardStack;
 use App\Models\Deck;
 use App\Models\DeckCard;
@@ -235,9 +237,15 @@ class DeckCsvImportTest extends TestCase
 
         $this->assertSame(0, $results['imported']);
         $this->assertSame(1, $results['commanders']);
-        $this->assertSame(0, DeckCard::query()->where('deck_id', $deck->id)->count());
+        // The commander row IS a deck_card row now (zone=command), so
+        // assert there are no plain mainboard rows rather than zero
+        // deck_cards overall.
+        $this->assertSame(0, DeckCard::query()->where('deck_id', $deck->id)->whereNull('role')->count());
 
-        $row = DB::table('commanders')->where('deck_id', $deck->id)->first();
+        $row = DeckCard::query()
+            ->where('deck_id', $deck->id)
+            ->where('zone', DeckZone::Command->value)
+            ->first();
         $this->assertNotNull($row);
         $this->assertSame($atraxa->id, $row->oracle_card_id);
     }
@@ -293,15 +301,31 @@ class DeckCsvImportTest extends TestCase
         $this->assertSame(0, $results['skipped']);
 
         $deck->refresh();
-        $this->assertSame($lurrus->id, $deck->companion_oracle_card_id);
-        $this->assertSame($lurrusPrint->id, $deck->companion_default_card_id);
 
-        $commanderRows = DB::table('commanders')->where('deck_id', $deck->id)->get();
+        // Companion now lives in deck_cards with role=companion.
+        $companionRow = DeckCard::query()
+            ->where('deck_id', $deck->id)
+            ->where('role', DeckCardRole::Companion->value)
+            ->first();
+        $this->assertNotNull($companionRow);
+        $this->assertSame($lurrus->id, $companionRow->oracle_card_id);
+        $this->assertSame($lurrusPrint->id, $companionRow->default_card_id);
+
+        // Command zone — primary commander, no partner/sig spell.
+        $commanderRows = DeckCard::query()
+            ->where('deck_id', $deck->id)
+            ->where('zone', DeckZone::Command->value)
+            ->get();
         $this->assertCount(1, $commanderRows);
         $this->assertSame($atraxa->id, $commanderRows[0]->oracle_card_id);
         $this->assertSame($atraxaPrint->id, $commanderRows[0]->default_card_id);
+        $this->assertSame(DeckCardRole::Commander, $commanderRows[0]->role);
 
-        $deckCard = DeckCard::query()->where('deck_id', $deck->id)->first();
+        // Mainboard row.
+        $deckCard = DeckCard::query()
+            ->where('deck_id', $deck->id)
+            ->where('zone', DeckZone::Main->value)
+            ->first();
         $this->assertNotNull($deckCard);
         $this->assertSame($boltPrint->id, $deckCard->default_card_id);
         $this->assertSame(4, $deckCard->quantity);
@@ -357,13 +381,13 @@ class DeckCsvImportTest extends TestCase
         $deck = $this->makeDeck($owner, ContainerVisibility::Private);
         $atraxa = $this->makeOracleCard('Atraxa, Praetors\' Voice');
         $atraxaPrint = $this->makeDefaultCard($atraxa, 'cmr', '347');
-        DB::table('commanders')->insert([
+        DeckCard::create([
             'deck_id' => $deck->id,
             'oracle_card_id' => $atraxa->id,
             'default_card_id' => $atraxaPrint->id,
-            'is_partner' => false,
-            'created_at' => now(),
-            'updated_at' => now(),
+            'zone' => DeckZone::Command->value,
+            'role' => DeckCardRole::Commander->value,
+            'quantity' => 1,
         ]);
 
         $bolt = $this->makeOracleCard('Lightning Bolt');
@@ -374,7 +398,10 @@ class DeckCsvImportTest extends TestCase
 
         DeckCsvImportService::import($owner, $deck, $filename, DeckImportSource::Archidekt);
 
-        $this->assertSame(1, DB::table('commanders')->where('deck_id', $deck->id)->count());
+        $this->assertSame(
+            1,
+            DeckCard::query()->where('deck_id', $deck->id)->where('zone', DeckZone::Command->value)->count()
+        );
     }
 
     #[Test]

@@ -56,6 +56,12 @@
             "wotc": "Wizards of the Coast",
             "scryfall": "Scryfall"
         },
+        "deck_card_role": {
+            "commander": "Commander",
+            "partner": "Partner",
+            "signature_spell": "Signaturzauber",
+            "companion": "Gefährte"
+        },
         "card_formats": {
             "standard": "Standard",
             "pioneer": "Pioneer",

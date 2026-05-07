@@ -6,7 +6,9 @@ use App\Companions\CompanionRegistry;
 use App\Enums\CardFormat;
 use App\Enums\ContainerType;
 use App\Enums\ContainerVisibility;
+use App\Enums\DeckCardRole;
 use App\Enums\DeckState;
+use App\Enums\DeckZone;
 use App\Enums\Finish;
 use App\Enums\Locale;
 use App\Enums\Scryfall\ScryfallRelatedComponent;
@@ -20,8 +22,6 @@ use App\Http\Requests\Decks\EditDeckRequest;
 use App\Http\Requests\Decks\FinalizeDeckRequest;
 use App\Http\Requests\Decks\GenerateDeckQrRequest;
 use App\Http\Requests\Decks\PromoteDeckCollectionModeRequest;
-use App\Http\Requests\Decks\SetDeckCommanderHeroImageRequest;
-use App\Http\Requests\Decks\SetDeckCompanionHeroImageRequest;
 use App\Http\Requests\Decks\SetDeckHeroImageRequest;
 use App\Http\Requests\Decks\SetDeckStateRequest;
 use App\Http\Requests\Decks\SetDeckVisibilityRequest;
@@ -62,32 +62,35 @@ class DecksController extends Controller
      */
     public function list(Request $request): Response
     {
+        // Post-consolidation, every card in the deck (mainboard, sideboard,
+        // command zone, companion) lives in `deck_cards`, so a single
+        // aggregate replaces the prior three (deck_cards + commanders +
+        // companion). `card_count` and `total_worth` both come from the
+        // same sum.
         $decks = Deck::query()
             ->where('user_id', $request->user()->id)
-            ->withCount(['commanders'])
             ->withSum('deckCards as deck_cards_quantity', 'quantity')
             ->addSelect([
                 'last_card_update' => DB::table('deck_cards')
                     ->selectRaw('MAX(deck_cards.updated_at)')
                     ->whereColumn('deck_cards.deck_id', 'decks.id'),
-                'last_commander_update' => DB::table('commanders')
-                    ->selectRaw('MAX(commanders.updated_at)')
-                    ->whereColumn('commanders.deck_id', 'decks.id'),
+                'has_companion_count' => DB::table('deck_cards')
+                    ->selectRaw('COUNT(*)')
+                    ->whereColumn('deck_cards.deck_id', 'decks.id')
+                    ->where('deck_cards.role', DeckCardRole::Companion->value),
             ])
             ->get()
             ->each(function (Deck $deck) {
-                $deck->card_count = (int) $deck->deck_cards_quantity + $deck->commanders_count;
+                $deck->card_count = (int) $deck->deck_cards_quantity;
                 $deck->last_activity = max(array_filter([
                     $deck->updated_at,
                     $deck->last_card_update,
-                    $deck->last_commander_update,
                 ]));
             })
             ->sortByDesc('last_activity');
 
-        // Per-deck total worth in the user's currency, batched into three
-        // aggregate queries (deck cards, commanders, companion) so the
-        // page stays at constant query count regardless of deck count.
+        // Per-deck total worth in the user's currency. One aggregate query
+        // now that command-zone + companion live in deck_cards too.
         $deckIds = $decks->pluck('id')->all();
         $currency = $request->user()->currency
             ?? Locale::from(app()->getLocale())->defaultCurrency();
@@ -98,16 +101,6 @@ class DecksController extends Controller
             ->groupBy('deck_cards.deck_id')
             ->selectRaw("deck_cards.deck_id, COALESCE(SUM(deck_cards.quantity * default_cards.{$priceColumn}), 0) AS total")
             ->pluck('total', 'deck_id');
-        $commandersWorthByDeck = $deckIds === [] ? collect() : DB::table('commanders')
-            ->join('default_cards', 'default_cards.id', '=', 'commanders.default_card_id')
-            ->whereIn('commanders.deck_id', $deckIds)
-            ->groupBy('commanders.deck_id')
-            ->selectRaw("commanders.deck_id, COALESCE(SUM(default_cards.{$priceColumn}), 0) AS total")
-            ->pluck('total', 'deck_id');
-        $companionWorthByDeck = $deckIds === [] ? collect() : DB::table('decks')
-            ->join('default_cards', 'default_cards.id', '=', 'decks.companion_default_card_id')
-            ->whereIn('decks.id', $deckIds)
-            ->pluck("default_cards.{$priceColumn}", 'decks.id');
 
         $grouped = $decks
             ->groupBy(fn (Deck $deck) => $deck->format->value)
@@ -120,19 +113,14 @@ class DecksController extends Controller
                 'colors' => $deck->colors,
                 'bracket' => $deck->bracket,
                 'card_count' => (int) $deck->card_count,
-                'total_worth' => round(
-                    (float) ($worthByDeck[$deck->id] ?? 0)
-                    + (float) ($commandersWorthByDeck[$deck->id] ?? 0)
-                    + (float) ($companionWorthByDeck[$deck->id] ?? 0),
-                    2
-                ),
+                'total_worth' => round((float) ($worthByDeck[$deck->id] ?? 0), 2),
                 'last_activity' => $deck->last_activity,
                 // Non-destructive flags: the delete-confirm modal uses these
                 // to decide whether to prompt (deck has content worth losing)
                 // or delete immediately (deck is effectively empty).
                 'has_description' => $deck->description !== null && $deck->description !== '',
                 'has_image' => $deck->default_card_id !== null,
-                'has_companion' => $deck->companion_oracle_card_id !== null,
+                'has_companion' => (int) $deck->has_companion_count > 0,
             ])->values());
 
         return Inertia::render('Decks/DecksPage', [
@@ -180,7 +168,8 @@ class DecksController extends Controller
         });
 
         $deck = DeckService::createDeck($request->user(), $request->only([
-            'format', 'deck_name', 'deck_description', 'bracket', 'commander_id', 'companion_id', 'signature_spell_id',
+            'format', 'deck_name', 'deck_description', 'bracket',
+            'commander_id', 'companion_id', 'signature_spell_id',
         ]));
 
         $request->session()->flash('message', __('decks.deck_created', ['name' => $deck->name]));
@@ -198,20 +187,19 @@ class DecksController extends Controller
      */
     public function show(ShowDeckRequest $request, Deck $deck): Response
     {
+        // Post-consolidation, command-zone + companion live in `deck_cards`.
+        // The eager-load chain therefore folds into a single `deckCards.*`
+        // path; the prior split between `commanders.*` / `companion.*`
+        // and the now-removed `companionDefaultCard` is gone.
         $deck->load([
             'defaultCard:id,name,art_crop,artist_id,set_id',
             'defaultCard.set:id,name,code,path',
             'defaultCard.artist:id,name',
-            'commanders.defaults' => fn ($q) => $q
-                ->select('id', 'oracle_id', 'card_image_0', 'card_image_1'),
             'deckCards.oracleCard',
-            'commanders.faces:oracle_card_id,face_index,type_line,mana_cost',
             'deckCards.oracleCard.faces:oracle_card_id,face_index,type_line,mana_cost,oracle_text',
             'deckCards.oracleCard.legalities' => fn ($q) => $q->where('format', $deck->format->value),
             'deckCards.defaultCard:id,name,card_image_0,card_image_1,set_id,oracle_id',
             'deckCards.defaultCard.set:id,name,code',
-            'companion.faces:oracle_card_id,face_index,type_line,mana_cost,oracle_text',
-            'companionDefaultCard:id,oracle_id,card_image_0,card_image_1',
             'categories',
         ]);
 
@@ -244,32 +232,13 @@ class DecksController extends Controller
             ],
         ])->values();
 
-        $companion = null;
-        if ($deck->companion !== null) {
-            $companionOracle = $deck->companion;
-            $companionDefault = $deck->companionDefaultCard
-                ?? $rosterDefaults[$companionOracle->id]
-                ?? DB::table('default_cards')
-                    ->join('sets', 'sets.id', '=', 'default_cards.set_id')
-                    ->where('default_cards.oracle_id', $companionOracle->id)
-                    ->orderByDesc('sets.released_at')
-                    ->first(['default_cards.id', 'default_cards.card_image_0', 'default_cards.card_image_1']);
-
-            $companion = [
-                'oracle_card_id' => $companionOracle->id,
-                'name' => $companionOracle->name,
-                'color_identity' => $companionOracle->color_identity,
-                'produced_mana' => $companionOracle->produced_mana ? str_split($companionOracle->produced_mana) : null,
-                'cmc' => $companionOracle->cmc,
-                'type_line' => $companionOracle->faces->firstWhere('face_index', 0)?->type_line ?? '',
-                'mana_cost' => $companionOracle->faces->sortBy('face_index')->pluck('mana_cost')->values()->all(),
-                'default_card' => [
-                    'id' => $companionDefault->id ?? null,
-                    'card_image_0' => $companionDefault->card_image_0 ?? null,
-                    'card_image_1' => $companionDefault->card_image_1 ?? null,
-                ],
-            ];
-        }
+        // `firstWhere` does loose equality, but PHP enum cases never
+        // loose-compare equal to their backing string value — so we
+        // compare against the enum case itself, not `->value`.
+        // The full `$companion` array is built later, after the
+        // collection-integration statuses have been resolved, so the
+        // claim badge can be folded in alongside the rest of the shape.
+        $companionRow = $deck->deckCards->firstWhere('role', DeckCardRole::Companion);
 
         // Collection-integration mode + per-card status. Owners only —
         // viewers never see collection state for someone else's deck. Per-row
@@ -341,11 +310,44 @@ class DecksController extends Controller
                 ->values();
         }
 
-        $cardCount = (int) $deck->deckCards->sum('quantity') + $deck->commanders->count();
+        // Build the `$companion` shape now that collection statuses are
+        // available — the claim badge looks up by `deck_card_id`, so it
+        // depends on `$collectionStatuses` / `$collectionImplicitStatuses`
+        // having been populated above.
+        $companion = null;
+        if ($companionRow !== null && $companionRow->oracleCard !== null) {
+            $companionOracle = $companionRow->oracleCard;
+            $companionDefault = $companionRow->defaultCard
+                ?? $rosterDefaults[$companionOracle->id]
+                ?? null;
+
+            $companion = [
+                // `deck_card_id` is new: powers the unified hero-image
+                // endpoint from the companion-actions menu.
+                'deck_card_id' => $companionRow->id,
+                'oracle_card_id' => $companionOracle->id,
+                'name' => $companionOracle->name,
+                'color_identity' => $companionOracle->color_identity,
+                'produced_mana' => $companionOracle->produced_mana ? str_split($companionOracle->produced_mana) : null,
+                'cmc' => $companionOracle->cmc,
+                'type_line' => $companionOracle->faces->firstWhere('face_index', 0)?->type_line ?? '',
+                'mana_cost' => $companionOracle->faces->sortBy('face_index')->pluck('mana_cost')->values()->all(),
+                'collection_status' => $collectionStatuses[$companionRow->id] ?? null,
+                'collection_implicit_status' => $collectionImplicitStatuses[$companionRow->id] ?? null,
+                'default_card' => [
+                    'id' => $companionDefault->id ?? null,
+                    'card_image_0' => $companionDefault->card_image_0 ?? null,
+                    'card_image_1' => $companionDefault->card_image_1 ?? null,
+                ],
+            ];
+        }
+
+        // Post-consolidation, command-zone + companion are deck_cards
+        // rows too, so a single sum covers everything in the deck.
+        $cardCount = (int) $deck->deckCards->sum('quantity');
         $lastActivity = max(array_filter([
             $deck->updated_at?->toIso8601String(),
             $deck->deckCards->max('updated_at')?->toIso8601String(),
-            $deck->commanders->max(fn ($c) => $c->pivot->updated_at)?->toIso8601String(),
         ]));
 
         // Total deck worth in the request user's currency (or the locale
@@ -355,70 +357,98 @@ class DecksController extends Controller
         $currency = $request->user()?->currency
             ?? Locale::from(app()->getLocale())->defaultCurrency();
         $priceColumn = 'price_'.$currency->value;
-        $deckCardsWorth = (float) (DB::table('deck_cards')
+        // Single aggregate now that command-zone + companion live in
+        // `deck_cards`. quantity is 1 for those rows so the sum is
+        // identical to the prior `deckCards + commanders + companion`
+        // composition.
+        $totalWorth = (float) (DB::table('deck_cards')
             ->join('default_cards', 'default_cards.id', '=', 'deck_cards.default_card_id')
             ->where('deck_cards.deck_id', $deck->id)
             ->selectRaw("COALESCE(SUM(deck_cards.quantity * default_cards.{$priceColumn}), 0) AS total")
             ->value('total') ?? 0);
-        $commandersWorth = (float) DB::table('commanders')
-            ->join('default_cards', 'default_cards.id', '=', 'commanders.default_card_id')
-            ->where('commanders.deck_id', $deck->id)
-            ->sum("default_cards.{$priceColumn}");
-        $companionWorth = $deck->companion_default_card_id !== null
-            ? (float) (DB::table('default_cards')
-                ->where('id', $deck->companion_default_card_id)
-                ->value($priceColumn) ?? 0)
-            : 0.0;
-        $totalWorth = round($deckCardsWorth + $commandersWorth + $companionWorth, 2);
+        $totalWorth = round($totalWorth, 2);
 
-        $commanders = $deck->commanders->map(fn (OracleCard $oracle) => [
-            'oracle_card_id' => $oracle->id,
-            'name' => $oracle->name,
-            'color_identity' => $oracle->color_identity,
-            'produced_mana' => $oracle->produced_mana ? str_split($oracle->produced_mana) : null,
-            'cmc' => $oracle->cmc,
-            'type_line' => $oracle->faces->firstWhere('face_index', 0)?->type_line ?? '',
-            'mana_cost' => $oracle->faces->sortBy('face_index')->pluck('mana_cost')->values()->all(),
-            'is_partner' => (bool) $oracle->pivot->is_partner,
-            'default_card' => [
-                'id' => $oracle->pivot->default_card_id,
-                'card_image_0' => $oracle->defaults
-                    ->firstWhere('id', $oracle->pivot->default_card_id)?->card_image_0,
-                'card_image_1' => $oracle->defaults
-                    ->firstWhere('id', $oracle->pivot->default_card_id)?->card_image_1,
-            ],
-        ])->values();
+        // Command-zone deck_cards, ordered with the primary commander
+        // first and the secondary slot (partner / signature spell)
+        // second. `is_partner` retains the legacy meaning ("any
+        // non-primary command-zone slot") so the frontend's existing
+        // commander block doesn't have to learn the role taxonomy.
+        $commanderRows = $deck->deckCards
+            ->where('zone', DeckZone::Command)
+            ->sortBy(fn (DeckCard $dc): int => $dc->role === DeckCardRole::Commander ? 0 : 1)
+            ->values();
+        $commanders = $commanderRows->map(function (DeckCard $dc) use ($illegalDeckCardIds, $collectionStatuses, $collectionImplicitStatuses) {
+            $oracle = $dc->oracleCard;
+            $printing = $dc->defaultCard;
 
-        $cards = $deck->deckCards->map(fn (DeckCard $dc) => [
-            'id' => $dc->id,
-            'oracle_card_id' => $dc->oracle_card_id,
-            'name' => $dc->oracleCard->name,
-            'color_identity' => $dc->oracleCard->color_identity,
-            'produced_mana' => $dc->oracleCard->produced_mana ? str_split($dc->oracleCard->produced_mana) : null,
-            'cmc' => $dc->oracleCard->cmc,
-            'type_line' => $dc->oracleCard->faces->firstWhere('face_index', 0)?->type_line ?? '',
-            'mana_cost' => $dc->oracleCard->faces->sortBy('face_index')->pluck('mana_cost')->values()->all(),
-            'is_basic_land' => in_array($dc->oracleCard->name, FormatProfile::BASIC_LANDS, true),
-            'is_unlimited' => $dc->oracleCard->hasUnlimitedCopiesRule(),
-            'is_illegal' => isset($illegalDeckCardIds[$dc->id]),
-            'is_game_changer' => (bool) $dc->oracleCard->game_changer,
-            'is_mld' => (bool) $dc->oracleCard->mld,
-            'zone' => $dc->zone->value,
-            'quantity' => $dc->quantity,
-            'category_id' => $dc->category_id,
-            'collection_status' => $collectionStatuses[$dc->id] ?? null,
-            'collection_implicit_status' => $collectionImplicitStatuses[$dc->id] ?? null,
-            'default_card' => [
-                'id' => $dc->defaultCard?->id,
-                'name' => $dc->defaultCard?->name,
-                'card_image_0' => $dc->defaultCard?->card_image_0,
-                'card_image_1' => $dc->defaultCard?->card_image_1,
-                'set' => $dc->defaultCard?->set ? [
-                    'name' => $dc->defaultCard->set->name,
-                    'code' => $dc->defaultCard->set->code,
-                ] : null,
-            ],
-        ])->values();
+            return [
+                // `deck_card_id` is new: the unified hero-image endpoint
+                // takes a deck_card id, so the frontend menu needs the
+                // command-zone row's id alongside the oracle-level fields
+                // it already consumed.
+                'deck_card_id' => $dc->id,
+                'oracle_card_id' => $oracle->id,
+                'name' => $oracle->name,
+                'color_identity' => $oracle->color_identity,
+                'produced_mana' => $oracle->produced_mana ? str_split($oracle->produced_mana) : null,
+                'cmc' => $oracle->cmc,
+                'type_line' => $oracle->faces->firstWhere('face_index', 0)?->type_line ?? '',
+                'mana_cost' => $oracle->faces->sortBy('face_index')->pluck('mana_cost')->values()->all(),
+                'is_partner' => $dc->role !== DeckCardRole::Commander,
+                // True when this command-zone row appears in any per-card
+                // violation — today that's the banned-as-commander overlay
+                // surfacing through the rule-0 escape hatch.
+                'is_illegal' => isset($illegalDeckCardIds[$dc->id]),
+                // Same per-row collection-integration statuses we ship
+                // for mainboard rows — the finalize wizard, bulk-add and
+                // per-card picker can all attach pivots to command-zone
+                // and companion deck_cards post-consolidation, so the
+                // badges have to track them.
+                'collection_status' => $collectionStatuses[$dc->id] ?? null,
+                'collection_implicit_status' => $collectionImplicitStatuses[$dc->id] ?? null,
+                'default_card' => [
+                    'id' => $printing?->id,
+                    'card_image_0' => $printing?->card_image_0,
+                    'card_image_1' => $printing?->card_image_1,
+                ],
+            ];
+        })->values();
+
+        // `cards` only carries the non-special rows (mainboard / sideboard
+        // / maybeboard). Command-zone + companion get their own props so
+        // the frontend's existing per-section rendering stays unchanged.
+        $cards = $deck->deckCards
+            ->whereNotIn('zone', [DeckZone::Command, DeckZone::Companion])
+            ->map(fn (DeckCard $dc) => [
+                'id' => $dc->id,
+                'oracle_card_id' => $dc->oracle_card_id,
+                'name' => $dc->oracleCard->name,
+                'color_identity' => $dc->oracleCard->color_identity,
+                'produced_mana' => $dc->oracleCard->produced_mana ? str_split($dc->oracleCard->produced_mana) : null,
+                'cmc' => $dc->oracleCard->cmc,
+                'type_line' => $dc->oracleCard->faces->firstWhere('face_index', 0)?->type_line ?? '',
+                'mana_cost' => $dc->oracleCard->faces->sortBy('face_index')->pluck('mana_cost')->values()->all(),
+                'is_basic_land' => in_array($dc->oracleCard->name, FormatProfile::BASIC_LANDS, true),
+                'is_unlimited' => $dc->oracleCard->hasUnlimitedCopiesRule(),
+                'is_illegal' => isset($illegalDeckCardIds[$dc->id]),
+                'is_game_changer' => (bool) $dc->oracleCard->game_changer,
+                'is_mld' => (bool) $dc->oracleCard->mld,
+                'zone' => $dc->zone->value,
+                'quantity' => $dc->quantity,
+                'category_id' => $dc->category_id,
+                'collection_status' => $collectionStatuses[$dc->id] ?? null,
+                'collection_implicit_status' => $collectionImplicitStatuses[$dc->id] ?? null,
+                'default_card' => [
+                    'id' => $dc->defaultCard?->id,
+                    'name' => $dc->defaultCard?->name,
+                    'card_image_0' => $dc->defaultCard?->card_image_0,
+                    'card_image_1' => $dc->defaultCard?->card_image_1,
+                    'set' => $dc->defaultCard?->set ? [
+                        'name' => $dc->defaultCard->set->name,
+                        'code' => $dc->defaultCard->set->code,
+                    ] : null,
+                ],
+            ])->values();
 
         $categories = $deck->categories->sortBy('name')->map(fn (DeckCategory $cat) => [
             'id' => $cat->id,
@@ -428,17 +458,17 @@ class DecksController extends Controller
         // Hero image fallback: in commander-like formats, decks frequently
         // don't have an explicit `default_card_id` set — pick the primary
         // commander's printing so the banner shows the commander's art by
-        // default rather than rendering a blank header. Loaded inline because
-        // the eager-loaded `commanders.defaults` only carries card images,
-        // not art_crop / set / artist.
+        // default rather than rendering a blank header. Loaded inline so
+        // the result carries art_crop / set / artist, which the eager-load
+        // chain on deckCards omits.
         $heroCard = $deck->defaultCard;
         if ($heroCard === null && $profile->requiresCommander()) {
-            $primaryCommander = $deck->commanders->firstWhere('pivot.is_partner', false);
-            if ($primaryCommander !== null && $primaryCommander->pivot->default_card_id !== null) {
+            $primaryCommander = $commanderRows->firstWhere('role', DeckCardRole::Commander);
+            if ($primaryCommander !== null && $primaryCommander->default_card_id !== null) {
                 $heroCard = DefaultCard::query()
                     ->with(['set:id,name,code,path', 'artist:id,name'])
                     ->find(
-                        $primaryCommander->pivot->default_card_id,
+                        $primaryCommander->default_card_id,
                         ['id', 'name', 'art_crop', 'artist_id', 'set_id']
                     );
             }
@@ -450,10 +480,11 @@ class DecksController extends Controller
         // the matching MM2 Faerie Rogue token, not a random reprint.
         // Deduped on the related printing id so the same token only
         // appears once even if multiple deck cards reference it.
-        $sourceDefaultCardIds = $deck->commanders
-            ->pluck('pivot.default_card_id')
-            ->merge($deck->deckCards->pluck('default_card_id'))
-            ->merge([$companion['default_card']['id'] ?? null])
+        // Single source: every card in the deck (mainboard, sideboard,
+        // command zone, companion) lives in `deck_cards` and has a
+        // `default_card_id`, so one pluck covers them all.
+        $sourceDefaultCardIds = $deck->deckCards
+            ->pluck('default_card_id')
             ->filter()
             ->unique()
             ->values();
@@ -772,12 +803,20 @@ class DecksController extends Controller
         $newCompanionId = $request->input('companion_id');
         $newSignatureSpellId = $request->input('signature_spell_id');
 
+        // Compare against the current command-zone deck_card rows. Post-
+        // consolidation, command-zone cards live in `deck_cards` with
+        // `zone=command` and a discriminating `role`, so the diff reads
+        // the role column instead of the old `commanders.is_partner`
+        // pivot column.
         $deck->load('commanders');
         $profile = $deck->format->rules();
-        $currentCommander = $deck->commanders->firstWhere('pivot.is_partner', false)?->id;
-        $currentPartner = $deck->commanders->firstWhere('pivot.is_partner', true)?->id;
-        $currentCompanion = $profile->hasSignatureSpell() ? null : $currentPartner;
-        $currentSpell = $profile->hasSignatureSpell() ? $currentPartner : null;
+        $primaryRow = $deck->commanders->firstWhere('role', DeckCardRole::Commander);
+        $secondaryRow = $deck->commanders->first(
+            fn (DeckCard $row): bool => $row->role !== DeckCardRole::Commander
+        );
+        $currentCommander = $primaryRow?->oracle_card_id;
+        $currentSpell = $profile->hasSignatureSpell() ? $secondaryRow?->oracle_card_id : null;
+        $currentCompanion = $profile->hasSignatureSpell() ? null : $secondaryRow?->oracle_card_id;
 
         if (
             $newCommanderId !== $currentCommander
@@ -809,13 +848,13 @@ class DecksController extends Controller
      */
     public function edit(EditDeckRequest $request, Deck $deck): Response
     {
+        // Post-consolidation, every card in the deck (mainboard / sideboard
+        // / command zone / companion) lives in `deck_cards`. The eager-load
+        // chain therefore folds into one path; the hero-image picker reads
+        // its options from the same source.
         $deck->load([
-            'commanders.faces:oracle_card_id,face_index,type_line,mana_cost,oracle_text',
-            // `oracle_card_id` is needed by the bracket auto-suggest so it
-            // can join against `oracle_cards.{game_changer,mld}` — the
-            // hero-image picker doesn't read it, but the cost is just
-            // one extra column on an existing select.
-            'deckCards:id,deck_id,default_card_id,oracle_card_id',
+            'deckCards:id,deck_id,default_card_id,oracle_card_id,zone,role',
+            'deckCards.oracleCard.faces:oracle_card_id,face_index,type_line,mana_cost,oracle_text',
             'defaultCard:id,name,art_crop,artist_id,set_id',
             'defaultCard.set:id,name,code,path',
             'defaultCard.artist:id,name',
@@ -823,28 +862,34 @@ class DecksController extends Controller
 
         $profile = $deck->format->rules();
 
+        // Shape the command zone + companion in the form the existing
+        // CreateEditDeckPage expects. `commander` = primary command-zone
+        // slot. `companion` here is the pre-existing variable name used
+        // both for the partner-type companion (Commander format secondary
+        // slot) and the Magic-keyword companion — the form picker treats
+        // them as different fields, so we set whichever one applies.
         $commander = null;
         $companion = null;
         $signatureSpell = null;
-        foreach ($deck->commanders as $oracle) {
-            $shaped = CommandZoneService::mapCommanderCard($oracle);
-            if (! $oracle->pivot->is_partner) {
-                $commander = $shaped;
-            } elseif ($profile->hasSignatureSpell()) {
-                $signatureSpell = $shaped;
-            } else {
-                $companion = $shaped;
+        foreach ($deck->deckCards as $row) {
+            if ($row->zone !== DeckZone::Command && $row->role !== DeckCardRole::Companion) {
+                continue;
             }
+            $oracle = $row->oracleCard;
+            if ($oracle === null) {
+                continue;
+            }
+            $shaped = CommandZoneService::mapCommanderCard($oracle);
+            match ($row->role) {
+                DeckCardRole::Commander => $commander = $shaped,
+                DeckCardRole::SignatureSpell => $signatureSpell = $shaped,
+                DeckCardRole::Partner, DeckCardRole::Companion => $companion = $shaped,
+                default => null,
+            };
         }
 
         // Card options for the deck-hero-image picker — every printing
-        // attached to the deck in any role:
-        //   - deck cards (mainboard + sideboard, both live on `deck_cards`)
-        //   - commanders / partners / oathbreakers / signature spells
-        //     (all stored on the `commanders` pivot's `default_card_id`)
-        //   - the companion (`decks.companion_default_card_id`)
-        // Loaded as one bulk query to avoid the per-row defaults eager-load
-        // ballooning when commanders' oracles have many printings, then
+        // attached to the deck in any role. Single source post-consolidation;
         // shaped as DefaultCardArtCrop on the frontend so ArtCropImage can
         // render the thumbnail directly.
         $shapeArtCrop = fn (DefaultCard $card) => [
@@ -859,10 +904,8 @@ class DecksController extends Controller
             ] : null,
         ];
 
-        $optionIds = collect()
-            ->merge($deck->deckCards->pluck('default_card_id'))
-            ->merge($deck->commanders->pluck('pivot.default_card_id'))
-            ->push($deck->companion_default_card_id)
+        $optionIds = $deck->deckCards
+            ->pluck('default_card_id')
             ->filter()
             ->unique()
             ->values();
@@ -1061,59 +1104,6 @@ class DecksController extends Controller
         $request->session()->flash('message', __('decks.deck_hero_changed', [
             'name' => $deck->name,
             'card' => $deckCard->defaultCard?->name ?? '',
-        ]));
-        $request->session()->flash('type', 'success');
-
-        return redirect(route('decks.show', $deck));
-    }
-
-    /**
-     * Set the deck's hero image to a commander's printing.
-     *
-     * Sibling of {@see setHeroImage} for the commander actions menu — the
-     * source printing is the `commanders` pivot's `default_card_id`. Owner
-     * + commander-belongs-to-deck checks live in
-     * {@see SetDeckCommanderHeroImageRequest::authorize}.
-     */
-    public function setCommanderHeroImage(
-        SetDeckCommanderHeroImageRequest $request,
-        Deck $deck,
-        OracleCard $oracleCard,
-    ): RedirectResponse {
-        $defaultCardId = $deck->commanders()
-            ->where('oracle_card_id', $oracleCard->id)
-            ->first()
-            ?->pivot
-            ?->default_card_id;
-
-        $deck->update(['default_card_id' => $defaultCardId]);
-
-        $request->session()->flash('message', __('decks.deck_hero_changed', [
-            'name' => $deck->name,
-            'card' => $oracleCard->name,
-        ]));
-        $request->session()->flash('type', 'success');
-
-        return redirect(route('decks.show', $deck));
-    }
-
-    /**
-     * Set the deck's hero image to the companion's printing.
-     *
-     * Sibling of {@see setHeroImage} for the companion actions menu — the
-     * source printing is `decks.companion_default_card_id`. Owner +
-     * has-a-companion checks live in
-     * {@see SetDeckCompanionHeroImageRequest::authorize}.
-     */
-    public function setCompanionHeroImage(SetDeckCompanionHeroImageRequest $request, Deck $deck): RedirectResponse
-    {
-        $deck->loadMissing('companionDefaultCard:id,name');
-
-        $deck->update(['default_card_id' => $deck->companion_default_card_id]);
-
-        $request->session()->flash('message', __('decks.deck_hero_changed', [
-            'name' => $deck->name,
-            'card' => $deck->companionDefaultCard?->name ?? '',
         ]));
         $request->session()->flash('type', 'success');
 

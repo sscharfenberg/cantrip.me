@@ -2,12 +2,15 @@
 
 namespace App\Http\Controllers\Decks;
 
+use App\Enums\DeckCardRole;
+use App\Enums\DeckZone;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Decks\RemoveDeckCompanionRequest;
 use App\Http\Requests\Decks\SetDeckCompanionPrintingRequest;
 use App\Http\Requests\Decks\SetDeckCompanionRequest;
 use App\Http\Requests\Decks\ShowDeckCompanionPrintingsRequest;
 use App\Models\Deck;
+use App\Models\DeckCard;
 use App\Services\DeckCardService;
 use App\Services\DeckPrintingsService;
 use App\Services\DeckService;
@@ -26,23 +29,37 @@ class DeckCompanionController extends Controller
      * after the update so a freshly attached companion expands the badge
      * accordingly. Commander-family formats short-circuit inside the
      * service (their colors come from the command zone).
+     *
+     * Post-consolidation, the companion is a `deck_cards` row with
+     * `zone=companion, role=companion`. Replacing it deletes any existing
+     * companion row before inserting the new one — the
+     * `UNIQUE(deck_id, role)` constraint would otherwise reject the
+     * duplicate on the second call.
      */
     public function store(SetDeckCompanionRequest $request, Deck $deck): JsonResponse
     {
         $oracleCardId = $request->validated()['oracle_card_id'];
         $newest = DeckService::newestDefaultCard($oracleCardId);
 
-        $deck->update([
-            'companion_oracle_card_id' => $oracleCardId,
-            'companion_default_card_id' => $newest?->id,
+        $deck->deckCards()
+            ->where('role', DeckCardRole::Companion->value)
+            ->delete();
+
+        $companionRow = DeckCard::create([
+            'deck_id' => $deck->id,
+            'oracle_card_id' => $oracleCardId,
+            'default_card_id' => $newest?->id,
+            'zone' => DeckZone::Companion->value,
+            'role' => DeckCardRole::Companion->value,
+            'quantity' => 1,
         ]);
 
         DeckCardService::recalculateColors($deck);
         $deck->syncHeroImage();
 
         return response()->json([
-            'companion_oracle_card_id' => $deck->companion_oracle_card_id,
-            'companion_default_card_id' => $deck->companion_default_card_id,
+            'companion_oracle_card_id' => $companionRow->oracle_card_id,
+            'companion_default_card_id' => $companionRow->default_card_id,
         ]);
     }
 
@@ -54,10 +71,15 @@ class DeckCompanionController extends Controller
      */
     public function updatePrinting(SetDeckCompanionPrintingRequest $request, Deck $deck): JsonResponse
     {
-        $oldPrinting = $deck->companion_default_card_id;
+        $companionRow = $deck->deckCards()
+            ->where('role', DeckCardRole::Companion->value)
+            ->first();
+        $oldPrinting = $companionRow?->default_card_id;
         $newPrinting = $request->validated()['default_card_id'];
 
-        $deck->update(['companion_default_card_id' => $newPrinting]);
+        if ($companionRow !== null) {
+            $companionRow->update(['default_card_id' => $newPrinting]);
+        }
 
         if ($oldPrinting !== null) {
             $deck->remapHeroImage($oldPrinting, $newPrinting);
@@ -75,25 +97,28 @@ class DeckCompanionController extends Controller
      */
     public function printings(ShowDeckCompanionPrintingsRequest $request, Deck $deck): JsonResponse
     {
+        $companionRow = $deck->deckCards()
+            ->where('role', DeckCardRole::Companion->value)
+            ->first();
+
         return response()->json(DeckPrintingsService::listForOracle(
             $request->user()->id,
-            $deck->companion_oracle_card_id,
-            $deck->companion_default_card_id,
+            $companionRow?->oracle_card_id,
+            $companionRow?->default_card_id,
         ));
     }
 
     /**
-     * Clear the deck's companion (oracle + printing).
+     * Clear the deck's companion.
      *
      * Recalculates `colors` after the clear so a removed companion that was
      * widening the deck's color set drops back out of the badge.
      */
     public function destroy(RemoveDeckCompanionRequest $request, Deck $deck): JsonResponse
     {
-        $deck->update([
-            'companion_oracle_card_id' => null,
-            'companion_default_card_id' => null,
-        ]);
+        $deck->deckCards()
+            ->where('role', DeckCardRole::Companion->value)
+            ->delete();
 
         DeckCardService::recalculateColors($deck);
         $deck->syncHeroImage();

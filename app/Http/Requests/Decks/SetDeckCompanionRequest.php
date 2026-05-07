@@ -75,7 +75,10 @@ class SetDeckCompanionRequest extends FormRequest
 
             $deck->loadMissing('commanders');
 
-            if ($deck->commanders->contains('id', $oracleCardId)) {
+            // `commanders` is now HasMany<DeckCard>, so the duplicate
+            // check looks at the row's `oracle_card_id` column rather
+            // than the OracleCard's `id`.
+            if ($deck->commanders->contains('oracle_card_id', $oracleCardId)) {
                 $validator->errors()->add('oracle_card_id', __('decks.companion.errors.already_commander'));
 
                 return;
@@ -93,12 +96,15 @@ class SetDeckCompanionRequest extends FormRequest
             return true;
         }
 
+        $deck->loadMissing('commanders.oracleCard:id,color_identity');
+
         $commanderLetters = [];
-        foreach ($deck->commanders as $commander) {
-            if ($commander->color_identity === null) {
+        foreach ($deck->commanders as $commanderRow) {
+            $oracle = $commanderRow->oracleCard;
+            if ($oracle === null || $oracle->color_identity === null) {
                 continue;
             }
-            foreach (str_split($commander->color_identity) as $letter) {
+            foreach (str_split($oracle->color_identity) as $letter) {
                 $commanderLetters[$letter] = true;
             }
         }

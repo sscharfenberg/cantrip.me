@@ -43,14 +43,6 @@ return new class extends Migration
                 ->nullable()
                 ->constrained('default_cards')
                 ->cascadeOnDelete();
-            $table->foreignUuid('companion_oracle_card_id')
-                ->nullable()
-                ->constrained('oracle_cards')
-                ->nullOnDelete();
-            $table->foreignUuid('companion_default_card_id')
-                ->nullable()
-                ->constrained('default_cards')
-                ->nullOnDelete();
             $table->foreignUuid('container_id')
                 ->nullable()
                 ->constrained()

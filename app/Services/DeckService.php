@@ -3,7 +3,10 @@
 namespace App\Services;
 
 use App\Enums\CardFormat;
+use App\Enums\DeckCardRole;
+use App\Enums\DeckZone;
 use App\Models\Deck;
+use App\Models\DeckCard;
 use App\Models\DefaultCard;
 use App\Models\OracleCard;
 use App\Models\User;
@@ -174,10 +177,12 @@ class DeckService
     }
 
     /**
-     * Create a new deck with optional command zone cards.
+     * Create a new deck with an optional command zone.
      *
-     * Validates command zone cards against format rules via CommandZoneService
-     * search methods. Aborts with 422 if any validation fails.
+     * No legality re-check at the controller boundary — the picker
+     * already filtered candidates against the format profile, and any
+     * deck saved with a non-legal commander surfaces the violation
+     * post-save through {@see DeckValidator}.
      *
      * @param  array{format: string, deck_name: string, deck_description?: string|null, bracket?: int|string|null, commander_id?: string|null, companion_id?: string|null, signature_spell_id?: string|null}  $data
      */
@@ -186,40 +191,52 @@ class DeckService
         $format = CardFormat::from($data['format']);
         $bracket = $data['bracket'] ?? null;
 
-        $deck = Deck::create([
-            'user_id' => $user->id,
-            'name' => $data['deck_name'],
-            'description' => $data['deck_description'] ?? null,
-            'format' => $format,
-            'colors' => null,
-            'bracket' => $bracket === null || $bracket === '' ? null : (int) $bracket,
-        ]);
+        // Wrap the deck row + command-zone insert in one transaction so a
+        // failure inside `setCommandZone` (e.g. a defensive runtime
+        // exception against missing-printing data) doesn't leave an
+        // orphaned empty deck row behind.
+        return DB::transaction(function () use ($user, $data, $format, $bracket): Deck {
+            $deck = Deck::create([
+                'user_id' => $user->id,
+                'name' => $data['deck_name'],
+                'description' => $data['deck_description'] ?? null,
+                'format' => $format,
+                'colors' => null,
+                'bracket' => $bracket === null || $bracket === '' ? null : (int) $bracket,
+            ]);
 
-        self::setCommandZone(
-            $deck,
-            $data['commander_id'] ?? null,
-            $data['companion_id'] ?? null,
-            $data['signature_spell_id'] ?? null,
-        );
+            self::setCommandZone(
+                $deck,
+                $data['commander_id'] ?? null,
+                $data['companion_id'] ?? null,
+                $data['signature_spell_id'] ?? null,
+            );
 
-        return $deck;
+            return $deck;
+        });
     }
 
     /**
      * Replace the deck's command zone with the given oracle cards.
      *
-     * Validates legality + pairing against the deck's format, detaches every
-     * existing commander pivot row, attaches the new ones (commander +
-     * optional partner-type companion or signature spell), and recomputes
-     * the deck's `colors` from the combined color identity of the new
-     * command zone. Wrapped in a transaction so a partial failure rolls
-     * back cleanly.
+     * Deletes every existing command-zone deck_card row and inserts new
+     * ones for the primary commander plus the optional secondary slot
+     * (partner-type companion or signature spell), then recomputes the
+     * deck's `colors` from the combined color identity. Wrapped in a
+     * transaction so a partial failure rolls back cleanly.
      *
-     * No-op for formats that don't use a command zone (early-returns when
-     * `requiresCommander()` is false). The deck's Magic-keyword companion
-     * (`companion_oracle_card_id`) is intentionally left alone — that's a
-     * separate slot from the partner-type companion attached via the
-     * `commanders` pivot.
+     * No format-legality re-check happens here — the picker is the gate:
+     * non-legal commander candidates are surfaced only when the user
+     * opts in via the rule-0 toggle, and any resulting legality break
+     * (banned-as-commander, format-pool, partner pairing) is surfaced
+     * post-save by {@see DeckValidator}. That keeps create + edit + the
+     * inline change-commander menu free of "you can't save this" errors
+     * when the user has knowingly picked something the picker offered.
+     *
+     * No-op for formats that don't use a command zone. The deck's
+     * Magic-keyword companion (`role=companion`, `zone=companion`) is
+     * intentionally left alone — that's a separate slot from the
+     * partner-type companion in the command zone.
      */
     public static function setCommandZone(
         Deck $deck,
@@ -234,54 +251,55 @@ class DeckService
             return;
         }
 
-        // Validate command zone cards against format rules.
-        if ($profile->hasSignatureSpell()) {
-            abort_unless(self::isLegalOathbreaker($commanderOracleId, $format), 422, 'Invalid planeswalker.');
-
-            if ($signatureSpellOracleId) {
-                abort_unless(
-                    self::isLegalSignatureSpell($signatureSpellOracleId, $commanderOracleId, $format),
-                    422,
-                    'Invalid signature spell.',
-                );
-            }
-        } else {
-            abort_unless(self::isLegalCommander($commanderOracleId, $format), 422, 'Invalid commander.');
-
-            if ($companionOracleId) {
-                abort_unless(
-                    self::isLegalCompanion($companionOracleId, $commanderOracleId, $format),
-                    422,
-                    'Invalid companion.',
-                );
-            }
-        }
-
         DB::transaction(function () use ($deck, $profile, $commanderOracleId, $companionOracleId, $signatureSpellOracleId): void {
-            // Wipe any existing command zone before attaching the new one
-            // so partner/spell flips between formats don't leave stragglers.
-            $deck->commanders()->detach();
+            // Wipe any existing command-zone deck_cards before inserting
+            // new ones so partner/spell flips don't leave stragglers.
+            DeckCard::query()
+                ->where('deck_id', $deck->id)
+                ->where('zone', DeckZone::Command->value)
+                ->delete();
 
             $commanderDefault = self::newestDefaultCard($commanderOracleId);
-            abort_unless($commanderDefault !== null, 422, 'No printing found for commander.');
-            $deck->commanders()->attach($commanderOracleId, [
+            if ($commanderDefault === null) {
+                // Defensive: every oracle in the DB should have at least
+                // one printing. If not, the Scryfall data sync is broken
+                // — surface as a 500 rather than a user-facing form error.
+                throw new \RuntimeException("No printing found for commander oracle {$commanderOracleId}.");
+            }
+            DeckCard::create([
+                'deck_id' => $deck->id,
+                'oracle_card_id' => $commanderOracleId,
                 'default_card_id' => $commanderDefault->id,
-                'is_partner' => false,
+                'zone' => DeckZone::Command->value,
+                'role' => DeckCardRole::Commander->value,
+                'quantity' => 1,
             ]);
 
             if ($profile->hasSignatureSpell() && $signatureSpellOracleId) {
                 $spellDefault = self::newestDefaultCard($signatureSpellOracleId);
-                abort_unless($spellDefault !== null, 422, 'No printing found for signature spell.');
-                $deck->commanders()->attach($signatureSpellOracleId, [
+                if ($spellDefault === null) {
+                    throw new \RuntimeException("No printing found for signature spell oracle {$signatureSpellOracleId}.");
+                }
+                DeckCard::create([
+                    'deck_id' => $deck->id,
+                    'oracle_card_id' => $signatureSpellOracleId,
                     'default_card_id' => $spellDefault->id,
-                    'is_partner' => true,
+                    'zone' => DeckZone::Command->value,
+                    'role' => DeckCardRole::SignatureSpell->value,
+                    'quantity' => 1,
                 ]);
             } elseif ($companionOracleId) {
-                $companionDefault = self::newestDefaultCard($companionOracleId);
-                abort_unless($companionDefault !== null, 422, 'No printing found for companion.');
-                $deck->commanders()->attach($companionOracleId, [
-                    'default_card_id' => $companionDefault->id,
-                    'is_partner' => true,
+                $partnerDefault = self::newestDefaultCard($companionOracleId);
+                if ($partnerDefault === null) {
+                    throw new \RuntimeException("No printing found for partner oracle {$companionOracleId}.");
+                }
+                DeckCard::create([
+                    'deck_id' => $deck->id,
+                    'oracle_card_id' => $companionOracleId,
+                    'default_card_id' => $partnerDefault->id,
+                    'zone' => DeckZone::Command->value,
+                    'role' => DeckCardRole::Partner->value,
+                    'quantity' => 1,
                 ]);
             }
 
@@ -299,7 +317,7 @@ class DeckService
             $deck->update(['colors' => $merged ?: null]);
         });
 
-        // Detaching the prior command zone may have removed the printing
+        // Wiping the prior command zone may have removed the printing
         // the hero image points at; clear it if it's now orphaned.
         $deck->syncHeroImage();
     }
