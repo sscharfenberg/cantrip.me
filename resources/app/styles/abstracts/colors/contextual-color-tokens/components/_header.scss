@@ -7,5 +7,12 @@ $header: (
     "background": hsl(from light-dark(map.get(c.$grey, "iron"), map.get(c.$grey, "bunker")) h s l / 25%),
     "title-first-letter": light-dark(map.get(c.$brand, "light1", "color"), map.get(c.$brand, "dark1", "color")),
     "border-from": light-dark(map.get(c.$grey, "iron"), map.get(c.$grey, "asher")),
-    "border-to": light-dark(map.get(c.$grey, "fog"), map.get(c.$grey, "abbey"))
+    "border-to": light-dark(map.get(c.$grey, "fog"), map.get(c.$grey, "abbey")),
+    "status": (
+        "background": light-dark(
+                color.adjust(map.get(c.$grey, "mystic"), $alpha: -0.2),
+                color.adjust(map.get(c.$grey, "ebony"), $alpha: -0.2)
+            ),
+        "surface": light-dark(#000, #fff)
+    )
 ) !default;

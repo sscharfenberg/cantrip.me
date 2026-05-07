@@ -8,6 +8,7 @@ import Badge from "Components/UI/Badge.vue";
 import Icon from "Components/UI/Icon.vue";
 import Paragraph from "Components/UI/Paragraph.vue";
 import VisibilityBadge from "Components/UI/VisibilityBadge.vue";
+import { useFormatting } from "Composables/useFormatting.ts";
 import type { DeckCardRow, DeckCategoryRow, DeckCompanion, DeckMeta, DeckViolation } from "Types/deckPage.ts";
 import DeckActionsMenu from "./Actions/DeckActionsMenu.vue";
 import type { DeckActionsTarget } from "./Actions/DeckActionsMenu.vue";
@@ -73,6 +74,7 @@ const deckActionsTarget = computed<DeckActionsTarget>(() => ({
     has_image: props.deck.hero_card !== null
 }));
 const { t } = useI18n();
+const { formatPrice } = useFormatting();
 </script>
 
 <template>
@@ -102,6 +104,9 @@ const { t } = useI18n();
             </badge>
             <deck-state :state="deck.state" />
             <badge type="info"><icon name="deck" :size="1" />{{ deck.card_count }}</badge>
+            <badge type="info" v-tooltip="$t('pages.deck.total_worth')">
+                <icon name="money" :size="1" />{{ formatPrice(deck.total_worth) }}
+            </badge>
             <collection-mode-badge v-if="isOwner" :mode="collectionBadgeMode" @click="showCollectionModeModal = true" />
             <visibility-badge :visibility="deck.visibility" />
         </div>

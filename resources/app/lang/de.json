@@ -119,6 +119,7 @@
         }
     },
     "header": {
+        "status": "BETA: testet nach Herzenslust - Achtung: Daten werden gelegentlich gelöscht.",
         "user_nav": "Benutzer- und Sprach-Navigation",
         "site_nav": "Site navigation",
         "lang": {
@@ -766,6 +767,7 @@
             "colors": "Farben",
             "bracket": "Bracket",
             "card_count": "Karten",
+            "total_worth": "Gesamtwert",
             "last_activity": "Letzte Aktivität",
             "commanders": "Command Zone",
             "cards": "Karten im Deck",

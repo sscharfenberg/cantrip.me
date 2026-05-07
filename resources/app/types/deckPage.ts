@@ -277,6 +277,8 @@ export interface DeckMeta {
     colors: string | null;
     bracket: number | null;
     card_count: number;
+    /** Sum of (deck_cards.quantity × default_card price) + commanders + companion, in the request user's currency (eur/usd). */
+    total_worth: number;
     max_deck_size: number | null;
     max_sideboard_size: number;
     max_copies: number;

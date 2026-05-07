@@ -8,7 +8,11 @@
 
 .decklist {
     display: grid;
-    grid-template-columns: auto 1fr auto auto auto auto;
+
+    // Mobile column track: color · name · cards · actions-menu (4 visible).
+    // The hidden-on-mobile children (state, timestamp, bracket, worth,
+    // visibility) collapse out of the grid via `display: none`.
+    grid-template-columns: auto 1fr auto auto;
 
     padding: 0;
     margin: 0;
@@ -17,7 +21,9 @@
     list-style: none;
 
     @include m.mq("landscape") {
-        grid-template-columns: auto 1fr auto auto auto auto auto auto;
+        // Landscape adds: timestamp · bracket · worth · visibility before
+        // the actions menu — 9 visible children.
+        grid-template-columns: auto 1fr auto auto auto auto auto auto auto;
     }
 
     &__format {
@@ -32,8 +38,8 @@
         grid-template-columns: subgrid;
         grid-column: 1 / -1;
 
-        padding: map.get(s.$pages, "decklist", "deck", "padding");
-        gap: 1ch;
+        padding: map.get(s.$pages, "decklist", "deck", "padding-mobile");
+        gap: 0.5ch;
 
         background-color: map.get(c.$pages, "decklist", "deck", "background", "odd");
 
@@ -75,6 +81,11 @@
 
             content: "";
         }
+
+        @include m.mq("landscape") {
+            padding: map.get(s.$pages, "decklist", "deck", "padding");
+            gap: 1ch;
+        }
     }
 
     &__name {
@@ -86,6 +97,14 @@
     }
 
     &__timestamp {
+        display: none;
+
+        @include m.mq("landscape") {
+            display: inline-flex;
+        }
+    }
+
+    &__worth {
         display: none;
 
         @include m.mq("landscape") {

@@ -1,6 +1,7 @@
 <template>
     <h1>
         <span class="line">cantrip.me</span>
+        <span class="status" v-tooltip="$t('header.status')">- beta -</span>
     </h1>
 </template>
 
@@ -41,6 +42,25 @@ h1 {
         text-shadow: map.get(sh.$header, "title-first-letter");
 
         @include m.mqset("font-size", 1.2rem, 1.6rem, 2.1rem, 2.5rem);
+    }
+
+    .status {
+        position: absolute;
+        top: 0;
+        right: 1rem;
+
+        padding: 0.125rem 0.5rem;
+
+        transform: rotate(-10deg);
+
+        background-color: map.get(c.$components, "header", "status", "background");
+        color: map.get(c.$components, "header", "status", "surface");
+
+        font-size: 1rem;
+        text-transform: lowercase;
+        letter-spacing: -0.03em;
+
+        cursor: help;
     }
 }
 </style>

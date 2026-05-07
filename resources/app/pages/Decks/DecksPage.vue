@@ -16,6 +16,8 @@ export interface DeckRow {
     /** Commander Bracket (1-5) when set on the deck, otherwise null. */
     bracket: number | null;
     card_count: number;
+    /** Sum of (deck_cards.quantity × default_card price) + commanders + companion, in the request user's currency. */
+    total_worth: number;
     last_activity: string;
     /** True when the deck has a non-empty description. */
     has_description: boolean;
@@ -66,6 +68,17 @@ const busiestFormat = computed<string | null>(() => {
 const initialHash = window.location.hash.replace("#", "");
 /** Format folder to open on initial render: URL hash wins, else the busiest format. */
 const initialOpenFormat = initialHash || busiestFormat.value || "";
+// Reflect the auto-opened folder in the URL so the address bar matches the
+// visible state (and a copy/paste of the URL re-opens the same folder).
+// Use `replaceState` rather than assigning `location.hash` so a fresh page
+// load doesn't push an extra history entry the user didn't ask for.
+if (!initialHash && initialOpenFormat) {
+    history.replaceState(
+        null,
+        "",
+        `${window.location.pathname}${window.location.search}#${initialOpenFormat}`
+    );
+}
 /** Which format folder is currently open (null = all closed). */
 const openFormat = ref<string | null>(initialOpenFormat || null);
 /** Template refs for each folder, keyed by format. */

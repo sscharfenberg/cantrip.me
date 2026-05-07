@@ -119,6 +119,7 @@
         }
     },
     "header": {
+        "status": "BETA: feel free to test - caution: data will be wiped.",
         "user_nav": "User and language navigation",
         "site_nav": "Site navigation",
         "lang": {
@@ -766,6 +767,7 @@
             "colors": "Colors",
             "bracket": "Bracket",
             "card_count": "Cards",
+            "total_worth": "Total worth",
             "last_activity": "Last activity",
             "commanders": "Command Zone",
             "cards": "Cards in Deck",

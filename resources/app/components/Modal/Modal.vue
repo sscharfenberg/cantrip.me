@@ -75,21 +75,33 @@ onMounted(() => {
 </script>
 
 <template>
-    <dialog
-        id="modal"
-        ref="modalRef"
-        class="modal-dialog"
-        :class="{ 'is-closing': isClosing }"
-        closedby="closerequest"
-        @cancel="onDialogCancel"
-        @click="onDialogClick"
-    >
-        <div ref="contentRef" class="modal-dialog__content">
-            <modal-header @close="closeModal"><slot name="header" /></modal-header>
-            <modal-body :has-footer="!!$slots.footer"><slot /></modal-body>
-            <modal-footer v-if="$slots.footer"><slot name="footer" /></modal-footer>
-        </div>
-    </dialog>
+    <!--
+        Teleport to <body> so the modal's DOM lives outside whatever
+        parent rendered <Modal>. Without this, mounting the modal inside
+        a clickable ancestor (e.g. an Inertia <Link> on the deck list)
+        means a click on the close button is still a click "inside" the
+        anchor — the browser's default-navigation action for <a> kicks
+        in and a stray `stopPropagation` won't stop it (only
+        `preventDefault` would, but that would also block legitimate
+        links inside modals).
+    -->
+    <Teleport to="body">
+        <dialog
+            id="modal"
+            ref="modalRef"
+            class="modal-dialog"
+            :class="{ 'is-closing': isClosing }"
+            closedby="closerequest"
+            @cancel="onDialogCancel"
+            @click="onDialogClick"
+        >
+            <div ref="contentRef" class="modal-dialog__content">
+                <modal-header @close="closeModal"><slot name="header" /></modal-header>
+                <modal-body :has-footer="!!$slots.footer"><slot /></modal-body>
+                <modal-footer v-if="$slots.footer"><slot name="footer" /></modal-footer>
+            </div>
+        </dialog>
+    </Teleport>
 </template>
 
 <style scoped lang="scss">

@@ -9,6 +9,7 @@ $decklist: (
     "deck": (
         "border": map.get(s.$border, "base"),
         "padding": 0.5rem 1rem,
+        "padding-mobile": 0.25rem 0.5rem,
         "radius": map.get(s.$radius, "base")
     )
 );

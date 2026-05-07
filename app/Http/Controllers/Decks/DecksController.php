@@ -8,6 +8,7 @@ use App\Enums\ContainerType;
 use App\Enums\ContainerVisibility;
 use App\Enums\DeckState;
 use App\Enums\Finish;
+use App\Enums\Locale;
 use App\Enums\Scryfall\ScryfallRelatedComponent;
 use App\Formats\FormatProfile;
 use App\Http\Controllers\Controller;
@@ -82,6 +83,30 @@ class DecksController extends Controller
             })
             ->sortByDesc('last_activity');
 
+        // Per-deck total worth in the user's currency, batched into three
+        // aggregate queries (deck cards, commanders, companion) so the
+        // page stays at constant query count regardless of deck count.
+        $deckIds = $decks->pluck('id')->all();
+        $currency = $request->user()->currency
+            ?? Locale::from(app()->getLocale())->defaultCurrency();
+        $priceColumn = 'price_'.$currency->value;
+        $worthByDeck = $deckIds === [] ? collect() : DB::table('deck_cards')
+            ->join('default_cards', 'default_cards.id', '=', 'deck_cards.default_card_id')
+            ->whereIn('deck_cards.deck_id', $deckIds)
+            ->groupBy('deck_cards.deck_id')
+            ->selectRaw("deck_cards.deck_id, COALESCE(SUM(deck_cards.quantity * default_cards.{$priceColumn}), 0) AS total")
+            ->pluck('total', 'deck_id');
+        $commandersWorthByDeck = $deckIds === [] ? collect() : DB::table('commanders')
+            ->join('default_cards', 'default_cards.id', '=', 'commanders.default_card_id')
+            ->whereIn('commanders.deck_id', $deckIds)
+            ->groupBy('commanders.deck_id')
+            ->selectRaw("commanders.deck_id, COALESCE(SUM(default_cards.{$priceColumn}), 0) AS total")
+            ->pluck('total', 'deck_id');
+        $companionWorthByDeck = $deckIds === [] ? collect() : DB::table('decks')
+            ->join('default_cards', 'default_cards.id', '=', 'decks.companion_default_card_id')
+            ->whereIn('decks.id', $deckIds)
+            ->pluck("default_cards.{$priceColumn}", 'decks.id');
+
         $grouped = $decks
             ->groupBy(fn (Deck $deck) => $deck->format->value)
             ->sortKeys()
@@ -93,6 +118,12 @@ class DecksController extends Controller
                 'colors' => $deck->colors,
                 'bracket' => $deck->bracket,
                 'card_count' => (int) $deck->card_count,
+                'total_worth' => round(
+                    (float) ($worthByDeck[$deck->id] ?? 0)
+                    + (float) ($commandersWorthByDeck[$deck->id] ?? 0)
+                    + (float) ($companionWorthByDeck[$deck->id] ?? 0),
+                    2
+                ),
                 'last_activity' => $deck->last_activity,
                 // Non-destructive flags: the delete-confirm modal uses these
                 // to decide whether to prompt (deck has content worth losing)
@@ -102,7 +133,7 @@ class DecksController extends Controller
                 'has_companion' => $deck->companion_oracle_card_id !== null,
             ])->values());
 
-        return Inertia::render('Decks/Decks', [
+        return Inertia::render('Decks/DecksPage', [
             'decksByFormat' => $grouped,
         ]);
     }
@@ -299,6 +330,29 @@ class DecksController extends Controller
             $deck->commanders->max(fn ($c) => $c->pivot->updated_at)?->toIso8601String(),
         ]));
 
+        // Total deck worth in the request user's currency (or the locale
+        // default for guests viewing a public deck). Aggregated against
+        // `default_cards.price_{eur,usd}` rather than the eager-loaded
+        // page payload so the existing `select(...)` lists stay narrow.
+        $currency = $request->user()?->currency
+            ?? Locale::from(app()->getLocale())->defaultCurrency();
+        $priceColumn = 'price_'.$currency->value;
+        $deckCardsWorth = (float) (DB::table('deck_cards')
+            ->join('default_cards', 'default_cards.id', '=', 'deck_cards.default_card_id')
+            ->where('deck_cards.deck_id', $deck->id)
+            ->selectRaw("COALESCE(SUM(deck_cards.quantity * default_cards.{$priceColumn}), 0) AS total")
+            ->value('total') ?? 0);
+        $commandersWorth = (float) DB::table('commanders')
+            ->join('default_cards', 'default_cards.id', '=', 'commanders.default_card_id')
+            ->where('commanders.deck_id', $deck->id)
+            ->sum("default_cards.{$priceColumn}");
+        $companionWorth = $deck->companion_default_card_id !== null
+            ? (float) (DB::table('default_cards')
+                ->where('id', $deck->companion_default_card_id)
+                ->value($priceColumn) ?? 0)
+            : 0.0;
+        $totalWorth = round($deckCardsWorth + $commandersWorth + $companionWorth, 2);
+
         $commanders = $deck->commanders->map(fn (OracleCard $oracle) => [
             'oracle_card_id' => $oracle->id,
             'name' => $oracle->name,
@@ -439,6 +493,7 @@ class DecksController extends Controller
                 'colors' => $deck->colors,
                 'bracket' => $deck->bracket,
                 'card_count' => $cardCount,
+                'total_worth' => $totalWorth,
                 'max_deck_size' => $profile->maxDeckSize(),
                 'max_sideboard_size' => $profile->maxSideboardSize(),
                 'max_copies' => $profile->maxCopies(),

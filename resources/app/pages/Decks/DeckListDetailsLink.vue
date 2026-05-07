@@ -2,7 +2,7 @@
 import { Link } from "@inertiajs/vue3";
 import { useI18n } from "vue-i18n";
 import DeckActionsMenu from "@/pages/Deck/Actions/DeckActionsMenu.vue";
-import type { DeckRow } from "@/pages/Decks/Decks.vue";
+import type { DeckRow } from "@/pages/Decks/DecksPage.vue";
 import ColorIdentity from "Components/Card/ColorIdentity.vue";
 import DeckState from "Components/Deck/DeckState.vue";
 import Badge from "Components/UI/Badge.vue";
@@ -14,7 +14,7 @@ defineProps<{
     deck: DeckRow;
 }>();
 const { t } = useI18n();
-const { formatDateTime } = useFormatting();
+const { formatDateTime, formatPrice } = useFormatting();
 </script>
 
 <template>
@@ -22,26 +22,21 @@ const { formatDateTime } = useFormatting();
         <color-identity :color-identity="deck.colors" />
         <span class="decklist__name">{{ deck.name }}</span>
         <deck-state :state="deck.state" />
-        <span class="decklist__cards">
-            <icon name="deck" />
+        <badge class="decklist__cards">
+            <icon name="deck" :size="1" />
             {{ deck.card_count }}
             <span>{{ t("pages.decks.card_count_noun", deck.card_count) }}</span>
-        </span>
-        <badge
-            v-tooltip="formatDateTime(deck.last_activity)"
-            class="decklist__timestamp"
-            type="info"
-        >
+        </badge>
+        <badge v-tooltip="formatDateTime(deck.last_activity)" class="decklist__timestamp" type="info">
             <icon name="calendar" :size="1" />
         </badge>
-        <badge
-            v-if="deck.bracket"
-            v-tooltip="t('form.fields.deck_bracket_hint')"
-            class="deck-bracket"
-            type="info"
-        >
+        <badge v-if="deck.bracket" v-tooltip="t('form.fields.deck_bracket_hint')" class="deck-bracket" type="info">
             <icon name="swords" :size="1" />
             <span>{{ deck.bracket }}</span>
+        </badge>
+        <badge v-tooltip="t('pages.deck.total_worth')" class="decklist__worth" type="info">
+            <icon name="money" :size="1" />
+            <span>{{ formatPrice(deck.total_worth) }}</span>
         </badge>
         <visibility-badge :visibility="deck.visibility" />
         <deck-actions-menu :deck="deck" />
@@ -59,6 +54,9 @@ const { formatDateTime } = useFormatting();
 
     @include m.mq("landscape") {
         display: inline-flex;
+
+        width: calc(24px + 0.7rem);
+        height: calc(24px + 0.7rem);
     }
 }
 
@@ -75,14 +73,16 @@ const { formatDateTime } = useFormatting();
 }
 
 :deep(.deck-state) {
-    font-size: 0.8em;
+    display: none;
 
-    span {
-        display: none;
+    // font-size: 0.8em;
 
-        @include m.mq("landscape") {
-            display: inline-flex;
-        }
+    @include m.mq("landscape") {
+        display: inline-flex;
     }
+}
+
+.decklist__timestamp {
+    padding: 0.4rem 0.5rem;
 }
 </style>

@@ -2,7 +2,7 @@
 import { computed, useTemplateRef } from "vue";
 import { useI18n } from "vue-i18n";
 import DeckListDetailsLink from "@/pages/Decks/DeckListDetailsLink.vue";
-import type { DeckRow } from "@/pages/Decks/Decks.vue";
+import type { DeckRow } from "@/pages/Decks/DecksPage.vue";
 // eslint-disable-next-line @typescript-eslint/no-unused-vars -- component used in template
 import Accordion from "Components/UI/Accordion.vue";
 import Badge from "Components/UI/Badge.vue";
