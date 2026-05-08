@@ -77,14 +77,16 @@ class CardStackController extends Controller
                 'container_id' => ['nullable', Rule::exists(Container::class, 'id')],
                 'condition' => ['nullable', Rule::enum(CardCondition::class)],
                 'finish' => ['required', Rule::in(Finish::labels())],
+                'proxy' => ['nullable', 'boolean'],
             ]);
         });
 
         $container = CardStackService::resolveOwnedContainer($request->user(), $request->container_id);
 
-        $result = CardStackService::addToCollection($request->user(), $request->only([
-            'default_card_id', 'amount', 'language', 'container_id', 'condition', 'finish',
-        ]));
+        $result = CardStackService::addToCollection($request->user(), [
+            ...$request->only(['default_card_id', 'amount', 'language', 'container_id', 'condition', 'finish']),
+            'proxy' => $request->boolean('proxy'),
+        ]);
 
         $cardName = DefaultCard::find($request->default_card_id)->name;
 
@@ -156,6 +158,7 @@ class CardStackController extends Controller
                 'condition' => $cardStack->condition?->value ?? '',
                 'finish' => $cardStack->finish?->label() ?? '',
                 'container_id' => $cardStack->container_id,
+                'proxy' => (bool) $cardStack->proxy,
                 // Phase 2.5: deck claims so the edit form can hint why
                 // the container picker would 422 if the user tries to
                 // move a claimed stack. The lifecycle guard in
@@ -198,13 +201,15 @@ class CardStackController extends Controller
                 'container_id' => ['nullable', Rule::exists(Container::class, 'id')],
                 'condition' => ['nullable', Rule::enum(CardCondition::class)],
                 'finish' => ['required', Rule::in(Finish::labels())],
+                'proxy' => ['nullable', 'boolean'],
             ]);
         });
 
         CardStackService::resolveOwnedContainer($request->user(), $request->container_id);
-        CardStackService::updateStack($request->user(), $cardStack, $request->only([
-            'amount', 'language', 'condition', 'finish', 'container_id',
-        ]));
+        CardStackService::updateStack($request->user(), $cardStack, [
+            ...$request->only(['amount', 'language', 'condition', 'finish', 'container_id']),
+            'proxy' => $request->boolean('proxy'),
+        ]);
 
         $cardName = $cardStack->defaultCard->name;
         $request->session()->flash('message', __('collection.card_updated', ['name' => $cardName]));

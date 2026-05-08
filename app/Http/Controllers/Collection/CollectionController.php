@@ -130,6 +130,7 @@ class CollectionController extends Controller
                     'card_image_0' => $stack->card_image_0,
                     'price' => (float) ($stack->unit_price ?? 0),
                     'total_price' => (float) ($stack->stack_price ?? 0),
+                    'proxy' => (bool) $stack->proxy,
                     'container_name' => $stack->container_name,
                     'container_id' => $stack->container_id,
                     'created_at' => $stack->created_at?->toIso8601String(),

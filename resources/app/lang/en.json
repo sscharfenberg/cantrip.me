@@ -1174,6 +1174,11 @@
             "qty": "Qty",
             "finish": "Finish",
             "language": "Language",
+            "proxy": {
+                "label": "Proxy",
+                "toggle_label": "This stack is a proxy",
+                "hint": "Proxies are printouts / non-real cards. They count as owned for deck status badges, but never contribute to collection or deck price totals."
+            },
             "produced_mana": "Produces",
             "price": "Price",
             "total_price": "Total",
@@ -1302,6 +1307,10 @@
             "error": "Could not load card details.",
             "game_changer": "This card is on the Commander Game Changer list.",
             "mld": "This card counts as Mass Land Denial in Commander."
+        },
+        "badges": {
+            "game_changer": "Game Changer",
+            "mass_land_denial": "Mass Land Denial"
         },
         "commander_picker": {
             "title": "Choose commander",

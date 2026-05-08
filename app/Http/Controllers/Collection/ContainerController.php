@@ -299,6 +299,7 @@ class ContainerController extends Controller
                     'card_image_0' => $stack->card_image_0,
                     'price' => (float) ($stack->unit_price ?? 0),
                     'total_price' => (float) ($stack->stack_price ?? 0),
+                    'proxy' => (bool) $stack->proxy,
                     'created_at' => $stack->created_at?->toIso8601String(),
                     'updated_at' => $stack->updated_at?->toIso8601String(),
                 ];

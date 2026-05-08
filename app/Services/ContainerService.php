@@ -150,7 +150,9 @@ class ContainerService
 
     /**
      * SQL CASE expression that resolves the unit price for a card stack row
-     * based on its finish and the given currency.
+     * based on its finish and the given currency. Proxies short-circuit to
+     * 0 — they're print-outs, not real cards, and we don't claim a market
+     * value for them anywhere in the UI.
      */
     public static function unitPriceSql(Currency $currency): string
     {
@@ -159,10 +161,11 @@ class ContainerService
         $foil = Finish::Foil->value;
         $etched = Finish::Etched->value;
 
-        return "CASE card_stacks.finish
-            WHEN {$nonfoil} THEN default_cards.price_{$c}
-            WHEN {$foil} THEN default_cards.price_{$c}_foil
-            WHEN {$etched} THEN default_cards.price_{$c}_etched
+        return "CASE
+            WHEN card_stacks.proxy = 1 THEN 0
+            WHEN card_stacks.finish = {$nonfoil} THEN default_cards.price_{$c}
+            WHEN card_stacks.finish = {$foil} THEN default_cards.price_{$c}_foil
+            WHEN card_stacks.finish = {$etched} THEN default_cards.price_{$c}_etched
             ELSE 0 END";
     }
 

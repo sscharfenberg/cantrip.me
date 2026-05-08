@@ -1174,6 +1174,11 @@
             "qty": "Anzahl",
             "finish": "Finish",
             "language": "Sprache",
+            "proxy": {
+                "label": "Proxy",
+                "toggle_label": "Dieser Stapel ist ein Proxy",
+                "hint": "Proxies sind Ausdrucke / keine echten Karten. Sie zählen als Besitz für die Deck-Status-Badges, fließen aber nie in Sammlungs- oder Deck-Preise ein."
+            },
             "produced_mana": "Erzeugt",
             "price": "Preis",
             "total_price": "Gesamt",
@@ -1302,6 +1307,10 @@
             "error": "Kartendetails konnten nicht geladen werden.",
             "game_changer": "Diese Karte steht auf der Commander Game-Changer-Liste.",
             "mld": "Diese Karte zählt in Commander als Massen Landzerstörung."
+        },
+        "badges": {
+            "game_changer": "Game Changer",
+            "mass_land_denial": "Massen-Landzerstörung"
         },
         "commander_picker": {
             "title": "Commander auswählen",

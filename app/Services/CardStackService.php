@@ -34,9 +34,14 @@ class CardStackService
      * one already exists with the same identifying attributes.
      *
      * A stack is uniquely identified by user_id + default_card_id + language +
-     * condition + finish + container_id (including null matches).
+     * condition + finish + container_id (including null matches). The
+     * `proxy` flag is intentionally NOT part of the merge key — when adding
+     * a proxy on top of a real-card stack of otherwise-identical attributes
+     * (or vice versa) the existing stack absorbs the new amount and its
+     * `proxy` flag stays unchanged. The user keeps a single stack per
+     * "physical pile in this container" identity.
      *
-     * @param  array{default_card_id: string, amount: int, language: string, container_id?: string|null, condition?: string|null, finish: string}  $data  finish is a Finish label string.
+     * @param  array{default_card_id: string, amount: int, language: string, container_id?: string|null, condition?: string|null, finish: string, proxy?: bool}  $data  finish is a Finish label string.
      * @return array{stack: CardStack, merged: bool}
      */
     public static function addToCollection(User $user, array $data): array
@@ -62,6 +67,7 @@ class CardStackService
             'stack' => CardStack::create([
                 ...$attributes,
                 'amount' => $data['amount'],
+                'proxy' => (bool) ($data['proxy'] ?? false),
             ]),
             'merged' => false,
         ];
@@ -73,7 +79,7 @@ class CardStackService
      * Ownership is checked at the controller boundary by
      * {@see UpdateCardStackRequest::authorize}.
      *
-     * @param  array{amount: int, language: string, condition?: string|null, finish: string, container_id?: string|null}  $data
+     * @param  array{amount: int, language: string, condition?: string|null, finish: string, container_id?: string|null, proxy?: bool}  $data
      */
     public static function updateStack(User $user, CardStack $cardStack, array $data): void
     {
@@ -83,6 +89,7 @@ class CardStackService
             'condition' => $data['condition'] ?? null,
             'finish' => Finish::fromLabel($data['finish']),
             'container_id' => $data['container_id'] ?? null,
+            'proxy' => (bool) ($data['proxy'] ?? false),
         ]);
     }
 

@@ -45,6 +45,7 @@ class CardStack extends Model
         'condition',
         'finish',
         'language',
+        'proxy',
     ];
 
     /**
@@ -57,6 +58,7 @@ class CardStack extends Model
         'finish' => Finish::class,
         'language' => CardLanguage::class,
         'amount' => 'integer',
+        'proxy' => 'boolean',
     ];
 
     /**

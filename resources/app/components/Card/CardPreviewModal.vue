@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
+import GameChangerBadge from "Components/Card/Badges/GameChangerBadge.vue";
+import MassLandDenialBadge from "Components/Card/Badges/MassLandDenialBadge.vue";
+import ProxyBadge from "Components/Card/Badges/ProxyBadge.vue";
 import CardFaceImage from "Components/Card/CardFaceImage.vue";
 import CardLegalities from "Components/Card/CardLegalities.vue";
 import CardRulings from "Components/Card/CardRulings.vue";
@@ -135,15 +138,19 @@ onMounted(async () => {
                     <template v-if="card.is_game_changer">
                         <dt></dt>
                         <dd class="cardstack-preview__flag">
-                            <icon name="balance" :size="1" :additional-classes="['card__game-changer']" />
-                            {{ t("components.card_preview.game_changer") }}
+                            <game-changer-badge :show-label="true" />
                         </dd>
                     </template>
                     <template v-if="card.is_mld">
                         <dt></dt>
                         <dd class="cardstack-preview__flag">
-                            <icon name="landslide" :size="1" :additional-classes="['card__mld']" />
-                            {{ t("components.card_preview.mld") }}
+                            <mass-land-denial-badge :show-label="true" />
+                        </dd>
+                    </template>
+                    <template v-if="card.proxy">
+                        <dt></dt>
+                        <dd class="cardstack-preview__flag">
+                            <proxy-badge :show-label="true" />
                         </dd>
                     </template>
                     <template v-if="card.price">

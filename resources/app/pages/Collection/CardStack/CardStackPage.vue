@@ -12,6 +12,7 @@ import CardStackClaimBadge from "Components/Collection/CardStackClaimBadge.vue";
 import ButtonGroup from "Components/Form/ButtonGroup.vue";
 import FormGroup from "Components/Form/FormGroup.vue";
 import MonoSelect from "Components/Form/Select/MonoSelect.vue";
+import Switch from "Components/Form/Switch.vue";
 import Badge from "Components/UI/Badge.vue";
 import Headline from "Components/UI/Headline.vue";
 import Icon from "Components/UI/Icon.vue";
@@ -27,6 +28,8 @@ type CardStackEdit = {
     condition: string;
     finish: string;
     container_id: string | null;
+    /** Proxy flag — when true, this stack represents a printout / proxy. */
+    proxy: boolean;
     default_card: DefaultCardImage;
     /**
      * Decks claiming this stack (Phase 2.5). When non-empty, the
@@ -96,6 +99,8 @@ const containerOptions = computed(() =>
 );
 /** Currently selected container id. Initialized from container prop or cardStack in edit mode. */
 const selectedContainer = ref((isEditMode ? props.cardStack!.container_id : props.container?.id) as string);
+/** Proxy flag. Defaults to false on add; pre-filled from the existing stack on edit. */
+const isProxy = ref(isEditMode ? props.cardStack!.proxy : false);
 /** CardCondition options formatted for MonoSelect with translated labels. */
 const conditionOptions = computed(() =>
     props.conditions.map(condition => ({
@@ -289,6 +294,20 @@ const unclaim = () => {
                 addon-icon="cards"
             />
             <input type="hidden" name="condition" :value="selectedCondition" />
+        </form-group>
+        <form-group
+            :label="$t('form.fields.proxy.label')"
+            :error="errors.proxy ?? ''"
+            :invalid="!!errors?.proxy"
+        >
+            <Switch
+                ref-id="proxy"
+                value="1"
+                :label="$t('form.fields.proxy.toggle_label')"
+                :checked-initially="isProxy"
+                @change="isProxy = $event"
+            />
+            <template #text>{{ $t("form.fields.proxy.hint") }}</template>
         </form-group>
         <form-group class="button-group">
             <button-group>

@@ -59,6 +59,7 @@ class CardStackPreviewController extends Controller
             'created_at' => $cardStack->created_at?->toIso8601String(),
             'updated_at' => $cardStack->updated_at?->toIso8601String(),
             'total_price' => (float) ($priceRow->stack_price ?? 0),
+            'proxy' => (bool) $cardStack->proxy,
             'claims' => $claims,
         ]);
     }

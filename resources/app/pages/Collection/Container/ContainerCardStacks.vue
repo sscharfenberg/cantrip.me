@@ -5,6 +5,7 @@ import { useI18n } from "vue-i18n";
 import DeleteCardStackModal from "@/pages/Collection/common/DeleteCardStackModal.vue";
 import DeleteSelectedCardStacksModal from "@/pages/Collection/common/DeleteSelectedCardStacksModal.vue";
 import MoveSelectedCardStacksModal from "@/pages/Collection/common/MoveSelectedCardStacksModal.vue";
+import ProxyBadge from "Components/Card/Badges/ProxyBadge.vue";
 import CardImagePreview from "Components/Card/CardImagePreview.vue";
 import CardPreviewModal from "Components/Card/CardPreviewModal.vue";
 import CardStackClaimBadge from "Components/Collection/CardStackClaimBadge.vue";
@@ -229,8 +230,13 @@ const getTimeStamps = (created: string, updated?: string | null) => {
                 v-tooltip="t('enums.card_languages.' + row.language)"
             />
         </template>
-        <template #cell-price="{ row }">{{ row.price ? formatPrice(row.price) : "" }}</template>
-        <template #cell-total_price="{ row }">{{ row.total_price ? formatPrice(row.total_price) : "" }}</template>
+        <template #cell-price="{ row }">
+            <proxy-badge v-if="row.proxy" />
+            <template v-else-if="row.price">{{ formatPrice(row.price) }}</template>
+        </template>
+        <template #cell-total_price="{ row }">
+            <template v-if="!row.proxy && row.total_price">{{ formatPrice(row.total_price) }}</template>
+        </template>
         <template #cell-updated_at="{ row }">
             <icon name="calendar" :size="1" v-tooltip="`${getTimeStamps(row.created_at, row.updated_at)}`" />
         </template>

@@ -95,11 +95,29 @@ class DecksController extends Controller
         $currency = $request->user()->currency
             ?? Locale::from(app()->getLocale())->defaultCurrency();
         $priceColumn = 'price_'.$currency->value;
+        // Each deck_card's contribution drops by the count of slots
+        // covered by proxy stacks (clamped at the deck_card's own
+        // quantity so a flag-only / merge-anomaly stack can't push the
+        // contribution below zero). Real-card claims, multi-claim, and
+        // unclaimed slots all keep their full printing-price.
+        $proxyClaims = DB::table('deck_card_card_stack')
+            ->join('card_stacks', 'card_stacks.id', '=', 'deck_card_card_stack.card_stack_id')
+            ->where('card_stacks.proxy', true)
+            ->groupBy('deck_card_card_stack.deck_card_id')
+            ->select('deck_card_card_stack.deck_card_id', DB::raw('SUM(card_stacks.amount) as proxy_amount'));
+
         $worthByDeck = $deckIds === [] ? collect() : DB::table('deck_cards')
             ->join('default_cards', 'default_cards.id', '=', 'deck_cards.default_card_id')
+            ->leftJoinSub($proxyClaims, 'proxy_claims', 'proxy_claims.deck_card_id', '=', 'deck_cards.id')
             ->whereIn('deck_cards.deck_id', $deckIds)
             ->groupBy('deck_cards.deck_id')
-            ->selectRaw("deck_cards.deck_id, COALESCE(SUM(deck_cards.quantity * default_cards.{$priceColumn}), 0) AS total")
+            ->selectRaw(
+                'deck_cards.deck_id, COALESCE(SUM('
+                .'(CASE WHEN deck_cards.quantity > COALESCE(proxy_claims.proxy_amount, 0) '
+                .'THEN deck_cards.quantity - COALESCE(proxy_claims.proxy_amount, 0) ELSE 0 END) '
+                ."* default_cards.{$priceColumn}"
+                .'), 0) AS total'
+            )
             ->pluck('total', 'deck_id');
 
         $grouped = $decks
@@ -360,11 +378,25 @@ class DecksController extends Controller
         // Single aggregate now that command-zone + companion live in
         // `deck_cards`. quantity is 1 for those rows so the sum is
         // identical to the prior `deckCards + commanders + companion`
-        // composition.
+        // composition. Proxy-claimed slots drop out of the sum (a
+        // physical proxy isn't worth the printing's market price).
+        $proxyClaims = DB::table('deck_card_card_stack')
+            ->join('card_stacks', 'card_stacks.id', '=', 'deck_card_card_stack.card_stack_id')
+            ->where('card_stacks.proxy', true)
+            ->groupBy('deck_card_card_stack.deck_card_id')
+            ->select('deck_card_card_stack.deck_card_id', DB::raw('SUM(card_stacks.amount) as proxy_amount'));
+
         $totalWorth = (float) (DB::table('deck_cards')
             ->join('default_cards', 'default_cards.id', '=', 'deck_cards.default_card_id')
+            ->leftJoinSub($proxyClaims, 'proxy_claims', 'proxy_claims.deck_card_id', '=', 'deck_cards.id')
             ->where('deck_cards.deck_id', $deck->id)
-            ->selectRaw("COALESCE(SUM(deck_cards.quantity * default_cards.{$priceColumn}), 0) AS total")
+            ->selectRaw(
+                'COALESCE(SUM('
+                .'(CASE WHEN deck_cards.quantity > COALESCE(proxy_claims.proxy_amount, 0) '
+                .'THEN deck_cards.quantity - COALESCE(proxy_claims.proxy_amount, 0) ELSE 0 END) '
+                ."* default_cards.{$priceColumn}"
+                .'), 0) AS total'
+            )
             ->value('total') ?? 0);
         $totalWorth = round($totalWorth, 2);
 

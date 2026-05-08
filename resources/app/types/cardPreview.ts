@@ -54,6 +54,8 @@ export interface CardPreview {
     created_at?: string;
     updated_at?: string;
     total_price?: number;
+    /** True when the underlying stack is flagged as a proxy. Stack-only. */
+    proxy?: boolean;
     /**
      * Decks that have claimed this stack via a `deck_card_card_stack`
      * pivot row. Surfaced as the "Reserved for [deck]" badge in the
