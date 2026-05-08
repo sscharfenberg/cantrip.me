@@ -39,7 +39,7 @@ const { formatDateTime, formatPrice } = useFormatting();
             <span>{{ formatPrice(deck.total_worth) }}</span>
         </badge>
         <visibility-badge :visibility="deck.visibility" />
-        <deck-actions-menu :deck="deck" />
+        <deck-actions-menu :deck="deck" :is-archived="deck.state === 'archived'" />
     </Link>
 </template>
 

@@ -47,6 +47,14 @@ const props = withDefaults(
          */
         isOwner?: boolean;
         /**
+         * True when the deck is archived — collapses the menu to a
+         * read-only set: QR code, Download CSV, Restore from archive,
+         * Delete deck. Edit / visibility / state-flip / group / bulk-add
+         * entries are hidden. Restore + Delete remain because they are
+         * the only two transitions that make sense on an archived deck.
+         */
+        isArchived?: boolean;
+        /**
          * Effective collection-integration mode. When provided, drives "Set to
          * finished": mode A patches the state directly, modes B and C open
          * the wizard. When omitted, the state-flip items are hidden.
@@ -70,7 +78,7 @@ const props = withDefaults(
          */
         containers?: DeckActionsContainer[];
     }>(),
-    { isOwner: true }
+    { isOwner: true, isArchived: false }
 );
 const { t } = useI18n();
 const popoverId = useId();
@@ -164,6 +172,16 @@ function onSetPlanned(): void {
     closePopover();
     router.patch(`/decks/${props.deck.id}/state`, { state: "planned" }, { preserveScroll: true });
 }
+/** Flip the deck to "archived" — available from any non-archived state. */
+function onSetArchived(): void {
+    closePopover();
+    router.patch(`/decks/${props.deck.id}/state`, { state: "archived" }, { preserveScroll: true });
+}
+/** Restore an archived deck back to "planned". */
+function onUnarchive(): void {
+    closePopover();
+    router.patch(`/decks/${props.deck.id}/state`, { state: "planned" }, { preserveScroll: true });
+}
 /**
  * Delete button handler. Skips the confirm prompt for an effectively-empty
  * deck and fires the DELETE directly. Same UX as the deck-list link.
@@ -193,13 +211,13 @@ function onDeleteClick(): void {
         width="14rem"
     >
         <ul class="popover-list">
-            <li v-if="isOwner">
+            <li v-if="isOwner && !isArchived">
                 <button class="popover-list-item" @click.prevent="onEditSettings">
                     <icon name="edit" :size="1" />
                     {{ $t("pages.create_deck.edit_link") }}
                 </button>
             </li>
-            <li v-if="isOwner">
+            <li v-if="isOwner && !isArchived">
                 <button class="popover-list-item" @click.prevent="onToggleVisibility">
                     <icon :name="deck.visibility === 'private' ? 'visibility-on' : 'visibility-off'" :size="1" />
                     {{
@@ -223,19 +241,31 @@ function onDeleteClick(): void {
                     {{ $t("pages.decks.actions.set_planned") }}
                 </button>
             </li>
-            <li v-if="isOwner && showGroupActions">
+            <li v-if="isOwner && deck.state !== 'archived'">
+                <button class="popover-list-item" @click.prevent="onSetArchived">
+                    <icon name="archived" :size="1" />
+                    {{ $t("pages.decks.actions.set_archived") }}
+                </button>
+            </li>
+            <li v-else-if="isOwner && deck.state === 'archived'">
+                <button class="popover-list-item" @click.prevent="onUnarchive">
+                    <icon name="archived" :size="1" />
+                    {{ $t("pages.decks.actions.unarchive") }}
+                </button>
+            </li>
+            <li v-if="isOwner && !isArchived && showGroupActions">
                 <button class="popover-list-item" @click.prevent="openCreateGroup">
                     <icon name="add" :size="1" />
                     {{ $t("pages.deck.create_group.link") }}
                 </button>
             </li>
-            <li v-if="isOwner && showGroupActions">
+            <li v-if="isOwner && !isArchived && showGroupActions">
                 <button class="popover-list-item" @click.prevent="openCustomGroups">
                     <icon name="edit" :size="1" />
                     {{ $t("pages.deck.custom_groups.link") }}
                 </button>
             </li>
-            <li v-if="isOwner">
+            <li v-if="isOwner && !isArchived">
                 <button class="popover-list-item" @click.prevent="openAddAllToCollection">
                     <icon name="add-all" :size="1" />
                     {{ $t("pages.deck.add_all_to_collection.link") }}

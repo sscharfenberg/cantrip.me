@@ -43,9 +43,11 @@ use App\Services\DeckFinalizeService;
 use App\Services\DeckService;
 use App\Services\DeckValidator;
 use App\Services\QrCodeService;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
@@ -54,20 +56,64 @@ use Inertia\Response;
 class DecksController extends Controller
 {
     /**
-     * Display the user decks page.
+     * Display the user decks page (active decks only).
      *
-     * Queries all decks for the authenticated user with card counts and
-     * last-activity timestamps, then groups them by format (alphabetical).
-     * Decks within each format are sorted by last activity descending.
+     * Archived decks live on a separate `/decks/archived` page so they
+     * don't clutter the main list. Also ships a `hasArchived` flag so the
+     * page can decide whether to render the "Archived decks" link.
      */
     public function list(Request $request): Response
     {
-        // Post-consolidation, every card in the deck (mainboard, sideboard,
-        // command zone, companion) lives in `deck_cards`, so a single
-        // aggregate replaces the prior three (deck_cards + commanders +
-        // companion). `card_count` and `total_worth` both come from the
-        // same sum.
-        $decks = Deck::query()
+        $userId = $request->user()->id;
+
+        return Inertia::render('Decks/DecksPage', [
+            'decksByFormat' => $this->groupedDecksForUser(
+                $request,
+                fn ($query) => $query->where('state', '!=', DeckState::Archived->value),
+            ),
+            'hasArchived' => Deck::query()
+                ->where('user_id', $userId)
+                ->where('state', DeckState::Archived->value)
+                ->exists(),
+        ]);
+    }
+
+    /**
+     * Display the archived-decks page.
+     *
+     * Same format-folder layout as the main list, but scoped to archived
+     * decks only — keeps the active list clean while still letting users
+     * browse / restore archived decks with the familiar UI.
+     */
+    public function archived(Request $request): Response
+    {
+        return Inertia::render('Decks/ArchivedDecksPage', [
+            'decksByFormat' => $this->groupedDecksForUser(
+                $request,
+                fn ($query) => $query->where('state', DeckState::Archived->value),
+            ),
+        ]);
+    }
+
+    /**
+     * Build the format-grouped deck-row payload for the deck list pages.
+     *
+     * Shared by `list()` (active decks) and `archived()` (archived decks);
+     * the caller passes a state filter so we don't duplicate the loading +
+     * worth-aggregation pipeline.
+     *
+     * Post-consolidation, every card in the deck (mainboard, sideboard,
+     * command zone, companion) lives in `deck_cards`, so a single
+     * aggregate replaces the prior three (deck_cards + commanders +
+     * companion). `card_count` and `total_worth` both come from the
+     * same sum.
+     *
+     * @param  callable(Builder): Builder  $stateFilter
+     * @return Collection<string, Collection<int, array<string, mixed>>>
+     */
+    private function groupedDecksForUser(Request $request, callable $stateFilter): Collection
+    {
+        $query = Deck::query()
             ->where('user_id', $request->user()->id)
             ->withSum('deckCards as deck_cards_quantity', 'quantity')
             ->addSelect([
@@ -78,7 +124,9 @@ class DecksController extends Controller
                     ->selectRaw('COUNT(*)')
                     ->whereColumn('deck_cards.deck_id', 'decks.id')
                     ->where('deck_cards.role', DeckCardRole::Companion->value),
-            ])
+            ]);
+
+        $decks = $stateFilter($query)
             ->get()
             ->each(function (Deck $deck) {
                 $deck->card_count = (int) $deck->deck_cards_quantity;
@@ -120,7 +168,7 @@ class DecksController extends Controller
             )
             ->pluck('total', 'deck_id');
 
-        $grouped = $decks
+        return $decks
             ->groupBy(fn (Deck $deck) => $deck->format->value)
             ->sortKeys()
             ->map(fn ($formatDecks) => $formatDecks->map(fn (Deck $deck) => [
@@ -140,10 +188,6 @@ class DecksController extends Controller
                 'has_image' => $deck->default_card_id !== null,
                 'has_companion' => (int) $deck->has_companion_count > 0,
             ])->values());
-
-        return Inertia::render('Decks/DecksPage', [
-            'decksByFormat' => $grouped,
-        ]);
     }
 
     /**

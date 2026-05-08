@@ -28,6 +28,12 @@ const props = defineProps<{
     deck: DeckMeta;
     /** True when the request user owns the deck — gates the actions menu. */
     isOwner: boolean;
+    /**
+     * True when the deck is archived — collapses the actions menu to a
+     * read-only set (QR / CSV / restore / delete) and removes the
+     * collection-mode modal's mutating actions.
+     */
+    isArchived: boolean;
     /** hasCommanders **/
     hasCommanders: boolean;
     /** Currently-set companion card, or null — forwarded to the actions menu. */
@@ -90,6 +96,7 @@ const { formatPrice } = useFormatting();
             <deck-actions-menu
                 :deck="deckActionsTarget"
                 :is-owner="isOwner"
+                :is-archived="isArchived"
                 :cards="cards"
                 :categories="categories"
                 :category-name-max="categoryNameMax"
@@ -125,6 +132,7 @@ const { formatPrice } = useFormatting();
         :mode="collectionMode"
         :badge-mode="collectionBadgeMode"
         :context="collectionModeContext"
+        :is-archived="isArchived"
         @close="showCollectionModeModal = false"
     />
 </template>

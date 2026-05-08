@@ -83,13 +83,34 @@ const props = defineProps<{
     tokens: DeckToken[];
 }>();
 const { setBreadcrumbs } = useBreadcrumbs();
-setBreadcrumbs([{ labelKey: "pages.decks.link", href: "/decks", icon: "deck" }, { label: props.deck.name }]);
+setBreadcrumbs([
+    { labelKey: "pages.decks.link", href: "/decks", icon: "deck" },
+    ...(props.deck.state === "archived"
+        ? [{ labelKey: "pages.decks.archived_link", href: "/decks/archived", icon: "archived" }]
+        : []),
+    { label: props.deck.name }
+]);
 /** Effective deck view mode — localStorage override for this deck, or the user's default. */
 const { viewMode } = useDeckView(props.deck.id);
 /** Effective deck sort mode — localStorage override for this deck, or the user's default. */
 const { sortMode } = useDeckSort(props.deck.id);
 /** Combined commander color identity — shared by navigation and both card views. */
 const commanderColorIdentity = computed(() => combineCI(props.commanders.map(c => c.color_identity)));
+/**
+ * True when the deck is archived. Archived decks are read-only by design:
+ * card-edit affordances, the add-card nav and the bulk collection actions
+ * collapse to a non-owner view. The deck actions menu still surfaces a
+ * limited set of entries (restore, delete, QR, CSV) — see DeckActionsMenu.
+ */
+const isArchived = computed(() => props.deck.state === "archived");
+/**
+ * Effective owner-edit flag — false for non-owners *and* for archived
+ * decks. Components that gate every editing affordance on `isOwner`
+ * (DeckNavigation, both card views) receive this; DeckHeader still gets
+ * the raw `isOwner` plus `isArchived` so its actions menu can render the
+ * archive-specific entries.
+ */
+const canEdit = computed(() => props.isOwner && !isArchived.value);
 /**
  * Provide the deck highlight api once at the page root. Stats panels
  * (manacurve, categories, color distribution) and card views (text /
@@ -125,6 +146,7 @@ const cardNameByDefaultCardId = computed<Record<string, string>>(() => {
     <deck-header
         :deck="deck"
         :is-owner="isOwner"
+        :is-archived="isArchived"
         :has-commanders="commanders.length > 0"
         :companion="companion"
         :cards="cards"
@@ -139,7 +161,7 @@ const cardNameByDefaultCardId = computed<Record<string, string>>(() => {
     />
     <deck-navigation
         :deck="deck"
-        :is-owner="isOwner"
+        :is-owner="canEdit"
         :cards="cards"
         :companion="companion"
         :companion-roster="companionRoster"
@@ -154,7 +176,7 @@ const cardNameByDefaultCardId = computed<Record<string, string>>(() => {
     <card-view-text
         v-if="viewMode === 'text'"
         :deck="deck"
-        :is-owner="isOwner"
+        :is-owner="canEdit"
         :commanders="commanders"
         :companion="companion"
         :cards="cards"
@@ -168,7 +190,7 @@ const cardNameByDefaultCardId = computed<Record<string, string>>(() => {
     <card-view-image
         v-if="viewMode === 'cards'"
         :deck="deck"
-        :is-owner="isOwner"
+        :is-owner="canEdit"
         :commanders="commanders"
         :companion="companion"
         :cards="cards"

@@ -128,6 +128,8 @@ Route::middleware(array_filter(['auth', Features::enabled(Features::emailVerific
     // decks
     Route::get('/decks', [DecksController::class, 'list'])
         ->name('decks');
+    Route::get('/decks/archived', [DecksController::class, 'archived'])
+        ->name('decks.archived');
     Route::get('/decks/add', [DecksController::class, 'create'])
         ->name('decks.create');
     Route::post('/decks/add', [DecksController::class, 'store'])

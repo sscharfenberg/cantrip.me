@@ -738,6 +738,7 @@
             "title": "Deine Decks",
             "link": "Decks",
             "no_decks": "Du hast noch keine Decks erstellt.",
+            "archived_link": "Archivierte Decks",
             "state_planned": "{count} geplantes Deck | {count} geplante Decks",
             "state_built": "{count} fertiges Deck | {count} fertige Decks",
             "state_archived": "{count} archiviertes Deck | {count} archivierte Decks",
@@ -747,8 +748,8 @@
                 "delete": "Deck löschen",
                 "set_public": "Öffentlich machen",
                 "set_private": "Privat machen",
-                "archive": "Archivieren",
-                "unarchive": "Wiederherstellen",
+                "set_archived": "Archivieren",
+                "unarchive": "Aus dem Archiv wiederherstellen",
                 "set_planned": "Als geplant markieren",
                 "set_built": "Als fertig markieren",
                 "export": "CSV herunterladen"
@@ -760,6 +761,10 @@
                 "aff": "Ja, löschen",
                 "neg": "Nein, abbrechen"
             }
+        },
+        "archived_decks": {
+            "title": "Archivierte Decks",
+            "no_decks": "Du hast keine archivierten Decks."
         },
         "deck": {
             "title": "Deck: {name}",

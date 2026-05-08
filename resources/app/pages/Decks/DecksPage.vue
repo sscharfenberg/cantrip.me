@@ -29,6 +29,8 @@ export interface DeckRow {
 const props = defineProps<{
     /** Decks grouped by format value (e.g. { commander: [...], oathbreaker: [...] }). */
     decksByFormat: Record<string, DeckRow[]>;
+    /** True when the user has at least one archived deck — drives the "Archived decks" link visibility. */
+    hasArchived: boolean;
 }>();
 const { t } = useI18n();
 const { setBreadcrumbs } = useBreadcrumbs();
@@ -73,11 +75,7 @@ const initialOpenFormat = initialHash || busiestFormat.value || "";
 // Use `replaceState` rather than assigning `location.hash` so a fresh page
 // load doesn't push an extra history entry the user didn't ask for.
 if (!initialHash && initialOpenFormat) {
-    history.replaceState(
-        null,
-        "",
-        `${window.location.pathname}${window.location.search}#${initialOpenFormat}`
-    );
+    history.replaceState(null, "", `${window.location.pathname}${window.location.search}#${initialOpenFormat}`);
 }
 /** Which format folder is currently open (null = all closed). */
 const openFormat = ref<string | null>(initialOpenFormat || null);
@@ -131,6 +129,12 @@ function onFolderToggle(format: string, isOpen: boolean): void {
         />
     </div>
     <paragraph v-else>{{ $t("pages.decks.no_decks") }}</paragraph>
+    <div v-if="hasArchived" class="deck-actions deck-actions--archived">
+        <Link class="btn-default" href="/decks/archived">
+            <icon name="archived" />
+            {{ $t("pages.decks.archived_link") }}
+        </Link>
+    </div>
 </template>
 
 <style lang="scss" scoped>
@@ -139,6 +143,10 @@ function onFolderToggle(format: string, isOpen: boolean): void {
     flex-wrap: wrap;
 
     gap: 0.5rem;
+
+    &--archived {
+        margin-top: 1lh;
+    }
 }
 
 .deck-folders {

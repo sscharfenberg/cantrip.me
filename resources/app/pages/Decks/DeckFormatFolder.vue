@@ -28,8 +28,6 @@ const accordion = useTemplateRef<{ setOpen: (value: boolean) => void }>("accordi
 const plannedCount = computed(() => props.decks.filter(d => d.state === "planned").length);
 /** Number of decks in "built" state. */
 const builtCount = computed(() => props.decks.filter(d => d.state === "built").length);
-/** Number of decks in "archived" state. */
-const archivedCount = computed(() => props.decks.filter(d => d.state === "archived").length);
 
 /**
  * Handle toggle from user click.
@@ -62,12 +60,6 @@ defineExpose({ close });
                     v-tooltip="t('pages.decks.state_built', { count: builtCount }, builtCount)"
                     type="success"
                     >{{ builtCount }}</badge
-                >
-                <badge
-                    v-if="archivedCount"
-                    v-tooltip="t('pages.decks.state_archived', { count: archivedCount }, archivedCount)"
-                    type="warning"
-                    >{{ archivedCount }}</badge
                 >
             </span>
         </template>

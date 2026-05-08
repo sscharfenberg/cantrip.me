@@ -49,6 +49,13 @@ const props = defineProps<{
     badgeMode: "A" | "B" | "C";
     /** Context for "why" recap and confirm copy. */
     context: CollectionModeContext;
+    /**
+     * True when the deck is archived. Suppresses the actions section
+     * entirely — archived decks are read-only, so promote / clear / link-
+     * out CTAs would be misleading. The current-mode + why sections still
+     * render so users can understand the historical state.
+     */
+    isArchived: boolean;
 }>();
 const { t } = useI18n();
 /** True while a PATCH/DELETE is in flight. */
@@ -133,7 +140,7 @@ const iconName = computed(() => {
             </headline>
             <paragraph>{{ t(`pages.deck.collection_mode.why.${whyKey()}`) }}</paragraph>
         </section>
-        <section class="mode-modal__section">
+        <section v-if="!isArchived" class="mode-modal__section">
             <headline :size="3">
                 {{ t("pages.deck.collection_mode.actions_heading") }}
             </headline>
