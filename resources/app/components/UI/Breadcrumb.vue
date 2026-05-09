@@ -136,7 +136,11 @@ function resolveLabel(crumb: (typeof crumbs.value)[number]): string {
             }
         }
 
-        &:not(:last-child):hover {
+        // Skip the last crumb (current page, never a link) AND any
+        // non-link crumb — non-owners get a label-only "Decks" chip
+        // because /decks is gated to the request user, so a hover affordance
+        // would suggest a navigation that won't happen.
+        &:not(:last-child, span):hover {
             color: map.get(c.$components, "breadcrumb", "surface-hover");
 
             &::before,

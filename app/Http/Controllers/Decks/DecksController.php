@@ -104,20 +104,33 @@ class DecksController extends Controller
      * worth-aggregation pipeline.
      *
      * Post-consolidation, every card in the deck (mainboard, sideboard,
-     * command zone, companion) lives in `deck_cards`, so a single
-     * aggregate replaces the prior three (deck_cards + commanders +
-     * companion). `card_count` and `total_worth` both come from the
-     * same sum.
+     * command zone, companion) lives in `deck_cards`. `card_count` is
+     * shipped as a `{ main, companion, side }` object so the badge can
+     * render "main + companion / side" instead of one opaque total;
+     * `total_worth` aggregates the same rows (excluding maybeboard).
      *
      * @param  callable(Builder): Builder  $stateFilter
      * @return Collection<string, Collection<int, array<string, mixed>>>
      */
     private function groupedDecksForUser(Request $request, callable $stateFilter): Collection
     {
+        // Three subqueries instead of one withSum: the badge wants the
+        // counts split by zone (main + companion / side). Mainboard
+        // bundles `main` and `command` together so the legal-deck total
+        // (e.g. 100 = 99 + commander) shows on the badge. Maybeboard is
+        // intentionally excluded — it's a scratch pile, not part of the
+        // deck.
+        $zoneSum = fn (array $zones) => DB::table('deck_cards')
+            ->selectRaw('COALESCE(SUM(quantity), 0)')
+            ->whereColumn('deck_cards.deck_id', 'decks.id')
+            ->whereIn('deck_cards.zone', $zones);
+
         $query = Deck::query()
             ->where('user_id', $request->user()->id)
-            ->withSum('deckCards as deck_cards_quantity', 'quantity')
             ->addSelect([
+                'main_count' => $zoneSum([DeckZone::Main->value, DeckZone::Command->value]),
+                'companion_count' => $zoneSum([DeckZone::Companion->value]),
+                'side_count' => $zoneSum([DeckZone::Side->value]),
                 'last_card_update' => DB::table('deck_cards')
                     ->selectRaw('MAX(deck_cards.updated_at)')
                     ->whereColumn('deck_cards.deck_id', 'decks.id'),
@@ -130,7 +143,11 @@ class DecksController extends Controller
         $decks = $stateFilter($query)
             ->get()
             ->each(function (Deck $deck) {
-                $deck->card_count = (int) $deck->deck_cards_quantity;
+                $deck->card_count = [
+                    'main' => (int) $deck->main_count,
+                    'companion' => (int) $deck->companion_count,
+                    'side' => (int) $deck->side_count,
+                ];
                 $deck->last_activity = max(array_filter([
                     $deck->updated_at,
                     $deck->last_card_update,
@@ -179,7 +196,7 @@ class DecksController extends Controller
                 'visibility' => $deck->visibility->value,
                 'colors' => $deck->colors,
                 'bracket' => $deck->bracket,
-                'card_count' => (int) $deck->card_count,
+                'card_count' => $deck->card_count,
                 'total_worth' => round((float) ($worthByDeck[$deck->id] ?? 0), 2),
                 'last_activity' => $deck->last_activity,
                 // Non-destructive flags: the delete-confirm modal uses these
@@ -405,9 +422,24 @@ class DecksController extends Controller
             ];
         }
 
-        // Post-consolidation, command-zone + companion are deck_cards
-        // rows too, so a single sum covers everything in the deck.
-        $cardCount = (int) $deck->deckCards->sum('quantity');
+        // Three-part card count for the badge ("main + companion / side").
+        // The mainboard total includes the command zone (commanders /
+        // partners / signature spell), since that's part of the legal
+        // deck size — a Commander deck reads "100" for 99 mainboard + 1
+        // commander. Companion and sideboard get their own slots; the
+        // maybeboard is intentionally excluded (not part of the deck).
+        $cardCount = [
+            'main' => (int) $deck->deckCards
+                ->whereIn('zone', [DeckZone::Main, DeckZone::Command])
+                ->sum('quantity'),
+            'companion' => (int) $deck->deckCards
+                ->where('zone', DeckZone::Companion)
+                ->sum('quantity'),
+            'side' => (int) $deck->deckCards
+                ->where('zone', DeckZone::Side)
+                ->sum('quantity'),
+        ];
+        $cardCountTotal = $cardCount['main'] + $cardCount['companion'] + $cardCount['side'];
         $lastActivity = max(array_filter([
             $deck->updated_at?->toIso8601String(),
             $deck->deckCards->max('updated_at')?->toIso8601String(),
@@ -670,7 +702,7 @@ class DecksController extends Controller
                 $ogDescription = Str::limit(preg_replace('/\s+/', ' ', $userDescription), 200);
             } else {
                 $format = ucfirst($deck->format->value);
-                $ogDescription = "{$format} deck with {$cardCount} cards on cantrip.me.";
+                $ogDescription = "{$format} deck with {$cardCountTotal} cards on cantrip.me.";
             }
             $response->withViewData([
                 'ogTitle' => "{$deck->name} – cantrip.me",

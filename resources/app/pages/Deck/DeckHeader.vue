@@ -3,6 +3,7 @@ import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import ColorIdentity from "Components/Card/ColorIdentity.vue";
 import CollectionModeBadge from "Components/Deck/CollectionModeBadge.vue";
+import DeckCardCount from "Components/Deck/DeckCardCount.vue";
 import DeckState from "Components/Deck/DeckState.vue";
 import Badge from "Components/UI/Badge.vue";
 import Icon from "Components/UI/Icon.vue";
@@ -116,7 +117,7 @@ const { formatPrice } = useFormatting();
                 <icon name="swords" :size="1" />{{ deck.bracket }}
             </badge>
             <deck-state :state="deck.state" />
-            <badge type="info"><icon name="deck" :size="1" />{{ deck.card_count }}</badge>
+            <deck-card-count :count="deck.card_count" />
             <badge type="info" v-tooltip="$t('pages.deck.total_worth')">
                 <icon name="money" :size="1" />{{ formatPrice(deck.total_worth) }}
             </badge>

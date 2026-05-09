@@ -743,7 +743,6 @@
             "state_planned": "{count} planned deck | {count} planned decks",
             "state_built": "{count} finished deck | {count} finished decks",
             "state_archived": "{count} archived deck | {count} archived decks",
-            "card_count_noun": "card | cards",
             "actions": {
                 "label": "Deck actions",
                 "delete": "Delete deck",
@@ -779,6 +778,12 @@
             "colors": "Colors",
             "bracket": "Bracket",
             "card_count": "Cards",
+            "card_count_tooltip": {
+                "title": "Cards in this deck:",
+                "main": "{count} mainboard card | {count} mainboard cards",
+                "companion": "{count} companion",
+                "side": "{count} sideboard card | {count} sideboard cards"
+            },
             "total_worth": "Total worth",
             "last_activity": "Last activity",
             "commanders": "Command Zone",

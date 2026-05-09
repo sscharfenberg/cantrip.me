@@ -172,6 +172,15 @@ class DeckSeeder extends Seeder
     private const LANDS_DECK_DESCRIPTION = 'Legacy Lands — Life from the Loam engine fueled by Wasteland / Rishadan Port denial, locking with The Tabernacle at Pendrell Vale and Maze of Ith. Closes the game with Marit Lage from Dark Depths + Thespian\'s Stage and Urza\'s Saga construct tokens.';
 
     /**
+     * Played mana base — WUBRG-ordered. Hardcoded rather than derived
+     * via {@see DeckCardService::recalculateColors()} because Life from
+     * the Loam's mana cost includes black, even though the deck has no
+     * black sources. The seeded value reflects the colors the deck
+     * actually plays.
+     */
+    private const LANDS_DECK_COLORS = 'WG';
+
+    /**
      * Mainboard of the Lands deck. Each entry pins a specific printing
      * by set code + collector number — the deck's identity depends on
      * the original / preferred frame for several cards.
@@ -331,6 +340,8 @@ class DeckSeeder extends Seeder
         $missing = [];
         $insertedMain = $this->insertPinnedPrintings($deck->id, self::LANDS_MAIN, DeckZone::Main, $missing);
         $insertedSide = $this->insertPinnedPrintings($deck->id, self::LANDS_SIDE, DeckZone::Side, $missing);
+
+        $deck->update(['colors' => self::LANDS_DECK_COLORS]);
 
         $this->command->info(
             "Seeded deck '".self::LANDS_DECK_NAME."' with $insertedMain mainboard + $insertedSide sideboard cards."

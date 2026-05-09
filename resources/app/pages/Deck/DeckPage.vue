@@ -83,9 +83,15 @@ const props = defineProps<{
     tokens: DeckToken[];
 }>();
 const { setBreadcrumbs } = useBreadcrumbs();
+// Non-owners reach a deck via a public link and have no business
+// landing on the owner's /decks or /decks/archived pages — those are
+// gated to the request user. Drop the parent crumbs to a plain label
+// (still rendered, no navigation) for visitors.
 setBreadcrumbs([
-    { labelKey: "pages.decks.link", href: "/decks", icon: "deck" },
-    ...(props.deck.state === "archived"
+    props.isOwner
+        ? { labelKey: "pages.decks.link", href: "/decks", icon: "deck" }
+        : { labelKey: "pages.decks.link", icon: "deck" },
+    ...(props.deck.state === "archived" && props.isOwner
         ? [{ labelKey: "pages.decks.archived_link", href: "/decks/archived", icon: "archived" }]
         : []),
     { label: props.deck.name }

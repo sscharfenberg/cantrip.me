@@ -292,6 +292,25 @@ export interface QuickAddCardResult {
     faces: QuickAddCardFace[];
 }
 
+/**
+ * Three-part card count for the deck badge. Mainboard includes commanders
+ * (zone=command counts toward the legal deck size). Maybeboard rows are
+ * intentionally excluded — they're a scratch pile, not part of the deck.
+ */
+export interface DeckCardCount {
+    /** Mainboard + command zone — the legal deck size. */
+    main: number;
+    /** Companion (zone=companion). Always 0 or 1. */
+    companion: number;
+    /** Sideboard (zone=side). */
+    side: number;
+}
+
+/** Sum of every part — mainboard + companion + sideboard. */
+export function totalDeckCardCount(count: DeckCardCount): number {
+    return count.main + count.companion + count.side;
+}
+
 /** Deck metadata as passed by the controller. */
 export interface DeckMeta {
     id: string;
@@ -302,7 +321,7 @@ export interface DeckMeta {
     visibility: string;
     colors: string | null;
     bracket: number | null;
-    card_count: number;
+    card_count: DeckCardCount;
     /** Sum of (deck_cards.quantity × default_card price) + commanders + companion, in the request user's currency (eur/usd). */
     total_worth: number;
     max_deck_size: number | null;

@@ -6,7 +6,8 @@ import { hasDeletableContent } from "@/utils/deleteDeck.ts";
 import type { DeleteDeckTarget } from "@/utils/deleteDeck.ts";
 import Icon from "Components/UI/Icon.vue";
 import PopOver from "Components/UI/PopOver.vue";
-import type { DeckCardRow, DeckCategoryRow } from "Types/deckPage.ts";
+import type { DeckCardCount, DeckCardRow, DeckCategoryRow } from "Types/deckPage.ts";
+import { totalDeckCardCount } from "Types/deckPage.ts";
 import AddAllToCollectionModal from "../Modals/AddAllToCollectionModal.vue";
 import DeckAddGroupModal from "../Modals/DeckAddGroupModal.vue";
 import DeckCustomGroupsModal from "../Modals/DeckCustomGroupsModal.vue";
@@ -29,7 +30,7 @@ export interface DeckActionsTarget {
     name: string;
     state: string;
     visibility: string;
-    card_count: number;
+    card_count: DeckCardCount;
     has_companion: boolean;
     has_description: boolean;
     has_image: boolean;
@@ -92,7 +93,7 @@ const showGroupActions = computed(
 const deleteTarget = computed<DeleteDeckTarget>(() => ({
     id: props.deck.id,
     name: props.deck.name,
-    cardCount: props.deck.card_count,
+    cardCount: totalDeckCardCount(props.deck.card_count),
     hasCompanion: props.deck.has_companion,
     hasDescription: props.deck.has_description,
     hasImage: props.deck.has_image

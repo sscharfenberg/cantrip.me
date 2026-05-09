@@ -7,6 +7,8 @@ import Headline from "Components/UI/Headline.vue";
 import Icon from "Components/UI/Icon.vue";
 import Paragraph from "Components/UI/Paragraph.vue";
 import { useBreadcrumbs } from "Composables/useBreadcrumbs.ts";
+import type { DeckCardCount } from "Types/deckPage.ts";
+import { totalDeckCardCount } from "Types/deckPage.ts";
 export interface DeckRow {
     id: string;
     name: string;
@@ -15,7 +17,7 @@ export interface DeckRow {
     colors: string | null;
     /** Commander Bracket (1-5) when set on the deck, otherwise null. */
     bracket: number | null;
-    card_count: number;
+    card_count: DeckCardCount;
     /** Sum of (deck_cards.quantity × default_card price) + commanders + companion, in the request user's currency. */
     total_worth: number;
     last_activity: string;
@@ -55,7 +57,7 @@ const busiestFormat = computed<string | null>(() => {
             return {
                 format,
                 deckCount: decks.length,
-                cardSum: decks.reduce((sum, d) => sum + d.card_count, 0),
+                cardSum: decks.reduce((sum, d) => sum + totalDeckCardCount(d.card_count), 0),
                 latest: decks.reduce((max, d) => (d.last_activity > max ? d.last_activity : max), "")
             };
         })

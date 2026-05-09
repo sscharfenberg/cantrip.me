@@ -4,6 +4,7 @@ import { useI18n } from "vue-i18n";
 import DeckActionsMenu from "@/pages/Deck/Actions/DeckActionsMenu.vue";
 import type { DeckRow } from "@/pages/Decks/DecksPage.vue";
 import ColorIdentity from "Components/Card/ColorIdentity.vue";
+import DeckCardCount from "Components/Deck/DeckCardCount.vue";
 import DeckState from "Components/Deck/DeckState.vue";
 import Badge from "Components/UI/Badge.vue";
 import Icon from "Components/UI/Icon.vue";
@@ -22,11 +23,7 @@ const { formatDateTime, formatPrice } = useFormatting();
         <color-identity :color-identity="deck.colors" />
         <span class="decklist__name">{{ deck.name }}</span>
         <deck-state :state="deck.state" />
-        <badge class="decklist__cards">
-            <icon name="deck" :size="1" />
-            {{ deck.card_count }}
-            <span>{{ t("pages.decks.card_count_noun", deck.card_count) }}</span>
-        </badge>
+        <deck-card-count :count="deck.card_count" />
         <badge v-tooltip="formatDateTime(deck.last_activity)" class="decklist__timestamp" type="info">
             <icon name="calendar" :size="1" />
         </badge>
