@@ -129,7 +129,9 @@ return [
     |--------------------------------------------------------------------------
     |
     */
-    'version' => 'v'.env('APP_VERSION', '1.0.0'),
+    // Single source of truth: package.json#version. Read at config:cache time
+    // and frozen into bootstrap/cache/config.php — no per-request file reads.
+    'version' => 'v'.(json_decode(file_get_contents(base_path('package.json')) ?: '{}')?->version ?? '0.0.0'),
     'contact' => env('APP_CONTACT', 'anonymous@localhost'),
 
 ];

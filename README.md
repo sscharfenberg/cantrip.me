@@ -199,6 +199,18 @@ Laravel's task scheduler handles recurring jobs (e.g. temporary file cleanup). T
 
 This runs `schedule:run` every minute; Laravel determines internally which scheduled tasks are due. Scheduled tasks are defined in `routes/console.php`.
 
+## Versioning
+
+Single source of truth: **`package.json`** (`version` field). `config/app.php` reads it directly (frozen into the cached config at deploy time, so no per-request file reads). There is **no** `APP_VERSION` in `.env` — it isn't read.
+
+To cut a release:
+
+1. Bump `"version"` in `package.json` (e.g. `1.0.2` → `1.0.3`)
+2. Commit
+3. Tag and push: `git tag v1.0.3 && git push origin v1.0.3`
+
+Pushing the `v*.*.*` tag triggers the production deploy workflow (see `.github/README.md`). On the next deploy `php artisan config:cache` re-reads `package.json` and the new value is reflected in `config('app.version')`.
+
 ## Development
 
 ### `composer dev`
