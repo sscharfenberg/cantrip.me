@@ -79,7 +79,17 @@ const { sections, dragTargets } = useDeckSections(
 const { containerRef, columns } = useResponsiveColumns(sections, {
     minColWidth: 320,
     maxColumns: 3,
-    colGap: 16
+    colGap: 16,
+    // Weight ≈ visual row count: 1 for the headline + one row per unique
+    // card. Without this, "Creatures (40)" and "Enchantments (3)" each
+    // count as one section and get one column apiece — yielding a 40-row
+    // column next to a 3-row column. With it, the partition balances the
+    // total row count per column.
+    weight: section => {
+        if (section.kind === "commanders") return 1 + section.commanders.length;
+        if (section.kind === "companion") return 2;
+        return 1 + section.group.cards.length;
+    }
 });
 /**
  * Preview-modal endpoint URL, or null when hidden. `quantity` is sent
