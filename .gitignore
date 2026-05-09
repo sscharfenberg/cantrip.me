@@ -20,11 +20,11 @@
 /public/build
 /public/hot
 /public/storage
-/public/art-crops/
-/public/card-images/
-/public/set/
-/public/set-icon/
-/public/symbol/
+/public/art-crops
+/public/card-images
+/public/set
+/public/set-icon
+/public/symbol
 
 /storage/*.key
 /storage/pail
