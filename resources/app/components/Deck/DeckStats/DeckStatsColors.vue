@@ -5,7 +5,7 @@ import { karstenArticleUrl } from "@/utils/frankKarstenAnalysis";
 import Headline from "Components/UI/Headline.vue";
 import LabelledLink from "Components/UI/LabelledLink.vue";
 import { useDeckHighlight, type HighlightColor } from "Composables/useDeckHighlight.ts";
-import type { ColorPipTally, KarstenColorAnalysis } from "Composables/useDeckStats.ts";
+import type { ColorPipTally, KarstenColorAnalysis, KarstenCombinedAnalysis } from "Composables/useDeckStats.ts";
 
 const props = defineProps<{
     /** WUBRG pip totals across all non-land card costs (deck + commanders + companion). */
@@ -14,6 +14,12 @@ const props = defineProps<{
     production: ColorPipTally;
     /** Per-color Karsten source recommendation for the deck's format. */
     karsten: KarstenColorAnalysis[];
+    /**
+     * Karsten gold-card "combined" rows — one per unique color combo
+     * demanded by a gold card in the deck. Empty for monocolor decks
+     * or decks without gold cards.
+     */
+    karstenCombined: KarstenCombinedAnalysis[];
     /** Deck format slug — drives which Karsten article the attribution links to. */
     format: string;
 }>();
@@ -247,6 +253,12 @@ const onOuterClick = (color: HighlightColor): void => {
     setColorConsumption(color);
     setColorProduction(null);
 };
+/**
+ * Inner-ring (production) click handler — mirror of `onOuterClick`.
+ * Toggles selection on the production color and clears any current
+ * cost selection so the two rings act as one radio group split across
+ * cost / production. See `onOuterClick`'s comment for the full rule.
+ */
 const onInnerClick = (color: HighlightColor): void => {
     if (selectedColorProduction.value === color) {
         setColorProduction(null);
@@ -256,14 +268,18 @@ const onInnerClick = (color: HighlightColor): void => {
     setColorConsumption(null);
 };
 
+/** Round a 0–100 fraction to a whole-number string for aria + UI display. */
 const formatPercent = (n: number): string => `${Math.round(n)}`;
 
+/** Aria label for an outer-ring (cost) segment — color name + count + percent. */
 const ariaForCost = (seg: Segment): string =>
     t("pages.deck.stats.colors.cost_aria", {
         color: t(`pages.deck.stats.colors.color.${seg.color}`),
         count: seg.count,
         percent: formatPercent(seg.percent)
     });
+
+/** Aria label for an inner-ring (production) segment — same shape as `ariaForCost`. */
 const ariaForProduction = (seg: Segment): string =>
     t("pages.deck.stats.colors.production_aria", {
         color: t(`pages.deck.stats.colors.color.${seg.color}`),
@@ -410,6 +426,42 @@ const ariaForProduction = (seg: Segment): string =>
                         </i18n-t>
                     </li>
                 </ul>
+                <template v-if="karstenCombined.length">
+                    <h6 class="color-donut__subheading">
+                        {{ t("pages.deck.stats.colors.karsten.combined_title") }}
+                    </h6>
+                    <ul class="color-donut__rows">
+                        <li
+                            v-for="row in karstenCombined"
+                            :key="row.colors.join('')"
+                            :class="{ 'color-donut__rows-item--short': row.short > 0 }"
+                        >
+                            <i18n-t
+                                :keypath="
+                                    row.short > 0
+                                        ? 'pages.deck.stats.colors.karsten.combined_short'
+                                        : 'pages.deck.stats.colors.karsten.combined_sufficient'
+                                "
+                                scope="global"
+                            >
+                                <template #colors>
+                                    <span class="color-donut__combined-colors">
+                                        <img
+                                            v-for="c in row.colors"
+                                            :key="c"
+                                            :src="`/symbol/${c}.svg`"
+                                            :alt="t(`pages.deck.stats.colors.color.${c}`)"
+                                            class="color-donut__symbol"
+                                        />
+                                    </span>
+                                </template>
+                                <template #have>{{ row.have }}</template>
+                                <template #need>{{ row.need }}</template>
+                                <template #short>{{ row.short }}</template>
+                            </i18n-t>
+                        </li>
+                    </ul>
+                </template>
                 <p class="color-donut__attribution">
                     <i18n-t keypath="pages.deck.stats.colors.karsten.attribution" scope="global" tag="span">
                         <template #link>
@@ -563,6 +615,28 @@ const ariaForProduction = (seg: Segment): string =>
 
         font-size: 1rem;
         font-weight: 400;
+    }
+
+    &__subheading {
+        opacity: 0.8;
+
+        margin: #{map.get(s.$components, "color-donut", "gap") * 0.5} 0 0;
+
+        font-size: 0.9rem;
+        font-weight: 400;
+    }
+
+    &__combined-colors {
+        display: inline;
+
+        margin-right: 0.25em;
+
+        // Defeat the per-symbol right margin so multiple symbols sit
+        // tight together — only the trailing one needs spacing from the
+        // " {have} sources" text.
+        & .color-donut__symbol {
+            margin-right: 0;
+        }
     }
 
     &__rows {

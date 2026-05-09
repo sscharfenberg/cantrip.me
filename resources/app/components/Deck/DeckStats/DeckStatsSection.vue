@@ -24,6 +24,7 @@ const {
     costPips,
     productionPips,
     karstenAnalysis,
+    karstenCombined,
     typeCounts,
     subtypeBreakdowns,
     categoryCounts,
@@ -62,6 +63,7 @@ const showColors = computed(() => tallyTotal(costPips.value) > 0 && tallyTotal(p
                     :cost="costPips"
                     :production="productionPips"
                     :karsten="karstenAnalysis"
+                    :karsten-combined="karstenCombined"
                     :format="format"
                 />
                 <deck-stats-categories

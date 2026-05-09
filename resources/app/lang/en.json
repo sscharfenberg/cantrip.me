@@ -940,6 +940,9 @@
                         "title": "Mana sources",
                         "sufficient": "{color} {have} sources, {need} recommended.",
                         "short": "{color} {have} sources, {need} recommended (short by {short})",
+                        "combined_title": "Multicolor sources",
+                        "combined_sufficient": "{colors} {have} combined sources, {need} recommended.",
+                        "combined_short": "{colors} {have} combined sources, {need} recommended (short by {short})",
                         "attribution": "Analysis according to Frank Karsten's research. {link}",
                         "attribution_link": "Read the article"
                     },

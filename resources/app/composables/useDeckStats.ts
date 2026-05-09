@@ -35,9 +35,40 @@ export interface ColorPipTally {
  * One row of the per-color Karsten analysis: how many sources of this
  * color the deck has, how many Karsten recommends for the deck's most
  * demanding card of this color, and the shortfall (zero if sufficient).
+ *
+ * Karsten's gold-card +1 hack is baked into `need`: any card with ≥2
+ * distinct *forced* colored pips (e.g. Teferi `{1}{W}{U}`) bumps each
+ * color's individual requirement by +1 — his published rule of thumb
+ * for the conditional-probability hit when both colors must appear by
+ * the on-curve turn. Pure hybrid (`{W/U}{W/U}`) is NOT gold and does
+ * not contribute here at all; its requirement lives in
+ * {@link KarstenCombinedAnalysis} instead.
  */
 export interface KarstenColorAnalysis {
     color: HighlightColor;
+    have: number;
+    need: number;
+    /** `max(0, need - have)`. Zero ⇒ sufficient. */
+    short: number;
+}
+
+/**
+ * One row of Karsten's "combined" requirement — sources that can
+ * produce *any* of a set of colors. Two flavors feed this shape:
+ *
+ *  - **Gold combined.** A card with ≥2 forced colors (e.g. Teferi
+ *    `{1}{W}{U}`) demands `(cmc, totalForcedPips)` lookup +1.
+ *  - **Hybrid combined.** A pure-hybrid card (e.g. Yorion
+ *    `{3}{W/U}{W/U}`) demands `(cmc, hybridPipCount)` lookup, NO +1
+ *    — only one of the colors is needed per pip.
+ *
+ * `colors` is sorted in WUBRG order. A combo's `need` is the max
+ * across every card in the deck that demands that exact color set
+ * (whichever flavor wins). Only emitted for color combinations
+ * actually demanded by a card in the deck.
+ */
+export interface KarstenCombinedAnalysis {
+    colors: HighlightColor[];
     have: number;
     need: number;
     /** `max(0, need - have)`. Zero ⇒ sufficient. */
@@ -221,6 +252,12 @@ export function useDeckStats(
      * array when the deck has no colored costs at all.
      */
     karstenAnalysis: ComputedRef<KarstenColorAnalysis[]>;
+    /**
+     * Karsten gold-card "combined" requirements. One row per unique
+     * color combination demanded by a gold card; empty for monocolor
+     * decks or decks with no gold cards.
+     */
+    karstenCombined: ComputedRef<KarstenCombinedAnalysis[]>;
     typeCounts: ComputedRef<BreakdownBucket[]>;
     /**
      * Subtype breakdown per card type. Keys are the card type labels
@@ -323,13 +360,25 @@ export function useDeckStats(
     /**
      * Per-color Karsten analysis. For each color X, scans every
      * non-land card (including commanders + companion), and for each
-     * card that consumes X, looks up Karsten's recommended source
-     * count for `(cmc, pipsForX)` — the deck's requirement is the max
-     * across all such cards (set by the most demanding cast). The
-     * "have" side reuses `productionPips`, which already counts a card
-     * once per produced color × quantity (a 5-color dork in a Boros
-     * deck contributes only to W and R, since `allowed` clamps to the
-     * commander color identity — the same convention applies here).
+     * card with a forced (non-hybrid) X pip, looks up Karsten's
+     * recommended source count for `(cmc, forcedPipsForX)` — the
+     * deck's requirement is the max across all such cards.
+     *
+     * Gold-card adjustment: when a card has ≥2 distinct *forced*
+     * colors in its cost (e.g. `{W}{U}` Teferi), each per-color
+     * requirement is bumped by +1 before being maxed in (Karsten's
+     * hack for the conditional-probability hit when both colors must
+     * appear by the on-curve turn).
+     *
+     * Pure hybrid cards (e.g. Yorion `{3}{W/U}{W/U}`) contribute
+     * nothing here — they have no forced pips. Their requirement is
+     * surfaced as a hybrid-combined row in `karstenCombined` instead.
+     *
+     * The "have" side reuses `productionPips`, which already counts a
+     * card once per produced color × quantity (a 5-color dork in a
+     * Boros deck contributes only to W and R, since `allowed` clamps
+     * to the commander color identity — the same convention applies
+     * here).
      */
     const karstenAnalysis = computed<KarstenColorAnalysis[]>(() => {
         const fmt = format();
@@ -338,10 +387,13 @@ export function useDeckStats(
         const considerCard = (faces: (string | null)[], cmc: number, typeLine: string): void => {
             if (isLand(typeLine)) return;
             const { pips } = breakdownCard(faces, cmc);
-            for (const color of COLORS) {
-                if (pips[color] === 0) continue;
-                const required = sourcesNeeded(fmt, cmc, pips[color]);
-                if (required !== null && required > need[color]) {
+            const forcedColors = COLORS.filter(c => pips[c] > 0);
+            const isGold = forcedColors.length >= 2;
+            for (const color of forcedColors) {
+                const base = sourcesNeeded(fmt, cmc, pips[color]);
+                if (base === null) continue;
+                const required = isGold ? base + 1 : base;
+                if (required > need[color]) {
                     need[color] = required;
                 }
             }
@@ -365,6 +417,131 @@ export function useDeckStats(
             need: need[color],
             short: Math.max(0, need[color] - have[color]),
         }));
+    });
+
+    /**
+     * Karsten "combined" requirements: how many sources of *any* of a
+     * set of colors the deck needs. Two flavors feed the same output:
+     *
+     *   - **Gold combined.** A card with ≥2 distinct forced colors
+     *     contributes a combo of (forced colors), pip count = total
+     *     forced pips, lookup at (cmc, totalForced), **+1** per
+     *     Karsten's gold-card hack.
+     *   - **Hybrid combined.** Each unique hybrid color set on the
+     *     card (e.g. `{W/U}{W/U}` → one set `{W,U}` with count 2)
+     *     contributes a combo of (those colors), lookup at (cmc,
+     *     count), **no +1** — only one of the colors is needed per
+     *     pip, so the conditional-probability hit doesn't apply
+     *     (Karsten: "you need to have enough combined sources of
+     *     either color in the hybrid cost").
+     *
+     * Combos are merged across cards (same color set → one row, max
+     * `need` wins). The `have` side counts each producer × quantity
+     * once if its `produced_mana` (after CI clamping) intersects the
+     * combo. Sorted by combo size, then WUBRG-lexicographic.
+     *
+     * Empty when the deck has neither gold nor hybrid demand.
+     */
+    const karstenCombined = computed<KarstenCombinedAnalysis[]>(() => {
+        const fmt = format();
+        const allowed = commanderColorIdentity.value;
+
+        // Per-combo max requirement, keyed by the WUBRG-ordered combo string.
+        const reqByCombo = new Map<string, { colors: HighlightColor[]; need: number }>();
+
+        const upsert = (colors: HighlightColor[], required: number): void => {
+            const key = colors.join("");
+            const existing = reqByCombo.get(key);
+            if (!existing || required > existing.need) {
+                reqByCombo.set(key, { colors, need: required });
+            }
+        };
+
+        const considerCard = (faces: (string | null)[], cmc: number, typeLine: string): void => {
+            if (isLand(typeLine)) return;
+            const { pips, hybridGroups } = breakdownCard(faces, cmc);
+            const forcedColors = COLORS.filter(c => pips[c] > 0);
+
+            // Gold-card combined (≥2 forced colors → +1 hack).
+            if (forcedColors.length >= 2) {
+                const totalForced = forcedColors.reduce((sum, c) => sum + pips[c], 0);
+                const base = sourcesNeeded(fmt, cmc, totalForced);
+                if (base !== null) {
+                    upsert(forcedColors, base + 1);
+                }
+            }
+
+            // Hybrid combined (one row per unique hybrid color set).
+            // Group all hybrid pips by their color set so a card with
+            // two `{W/U}` symbols is treated as 2 pips of W∪U, not 2
+            // independent 1-pip lookups.
+            const groupedHybrid = new Map<string, { colors: HighlightColor[]; count: number }>();
+            for (const group of hybridGroups) {
+                const key = group.join("");
+                const existing = groupedHybrid.get(key);
+                if (existing) {
+                    existing.count += 1;
+                } else {
+                    groupedHybrid.set(key, { colors: group, count: 1 });
+                }
+            }
+            for (const { colors, count } of groupedHybrid.values()) {
+                const base = sourcesNeeded(fmt, cmc, count);
+                if (base === null) continue;
+                upsert(colors, base);
+            }
+        };
+
+        for (const card of cards()) {
+            considerCard(card.mana_cost, card.cmc, card.type_line);
+        }
+        for (const cmd of commanders()) {
+            considerCard(cmd.mana_cost, cmd.cmc, cmd.type_line);
+        }
+        const cmp = companion();
+        if (cmp !== null) {
+            considerCard(cmp.mana_cost, cmp.cmc, cmp.type_line);
+        }
+
+        if (reqByCombo.size === 0) return [];
+
+        // "Have" side: count each producer × quantity once if its
+        // produced_mana (after CI clamping) intersects the combo.
+        // Done as a nested loop because the combo count is tiny
+        // (rarely > 3) and the producer list is small.
+        const producers: { produced: string[]; qty: number }[] = [];
+        const pushProducer = (produced: string[] | null, qty: number) => {
+            if (!produced) return;
+            const filtered = produced.filter(
+                c => (COLORS as readonly string[]).includes(c) && (allowed === null || allowed.has(c as Color))
+            );
+            if (filtered.length === 0) return;
+            producers.push({ produced: filtered, qty });
+        };
+        for (const card of cards()) pushProducer(card.produced_mana, card.quantity);
+        for (const cmd of commanders()) pushProducer(cmd.produced_mana, 1);
+        if (cmp !== null) pushProducer(cmp.produced_mana, 1);
+
+        const haveFor = (combo: HighlightColor[]): number => {
+            const comboSet = new Set<string>(combo);
+            let have = 0;
+            for (const p of producers) {
+                if (p.produced.some(c => comboSet.has(c))) {
+                    have += p.qty;
+                }
+            }
+            return have;
+        };
+
+        return [...reqByCombo.values()]
+            .map(({ colors, need }) => {
+                const have = haveFor(colors);
+                return { colors, have, need, short: Math.max(0, need - have) };
+            })
+            .sort((a, b) => {
+                if (a.colors.length !== b.colors.length) return a.colors.length - b.colors.length;
+                return a.colors.join("").localeCompare(b.colors.join(""));
+            });
     });
 
     const typeCounts = computed<BreakdownBucket[]>(() => {
@@ -487,6 +664,7 @@ export function useDeckStats(
         costPips,
         productionPips,
         karstenAnalysis,
+        karstenCombined,
         typeCounts,
         subtypeBreakdowns,
         categoryCounts,

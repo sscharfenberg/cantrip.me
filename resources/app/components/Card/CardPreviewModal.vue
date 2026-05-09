@@ -89,11 +89,7 @@ onMounted(async () => {
             <p>{{ t("components.card_preview.error") }}</p>
         </div>
         <div v-else-if="card" class="cardstack-preview">
-            <card-face-image
-                v-if="faceImage?.card_image_0"
-                :card="faceImage"
-                tooltip-container="#modal-body"
-            />
+            <card-face-image v-if="faceImage?.card_image_0" :card="faceImage" tooltip-container="#modal-body" />
             <div class="col">
                 <dl class="cardstack-preview__details">
                     <template v-if="card.amount">
@@ -205,5 +201,15 @@ onMounted(async () => {
     @include m.mq("landscape") {
         min-width: map.get(s.$components, "modal", "max-width");
     }
+}
+</style>
+
+<style lang="scss">
+// make the set image in the modal work in dark and light mode.
+// dark mode needs the (black filled svg) image reverted so it is visible.
+@use "Abstracts/mixins" as m;
+
+@include m.theme-dark(".cardstack-preview__set img") {
+    filter: invert(1);
 }
 </style>

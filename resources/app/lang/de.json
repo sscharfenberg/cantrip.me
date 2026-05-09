@@ -940,6 +940,9 @@
                         "title": "Manaquellen",
                         "sufficient": "{color} {have} Quellen, {need} empfohlen.",
                         "short": "{color} {have} Quellen, {need} empfohlen ({short} zu wenig)",
+                        "combined_title": "Mehrfarbige Quellen",
+                        "combined_sufficient": "{colors} {have} kombinierte Quellen, {need} empfohlen.",
+                        "combined_short": "{colors} {have} kombinierte Quellen, {need} empfohlen ({short} zu wenig)",
                         "attribution": "Analyse basiert auf der Forschung von Frank Karsten. {link}",
                         "attribution_link": "Artikel lesen"
                     },

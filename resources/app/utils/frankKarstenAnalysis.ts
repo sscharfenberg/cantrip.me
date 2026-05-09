@@ -21,13 +21,24 @@ import type { HighlightColor } from "Composables/useDeckHighlight.ts";
  * for W). CMC is 1-indexed and capped at 7.
  */
 
+/**
+ * 60-card recommendation table (Karsten's "60-card deck" column).
+ * Lookup is `[pipDensity][cmc]`, both 1-indexed. `null` means the
+ * cell is structurally impossible (more pips than cmc) or omitted by
+ * Karsten as trivially satisfied.
+ */
 const TABLE_60: Record<number, Record<number, number | null>> = {
-    1: { 1: 14, 2: 13, 3: 12, 4: 10, 5: 9, 6: 8, 7: null },
-    2: { 1: null, 2: 21, 3: 18, 4: 18, 5: 14, 6: 13, 7: 12 },
-    3: { 1: null, 2: null, 3: 23, 4: 21, 5: 19, 6: 19, 7: 16 },
+    1: { 1: 14, 2: 13, 3: 12, 4: 10, 5: 9, 6: 9, 7: null },
+    2: { 1: null, 2: 21, 3: 18, 4: 16, 5: 15, 6: 13, 7: 12 },
+    3: { 1: null, 2: null, 3: 23, 4: 21, 5: 19, 6: 17, 7: 16 },
     4: { 1: null, 2: null, 3: null, 4: 24, 5: 22, 6: null, 7: null },
 };
 
+/**
+ * 99-card recommendation table (Karsten's "99-card deck" column —
+ * the Commander-singleton size). Same lookup shape as `TABLE_60`.
+ * Used for every 100-card-deck format we ship.
+ */
 const TABLE_100: Record<number, Record<number, number | null>> = {
     1: { 1: 19, 2: 19, 3: 18, 4: 16, 5: 15, 6: 14, 7: null },
     2: { 1: null, 2: 30, 3: 28, 4: 26, 5: 23, 6: 22, 7: 20 },
@@ -36,44 +47,90 @@ const TABLE_100: Record<number, Record<number, number | null>> = {
 };
 
 /**
- * Format → deck size mapping. Mirrors the PHP `FormatProfile` chain in
- * `app/Formats/`: 100-card formats use `CommanderProfile` /
- * `GladiatorProfile`; everything else (Standard, Modern, Pioneer,
- * Legacy, Vintage, Pauper, Penny, Premodern, Oldschool, Future,
- * Alchemy, Historic, Timeless, Oathbreaker, StandardBrawl) is 60-card.
- * Unknown / future Scryfall formats fall back to 60-card.
+ * Format slugs that play with a 100-card deck (commander-singleton
+ * size). Mirrors the PHP `FormatProfile` chain in `app/Formats/`:
+ * `CommanderProfile` and `GladiatorProfile` are 100-card; everything
+ * else (Standard, Modern, Pioneer, Legacy, Vintage, Pauper, Penny,
+ * Premodern, Oldschool, Future, Alchemy, Historic, Timeless,
+ * Oathbreaker, StandardBrawl) is 60-card. Unknown / future Scryfall
+ * format slugs fall back to 60-card.
  */
 const HUNDRED_CARD_FORMATS = new Set(["commander", "duel", "brawl", "paupercommander", "predh", "gladiator"]);
 
+/** Resolves a Scryfall format slug to the deck size that drives table choice. */
 const deckSizeFor = (format: string): 60 | 100 => (HUNDRED_CARD_FORMATS.has(format) ? 100 : 60);
 
-/**
- * Per-color pip count and CMC for a single card. Hybrid (`{W/U}`),
- * phyrexian (`{W/P}`), and twobrid (`{2/W}`) all add 1 to each color
- * letter present in the symbol — matches the deck-stats donut and the
- * card highlight matcher (`consumesColor`).
- */
+/** Mana-symbol token regex — matches `{X}`-style braces in cost strings. */
 const SYMBOL_REGEX = /\{([^}]+)}/g;
+
+/** WUBRG, in the canonical display order used everywhere in the app. */
 const COLORS: readonly HighlightColor[] = ["W", "U", "B", "R", "G"] as const;
 
+/**
+ * Per-card pip breakdown for Karsten analysis. Distinguishes "forced"
+ * (single-color) pips from "hybrid" (multi-color choice) pips because
+ * Karsten treats them differently:
+ *   - Forced pips set a per-color requirement and trigger the
+ *     gold-card +1 hack when ≥2 forced colors are present.
+ *   - Hybrid pips set a *combined* requirement only — sources of any
+ *     color in the hybrid set, with NO +1 hack since you only need
+ *     one of the colors to be available.
+ *
+ * Phyrexian (`{W/P}`) and twobrid (`{2/W}`) are modeled as forced,
+ * since the alternative payment isn't another color (life / generic).
+ *
+ * Independent from `tallyManaCostInto` in `useDeckStats.ts`, which is
+ * the cost-donut helper and intentionally double-counts hybrid.
+ */
 export interface CardPipBreakdown {
     cmc: number;
+    /** Forced single-color pips. Hybrid pips do NOT contribute here. */
     pips: Record<HighlightColor, number>;
+    /**
+     * One entry per hybrid symbol in the cost. Each entry is the set
+     * of colors that pip can be paid with, in WUBRG order. Two
+     * `{W/U}` symbols in the same cost produce two entries `["W","U"]`.
+     * Empty for cards without hybrid pips.
+     */
+    hybridGroups: HighlightColor[][];
 }
 
+/**
+ * Parse all faces of a card's mana cost(s) into the Karsten breakdown
+ * shape. Walks each face string for `{...}` symbols and classifies
+ * each into either `pips` (forced single-color, including phyrexian
+ * and twobrid since their alternative payment isn't a color) or
+ * `hybridGroups` (true two-or-more-color hybrid like `{W/U}`).
+ *
+ * `cmc` is passed through unchanged — the caller already has it from
+ * the deck card row and we don't want to re-derive it from cost
+ * strings (split / MDFC faces would be ambiguous).
+ */
 export const breakdownCard = (faces: (string | null)[], cmc: number): CardPipBreakdown => {
     const pips: Record<HighlightColor, number> = { W: 0, U: 0, B: 0, R: 0, G: 0 };
+    const hybridGroups: HighlightColor[][] = [];
     for (const face of faces) {
         if (!face) continue;
         for (const match of face.matchAll(SYMBOL_REGEX)) {
-            for (const part of match[1].split("/")) {
-                if ((COLORS as readonly string[]).includes(part)) {
-                    pips[part as HighlightColor] += 1;
+            const parts = match[1].split("/");
+            const colorParts = parts.filter((p): p is HighlightColor =>
+                (COLORS as readonly string[]).includes(p)
+            );
+            if (colorParts.length === 0) continue;
+            // True hybrid: every part of the symbol is a color (e.g.
+            // `{W/U}`, `{W/U/G}`). Phyrexian (`{W/P}`) and twobrid
+            // (`{2/W}`) fail this test — they have a non-color part —
+            // and so fall through as forced.
+            if (parts.length >= 2 && colorParts.length === parts.length) {
+                hybridGroups.push(COLORS.filter(c => colorParts.includes(c)));
+            } else {
+                for (const color of colorParts) {
+                    pips[color] += 1;
                 }
             }
         }
     }
-    return { cmc, pips };
+    return { cmc, pips, hybridGroups };
 };
 
 /**
@@ -91,19 +148,21 @@ export const sourcesNeeded = (format: string, cmc: number, pipDensity: number): 
 };
 
 /**
- * Per-format link to the canonical Karsten article powering the
- * recommendation table. Both branches currently point to Karsten's
- * 2022 consolidated update on TCGplayer — the only currently-live URL
- * that covers colored-source counts at both deck sizes.
- *
- * Karsten published a separate Brawl/80-card update in 2020 behind
- * Channel Fireball Pro; that link no longer resolves after the
- * TCGplayer acquisition. If a dedicated Commander-format article
- * resurfaces, swap the 100-card branch and the attribution flips
- * automatically.
+ * Canonical TCGplayer URL for Karsten's 2022 consolidated update —
+ * the only currently-live source that covers colored-source counts
+ * at both deck sizes. Karsten's separate 2020 Brawl/80-card update
+ * lived behind Channel Fireball Pro and stopped resolving after the
+ * TCGplayer acquisition; if a dedicated Commander-format article
+ * resurfaces, point the 100-card branch of `karstenArticleUrl` at it.
  */
 const KARSTEN_2022_UPDATE =
     "https://www.tcgplayer.com/content/article/How-Many-Sources-Do-You-Need-to-Consistently-Cast-Your-Spells-A-2022-Update/dc23a7d2-0a16-4c0b-ad36-586fcca03ad8/";
 
+/**
+ * Per-format link to the Karsten article powering the recommendation
+ * tables. Format-keyed so 60-card and 100-card branches can diverge
+ * if a future article splits them — currently both resolve to
+ * `KARSTEN_2022_UPDATE`.
+ */
 export const karstenArticleUrl = (format: string): string =>
     deckSizeFor(format) === 100 ? KARSTEN_2022_UPDATE : KARSTEN_2022_UPDATE;
