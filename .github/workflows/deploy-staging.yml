@@ -1,0 +1,37 @@
+name: Deploy to staging
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: main → staging
+    runs-on: ubuntu-latest
+    environment: staging
+    timeout-minutes: 20
+
+    steps:
+      - name: Load SSH deploy key into agent
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Add server to known_hosts
+        env:
+          HOST: ${{ vars.DEPLOY_HOST }}
+          PORT: ${{ vars.DEPLOY_PORT }}
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -p "$PORT" -H "$HOST" >> ~/.ssh/known_hosts
+
+      - name: Run staging deploy script on server
+        env:
+          HOST: ${{ vars.DEPLOY_HOST }}
+          PORT: ${{ vars.DEPLOY_PORT }}
+        run: |
+          echo "Deploying main to staging at $HOST:$PORT"
+          ssh -o IdentitiesOnly=yes -p "$PORT" deploy@"$HOST"
