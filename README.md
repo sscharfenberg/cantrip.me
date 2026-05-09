@@ -283,11 +283,17 @@ Ensure `.env` has `APP_ENV=production`, `APP_DEBUG=false`, and `APP_URL` pointin
 
 ## Makefile shortcuts
 
+Commands for your local dev machine. Both rely on the `cantrip` SSH alias being configured in `~/.ssh/config` — adjust `STAGING_HOST` / `PROD_HOST` in the `Makefile` if your alias differs.
+
+The two destinations are kept separate so a `logs-prod` pull never overwrites the staging logs you just pulled, and vice versa. Both `storage/logs-s/` and `storage/logs-p/` are tracked in git (so the directories exist on a fresh clone), but their contents are gitignored — anything you `scp` in stays local.
+
 ### `make logs-staging`
 
-Command for your local dev machine. Downloads all log files from the staging server into the local `storage/logs/` directory.
+Downloads all log files from the staging server (`/var/www/mbos/storage/logs/`) into the local `storage/logs-s/` directory. Use this when investigating staging-only behavior — e.g. failed cron jobs, dev-environment errors, or scryfall sync diagnostics.
 
-Uses the `cantrip` SSH alias (configured in `~/.ssh/config`). Since `storage/logs/` is excluded from IntelliJ's deployment sync, this is the quickest way to pull logs locally for inspection. Update with your host.
+### `make logs-prod`
+
+Downloads all log files from the production server (`/var/www/mbop/storage/logs/`) into the local `storage/logs-p/` directory. Production logs may contain user-affecting data (request paths, IDs, exception traces); treat them accordingly — don't paste raw lines into public channels without scrubbing.
 
 ## License
 `cantrip.me` is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
