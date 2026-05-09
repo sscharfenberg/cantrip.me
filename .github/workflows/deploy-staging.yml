@@ -1,5 +1,8 @@
 name: Deploy to staging
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+
 on:
   workflow_dispatch:
 
@@ -34,4 +37,4 @@ jobs:
           PORT: ${{ vars.DEPLOY_PORT }}
         run: |
           echo "Deploying main to staging at $HOST:$PORT"
-          ssh -o IdentitiesOnly=yes -p "$PORT" deploy@"$HOST"
+          ssh -p "$PORT" deploy@"$HOST"

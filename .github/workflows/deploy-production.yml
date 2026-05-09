@@ -1,5 +1,8 @@
 name: Deploy to production
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+
 on:
   push:
     tags:
@@ -37,4 +40,4 @@ jobs:
           PORT: ${{ vars.DEPLOY_PORT }}
         run: |
           echo "Deploying $TAG to production at $HOST:$PORT"
-          ssh -o IdentitiesOnly=yes -p "$PORT" deploy@"$HOST" "$TAG"
+          ssh -p "$PORT" deploy@"$HOST" "$TAG"
