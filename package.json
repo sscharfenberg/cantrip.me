@@ -3,11 +3,11 @@
     "description": "cantrip.me - MtG collection manager",
     "license": "UNLICENSED",
     "private": true,
-    "version": "0.0.1",
+    "version": "1.0.0",
     "type": "module",
     "engines": {
-        "node": "^24.11.0",
-        "npm": "^11.3.0"
+        "node": "^26.1.0",
+        "npm": "^11.13.0"
     },
     "author": {
         "name": "Sven Scharfenberg",
