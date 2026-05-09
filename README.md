@@ -99,7 +99,7 @@ scryfall:sets           → fetch set metadata + download set icon SVGs
 scryfall:symbols        → fetch mana/ability symbols + download symbol SVGs
 scryfall:bulk           → download bulk data metadata (URLs, expected filesizes)
 scryfall:oracle         → import oracle cards from bulk JSON into oracle_cards table
-scryfall:oracle-tags    → sync Scryfall oracle-tagger flags (mass land denial, …) onto oracle_cards via the search endpoint
+scryfall:oracle-tags    → sync every Scryfall oracle-tag mapping onto oracle_cards: boolean flags (mass-land-denial → mld) + per-card derivations (fetchland → fetch_pattern)
 scryfall:default_cards  → import default cards from bulk JSON into default_cards + artists tables; also captures `all_parts` printing pairs into default_card_relations
 scryfall:rulings        → import rulings from bulk JSON into rulings table
 scryfall:images         → download missing/outdated art crops + card images to local disk
@@ -139,11 +139,23 @@ Downloads the `oracle_cards` bulk JSON from Scryfall (if not already cached), tr
 
 ### `php artisan scryfall:oracle-tags`
 
-Syncs Scryfall's oracle-tagger flags onto boolean columns on `oracle_cards`. Currently powers `oracle_cards.mld` (mass land denial — used by the bracket auto-suggest hint on the deck-edit page); the slug → column map in `OracleTagsService::TAG_TO_COLUMN` is the single place to add more tags.
+Syncs every Scryfall oracle-tag → `oracle_cards` column mapping in one pass. Each mapping is a strategy under `App\Services\Scryfall\OracleTagSyncs\` — the orchestrator (`OracleTagsService`) handles the API call, pagination, ≥1s pacing, and transactional apply once; strategies just describe the tag, target column, clear value, and per-card value derivation.
 
-Tags from the tagger system are **not** included in Scryfall's bulk data — they're only reachable via `/cards/search?q=otag:<slug>`. This command paginates that endpoint (`has_more` + `next_page`), enforces a ≥1s delay between every Scryfall call (across pages and across multiple tag syncs in the same run), collects the unique `oracle_id`s, and applies them in a single transaction (clear column → bulk-update flagged ids in 1 000-row chunks). Zero results from a tag are treated as a sync failure (taxonomy probably renamed) and the column is **left untouched** rather than zeroed.
+Two strategies ship today:
 
-Runs in `scryfall:update` immediately after `scryfall:oracle` (so the freshly inserted `oracle_cards` rows can be flagged in place) and before `scryfall:default_cards`. Typical duration on the current dataset: ~1.2 s for the single `mass-land-denial` tag (one paginated page, ~108 cards).
+- **`BooleanOracleTagSync`** — boolean column, presence in the search means `true`. Used for `mass-land-denial` → `oracle_cards.mld` (drives the bracket auto-suggest hint on the deck-edit page). Add a new boolean tag by registering one more `BooleanOracleTagSync(tag: '…', column: '…')` in the orchestrator's constructor.
+- **`FetchPatternOracleTagSync`** — string column, value derived by parsing each card's oracle text. Powers `otag:fetchland` → `oracle_cards.fetch_pattern`. The pattern encodes **what kind of land the fetch can grab** (deck-independent), not the colors it produces — the deck-aware "what colors does this fetchland actually produce in this deck" answer is computed frontend-side by walking the deck's other lands and unioning their `produced_mana`. Drives the fetchland-aware donut + Karsten "have" calculation in the deck stats.
+
+  Pattern format (always WUBRG-sorted):
+
+  - `basic` — any basic land (Fabled Passage, Evolving Wilds, Field of Ruin, Prismatic Vista, Thawing Glaciers, …)
+  - `basic:<colors>` — basic of one or more specific land types (Panoramas: Bant Panorama → `basic:WUG`; Khans-cycle Landscapes; Streets-of-New-Capenna Hideouts/Storefronts/etc.)
+  - `typed:<colors>` — typed land (basic OR non-basic) with one of the listed land subtypes — i.e. can grab a shock/dual that has the type. Onslaught/Mirage fetches: Polluted Delta → `typed:UB`, Krosan Verge → `typed:WG` (multi-card "Forest card and a Plains card").
+  - `any` — any land card, no type filter (Urza's Cave).
+
+Tags from the tagger system are **not** included in Scryfall's bulk data — they're only reachable via `/cards/search?q=otag:<slug>`. The orchestrator paginates that endpoint (`has_more` + `next_page`), enforces a ≥1s delay between **every** Scryfall call (across pages AND across multiple tag syncs in the same run), pulls the full card payload, and applies in a single transaction per sync (clear column → bulk-update grouped values in 1 000-id chunks). Zero results from a tag are treated as a sync failure (taxonomy probably renamed) and the column is **left untouched** rather than zeroed. Cards that the per-card derivation skips (e.g. `FetchPatternOracleTagSync` parser miss) are logged on the `scryfall` channel.
+
+Runs in `scryfall:update` immediately after `scryfall:oracle` (so the freshly inserted `oracle_cards` rows can be flagged in place) and before `scryfall:default_cards`. Typical duration on the current dataset: ~5 s end-to-end (~108 MLD cards + ~52 fetchlands, two paginated tags with the inter-sync 1 s gap).
 
 ### `php artisan scryfall:default_cards`
 

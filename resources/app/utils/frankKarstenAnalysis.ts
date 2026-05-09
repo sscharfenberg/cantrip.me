@@ -67,6 +67,50 @@ const SYMBOL_REGEX = /\{([^}]+)}/g;
 const COLORS: readonly HighlightColor[] = ["W", "U", "B", "R", "G"] as const;
 
 /**
+ * One row of the per-color Karsten analysis: how many sources of this
+ * color the deck has, how many Karsten recommends for the deck's most
+ * demanding card of this color, and the shortfall (zero if sufficient).
+ *
+ * Karsten's gold-card +1 hack is baked into `need`: any card with ≥2
+ * distinct *forced* colored pips (e.g. Teferi `{1}{W}{U}`) bumps each
+ * color's individual requirement by +1 — his published rule of thumb
+ * for the conditional-probability hit when both colors must appear by
+ * the on-curve turn. Pure hybrid (`{W/U}{W/U}`) is NOT gold and does
+ * not contribute here at all; its requirement lives in
+ * {@link KarstenCombinedAnalysis} instead.
+ */
+export interface KarstenColorAnalysis {
+    color: HighlightColor;
+    have: number;
+    need: number;
+    /** `max(0, need - have)`. Zero ⇒ sufficient. */
+    short: number;
+}
+
+/**
+ * One row of Karsten's "combined" requirement — sources that can
+ * produce *any* of a set of colors. Two flavors feed this shape:
+ *
+ *  - **Gold combined.** A card with ≥2 forced colors (e.g. Teferi
+ *    `{1}{W}{U}`) demands `(cmc, totalForcedPips)` lookup +1.
+ *  - **Hybrid combined.** A pure-hybrid card (e.g. Yorion
+ *    `{3}{W/U}{W/U}`) demands `(cmc, hybridPipCount)` lookup, NO +1
+ *    — only one of the colors is needed per pip.
+ *
+ * `colors` is sorted in WUBRG order. A combo's `need` is the max
+ * across every card in the deck that demands that exact color set
+ * (whichever flavor wins). Only emitted for color combinations
+ * actually demanded by a card in the deck.
+ */
+export interface KarstenCombinedAnalysis {
+    colors: HighlightColor[];
+    have: number;
+    need: number;
+    /** `max(0, need - have)`. Zero ⇒ sufficient. */
+    short: number;
+}
+
+/**
  * Per-card pip breakdown for Karsten analysis. Distinguishes "forced"
  * (single-color) pips from "hybrid" (multi-color choice) pips because
  * Karsten treats them differently:

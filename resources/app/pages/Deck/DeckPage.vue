@@ -117,8 +117,13 @@ const canEdit = computed(() => props.isOwner && !isArchived.value);
  * image) inject it via `useDeckHighlight()`. Each axis (mana value,
  * category, color production, color consumption) is independent; a
  * card highlights only when it satisfies every active axis.
+ *
+ * The cards getter feeds the production-axis matcher's fetchland
+ * resolver — without it, fetchlands wouldn't highlight when the user
+ * clicks an inner-ring (production) segment because Scryfall reports
+ * `produced_mana = null` for them.
  */
-const { hasHighlight, clear: clearHighlight } = provideDeckHighlight();
+const { hasHighlight, clear: clearHighlight } = provideDeckHighlight(() => props.cards);
 /**
  * Lookup `default_card_id → card name` covering everything in the deck
  * (commanders + companion + the 99). Powers the `DeckTokensPanel`

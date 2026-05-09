@@ -31,6 +31,16 @@ return new class extends Migration
             // search endpoint). Synced by `scryfall:oracle-tags`. Used by the
             // bracket auto-suggest hint on the deck-edit page.
             $table->boolean('mld')->default(false);
+            // Fetchland pattern. NULL for non-fetchlands. Populated from
+            // Scryfall's `otag:fetchland` + an oracle-text parse (synced by
+            // `scryfall:fetch-patterns`). Encodes WHAT lands the card grabs,
+            // not WHICH colors it produces (resolved per-deck on the frontend
+            // by walking the deck's other lands). Format:
+            //   - `basic`              — any basic land (Fabled Passage)
+            //   - `basic:<WUBRG>`      — basic of specific type(s) (Panoramas)
+            //   - `typed:<WUBRG>`      — typed land, basic or not (Polluted Delta)
+            //   - `any`                — any land card (Urza's Cave)
+            $table->string('fetch_pattern', 16)->nullable();
             $table->string('scryfall_uri', 255);
 
             $table->index('searchable_name');

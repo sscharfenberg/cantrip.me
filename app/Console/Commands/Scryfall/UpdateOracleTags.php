@@ -21,7 +21,7 @@ class UpdateOracleTags extends Command
      *
      * @var string
      */
-    protected $description = 'Sync Scryfall oracle-tagger flags (mass land denial, …) onto oracle_cards. Tags are not in bulk data — only reachable via the search endpoint, so this command paginates the API with a 1s pacing.';
+    protected $description = 'Sync Scryfall oracle-tagger flags onto oracle_cards. Covers boolean tags (mass-land-denial → mld) and the fetch-pattern parse (fetchland → fetch_pattern). Tags are not in bulk data — only reachable via the search endpoint, so this command paginates the API with a ≥1s pacing held across every registered sync.';
 
     private FormatService $formatService;
 

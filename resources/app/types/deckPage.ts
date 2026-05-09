@@ -100,6 +100,18 @@ export interface DeckCardRow {
     color_identity: string | null;
     /** Mana this card can produce (W/U/B/R/G/C). Null when the card produces no mana. */
     produced_mana: string[] | null;
+    /**
+     * Deck-independent fetchland classification, populated by
+     * `scryfall:fetch-patterns` from `otag:fetchland` + an oracle-text
+     * parse. Null for non-fetchlands. Encodes WHAT the fetch can grab,
+     * not WHICH colors it produces — `useDeckStats` resolves it per
+     * deck by walking the deck's other lands. Format:
+     *   - `'basic'`         — any basic land (Fabled Passage, …)
+     *   - `'basic:<WUBRG>'` — basic of specific types (Panoramas)
+     *   - `'typed:<WUBRG>'` — typed land basic-or-not (Polluted Delta)
+     *   - `'any'`           — any land card (Urza's Cave)
+     */
+    fetch_pattern: string | null;
     cmc: number;
     type_line: string;
     mana_cost: (string | null)[];

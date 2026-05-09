@@ -69,6 +69,7 @@ class OracleCard extends Model
         'reserved',
         'game_changer',
         'mld',
+        'fetch_pattern',
         'scryfall_uri',
     ];
 

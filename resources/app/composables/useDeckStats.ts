@@ -1,7 +1,18 @@
 import { computed, type ComputedRef } from "vue";
-import { breakdownCard, sourcesNeeded } from "@/utils/frankKarstenAnalysis";
+import { type LandCandidate, makeFetchResolver } from "@/utils/fetchlandResolver";
+import {
+    breakdownCard,
+    type KarstenColorAnalysis,
+    type KarstenCombinedAnalysis,
+    sourcesNeeded
+} from "@/utils/frankKarstenAnalysis";
 import type { HighlightColor } from "Composables/useDeckHighlight.ts";
 import type { DeckCardRow, DeckCategoryRow, DeckCommander, DeckCompanion } from "Types/deckPage.ts";
+
+// Re-export for callers that already import the Karsten output types
+// from this composable — keeps the existing `DeckStatsColors.vue` and
+// any future consumers importing from one place if they prefer.
+export type { KarstenColorAnalysis, KarstenCombinedAnalysis };
 
 // ---------------------------------------------------------------------------
 // Output shapes
@@ -29,50 +40,6 @@ export interface ColorPipTally {
     B: number;
     R: number;
     G: number;
-}
-
-/**
- * One row of the per-color Karsten analysis: how many sources of this
- * color the deck has, how many Karsten recommends for the deck's most
- * demanding card of this color, and the shortfall (zero if sufficient).
- *
- * Karsten's gold-card +1 hack is baked into `need`: any card with ≥2
- * distinct *forced* colored pips (e.g. Teferi `{1}{W}{U}`) bumps each
- * color's individual requirement by +1 — his published rule of thumb
- * for the conditional-probability hit when both colors must appear by
- * the on-curve turn. Pure hybrid (`{W/U}{W/U}`) is NOT gold and does
- * not contribute here at all; its requirement lives in
- * {@link KarstenCombinedAnalysis} instead.
- */
-export interface KarstenColorAnalysis {
-    color: HighlightColor;
-    have: number;
-    need: number;
-    /** `max(0, need - have)`. Zero ⇒ sufficient. */
-    short: number;
-}
-
-/**
- * One row of Karsten's "combined" requirement — sources that can
- * produce *any* of a set of colors. Two flavors feed this shape:
- *
- *  - **Gold combined.** A card with ≥2 forced colors (e.g. Teferi
- *    `{1}{W}{U}`) demands `(cmc, totalForcedPips)` lookup +1.
- *  - **Hybrid combined.** A pure-hybrid card (e.g. Yorion
- *    `{3}{W/U}{W/U}`) demands `(cmc, hybridPipCount)` lookup, NO +1
- *    — only one of the colors is needed per pip.
- *
- * `colors` is sorted in WUBRG order. A combo's `need` is the max
- * across every card in the deck that demands that exact color set
- * (whichever flavor wins). Only emitted for color combinations
- * actually demanded by a card in the deck.
- */
-export interface KarstenCombinedAnalysis {
-    colors: HighlightColor[];
-    have: number;
-    need: number;
-    /** `max(0, need - have)`. Zero ⇒ sufficient. */
-    short: number;
 }
 
 /**
@@ -341,11 +308,111 @@ export function useDeckStats(
         return tally;
     });
 
+    /**
+     * Per-deck fetchland resolver. Delegates to
+     * {@link makeFetchResolver}, which short-circuits to null when
+     * the deck has no fetchlands so `effectiveProduced` can fall
+     * straight back to raw `produced_mana`.
+     */
+    const fetchResolver = computed<((pattern: string) => string[]) | null>(() => {
+        const all = cards();
+        const lands: LandCandidate[] = all
+            .filter(c => isLand(c.type_line))
+            .map(c => ({
+                type_line: c.type_line,
+                is_basic_land: c.is_basic_land,
+                produced_mana: c.produced_mana,
+            }));
+        return makeFetchResolver(all, lands);
+    });
+
+    /**
+     * Effective produced_mana for a single deck card. Non-fetchlands
+     * pass through with no work. Fetchlands route through
+     * {@link fetchResolver}, which itself short-circuits to null
+     * when the deck has no fetchlands at all.
+     */
+    const effectiveProduced = (card: DeckCardRow): string[] | null => {
+        if (!card.fetch_pattern) return card.produced_mana;
+        const resolver = fetchResolver.value;
+        return resolver === null ? card.produced_mana : resolver(card.fetch_pattern);
+    };
+
+    /**
+     * Colors the deck actually *requires* — i.e. the colors a Mox
+     * Diamond / Birds of Paradise / fetchland could usefully produce
+     * for this build. A color is "useful" iff some non-land card in
+     * the deck has a forced (non-hybrid) pip in that color.
+     *
+     * Pure hybrid (`{G/U}{G}{G}` Endurance, `{R/W}{R/W}{R/W}` Boros
+     * Reckoner) does NOT mark the alternative color as useful — the
+     * cost can always be paid with the forced side, so the alternative
+     * is flexibility, not a requirement.
+     *
+     * Edge case: a deck with NO forced colored pips anywhere (pure
+     * hybrid Yorion / Lurrus build) falls back to the hybrid-colors
+     * union from {@link costPips}, so the production donut doesn't
+     * collapse to empty.
+     *
+     * Independent of {@link commanderColorIdentity}: the legality
+     * clamp is a separate concern and {@link productionPips} applies
+     * both, intersecting them.
+     */
+    const usedColors = computed<Set<Color>>(() => {
+        const forced = new Set<Color>();
+        const considerCard = (faces: (string | null)[], cmc: number): void => {
+            const { pips } = breakdownCard(faces, cmc);
+            for (const c of COLORS) {
+                if (pips[c] > 0) forced.add(c);
+            }
+        };
+        for (const card of cards()) {
+            if (isLand(card.type_line)) continue;
+            considerCard(card.mana_cost, card.cmc);
+        }
+        for (const cmd of commanders()) {
+            considerCard(cmd.mana_cost, cmd.cmc);
+        }
+        const cmp = companion();
+        if (cmp !== null) {
+            considerCard(cmp.mana_cost, cmp.cmc);
+        }
+        if (forced.size > 0) return forced;
+
+        // Pure-hybrid fallback: no forced colored pips anywhere. Use
+        // the union of hybrid-pip colors so the donut still has
+        // something to show.
+        const fromHybrid = new Set<Color>();
+        const cp = costPips.value;
+        for (const c of COLORS) {
+            if (cp[c] > 0) fromHybrid.add(c);
+        }
+        return fromHybrid;
+    });
+
+    /**
+     * Colors that the production donut should display: the deck's
+     * required colors, intersected with the commander color identity
+     * legality clamp (when present). A 5-color rock in a Boros deck
+     * still has its UBG slices clamped by CI; a Mox Diamond in a
+     * non-commander Lands deck has its UBR slices clamped by usedColors.
+     */
+    const productionAllowed = computed<Set<Color>>(() => {
+        const used = usedColors.value;
+        const ci = commanderColorIdentity.value;
+        if (ci === null) return used;
+        const intersection = new Set<Color>();
+        for (const c of used) {
+            if (ci.has(c)) intersection.add(c);
+        }
+        return intersection;
+    });
+
     const productionPips = computed<ColorPipTally>(() => {
         const tally = emptyTally();
-        const allowed = commanderColorIdentity.value;
+        const allowed = productionAllowed.value;
         for (const card of cards()) {
-            tallyProducedManaInto(tally, card.produced_mana, card.quantity, allowed);
+            tallyProducedManaInto(tally, effectiveProduced(card), card.quantity, allowed);
         }
         for (const cmd of commanders()) {
             tallyProducedManaInto(tally, cmd.produced_mana, 1, allowed);
@@ -518,7 +585,7 @@ export function useDeckStats(
             if (filtered.length === 0) return;
             producers.push({ produced: filtered, qty });
         };
-        for (const card of cards()) pushProducer(card.produced_mana, card.quantity);
+        for (const card of cards()) pushProducer(effectiveProduced(card), card.quantity);
         for (const cmd of commanders()) pushProducer(cmd.produced_mana, 1);
         if (cmp !== null) pushProducer(cmp.produced_mana, 1);
 

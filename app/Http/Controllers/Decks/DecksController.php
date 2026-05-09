@@ -501,6 +501,7 @@ class DecksController extends Controller
                 'name' => $dc->oracleCard->name,
                 'color_identity' => $dc->oracleCard->color_identity,
                 'produced_mana' => $dc->oracleCard->produced_mana ? str_split($dc->oracleCard->produced_mana) : null,
+                'fetch_pattern' => $dc->oracleCard->fetch_pattern,
                 'cmc' => $dc->oracleCard->cmc,
                 'type_line' => $dc->oracleCard->faces->firstWhere('face_index', 0)?->type_line ?? '',
                 'mana_cost' => $dc->oracleCard->faces->sortBy('face_index')->pluck('mana_cost')->values()->all(),

@@ -1,4 +1,5 @@
 import { computed, inject, provide, reactive, type ComputedRef, type InjectionKey } from "vue";
+import { type LandCandidate, makeFetchResolver } from "@/utils/fetchlandResolver";
 import type { DeckHighlight, DeckStatsSelection } from "Types/deckPage.ts";
 
 /**
@@ -13,6 +14,12 @@ export type HighlightColor = "W" | "U" | "B" | "R" | "G";
  * and `DeckCompanion` all satisfy this structurally; commanders /
  * companions omit `category_id`, so the matcher treats the `category`
  * axis as never matching them (they have no user category).
+ *
+ * `fetch_pattern` and `is_basic_land` are optional because commanders
+ * / companions don't carry them — only `DeckCardRow` does. The
+ * production-axis matcher uses `fetch_pattern` to resolve a
+ * fetchland's effective colors against the deck's other lands; for
+ * cards without it the matcher falls back to raw `produced_mana`.
  */
 export interface HighlightableCard {
     cmc: number;
@@ -20,6 +27,8 @@ export interface HighlightableCard {
     produced_mana: string[] | null;
     mana_cost: (string | null)[];
     category_id?: string | null;
+    fetch_pattern?: string | null;
+    is_basic_land?: boolean;
 }
 
 /**
@@ -91,9 +100,52 @@ const emptyHighlight = (): DeckHighlight => ({
  * Called once at the page root (DeckPage). Returns the api so the page
  * can also read it directly (e.g. for the page-level "clear selection"
  * button) without going through a second `inject` call.
+ *
+ * `getDeckCards`, when provided, lets the production-axis matcher
+ * resolve fetchlands deck-aware: a Polluted Delta in a deck with a
+ * Watery Grave is highlighted as a producer of both U and B, even
+ * though Scryfall's `produced_mana` for fetches is null. Without the
+ * getter, fetchlands fall back to their (empty) raw `produced_mana`
+ * and stay un-highlighted — same as the pre-fetchland behavior.
  */
-export const provideDeckHighlight = (): DeckHighlightApi => {
+export const provideDeckHighlight = (
+    getDeckCards?: () => HighlightableCard[]
+): DeckHighlightApi => {
     const highlight = reactive<DeckHighlight>(emptyHighlight());
+
+    /**
+     * Per-deck fetchland resolver, rebuilt every time the deck's
+     * cards change. Returns null when there are no fetchlands so the
+     * production matcher can short-circuit. Closure cost is bounded
+     * by the deck's land count (one bucket build) plus the number
+     * of distinct fetch patterns the highlight axis ever asks
+     * about (memoized).
+     */
+    const fetchResolver = computed<((pattern: string) => string[]) | null>(() => {
+        if (!getDeckCards) return null;
+        const all = getDeckCards();
+        const lands: LandCandidate[] = all
+            .filter(c => c.type_line.includes("Land"))
+            .map(c => ({
+                type_line: c.type_line,
+                is_basic_land: c.is_basic_land ?? false,
+                produced_mana: c.produced_mana
+            }));
+        return makeFetchResolver(all, lands);
+    });
+
+    /**
+     * Effective produced colors for the highlight matcher. Returns
+     * the resolved fetch colors when the card is a fetchland with a
+     * registered resolver; otherwise the card's raw `produced_mana`.
+     */
+    const effectiveProduced = (card: HighlightableCard): string[] | null => {
+        if (card.fetch_pattern) {
+            const resolver = fetchResolver.value;
+            if (resolver) return resolver(card.fetch_pattern);
+        }
+        return card.produced_mana;
+    };
 
     const hasHighlight = computed(
         () =>
@@ -136,7 +188,10 @@ export const provideDeckHighlight = (): DeckHighlightApi => {
         if (!hasHighlight.value) return false;
         if (highlight.mv !== null && !matchesManaValue(card, highlight.mv)) return false;
         if (highlight.category !== null && !matchesCategory(card, highlight.category)) return false;
-        if (highlight.colorProduction !== null && !(card.produced_mana?.includes(highlight.colorProduction) ?? false))
+        if (
+            highlight.colorProduction !== null &&
+            !(effectiveProduced(card)?.includes(highlight.colorProduction) ?? false)
+        )
             return false;
         return !(highlight.colorConsumption !== null && !consumesColor(card.mana_cost, highlight.colorConsumption));
     };
