@@ -14,6 +14,26 @@
         <meta name="apple-mobile-web-app-title" content="cantrip.me" />
         <link rel="manifest" href="/favicons/site.webmanifest" />
 
+        @php
+            $defaultOgDescription = 'cantrip.me — Magic: The Gathering collection manager and deck builder.';
+            $resolvedOgTitle = $ogTitle ?? 'cantrip.me';
+            $resolvedOgDescription = $ogDescription ?? $defaultOgDescription;
+        @endphp
+        <meta name="description" content="{{ $resolvedOgDescription }}" />
+        <meta property="og:type" content="website" />
+        <meta property="og:site_name" content="cantrip.me" />
+        <meta property="og:title" content="{{ $resolvedOgTitle }}" />
+        <meta property="og:description" content="{{ $resolvedOgDescription }}" />
+        <meta property="og:url" content="{{ url()->current() }}" />
+        <meta property="og:image" content="{{ url('/static/cantrip.me.opengraph.png') }}" />
+        <meta property="og:image:width" content="1280" />
+        <meta property="og:image:height" content="640" />
+        <meta property="og:image:alt" content="cantrip.me — Magic: The Gathering collection manager and deck builder." />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="{{ $resolvedOgTitle }}" />
+        <meta name="twitter:description" content="{{ $resolvedOgDescription }}" />
+        <meta name="twitter:image" content="{{ url('/static/cantrip.me.opengraph.png') }}" />
+
         @vite(['resources/app/main.ts'])
         @inertiaHead
     </head>

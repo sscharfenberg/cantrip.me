@@ -336,7 +336,24 @@ class ContainerController extends Controller
                 ->get(['id', 'name']);
         }
 
-        return Inertia::render('Collection/Container/ContainerPage', $props);
+        $response = Inertia::render('Collection/Container/ContainerPage', $props);
+
+        // Per-page OpenGraph metadata for public containers. Scrapers
+        // don't execute JS and can only fetch publicly-reachable URLs,
+        // so the static defaults stay in place for private containers.
+        // Description is English-only — OG scrapers have no locale
+        // context, so one language is more consistent than picking the
+        // (unrelated) viewer/server locale.
+        if ($container->visibility === ContainerVisibility::Public) {
+            $cardCount = (int) $container->card_stacks_sum_amount;
+            $type = ucfirst($container->type->value);
+            $response->withViewData([
+                'ogTitle' => "{$container->name} – cantrip.me",
+                'ogDescription' => "{$type} with {$cardCount} cards on cantrip.me.",
+            ]);
+        }
+
+        return $response;
     }
 
     /**

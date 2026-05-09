@@ -15,6 +15,9 @@ if (currentYear > startYear) {
         <section class="inner">
             &copy; Sven Scharfenberg {{ copyrightDate }}
             <link-group :label="$t('footer.nav_label')">
+                <labelled-link href="https://bsky.app/profile/cantrip.me" :aria-label="$t('footer.bluesky')" icon=""
+                    ><icon name="bluesky"
+                /></labelled-link>
                 <labelled-link href="https://discord.gg/jCc5fmXyq" :aria-label="$t('footer.discord')" icon=""
                     ><icon name="discord"
                 /></labelled-link>

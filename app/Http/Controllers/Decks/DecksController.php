@@ -49,6 +49,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -607,7 +608,7 @@ class DecksController extends Controller
             })
             ->values();
 
-        return Inertia::render('Deck/DeckPage', [
+        $response = Inertia::render('Deck/DeckPage', [
             'isOwner' => $request->user()?->id === $deck->user_id,
             'deck' => [
                 'id' => $deck->id,
@@ -654,6 +655,30 @@ class DecksController extends Controller
             'containers' => $containers,
             'tokens' => $tokens,
         ]);
+
+        // Per-page OpenGraph metadata for public decks. Scrapers don't
+        // execute JS and can only fetch publicly-reachable URLs, so we
+        // only override the static defaults when visibility is Public.
+        // Private decks fall back to the site-wide title/description in
+        // app.blade.php. Prefer the user's own description when set —
+        // OG previews allow ~200 chars, longer copy gets truncated by
+        // the social platform anyway. Falls back to a synthesised
+        // format/count line when the description is empty.
+        if ($deck->visibility === ContainerVisibility::Public) {
+            $userDescription = trim((string) $deck->description);
+            if ($userDescription !== '') {
+                $ogDescription = Str::limit(preg_replace('/\s+/', ' ', $userDescription), 200);
+            } else {
+                $format = ucfirst($deck->format->value);
+                $ogDescription = "{$format} deck with {$cardCount} cards on cantrip.me.";
+            }
+            $response->withViewData([
+                'ogTitle' => "{$deck->name} – cantrip.me",
+                'ogDescription' => $ogDescription,
+            ]);
+        }
+
+        return $response;
     }
 
     /**
