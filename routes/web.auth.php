@@ -43,7 +43,7 @@ Route::middleware(['guest:'.config('fortify.guard')])->group(function () {
             ->name('password.reset');
         Route::post('reset-password', [NewPasswordController::class, 'store'])
             ->middleware([HandleControllerPrecognitiveRequest::class])
-            ->name('password.reset');
+            ->name('password.reset.store');
     }
 
     if (Features::enabled(Features::emailVerification())) {
@@ -54,7 +54,7 @@ Route::middleware(['guest:'.config('fortify.guard')])->group(function () {
             ->name('verification.resend');
         Route::post('resend-verification', [ResendVerificationController::class, 'store'])
             ->middleware(['throttle:6,1', HandleControllerPrecognitiveRequest::class])
-            ->name('verification.resend');
+            ->name('verification.resend.store');
     }
 });
 
