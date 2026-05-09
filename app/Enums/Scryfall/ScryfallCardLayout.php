@@ -28,4 +28,5 @@ enum ScryfallCardLayout: string
     case Host = 'host';
     case ArtSeries = 'art_series';
     case ReversibleCard = 'reversible_card';
+    case Prepare = 'prepare';
 }
