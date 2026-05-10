@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head } from "@inertiajs/vue3";
+import { Head, Link } from "@inertiajs/vue3";
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 import ContainerMenu from "@/pages/Collection/common/ContainerMenu.vue";
@@ -75,6 +75,12 @@ setBreadcrumbs(
         </li>
         <li><icon name="deck" />{{ cardsCountLabel }}</li>
         <li><icon name="money" />{{ formatPrice(container.totalPrice) }}</li>
+        <li>
+            <Link class="btn-default" :href="`/containers/${container.id}/add`">
+                <icon name="add" :size="1" />
+                {{ $t("pages.add_cards.link") }}
+            </Link>
+        </li>
     </ul>
     <container-card-stacks
         v-if="container.totalCards > 0"

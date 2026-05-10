@@ -71,6 +71,10 @@ function onClearAndFocus() {
     emit("cleared");
     nextTick(() => searchInput.value?.focus());
 }
+function focus() {
+    searchInput.value?.focus();
+}
+defineExpose({ focus });
 </script>
 
 <template>

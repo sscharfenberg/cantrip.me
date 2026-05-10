@@ -93,7 +93,8 @@ class WelcomeController extends Controller
      */
     public function show(Request $request): Response
     {
-        $currency = Locale::tryFrom(app()->getLocale())?->defaultCurrency()
+        $currency = $request->user()?->currency
+            ?? Locale::tryFrom(app()->getLocale())?->defaultCurrency()
             ?? Currency::Eur;
 
         $scryfallStats = Cache::rememberForever(

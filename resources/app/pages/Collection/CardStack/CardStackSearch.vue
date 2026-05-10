@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useTemplateRef } from "vue";
 import CardFaceImage from "Components/Card/CardFaceImage.vue";
 import CardSearch from "Components/Card/CardSearch/CardSearch.vue";
 import type { DefaultCardImage } from "Types/defaultCardImage";
@@ -19,10 +20,15 @@ const emit = defineEmits<{
     cleared: [];
 }>();
 const initialCard: DefaultCardImage | null = props.card ?? null;
+const searchRef = useTemplateRef<{ focus: () => void }>("searchRef");
+defineExpose({
+    focus: () => searchRef.value?.focus()
+});
 </script>
 
 <template>
     <card-search
+        ref="searchRef"
         ref-id="default_card_id"
         endpoint="/api/card-image"
         label="form.fields.card"

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Form, Head, router } from "@inertiajs/vue3";
-import { type Ref, computed, nextTick, ref } from "vue";
+import { type Ref, computed, nextTick, onMounted, ref, useTemplateRef } from "vue";
 import { useI18n } from "vue-i18n";
 import CardStackDefaults from "@/pages/Collection/CardStack/CardStackDefaults.vue";
 import CardStackFinish from "@/pages/Collection/CardStack/CardStackFinish.vue";
@@ -123,6 +123,10 @@ const onSelectChange = (field: string, value: string, validate: (field: string) 
 };
 /** Available finishes for the currently selected card. All finishes when no card is selected. */
 const availableFinishes = ref<string[]>(isEditMode ? props.cardStack!.default_card.finishes : [...props.finishes]);
+const cardSearch = useTemplateRef<{ focus: () => void }>("cardSearch");
+onMounted(() => {
+    if (!isEditMode) cardSearch.value?.focus();
+});
 /** Called when the user selects a card from search results. */
 function onCardSelected(card: DefaultCardImage) {
     availableFinishes.value = card.finishes;
@@ -191,6 +195,7 @@ const unclaim = () => {
             @clear="clearDefaults"
         />
         <card-stack-search
+            ref="cardSearch"
             :error="errors.default_card_id ?? ''"
             :invalid="!!errors?.default_card_id"
             :card="isEditMode ? cardStack!.default_card : null"
