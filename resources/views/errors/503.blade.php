@@ -28,20 +28,8 @@
             .box {
                 max-width: 480px;
                 padding: 2.5rem 3rem;
-                margin-top: auto;
                 border-radius: 12px;
                 background-color: rgb(0 0 0 / 0.55);
-                backdrop-filter: blur(8px);
-                color: #fff;
-                text-align: center;
-            }
-
-            .box2 {
-                max-width: 480px;
-                padding: 2.5rem 3rem;
-                margin: auto 0 1lh 0;
-                border-radius: 12px;
-                background-color: rgb(0 0 0 / 0.45);
                 backdrop-filter: blur(8px);
                 color: #fff;
                 text-align: center;
@@ -72,10 +60,6 @@
         <div class="box">
             <h1>Maintenance</h1>
             <p>The site is currently undergoing maintenance and will be back shortly. Thank you for your patience.</p>
-        </div>
-        <div class="box2">
-            <h2>Scheduled maintenance</h2>
-            <p>Every Sunday 02:00 - 03:00 UTC<br />(updating data from scryfall)</p>
         </div>
     </body>
 </html>
