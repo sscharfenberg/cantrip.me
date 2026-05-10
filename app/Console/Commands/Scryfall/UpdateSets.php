@@ -5,6 +5,7 @@ namespace App\Console\Commands\Scryfall;
 use App\Services\FormatService;
 use App\Services\Scryfall\SetsService;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class UpdateSets extends Command
@@ -14,7 +15,7 @@ class UpdateSets extends Command
      *
      * @var string
      */
-    protected $signature = 'scryfall:sets';
+    protected $signature = 'scryfall:sets {--target=live : Write target — `live` (default, truncates+inserts on the live table) or `shadow` (inserts into sets__shadow built by the orchestrator)}';
 
     /**
      * The console command description.
@@ -44,7 +45,12 @@ class UpdateSets extends Command
         Log::channel('scryfall')->info('=======================================================');
         Log::channel('scryfall')->info("artisan command 'scryfall:sets' started.");
         Log::channel('scryfall')->info('=======================================================');
-        $this->setsService->updateSets();
+        $shadow = $this->option('target') === 'shadow';
+        $this->setsService->updateSets(shadow: $shadow);
+        $table = $shadow ? 'sets__shadow' : 'sets';
+        $count = number_format(DB::table($table)->count(), 0, ',', '.');
+        $this->line("inserted $count rows into $table.");
+        Log::channel('scryfall')->notice("inserted $count rows into $table.");
         $ms = $start->diffInMilliseconds(now());
         Log::channel('scryfall')->info('=======================================================');
         Log::channel('scryfall')->info("artisan command 'scryfall:sets' finished in ".$this->formatService->formatMs($ms).'.');

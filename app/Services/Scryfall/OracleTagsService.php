@@ -2,7 +2,6 @@
 
 namespace App\Services\Scryfall;
 
-use App\Models\OracleCard;
 use App\Services\Scryfall\OracleTagSyncs\BooleanOracleTagSync;
 use App\Services\Scryfall\OracleTagSyncs\FetchPatternOracleTagSync;
 use App\Services\Scryfall\OracleTagSyncs\OracleTagSync;
@@ -70,6 +69,8 @@ class OracleTagsService extends ScryfallService
      */
     private bool $firstRequest = true;
 
+    private string $oracleCardsTable = 'oracle_cards';
+
     public function __construct()
     {
         $this->syncs = [
@@ -89,8 +90,9 @@ class OracleTagsService extends ScryfallService
      *                   failures are caught inside {@see fetchTaggedCards}
      *                   and don't escape.
      */
-    public function syncOracleTags(): void
+    public function syncOracleTags(bool $shadow = false): void
     {
+        $this->oracleCardsTable = $this->tableName('oracle_cards', $shadow);
         foreach ($this->syncs as $sync) {
             $this->runSync($sync);
         }
@@ -229,11 +231,12 @@ class OracleTagsService extends ScryfallService
         }
 
         $applied = 0;
-        DB::transaction(function () use ($sync, $byValue, &$applied): void {
-            OracleCard::query()->update([$sync->column() => $sync->clearValue()]);
+        $table = $this->oracleCardsTable;
+        DB::transaction(function () use ($sync, $byValue, $table, &$applied): void {
+            DB::table($table)->update([$sync->column() => $sync->clearValue()]);
             foreach ($byValue as $bucket) {
                 foreach (array_chunk($bucket['ids'], self::UPDATE_CHUNK) as $chunk) {
-                    OracleCard::query()
+                    DB::table($table)
                         ->whereIn('id', $chunk)
                         ->update([$sync->column() => $bucket['value']]);
                     $applied += count($chunk);

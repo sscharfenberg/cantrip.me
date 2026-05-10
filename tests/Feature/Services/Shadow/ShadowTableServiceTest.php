@@ -111,6 +111,37 @@ class ShadowTableServiceTest extends TestCase
     }
 
     #[Test]
+    public function restore_foreign_keys_adds_constraints_to_shadow_tables(): void
+    {
+        // Live parent + shadow parent.
+        DB::statement('CREATE TABLE _shadow_test_a (id INT UNSIGNED PRIMARY KEY)');
+        DB::statement('CREATE TABLE _shadow_test_a__shadow (id INT UNSIGNED PRIMARY KEY)');
+        // Shadow child without FK — restoreForeignKeys should add it.
+        DB::statement('CREATE TABLE _shadow_test_b__shadow (id INT UNSIGNED PRIMARY KEY, parent_id INT UNSIGNED NOT NULL)');
+
+        // Need a live `_shadow_test_b` so the FK reference target exists at
+        // ALTER time (FK_CHECKS=0 inside restoreForeignKeys skips data
+        // validation but the parent table still has to exist by name).
+        DB::statement('CREATE TABLE _shadow_test_b (id INT UNSIGNED PRIMARY KEY, parent_id INT UNSIGNED NOT NULL)');
+
+        $this->service->restoreForeignKeys([
+            ['_shadow_test_b', 'parent_id', '_shadow_test_a', 'CASCADE'],
+        ]);
+
+        $constraints = DB::table('information_schema.KEY_COLUMN_USAGE')
+            ->where('TABLE_SCHEMA', config('database.connections.'.config('database.default').'.database'))
+            ->where('TABLE_NAME', '_shadow_test_b__shadow')
+            ->whereNotNull('REFERENCED_TABLE_NAME')
+            ->get();
+
+        $this->assertCount(1, $constraints, 'expected exactly one FK on the shadow child.');
+        $this->assertSame('parent_id', $constraints[0]->COLUMN_NAME);
+        $this->assertSame('_shadow_test_a', $constraints[0]->REFERENCED_TABLE_NAME);
+        $this->assertSame('id', $constraints[0]->REFERENCED_COLUMN_NAME);
+        $this->assertSame('_shadow_test_b_parent_id_foreign_shadow', $constraints[0]->CONSTRAINT_NAME);
+    }
+
+    #[Test]
     public function cleanup_drops_only_known_scryfall_shadows(): void
     {
         $sample = ShadowTableRegistry::TABLES[0];
@@ -136,8 +167,8 @@ class ShadowTableServiceTest extends TestCase
         DB::statement('SET FOREIGN_KEY_CHECKS=0');
         try {
             $names = [
+                '_shadow_test_b__shadow', '_shadow_test_b__retired', '_shadow_test_b',
                 '_shadow_test_a', '_shadow_test_a__shadow', '_shadow_test_a__retired',
-                '_shadow_test_b', '_shadow_test_b__shadow', '_shadow_test_b__retired',
             ];
             foreach ($names as $name) {
                 DB::statement("DROP TABLE IF EXISTS `$name`");

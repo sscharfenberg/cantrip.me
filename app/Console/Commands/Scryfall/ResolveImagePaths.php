@@ -14,7 +14,7 @@ class ResolveImagePaths extends Command
      *
      * @var string
      */
-    protected $signature = 'scryfall:resolve-paths';
+    protected $signature = 'scryfall:resolve-paths {--target=live : Write target — `live` (default) or `shadow` (UPDATEs default_cards__shadow built by the orchestrator)}';
 
     /**
      * The console command description.
@@ -44,6 +44,9 @@ class ResolveImagePaths extends Command
         Log::channel('scryfall')->info('=======================================================');
         Log::channel('scryfall')->info("artisan command 'scryfall:resolve-paths' started.");
         Log::channel('scryfall')->info('=======================================================');
+
+        $shadow = $this->option('target') === 'shadow';
+        $this->resolveService->useTarget($shadow);
 
         $artCrops = $this->resolveService->resolveArtCropPaths();
         $this->line("resolved $artCrops art crop paths to local cache.");

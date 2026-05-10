@@ -31,7 +31,7 @@ use Illuminate\Support\Facades\Storage;
  * flushed once at the end so every printing referenced by an edge has
  * already been inserted (Scryfall's bulk isn't dependency-ordered).
  */
-class DefaultCardsService
+class DefaultCardsService extends ScryfallService
 {
     private ScryfallImageService $imageService;
 
@@ -41,6 +41,12 @@ class DefaultCardsService
 
     private BulkdataService $bulkdataService;
 
+    private bool $shadow = false;
+
+    private string $defaultCardsTable = 'default_cards';
+
+    private string $defaultCardRelationsTable = 'default_card_relations';
+
     /**
      * Buffered all_parts edges, flushed at the end of the file walk.
      *
@@ -48,9 +54,11 @@ class DefaultCardsService
      */
     private array $relationsBuffer = [];
 
-    private int $relationsInserted = 0;
+    public int $relationsInserted = 0;
 
-    private int $relationsSkippedComponent = 0;
+    public int $relationsSkippedComponent = 0;
+
+    public int $relationsSkippedOrphan = 0;
 
     public function __construct()
     {
@@ -61,13 +69,17 @@ class DefaultCardsService
     }
 
     /**
-     * Truncate the default_cards, default_card_relations and artists
+     * Truncate the live default_cards, default_card_relations and artists
      * tables before a fresh import.
      *
-     * Temporarily disables foreign key checks to allow truncation.
+     * Skipped in shadow mode — the orchestrator created empty shadows
+     * for all three tables before invoking this service.
      */
     private function preRunCleanup(): void
     {
+        if ($this->shadow) {
+            return;
+        }
         DB::statement('SET FOREIGN_KEY_CHECKS=0;');
         DefaultCardRelation::truncate();
         DefaultCard::truncate();
@@ -121,7 +133,7 @@ class DefaultCardsService
         }
         // insert into db
         try {
-            DefaultCard::create($arr);
+            DB::table($this->defaultCardsTable)->insert($arr);
         } catch (\Exception $e) {
             Log::channel('scryfall')->error('error inserting DefaultCard ['.strtoupper($card['set']).'] '.$card['name'].': '.$e->getMessage());
             Log::channel('scryfall')->error($e->getTraceAsString());
@@ -175,10 +187,19 @@ class DefaultCardsService
      *
      * Chunked to stay under MySQL's 65 535-placeholder ceiling per
      * prepared statement (3 columns × 5 000 rows = 15 000 placeholders,
-     * comfortable headroom). `insertOrIgnore` silently drops duplicate
-     * composite keys (Scryfall sometimes emits the same edge twice across
-     * reprints) and any rare orphan that slipped through (related_id
-     * pointing to a printing not in the bulk).
+     * comfortable headroom). `insertOrIgnore` drops duplicate composite
+     * keys (Scryfall sometimes emits the same edge twice across reprints).
+     *
+     * Orphan filtering: Scryfall emits ~2 000 edges per bulk that reference
+     * printings not present in default_cards (e.g. tokens cross-referenced
+     * from a non-bulk printing). The old live flow relied on the
+     * default_card_relations.related_default_card_id FK to convert these
+     * into INSERT IGNORE warnings. Shadow tables have no FK constraints
+     * during build (CREATE TABLE LIKE doesn't copy them — see
+     * {@see ShadowTableService::restoreForeignKeys()}), so we filter
+     * orphans here at the application level instead. Without this, the
+     * pre-swap orphan validator aborts the run with thousands of
+     * legitimate-but-unresolvable edges.
      */
     private function flushRelationsBuffer(): void
     {
@@ -186,8 +207,21 @@ class DefaultCardsService
             return;
         }
 
-        foreach (array_chunk($this->relationsBuffer, 5000) as $chunk) {
-            $this->relationsInserted += DefaultCardRelation::insertOrIgnore($chunk);
+        $validIds = DB::table($this->defaultCardsTable)->pluck('id')->all();
+        $validIdSet = array_flip($validIds);
+        $filtered = array_values(array_filter(
+            $this->relationsBuffer,
+            fn (array $edge): bool => isset($validIdSet[$edge['source_default_card_id']])
+                && isset($validIdSet[$edge['related_default_card_id']]),
+        ));
+        $orphanCount = count($this->relationsBuffer) - count($filtered);
+        $this->relationsSkippedOrphan += $orphanCount;
+        if ($orphanCount > 0) {
+            Log::channel('scryfall')->notice("filtered $orphanCount orphan default_card_relations edges (related printing not in bulk).");
+        }
+
+        foreach (array_chunk($filtered, 5000) as $chunk) {
+            $this->relationsInserted += DB::table($this->defaultCardRelationsTable)->insertOrIgnore($chunk);
         }
         $this->relationsBuffer = [];
     }
@@ -225,13 +259,23 @@ class DefaultCardsService
      * Run a full default-cards import from Scryfall.
      *
      * Downloads the "default_cards" bulk JSON (if not already cached),
-     * truncates the existing data, streams through every card to insert
-     * it, and cleans up the downloaded file afterwards.
+     * truncates the existing live data (or builds the shadow set),
+     * streams through every card to insert it, and cleans up the
+     * downloaded file afterwards.
+     *
+     * In shadow mode: rows go into default_cards__shadow,
+     * default_card_relations__shadow, and artists__shadow (via the
+     * delegated {@see ArtistsService::useTarget()} switch).
      */
-    public function updateAllCards(): void
+    public function updateAllCards(bool $shadow = false): void
     {
+        $this->shadow = $shadow;
+        $this->defaultCardsTable = $this->tableName('default_cards', $shadow);
+        $this->defaultCardRelationsTable = $this->tableName('default_card_relations', $shadow);
+        $this->artistsService->useTarget($shadow);
+
         $type = 'default_cards';
-        if (! $this->bulkdataService->prepareJson($type)) {
+        if (! $this->bulkdataService->prepareJson($type, $shadow)) {
             Log::channel('scryfall')->error("error preparing '$type.json', aborting.");
 
             return; // error downloading file, abort

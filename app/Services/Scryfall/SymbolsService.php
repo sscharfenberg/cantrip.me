@@ -7,11 +7,19 @@ use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class SymbolsService extends ScryfallService
 {
+    private bool $shadow = false;
+
+    private string $symbolsTable = 'symbols';
+
     /**
-     * Prepare the database for a symbols import by truncating the symbols table.
+     * Prepare the live symbols table for a fresh import by truncating it.
+     *
+     * Skipped in shadow mode — the orchestrator created an empty
+     * `symbols__shadow` before invoking this service.
      *
      * SVGs are intentionally not purged — symbol SVGs are stable (Scryfall rarely
      * changes them) and getSymbolSvg() only downloads files that are missing,
@@ -19,6 +27,9 @@ class SymbolsService extends ScryfallService
      */
     private function setup(): void
     {
+        if ($this->shadow) {
+            return;
+        }
         DB::statement('SET FOREIGN_KEY_CHECKS=0;');
         Symbol::truncate();
         Log::channel('scryfall')->debug("table 'symbols' truncated.");
@@ -81,7 +92,8 @@ class SymbolsService extends ScryfallService
     private function insertSymbol(array $symbol): void
     {
         $path = $this->getSymbolSvg($symbol);
-        $newSymbol = Symbol::create([
+        DB::table($this->symbolsTable)->insert([
+            'id' => (string) Str::uuid(),
             'symbol' => $symbol['symbol'],
             'svg_uri' => $symbol['svg_uri'],
             'loose_variant' => $symbol['loose_variant'] ?? null,
@@ -96,18 +108,21 @@ class SymbolsService extends ScryfallService
             'colors' => implode('', $symbol['colors']),
             'path' => $path,
         ]);
-        if ($newSymbol->wasRecentlyCreated) {
-            Log::channel('scryfall')->debug("created symbol {$newSymbol->symbol} → $path");
-        }
+        Log::channel('scryfall')->debug("created symbol {$symbol['symbol']} → $path");
     }
 
     /**
-     * Fetch all symbols from the Scryfall API and replace the local database.
+     * Fetch all symbols from the Scryfall API and replace the local database
+     * (live mode) or build the shadow table (shadow mode).
      *
-     * Runs setup() first to truncate existing data.
+     * Runs setup() first which truncates the live table; in shadow mode
+     * setup() is a no-op because the orchestrator already created an empty
+     * `symbols__shadow`.
      */
-    public function updateSymbols(): void
+    public function updateSymbols(bool $shadow = false): void
     {
+        $this->shadow = $shadow;
+        $this->symbolsTable = $this->tableName('symbols', $shadow);
         $this->setup();
         try {
             $response = $this->http()

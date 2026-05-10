@@ -10,6 +10,10 @@ use Illuminate\Support\Facades\Storage;
 
 class SetsService extends ScryfallService
 {
+    private bool $shadow = false;
+
+    private string $setsTable = 'sets';
+
     /**
      * Cached list of files on the "set" disk, loaded lazily on first access.
      * Used to identify stale icon versions to delete when Scryfall updates
@@ -20,7 +24,11 @@ class SetsService extends ScryfallService
     private ?array $cachedSetIcons = null;
 
     /**
-     * Prepare the database for a sets import by truncating the sets table.
+     * Prepare the live sets table for a fresh import by truncating it.
+     *
+     * Skipped in shadow mode — the orchestrator created an empty
+     * `sets__shadow` via {@see ShadowTableService::createLike()} before
+     * invoking this service.
      *
      * Icon SVGs are intentionally not purged here — getSetIcon() uses
      * timestamp-suffixed filenames and only re-downloads when Scryfall
@@ -29,6 +37,9 @@ class SetsService extends ScryfallService
      */
     private function setup(): void
     {
+        if ($this->shadow) {
+            return;
+        }
         DB::statement('SET FOREIGN_KEY_CHECKS=0;');
         Set::truncate();
         Log::channel('scryfall')->debug("table 'sets' truncated.");
@@ -153,19 +164,22 @@ class SetsService extends ScryfallService
         if (array_key_exists('printed_size', $set)) {
             $arr['printed_size'] = $set['printed_size'];
         }
-        $newSet = Set::create($arr);
-        if ($newSet->wasRecentlyCreated) {
-            Log::channel('scryfall')->debug("created set [$newSet->code] $newSet->name.");
-        }
+        DB::table($this->setsTable)->insert($arr);
+        Log::channel('scryfall')->debug("created set [{$arr['code']}] {$arr['name']}.");
     }
 
     /**
-     * Fetch all sets from the Scryfall API and replace the local database.
+     * Fetch all sets from the Scryfall API and replace the local database
+     * (live mode) or build the shadow table (shadow mode).
      *
-     * Filters out sets with zero cards. Runs setup() first to truncate existing data.
+     * Filters out sets with zero cards. Runs setup() first which truncates
+     * the live table; in shadow mode setup() is a no-op because the
+     * orchestrator already created an empty `sets__shadow`.
      */
-    public function updateSets(): void
+    public function updateSets(bool $shadow = false): void
     {
+        $this->shadow = $shadow;
+        $this->setsTable = $this->tableName('sets', $shadow);
         $this->cachedSetIcons = null;
         $this->setup();
         try {

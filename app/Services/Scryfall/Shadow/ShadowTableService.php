@@ -52,6 +52,45 @@ class ShadowTableService
     }
 
     /**
+     * Restore the foreign-key constraints declared in
+     * {@see ShadowTableRegistry::FK_RESTORATIONS} on every shadow table.
+     *
+     * Why this is needed: `CREATE TABLE LIKE` copies columns, indexes, and
+     * the auto-increment value but NOT FK constraints — so a freshly built
+     * shadow table has no FKs at all. Without this step, the post-swap
+     * live tables would lose every cascade-on-delete and FK validation
+     * defined in the original migrations.
+     *
+     * Why FK_CHECKS=0: at the time we ALTER TABLE, the FK references the
+     * parent table by name (e.g. `oracle_cards`) — which still resolves
+     * to the LIVE table containing stale data. With FK_CHECKS=1 the ALTER
+     * would validate the shadow data against stale live data and falsely
+     * flag every brand-new card as a violation. The validator
+     * {@see ShadowValidationService} already proves data integrity
+     * against the shadow build itself.
+     *
+     * After the atomic RENAME, the FK by-name reference rotates to the
+     * swapped-in shadow (now live). Future operations are correctly
+     * validated against the new dataset.
+     *
+     * @param  array<int, array{0: string, 1: string, 2: string, 3: string}>  $restorations
+     */
+    public function restoreForeignKeys(array $restorations = ShadowTableRegistry::FK_RESTORATIONS): void
+    {
+        $this->withForeignKeyChecksDisabled(function () use ($restorations): void {
+            foreach ($restorations as [$child, $fk, $parent, $onDelete]) {
+                $childShadow = ShadowTableRegistry::shadow($child);
+                $constraint = "{$child}_{$fk}_foreign_shadow";
+                DB::statement(
+                    "ALTER TABLE `$childShadow` ADD CONSTRAINT `$constraint` "
+                    ."FOREIGN KEY (`$fk`) REFERENCES `$parent` (`id`) ON DELETE $onDelete"
+                );
+            }
+        });
+        Log::channel('scryfall')->debug('ShadowTableService: restored '.count($restorations).' FK constraints on shadow tables.');
+    }
+
+    /**
      * Atomic multi-table RENAME swapping every shadow into live and the
      * current live into retired. Either every swap happens or none does.
      *
