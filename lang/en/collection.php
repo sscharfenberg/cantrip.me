@@ -20,6 +20,7 @@ return [
 
     'errors' => [
         'cannot_move_claimed_stack' => 'This card stack is claimed by a deck and cannot be moved. Unclaim it first.',
+        'finish_not_available_for_card' => 'The selected finish is not available for this card. Available: :available.',
     ],
 
 ];

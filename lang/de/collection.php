@@ -20,6 +20,7 @@ return [
 
     'errors' => [
         'cannot_move_claimed_stack' => 'Dieser Kartenstapel ist einem Deck zugeordnet und kann nicht verschoben werden. Hebe die Zuordnung zuerst auf.',
+        'finish_not_available_for_card' => 'Die gewählte Ausführung ist für diese Karte nicht verfügbar. Verfügbar: :available.',
     ],
 
 ];

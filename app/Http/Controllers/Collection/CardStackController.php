@@ -21,7 +21,6 @@ use App\Services\CardStackClaimService;
 use App\Services\CardStackService;
 use App\Services\ContainerService;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -63,24 +62,14 @@ class CardStackController extends Controller
     /**
      * Validate and store a new card stack in the user's collection.
      *
-     * Wraps validation in a precognitive block so the frontend can perform
-     * real-time field validation without triggering the actual store.
-     * The container_id is optional — when absent the card is added unsorted.
+     * Validation lives in {@see AddCardStackRequest} (rules + after-hook
+     * for "finish must be available for the selected card"). FormRequest
+     * runs validation before the controller body and supports
+     * Inertia/Precognition automatically. The container_id is optional —
+     * when absent the card is added unsorted.
      */
-    public function store(Request $request): RedirectResponse
+    public function store(AddCardStackRequest $request): RedirectResponse
     {
-        precognitive(function () use ($request) {
-            $request->validate([
-                'default_card_id' => ['required', Rule::exists(DefaultCard::class, 'id')],
-                'amount' => ['required', 'integer', 'min:1', 'max:65535'],
-                'language' => ['required', Rule::enum(CardLanguage::class)],
-                'container_id' => ['nullable', Rule::exists(Container::class, 'id')],
-                'condition' => ['nullable', Rule::enum(CardCondition::class)],
-                'finish' => ['required', Rule::in(Finish::labels())],
-                'proxy' => ['nullable', 'boolean'],
-            ]);
-        });
-
         $container = CardStackService::resolveOwnedContainer($request->user(), $request->container_id);
 
         $result = CardStackService::addToCollection($request->user(), [
@@ -194,17 +183,9 @@ class CardStackController extends Controller
      */
     public function update(UpdateCardStackRequest $request, CardStack $cardStack): RedirectResponse
     {
-        precognitive(function () use ($request) {
-            $request->validate([
-                'amount' => ['required', 'integer', 'min:1', 'max:65535'],
-                'language' => ['required', Rule::enum(CardLanguage::class)],
-                'container_id' => ['nullable', Rule::exists(Container::class, 'id')],
-                'condition' => ['nullable', Rule::enum(CardCondition::class)],
-                'finish' => ['required', Rule::in(Finish::labels())],
-                'proxy' => ['nullable', 'boolean'],
-            ]);
-        });
-
+        // Validation lives in UpdateCardStackRequest (rules + two
+        // after-hooks: container-lock-when-claimed and finish-available-
+        // for-card). FormRequest auto-validates before this method runs.
         CardStackService::resolveOwnedContainer($request->user(), $request->container_id);
         CardStackService::updateStack($request->user(), $cardStack, [
             ...$request->only(['amount', 'language', 'condition', 'finish', 'container_id']),
