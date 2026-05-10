@@ -17,7 +17,7 @@ const version = computed(() => page.props.version as string);
 <template>
     <footer>
         <section class="inner">
-            <span class="meta">&copy; cantrip.me contributors {{ copyrightDate }} · v{{ version }}</span>
+            <span class="meta">&copy; cantrip.me contributors {{ copyrightDate }} · {{ version }}</span>
             <link-group :label="$t('footer.nav_label')">
                 <labelled-link href="https://bsky.app/profile/cantrip.me" :aria-label="$t('footer.bluesky')" icon=""
                     ><icon name="bluesky"

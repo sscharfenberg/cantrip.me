@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { router, usePage } from "@inertiajs/vue3";
-import { computed, onMounted, ref, useTemplateRef, watch } from "vue";
+import { computed, nextTick, onMounted, ref, useTemplateRef, watch } from "vue";
 import SearchSyntax from "Components/Card/SearchSyntax.vue";
 import FormGroup from "Components/Form/FormGroup.vue";
 import Switch from "Components/Form/Switch.vue";
@@ -67,6 +67,13 @@ async function addCard(result: DeckSearchResult, zone: string): Promise<void> {
             feedbackTimer = setTimeout(() => {
                 feedback.value = null;
             }, 5000);
+            // Refocus the search input and pre-select its contents so the
+            // user can immediately type a new query — typing replaces the
+            // current text in one motion.
+            void nextTick(() => {
+                searchInput.value?.focus();
+                searchInput.value?.select();
+            });
             router.reload({ only: ["cards", "deck", "violations"] });
         }
     } finally {

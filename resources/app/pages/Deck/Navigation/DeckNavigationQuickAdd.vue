@@ -31,6 +31,8 @@ const hasContent = computed(() => results.value.length > 0 || noResults.value);
 const popoverRef = useTemplateRef<HTMLElement>("popoverRef");
 /** Template ref to the wrapper — used to scope click-outside detection. */
 const wrapperRef = useTemplateRef<HTMLDivElement>("wrapperRef");
+/** Template ref to the search input — used to refocus and pre-select after a successful add. */
+const inputRef = useTemplateRef<HTMLInputElement>("inputRef");
 /** Mirror of the browser's popover-open state, kept in sync via the `toggle` event. */
 const isOpen = ref(false);
 /** Per-row UI state for the add-card flow, keyed by oracle_card_id. */
@@ -137,6 +139,13 @@ async function addCard(card: QuickAddCardResult): Promise<void> {
             return;
         }
         rowState[card.id] = "added";
+        // Refocus the search input and pre-select its contents so the
+        // user can immediately type a new query — typing replaces the
+        // current text without an extra clear/select keystroke.
+        void nextTick(() => {
+            inputRef.value?.focus();
+            inputRef.value?.select();
+        });
         router.reload({
             only: ["cards", "deck", "violations"],
             onSuccess: () => markRecentlyAdded(card.id)
@@ -177,6 +186,7 @@ onUnmounted(() => {
                 <div class="form-group__slot">
                     <div class="form-group__field">
                         <input
+                            ref="inputRef"
                             v-model="quickAddQuery"
                             type="text"
                             class="form-input"
