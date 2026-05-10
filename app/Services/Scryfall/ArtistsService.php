@@ -5,9 +5,14 @@ namespace App\Services\Scryfall;
 use App\Models\Artist;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
-class ArtistsService
+class ArtistsService extends ScryfallService
 {
+    private bool $shadow = false;
+
+    private string $artistsTable = 'artists';
+
     /**
      * In-memory cache of artist name → UUID.
      *
@@ -19,13 +24,33 @@ class ArtistsService
     private array $cache = [];
 
     /**
-     * Truncate the artists table before a fresh import.
+     * Switch the service into live or shadow mode and reset the in-memory
+     * cache. Called by {@see DefaultCardsService} at the start of an
+     * import so subsequent {@see resolveArtistId()} calls write to the
+     * correct target table.
+     */
+    public function useTarget(bool $shadow): void
+    {
+        $this->shadow = $shadow;
+        $this->artistsTable = $this->tableName('artists', $shadow);
+        $this->cache = [];
+    }
+
+    /**
+     * Truncate the live artists table before a fresh import.
      *
-     * Called from DefaultCardsService::preRunCleanup() since artists are
-     * derived from card data and must be rebuilt alongside default_cards.
+     * Skipped in shadow mode — the orchestrator created an empty
+     * `artists__shadow` before invoking {@see DefaultCardsService}.
+     *
+     * Called from {@see DefaultCardsService::preRunCleanup()} since
+     * artists are derived from card data and must be rebuilt alongside
+     * default_cards.
      */
     public function truncate(): void
     {
+        if ($this->shadow) {
+            return;
+        }
         DB::statement('SET FOREIGN_KEY_CHECKS=0;');
         Artist::truncate();
         Log::channel('scryfall')->debug("table 'artists' truncated.");
@@ -50,9 +75,13 @@ class ArtistsService
             return $this->cache[$name];
         }
 
-        $artist = Artist::create(['name' => $name]);
-        $this->cache[$name] = $artist->id;
+        $id = (string) Str::uuid();
+        DB::table($this->artistsTable)->insert([
+            'id' => $id,
+            'name' => $name,
+        ]);
+        $this->cache[$name] = $id;
 
-        return $artist->id;
+        return $id;
     }
 }

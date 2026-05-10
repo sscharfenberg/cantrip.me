@@ -3,7 +3,6 @@
 namespace App\Services\Scryfall;
 
 use App\Enums\Scryfall\ScryfallRulingSource;
-use App\Models\OracleCard;
 use App\Models\Ruling;
 use App\Services\FormatService;
 use Cerbero\JsonParser\JsonParser;
@@ -12,13 +11,19 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
-class RulingsService
+class RulingsService extends ScryfallService
 {
     private const BUFFER_SIZE = 500;
 
     private FormatService $formatService;
 
     private BulkdataService $bulkdataService;
+
+    private bool $shadow = false;
+
+    private string $rulingsTable = 'rulings';
+
+    private string $oracleCardsTable = 'oracle_cards';
 
     /** @var array<array<string, mixed>> */
     private array $buffer = [];
@@ -42,12 +47,16 @@ class RulingsService
     }
 
     /**
-     * Truncate the rulings table before a fresh import.
+     * Truncate the live rulings table before a fresh import.
      *
-     * Temporarily disables foreign key checks to allow truncation.
+     * Skipped in shadow mode — the orchestrator created an empty
+     * `rulings__shadow` before invoking this service.
      */
     private function preRunCleanup(): void
     {
+        if ($this->shadow) {
+            return;
+        }
         DB::statement('SET FOREIGN_KEY_CHECKS=0;');
         Ruling::truncate();
         DB::statement('SET FOREIGN_KEY_CHECKS=1;');
@@ -58,10 +67,14 @@ class RulingsService
      * Load all oracle_card IDs into the in-memory lookup. Called once
      * before traversal so each ruling can be FK-checked without hitting
      * the database.
+     *
+     * Reads from oracle_cards__shadow in shadow mode so newly imported
+     * cards (not yet swapped to live) match for FK validation, and
+     * cards present only in stale live data don't.
      */
     private function loadKnownOracleIds(): void
     {
-        $this->knownOracleIds = OracleCard::query()
+        $this->knownOracleIds = DB::table($this->oracleCardsTable)
             ->pluck('id')
             ->mapWithKeys(fn (string $id): array => [$id => true])
             ->all();
@@ -113,7 +126,7 @@ class RulingsService
             return;
         }
 
-        Ruling::insert($this->buffer);
+        DB::table($this->rulingsTable)->insert($this->buffer);
         $this->buffer = [];
     }
 
@@ -144,13 +157,22 @@ class RulingsService
      * Run a full rulings import from Scryfall.
      *
      * Downloads the "rulings" bulk JSON (if not already cached),
-     * truncates the existing data, streams through every ruling to
-     * insert it, and cleans up the downloaded file afterwards.
+     * truncates the existing live data (or builds the shadow set),
+     * streams through every ruling to insert it, and cleans up the
+     * downloaded file afterwards.
+     *
+     * In shadow mode: rows go into rulings__shadow and FK lookups read
+     * from oracle_cards__shadow so the freshly imported oracle dataset
+     * is the authority.
      */
-    public function updateRulings(): void
+    public function updateRulings(bool $shadow = false): void
     {
+        $this->shadow = $shadow;
+        $this->rulingsTable = $this->tableName('rulings', $shadow);
+        $this->oracleCardsTable = $this->tableName('oracle_cards', $shadow);
+
         $type = 'rulings';
-        if (! $this->bulkdataService->prepareJson($type)) {
+        if (! $this->bulkdataService->prepareJson($type, $shadow)) {
             Log::channel('scryfall')->error("error preparing '$type.json', aborting.");
 
             return;

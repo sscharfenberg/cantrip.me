@@ -14,7 +14,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
-class OracleCardsService
+class OracleCardsService extends ScryfallService
 {
     private const LEGALITY_BUFFER_SIZE = 500;
 
@@ -23,6 +23,14 @@ class OracleCardsService
     private FormatService $formatService;
 
     private BulkdataService $bulkdataService;
+
+    private bool $shadow = false;
+
+    private string $oracleCardsTable = 'oracle_cards';
+
+    private string $oracleCardFacesTable = 'oracle_card_faces';
+
+    private string $legalitiesTable = 'legalities';
 
     /** @var array<array{oracle_card_id: string, format: string, legality: string}> */
     private array $legalityBuffer = [];
@@ -37,13 +45,17 @@ class OracleCardsService
     }
 
     /**
-     * Truncate the oracle_cards, oracle_card_faces and legalities tables
-     * before a fresh import.
+     * Truncate the live oracle_cards, oracle_card_faces and legalities
+     * tables before a fresh import.
      *
-     * Temporarily disables foreign key checks to allow truncation.
+     * Skipped in shadow mode — the orchestrator created empty shadows
+     * for all three tables before invoking this service.
      */
     private function preRunCleanup(): void
     {
+        if ($this->shadow) {
+            return;
+        }
         DB::statement('SET FOREIGN_KEY_CHECKS=0;');
         OracleCardLegality::truncate();
         OracleCardFace::truncate();
@@ -89,12 +101,10 @@ class OracleCardsService
         }
         // insert into db
         try {
-            $newCard = OracleCard::create($arr);
-            if ($newCard->wasRecentlyCreated) {
-                Log::channel('scryfall')->debug('Inserted OracleCard "'.$newCard->name.'".');
-                $this->bufferFaces($card);
-                $this->bufferLegalities($card['oracle_id'], $card['legalities'] ?? []);
-            }
+            DB::table($this->oracleCardsTable)->insert($arr);
+            Log::channel('scryfall')->debug('Inserted OracleCard "'.$card['name'].'".');
+            $this->bufferFaces($card);
+            $this->bufferLegalities($card['oracle_id'], $card['legalities'] ?? []);
         } catch (\Exception $e) {
             Log::channel('scryfall')->error('error inserting card '.$card['name'].': '.$e->getMessage());
             Log::channel('scryfall')->error($e->getTraceAsString());
@@ -168,7 +178,7 @@ class OracleCardsService
             return;
         }
 
-        OracleCardFace::insert($this->faceBuffer);
+        DB::table($this->oracleCardFacesTable)->insert($this->faceBuffer);
         $this->faceBuffer = [];
     }
 
@@ -208,7 +218,7 @@ class OracleCardsService
             return;
         }
 
-        OracleCardLegality::insert($this->legalityBuffer);
+        DB::table($this->legalitiesTable)->insert($this->legalityBuffer);
         $this->legalityBuffer = [];
     }
 
@@ -240,13 +250,25 @@ class OracleCardsService
      * Run a full oracle-cards import from Scryfall.
      *
      * Downloads the "oracle_cards" bulk JSON (if not already cached),
-     * truncates the existing data, streams through every card to insert
-     * it, and cleans up the downloaded file afterwards.
+     * truncates the existing live data (or builds the shadow set),
+     * streams through every card to insert it, and cleans up the
+     * downloaded file afterwards.
+     *
+     * In shadow mode: rows are inserted into oracle_cards__shadow,
+     * oracle_card_faces__shadow, and legalities__shadow. The orchestrator
+     * created those empty tables before invoking this service, and the
+     * BulkdataService lookup reads from bulk_data__shadow so the latest
+     * download URI is used.
      */
-    public function updateOracleCards(): void
+    public function updateOracleCards(bool $shadow = false): void
     {
+        $this->shadow = $shadow;
+        $this->oracleCardsTable = $this->tableName('oracle_cards', $shadow);
+        $this->oracleCardFacesTable = $this->tableName('oracle_card_faces', $shadow);
+        $this->legalitiesTable = $this->tableName('legalities', $shadow);
+
         $type = 'oracle_cards';
-        if (! $this->bulkdataService->prepareJson($type)) {
+        if (! $this->bulkdataService->prepareJson($type, $shadow)) {
             Log::channel('scryfall')->error("error preparing '$type.json', aborting.");
 
             return; // error downloading file, abort

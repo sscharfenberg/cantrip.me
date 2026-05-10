@@ -7,11 +7,19 @@ use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class SymbolsService extends ScryfallService
 {
+    private bool $shadow = false;
+
+    private string $symbolsTable = 'symbols';
+
     /**
-     * Prepare the database for a symbols import by truncating the symbols table.
+     * Prepare the live symbols table for a fresh import by truncating it.
+     *
+     * Skipped in shadow mode — the orchestrator created an empty
+     * `symbols__shadow` before invoking this service.
      *
      * SVGs are intentionally not purged — symbol SVGs are stable (Scryfall rarely
      * changes them) and getSymbolSvg() only downloads files that are missing,
@@ -19,6 +27,9 @@ class SymbolsService extends ScryfallService
      */
     private function setup(): void
     {
+        if ($this->shadow) {
+            return;
+        }
         DB::statement('SET FOREIGN_KEY_CHECKS=0;');
         Symbol::truncate();
         Log::channel('scryfall')->debug("table 'symbols' truncated.");
@@ -81,7 +92,8 @@ class SymbolsService extends ScryfallService
     private function insertSymbol(array $symbol): void
     {
         $path = $this->getSymbolSvg($symbol);
-        $newSymbol = Symbol::create([
+        DB::table($this->symbolsTable)->insert([
+            'id' => (string) Str::uuid(),
             'symbol' => $symbol['symbol'],
             'svg_uri' => $symbol['svg_uri'],
             'loose_variant' => $symbol['loose_variant'] ?? null,
@@ -96,35 +108,33 @@ class SymbolsService extends ScryfallService
             'colors' => implode('', $symbol['colors']),
             'path' => $path,
         ]);
-        if ($newSymbol->wasRecentlyCreated) {
-            Log::channel('scryfall')->debug("created symbol {$newSymbol->symbol} → $path");
-        }
+        Log::channel('scryfall')->debug("created symbol {$symbol['symbol']} → $path");
     }
 
     /**
-     * Fetch all symbols from the Scryfall API and replace the local database.
+     * Fetch all symbols from the Scryfall API and replace the local database
+     * (live mode) or build the shadow table (shadow mode).
      *
-     * Runs setup() first to truncate existing data.
+     * Runs setup() first which truncates the live table; in shadow mode
+     * setup() is a no-op because the orchestrator already created an empty
+     * `symbols__shadow`.
      */
-    public function updateSymbols(): void
+    public function updateSymbols(bool $shadow = false): void
     {
+        $this->shadow = $shadow;
+        $this->symbolsTable = $this->tableName('symbols', $shadow);
         $this->setup();
-        try {
-            $response = $this->http()
-                ->get('https://api.scryfall.com/symbology');
-            if ($response->successful()) {
-                $symbols = $response->json();
-                if (array_key_exists('data', $symbols)) {
-                    collect($symbols['data'])->each(fn ($symbol) => $this->insertSymbol($symbol));
-                } else {
-                    Log::channel('scryfall')->error("Scryfall response successful, but json does not have a field 'data'.");
-                }
-            } else {
-                Log::channel('scryfall')->error('Scryfall response failed: '.$response->body());
-            }
-        } catch (\Exception $exception) {
-            Log::channel('scryfall')->error($exception->getMessage());
-            report($exception);
+        $response = $this->http()
+            ->get('https://api.scryfall.com/symbology');
+        if ($response->failed()) {
+            Log::channel('scryfall')->error('Scryfall response failed: '.$response->body());
+            throw new \RuntimeException('scryfall /symbology request failed with HTTP '.$response->status());
         }
+        $symbols = $response->json();
+        if (! array_key_exists('data', $symbols)) {
+            Log::channel('scryfall')->error("Scryfall response successful, but json does not have a field 'data'.");
+            throw new \RuntimeException("scryfall /symbology response missing 'data' field");
+        }
+        collect($symbols['data'])->each(fn ($symbol) => $this->insertSymbol($symbol));
     }
 }

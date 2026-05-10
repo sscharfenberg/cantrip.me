@@ -5,6 +5,7 @@ namespace App\Console\Commands\Scryfall;
 use App\Services\FormatService;
 use App\Services\Scryfall\OracleCardsService;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class UpdateOracleCards extends Command
@@ -14,7 +15,7 @@ class UpdateOracleCards extends Command
      *
      * @var string
      */
-    protected $signature = 'scryfall:oracle';
+    protected $signature = 'scryfall:oracle {--target=live : Write target — `live` (default) or `shadow` (writes to oracle_cards/oracle_card_faces/legalities __shadow built by the orchestrator)}';
 
     /**
      * The console command description.
@@ -44,7 +45,15 @@ class UpdateOracleCards extends Command
         Log::channel('scryfall')->info('=======================================================');
         Log::channel('scryfall')->info("artisan command 'scryfall:oracle' started.");
         Log::channel('scryfall')->info('=======================================================');
-        $this->oracleCardsService->updateOracleCards();
+        $shadow = $this->option('target') === 'shadow';
+        $this->oracleCardsService->updateOracleCards(shadow: $shadow);
+        $suffix = $shadow ? '__shadow' : '';
+        foreach (['oracle_cards', 'oracle_card_faces', 'legalities'] as $base) {
+            $table = $base.$suffix;
+            $count = number_format(DB::table($table)->count(), 0, ',', '.');
+            $this->line("inserted $count rows into $table.");
+            Log::channel('scryfall')->notice("inserted $count rows into $table.");
+        }
         $ms = $start->diffInMilliseconds(now());
         Log::channel('scryfall')->info('=======================================================');
         Log::channel('scryfall')->info("artisan command 'scryfall:oracle' finished in ".$this->formatService->formatMs($ms).'.');

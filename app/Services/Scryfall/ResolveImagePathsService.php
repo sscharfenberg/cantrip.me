@@ -2,7 +2,7 @@
 
 namespace App\Services\Scryfall;
 
-use App\Models\DefaultCard;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
 /**
@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\Storage;
  *   - ImageDownloadService  → filesystem (downloading images to disk)
  *   - ResolveImagePathsService → database (URL → local path resolution)
  */
-class ResolveImagePathsService
+class ResolveImagePathsService extends ScryfallService
 {
     /**
      * Cached directory listings indexed by "disk:setCode".
@@ -24,6 +24,34 @@ class ResolveImagePathsService
      * @var array<string, array<string, string[]>>
      */
     private array $fileIndex = [];
+
+    private string $defaultCardsTable = 'default_cards';
+
+    private string $setsTable = 'sets';
+
+    /**
+     * Switch the service into live or shadow mode. Subsequent calls to
+     * {@see resolveArtCropPaths()} and {@see resolveCardImagePaths()}
+     * UPDATE the corresponding table.
+     */
+    public function useTarget(bool $shadow): void
+    {
+        $this->defaultCardsTable = $this->tableName('default_cards', $shadow);
+        $this->setsTable = $this->tableName('sets', $shadow);
+    }
+
+    /**
+     * Build a `set_id → set.code` lookup once per resolve pass so the
+     * card iteration doesn't need an eager-load (Eloquent relationships
+     * are bound to live table names, which would cross-contaminate
+     * shadow runs).
+     *
+     * @return array<string, string>
+     */
+    private function loadSetCodes(): array
+    {
+        return DB::table($this->setsTable)->pluck('code', 'id')->all();
+    }
 
     /**
      * Build or retrieve the file index for a given disk + set directory.
@@ -116,20 +144,28 @@ class ResolveImagePathsService
     {
         $this->fileIndex = [];
         $resolved = 0;
+        $setCodes = $this->loadSetCodes();
+        $defaultCardsTable = $this->defaultCardsTable;
 
-        DefaultCard::whereNotNull('art_crop')
+        // chunkById() (NOT chunk()) is required when the iteration UPDATEs
+        // the rows it's reading — chunk()'s OFFSET pagination silently
+        // skips rows once the WHERE result-set shrinks under updates.
+        DB::table($defaultCardsTable)
+            ->whereNotNull('art_crop')
             ->where('art_crop', 'like', 'https://%')
-            ->with('set:id,code')
-            ->chunkById(500, function ($cards) use (&$resolved) {
+            ->select('id', 'set_id')
+            ->chunkById(500, function ($cards) use (&$resolved, $setCodes, $defaultCardsTable) {
                 foreach ($cards as $card) {
-                    $setCode = $card->set?->code;
+                    $setCode = $setCodes[$card->set_id] ?? null;
                     if (! $setCode) {
                         continue;
                     }
 
                     $diskPath = $this->findArtCropOnDisk('art-crops', $setCode, $card->id);
                     if ($diskPath) {
-                        $card->update(['art_crop' => "/art-crops/$diskPath"]);
+                        DB::table($defaultCardsTable)
+                            ->where('id', $card->id)
+                            ->update(['art_crop' => "/art-crops/$diskPath"]);
                         $resolved++;
                     }
                 }
@@ -151,23 +187,30 @@ class ResolveImagePathsService
     {
         $this->fileIndex = [];
         $resolved = 0;
+        $setCodes = $this->loadSetCodes();
+        $defaultCardsTable = $this->defaultCardsTable;
 
         foreach ([0, 1] as $index) {
             $column = "card_image_$index";
 
-            DefaultCard::whereNotNull($column)
+            // chunkById() (NOT chunk()) — see resolveArtCropPaths() comment
+            // for why OFFSET pagination breaks here.
+            DB::table($defaultCardsTable)
+                ->whereNotNull($column)
                 ->where($column, 'like', 'https://%')
-                ->with('set:id,code')
-                ->chunkById(500, function ($cards) use (&$resolved, $column, $index) {
+                ->select('id', 'set_id', $column)
+                ->chunkById(500, function ($cards) use (&$resolved, $column, $index, $setCodes, $defaultCardsTable) {
                     foreach ($cards as $card) {
-                        $setCode = $card->set?->code;
+                        $setCode = $setCodes[$card->set_id] ?? null;
                         if (! $setCode) {
                             continue;
                         }
 
                         $diskPath = $this->findCardImageOnDisk('card-images', $setCode, $card->id, $index);
                         if ($diskPath) {
-                            $card->update([$column => "/card-images/$diskPath"]);
+                            DB::table($defaultCardsTable)
+                                ->where('id', $card->id)
+                                ->update([$column => "/card-images/$diskPath"]);
                             $resolved++;
                         }
                     }

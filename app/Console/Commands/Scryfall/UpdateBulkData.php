@@ -5,6 +5,7 @@ namespace App\Console\Commands\Scryfall;
 use App\Services\FormatService;
 use App\Services\Scryfall\BulkdataService;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class UpdateBulkData extends Command
@@ -14,7 +15,7 @@ class UpdateBulkData extends Command
      *
      * @var string
      */
-    protected $signature = 'scryfall:bulk';
+    protected $signature = 'scryfall:bulk {--target=live : Write target — `live` (default) or `shadow` (writes to bulk_data__shadow built by the orchestrator)}';
 
     /**
      * The console command description.
@@ -44,7 +45,12 @@ class UpdateBulkData extends Command
         Log::channel('scryfall')->info('=======================================================');
         Log::channel('scryfall')->info("artisan command 'scryfall:bulk' started.");
         Log::channel('scryfall')->info('=======================================================');
-        $this->bulkdataService->getBulkMetadata();
+        $shadow = $this->option('target') === 'shadow';
+        $this->bulkdataService->getBulkMetadata(shadow: $shadow);
+        $table = $shadow ? 'bulk_data__shadow' : 'bulk_data';
+        $count = number_format(DB::table($table)->count(), 0, ',', '.');
+        $this->line("inserted $count rows into $table.");
+        Log::channel('scryfall')->notice("inserted $count rows into $table.");
         $ms = $start->diffInMilliseconds(now());
         Log::channel('scryfall')->info('=======================================================');
         Log::channel('scryfall')->info("artisan command 'scryfall:bulk' finished in ".$this->formatService->formatMs($ms).'.');

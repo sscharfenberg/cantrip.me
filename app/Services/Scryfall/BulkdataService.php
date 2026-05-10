@@ -4,6 +4,7 @@ namespace App\Services\Scryfall;
 
 use App\Models\BulkData;
 use App\Services\FormatService;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -11,6 +12,10 @@ use Illuminate\Support\Facades\Storage;
 class BulkdataService extends ScryfallService
 {
     private FormatService $formatService;
+
+    private bool $shadow = false;
+
+    private string $bulkDataTable = 'bulk_data';
 
     public function __construct()
     {
@@ -27,7 +32,7 @@ class BulkdataService extends ScryfallService
      * @param  string  $type  The bulk-data type identifier (e.g. "oracle_cards").
      * @return bool True on success or if the file already exists, false on failure.
      */
-    public function prepareJson(string $type): bool
+    public function prepareJson(string $type, bool $shadow = false): bool
     {
         $fileName = $type.'.json';
         if (Storage::disk('scryfall-bulk')->exists($fileName)) {
@@ -36,7 +41,8 @@ class BulkdataService extends ScryfallService
             return true;
         }
         $start = now();
-        $bd = BulkData::where('type', '=', $type)->first();
+        $bulkDataTable = $this->tableName('bulk_data', $shadow);
+        $bd = DB::table($bulkDataTable)->where('type', '=', $type)->first();
         $uri = $bd->download_uri;
         try {
             Log::channel('scryfall')->notice("starting download of '$fileName' from scryfall.");
@@ -52,7 +58,7 @@ class BulkdataService extends ScryfallService
                 $realSize = Storage::disk('scryfall-bulk')->size($fileName);
                 $realSizeFormatted = number_format($realSize, 0, ',', '.');
                 if ($realSize != $bd->size) {
-                    Log::channel('scryfall')->error("downloaded size for '$fileName' ($realSize) differs from expected size ($bd->size).");
+                    Log::channel('scryfall')->error("downloaded size for '$fileName' ($realSize) differs from expected size ({$bd->size}).");
 
                     return false;
                 }
@@ -88,12 +94,16 @@ class BulkdataService extends ScryfallService
     }
 
     /**
-     * Truncate the bulk_data table before a fresh import.
+     * Truncate the live bulk_data table before a fresh import.
      *
-     * Temporarily disables foreign key checks to allow truncation.
+     * Skipped in shadow mode — the orchestrator created an empty
+     * `bulk_data__shadow` before invoking this service.
      */
     private function preRunCleanup(): void
     {
+        if ($this->shadow) {
+            return;
+        }
         DB::statement('SET FOREIGN_KEY_CHECKS=0;');
         BulkData::truncate();
         Log::channel('scryfall')->debug("table 'bulk_data' truncated.");
@@ -112,7 +122,11 @@ class BulkdataService extends ScryfallService
         $arr = [
             'id' => $bulk['id'],
             'type' => $bulk['type'],
-            'updated_at' => $bulk['updated_at'],
+            // Scryfall sends ISO 8601 with timezone offset (e.g.
+            // "2026-05-10T12:34:56.789+00:00"). DB::table()->insert() bypasses
+            // the BulkData model's `'updated_at' => 'datetime'` cast, so we
+            // must hand MySQL a DATETIME-compatible string ourselves.
+            'updated_at' => Carbon::parse($bulk['updated_at'])->toDateTimeString(),
             'uri' => $bulk['uri'],
             'name' => $bulk['name'],
             'description' => $bulk['description'],
@@ -121,38 +135,31 @@ class BulkdataService extends ScryfallService
             'content_type' => $bulk['content_type'],
             'content_encoding' => $bulk['content_encoding'],
         ];
-        $newData = BulkData::create($arr);
-        if ($newData->wasRecentlyCreated) {
-            Log::channel('scryfall')->debug("created bulkdata entry '$newData->name' last updated @ $newData->updated_at.");
-        }
+        DB::table($this->bulkDataTable)->insert($arr);
+        Log::channel('scryfall')->debug("created bulkdata entry '{$arr['name']}' last updated @ {$arr['updated_at']}.");
     }
 
     /**
      * Fetch and store the bulk-data catalog from the Scryfall API.
      *
-     * Truncates existing entries and replaces them with the latest
-     * catalog so subsequent imports use up-to-date download URIs and sizes.
+     * Truncates existing live entries (or builds the shadow set) and
+     * replaces them with the latest catalog so subsequent imports use
+     * up-to-date download URIs and sizes.
      */
-    public function getBulkMetadata(): void
+    public function getBulkMetadata(bool $shadow = false): void
     {
+        $this->shadow = $shadow;
+        $this->bulkDataTable = $this->tableName('bulk_data', $shadow);
         Log::channel('scryfall')->debug('Updating bulk metadata from scryfall.');
         $this->preRunCleanup();
-        try {
-            $response = $this->http()
-                ->get('https://api.scryfall.com/bulk-data');
-            if ($response->successful()) {
-                $json = $response->json();
-                Log::channel('scryfall')->debug('API request to scryfall successful.: '.json_encode($json, JSON_PRETTY_PRINT));
-                $scryfallData = collect($json['data']);
-                $scryfallData->each(function ($item) {
-                    $this->insertBulkData($item);
-                });
-            }
-            if ($response->failed()) {
-                Log::channel('scryfall')->error('Failed scryfall api request: '.$response->body());
-            }
-        } catch (\Exception $exception) {
-            Log::channel('scryfall')->error($exception->getMessage());
+        $response = $this->http()
+            ->get('https://api.scryfall.com/bulk-data');
+        if ($response->failed()) {
+            Log::channel('scryfall')->error('Failed scryfall api request: '.$response->body());
+            throw new \RuntimeException('scryfall /bulk-data request failed with HTTP '.$response->status());
         }
+        $json = $response->json();
+        Log::channel('scryfall')->debug('API request to scryfall successful.: '.json_encode($json, JSON_PRETTY_PRINT));
+        collect($json['data'])->each(fn ($item) => $this->insertBulkData($item));
     }
 }
