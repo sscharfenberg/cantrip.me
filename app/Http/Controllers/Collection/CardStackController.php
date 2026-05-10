@@ -12,6 +12,7 @@ use App\Http\Requests\Collection\DestroySelectedCardStacksRequest;
 use App\Http\Requests\Collection\EditCardStackRequest;
 use App\Http\Requests\Collection\MassMoveCardStacksRequest;
 use App\Http\Requests\Collection\MoveSelectedCardStacksRequest;
+use App\Http\Requests\Collection\ShowAddCardStackRequest;
 use App\Http\Requests\Collection\UnclaimCardStackRequest;
 use App\Http\Requests\Collection\UpdateCardStackRequest;
 use App\Models\CardStack;
@@ -36,7 +37,7 @@ class CardStackController extends Controller
      *
      * @param  Container|null  $container  Pre-selected container, or null for unsorted.
      */
-    public function add(AddCardStackRequest $request, ?Container $container = null): Response
+    public function add(ShowAddCardStackRequest $request, ?Container $container = null): Response
     {
         if ($container) {
             $container->load('defaultCard.set', 'defaultCard.artist');
