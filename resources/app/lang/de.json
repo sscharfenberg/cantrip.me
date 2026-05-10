@@ -125,7 +125,7 @@
         }
     },
     "header": {
-        "status": "BETA: testet nach Herzenslust - Achtung: Daten werden gelegentlich gelöscht.",
+        "status": "öffentlicher beta test - wir werden versuchen keine Daten zu löschen",
         "user_nav": "Benutzer- und Sprach-Navigation",
         "site_nav": "Site navigation",
         "lang": {
@@ -364,8 +364,8 @@
         "about": {
             "title": "Über cantrip.me",
             "link": "Über cantrip.me",
-            "hello": "Hallo, ich bin Sven.",
-            "intro": "cantrip.me ist ein Hobbyprojekt mit einem einzigen Entwickler. Ich habe die Seite nicht entwickelt, weil ich mit den 'anderen' MtG-Seiten unzufrieden war, sondern weil ich es ein bisschen anders machen wollte. Das hier ist das Ergebnis.",
+            "hello": "Well, hello there.",
+            "intro": "cantrip.me ist entstanden, weil wir eine Sammlungsverwaltung und einen Deckbuilder wollten, die eng miteinander verknüpft sind. Wir haben uns von den großen MtG-Community-Seiten inspirieren lassen und etwas Eigenes daraus gemacht. Das Ziel ist einfach: der Community etwas zurückgeben — keine Werbung, kein Tracking, kein Premium-Modell. Wir hoffen, du findest es nützlich. Alles, was du hier siehst, ist Open Source — starte gerne deine eigene Seite oder übernimm, was dir gefällt.",
             "security": "Sicherheitsrichtlinie",
             "security_text": "Bitte erstelle keine öffentlichen Github Issues für Sicherheitslücken - schau stattdessen in unsere {link}, die Anweisungen enthält, wie man sie melden kann.",
             "security_link": "Sicherheitsrichtlinie",

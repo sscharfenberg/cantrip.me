@@ -125,7 +125,7 @@
         }
     },
     "header": {
-        "status": "BETA: feel free to test - caution: data will be wiped.",
+        "status": "public beta test - we will try not to wipe your data",
         "user_nav": "User and language navigation",
         "site_nav": "Site navigation",
         "lang": {
@@ -364,8 +364,8 @@
         "about": {
             "title": "About cantrip.me",
             "link": "About",
-            "hello": "Hello, I'm Sven.",
-            "intro": "cantrip.me is a hobby project with a single developer. I started developing the site not because I wasn't happy with the 'other' MtG sites, but because I wanted to do it a bit differently. This is the result.",
+            "hello": "Well, hello there.",
+            "intro": "cantrip.me started because we wanted a collection organizer and deck builder where both are tightly integrated. We drew inspiration from the big MtG community sites and gave it our own spin. The goal is simple: give back to the community — no ads, no tracking, no premium tier. We hope you find it useful. Everything you see is open source — feel free to start your own site or borrow whatever bits you like.",
             "security": "Security policy",
             "security_text": "Do not open public Github Issues for security vulnerabilities - instead, check our {link}, which includes instructions how to report them.",
             "security_link": "security policy",
