@@ -1,4 +1,6 @@
 <script lang="ts" setup>
+import { usePage } from "@inertiajs/vue3";
+import { computed } from "vue";
 import Icon from "Components/UI/Icon.vue";
 import LabelledLink from "Components/UI/LabelledLink.vue";
 import LinkGroup from "Components/UI/LinkGroup.vue";
@@ -8,12 +10,14 @@ let copyrightDate = `${startYear}`;
 if (currentYear > startYear) {
     copyrightDate += " - " + currentYear;
 }
+const page = usePage();
+const version = computed(() => page.props.version as string);
 </script>
 
 <template>
     <footer>
         <section class="inner">
-            &copy; Sven Scharfenberg {{ copyrightDate }}
+            <span class="meta">&copy; cantrip.me contributors {{ copyrightDate }} · v{{ version }}</span>
             <link-group :label="$t('footer.nav_label')">
                 <labelled-link href="https://bsky.app/profile/cantrip.me" :aria-label="$t('footer.bluesky')" icon=""
                     ><icon name="bluesky"
