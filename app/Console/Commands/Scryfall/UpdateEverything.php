@@ -5,10 +5,13 @@ namespace App\Console\Commands\Scryfall;
 use App\Notifications\Channels\DiscordChannel;
 use App\Notifications\ScryfallUpdateFailedNotification;
 use App\Services\FormatService;
+use App\Services\Scryfall\ImageOrphanScanner;
+use App\Services\Scryfall\ScryfallRunStats;
 use App\Services\Scryfall\Shadow\ShadowTableRegistry;
 use App\Services\Scryfall\Shadow\ShadowTableService;
 use App\Services\Scryfall\Shadow\ShadowValidationService;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
 use RuntimeException;
@@ -36,12 +39,62 @@ class UpdateEverything extends Command
 
     private ShadowValidationService $validation;
 
+    private ImageOrphanScanner $imageOrphanScanner;
+
+    /**
+     * Section → list of [label, value] tuples. Built up across the run
+     * and emitted as the end-of-run summary block.
+     *
+     * @var array<string, list<array{0: string, 1: string}>>
+     */
+    private array $summary = [];
+
     public function __construct()
     {
         parent::__construct();
         $this->formatService = new FormatService;
         $this->shadow = new ShadowTableService;
         $this->validation = new ShadowValidationService;
+        $this->imageOrphanScanner = new ImageOrphanScanner;
+    }
+
+    /**
+     * Push one row into the end-of-run summary, grouped by section header.
+     */
+    private function pushSummary(string $section, string $label, string $value): void
+    {
+        $this->summary[$section][] = [$label, $value];
+    }
+
+    /**
+     * Format an integer with thousands separators.
+     */
+    private function fmtCount(int $n): string
+    {
+        return number_format($n, 0, ',', '.');
+    }
+
+    /**
+     * Emit the accumulated summary as a formatted block. No-op if empty.
+     */
+    private function emitSummary(): void
+    {
+        if ($this->summary === []) {
+            return;
+        }
+        $bar = str_repeat('═', 64);
+        $this->newLine();
+        $this->info($bar);
+        $this->info(' scryfall:update summary');
+        $this->info($bar);
+        foreach ($this->summary as $section => $rows) {
+            $this->newLine();
+            $this->info($section);
+            foreach ($rows as [$label, $value]) {
+                $this->line(sprintf('  %-34s %s', $label, $value));
+            }
+        }
+        $this->newLine();
     }
 
     /**
@@ -193,6 +246,8 @@ class UpdateEverything extends Command
     {
         $start = now();
         $waitTime = 0;
+        $this->summary = [];
+        ScryfallRunStats::reset();
 
         $this->info("artisan command 'scryfall:update' started.");
         Log::channel('scryfall')->info('=======================================================');
@@ -240,31 +295,117 @@ class UpdateEverything extends Command
         // 5. Resolve image URLs → local paths on default_cards__shadow.
         $this->runStep('scryfall:resolve-paths', shadow: true);
 
-        // 6. Restore FK constraints on every shadow table.
-        $this->runOrchestratorStep('restoreForeignKeys', fn () => $this->shadow->restoreForeignKeys());
-        $this->info('shadow build: restored '.count(ShadowTableRegistry::FK_RESTORATIONS).' FK constraints on shadow tables.');
-
-        // 7. Validate FK integrity against the shadow build.
+        // 6. Validate FK integrity against the shadow build (LEFT JOINs;
+        //    no FK constraints on the shadow tables yet — that's intentional).
         $this->runOrchestratorStep('validateOrphans', fn () => $this->validateOrAbort());
         $this->info('shadow validation: passed (every FK relation resolves cleanly).');
 
-        // 8. Atomic multi-table RENAME — sub-second swap.
+        // 7. Capture every FK that references one of the to-be-swapped
+        //    tables (internal scryfall FKs AND user-data FKs from
+        //    deck_cards / card_stacks / etc.). We must drop them before
+        //    swap because MariaDB auto-rotates FK references when the
+        //    parent table is renamed — without this, every FK would
+        //    silently rotate to point at the __retired table that we're
+        //    about to drop, leaving every user-data FK broken.
+        $capturedFks = [];
+        $this->runOrchestratorStep('captureForeignKeys', function () use (&$capturedFks): void {
+            $capturedFks = $this->shadow->captureForeignKeys();
+        });
+        $this->info('shadow swap prep: captured '.count($capturedFks).' FK constraints referencing scryfall tables.');
+
+        // 8. Drop those FK constraints.
+        $this->runOrchestratorStep('dropForeignKeys', fn () => $this->shadow->dropForeignKeys($capturedFks));
+        $this->info('shadow swap prep: dropped FK constraints (will be re-added after swap).');
+
+        // 9. Atomic multi-table RENAME — sub-second swap.
         $this->runOrchestratorStep('swap', fn () => $this->shadow->swap());
         $this->info('shadow swap: atomic RENAME completed (live = previous shadow).');
 
-        // 9. Drop the now-stale __retired tables.
+        // 10. Drop the now-stale __retired tables (no FK constraints
+        //     attached now — they were dropped in step 8).
         $this->runOrchestratorStep('dropRetired', fn () => $this->shadow->dropRetired());
         $this->info('shadow swap: dropped '.count(ShadowTableRegistry::TABLES).' __retired tables.');
 
-        // 10. Refresh the welcome-page Scryfall stats cache against the
+        // 11. Re-add the captured FK constraints. References resolve to
+        //     the new live tables now (which own the names the FKs
+        //     target after the swap). Runs with FK_CHECKS=0 — existing
+        //     data was already validated in step 6.
+        $this->runOrchestratorStep('addForeignKeys', fn () => $this->shadow->addForeignKeys($capturedFks));
+        $this->info('shadow swap: re-added '.count($capturedFks).' FK constraints to the new live tables.');
+
+        // 12. Refresh the welcome-page Scryfall stats cache against the
         //     now-live data so the next visitor doesn't pay the
         //     recursive `find` + `du` cost.
         $this->runStep('scryfall:cache');
+
+        // 13. Image-orphan dry scan against the now-live default_cards.
+        //     Reports counts only — surface a hint with the prune command
+        //     if any are found, but never delete from the auto flow.
+        $imageOrphans = ['art-crops' => ['orphans' => 0, 'bytes' => 0], 'card-images' => ['orphans' => 0, 'bytes' => 0], 'total' => ['orphans' => 0, 'bytes' => 0]];
+        $this->runOrchestratorStep('scanImageOrphans', function () use (&$imageOrphans): void {
+            $imageOrphans = $this->imageOrphanScanner->scan();
+        });
+        if ($imageOrphans['total']['orphans'] > 0) {
+            $this->newLine();
+            $this->warn(sprintf(
+                'image GC: found %s orphan file(s) totaling %s. Run `php artisan scryfall:gc-images --prune` to delete.',
+                $this->fmtCount($imageOrphans['total']['orphans']),
+                $this->formatService->formatBytes($imageOrphans['total']['bytes']),
+            ));
+        }
 
         $ms = $start->diffInMilliseconds(now());
         Log::channel('scryfall')->info('=======================================================');
         Log::channel('scryfall')->info("artisan command 'scryfall:update' finished in ".$this->formatService->formatMs($ms).", including $waitTime seconds idle time.");
         Log::channel('scryfall')->info('=======================================================');
         $this->info("artisan command 'scryfall:update' finished in ".$this->formatService->formatMs($ms).", including $waitTime seconds idle time.");
+
+        $this->buildAndEmitSummary($ms, $waitTime, count($capturedFks), $imageOrphans);
+    }
+
+    /**
+     * Build the end-of-run summary by querying the now-live tables and
+     * pulling cross-step counters from {@see ScryfallRunStats}.
+     *
+     * @param  array{art-crops: array{orphans: int, bytes: int}, card-images: array{orphans: int, bytes: int}, total: array{orphans: int, bytes: int}}  $imageOrphans
+     */
+    private function buildAndEmitSummary(int $totalMs, int $waitTime, int $capturedFkCount, array $imageOrphans): void
+    {
+        // Row counts across the 10 swap tables (now live post-swap).
+        foreach (ShadowTableRegistry::TABLES as $table) {
+            $count = (int) DB::table($table)->count();
+            $this->pushSummary('Live tables (rows after swap)', $table, $this->fmtCount($count));
+        }
+
+        // Oracle-tag classifications.
+        $mld = (int) DB::table('oracle_cards')->where('mld', true)->count();
+        $fetch = (int) DB::table('oracle_cards')->whereNotNull('fetch_pattern')->count();
+        $this->pushSummary('Oracle tags', 'mass-land-denial (mld)', $this->fmtCount($mld).' cards');
+        $this->pushSummary('Oracle tags', 'fetch_pattern', $this->fmtCount($fetch).' cards');
+
+        // Image path resolution.
+        $artLocal = (int) DB::table('default_cards')->whereNotNull('art_crop')->where('art_crop', 'not like', 'https://%')->count();
+        $imgLocal = (int) DB::table('default_cards')->whereNotNull('card_image_0')->where('card_image_0', 'not like', 'https://%')->count();
+        $this->pushSummary('Image paths', 'art crops resolved to local', $this->fmtCount($artLocal));
+        $this->pushSummary('Image paths', 'card images resolved to local', $this->fmtCount($imgLocal));
+
+        // Default-card-relations re-targeting (cross-step counter from DefaultCardsService).
+        $this->pushSummary('Default card relations', 're-targeted (orphan → same-oracle printing)', $this->fmtCount(ScryfallRunStats::$relationsRetargeted));
+        $this->pushSummary('Default card relations', 'dropped (no matching oracle)', $this->fmtCount(ScryfallRunStats::$relationsSkippedOrphan));
+        $this->pushSummary('Default card relations', 'skipped (unknown component)', $this->fmtCount(ScryfallRunStats::$relationsSkippedComponent));
+
+        // FK preservation around the swap.
+        $this->pushSummary('FK preservation', 'captured + re-added', $this->fmtCount($capturedFkCount).' constraints');
+
+        // Image orphan scan.
+        $this->pushSummary('Image orphans (disk)', 'art-crops', $this->fmtCount($imageOrphans['art-crops']['orphans']).' files');
+        $this->pushSummary('Image orphans (disk)', 'card-images', $this->fmtCount($imageOrphans['card-images']['orphans']).' files');
+        $this->pushSummary('Image orphans (disk)', 'total reclaimable', $this->formatService->formatBytes($imageOrphans['total']['bytes']));
+
+        // Runtime.
+        $this->pushSummary('Runtime', 'total', $this->formatService->formatMs($totalMs));
+        $this->pushSummary('Runtime', 'idle (sleep between steps)', $waitTime.' s');
+
+        $this->emitSummary();
     }
 }

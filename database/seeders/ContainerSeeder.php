@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Enums\CardLanguage;
 use App\Enums\ContainerType;
+use App\Enums\Finish;
 use App\Models\CardStack;
 use App\Models\Container;
 use App\Models\DefaultCard;
@@ -53,19 +54,27 @@ class ContainerSeeder extends Seeder
             ]);
         }
 
-        // Distribute 60 random cards across the containers.
-        $randomCards = DefaultCard::inRandomOrder()->limit(200)->pluck('id');
+        // Distribute 60 random cards across the containers. Pluck the
+        // finishes bitmask alongside the id so we can pick a finish that
+        // the card actually supports — the table column defaults to
+        // Nonfoil (1), which is invalid for ~20% of printings (foil-only
+        // and etched-only cards) and would render the cardstack edit
+        // form unusable for those rows.
+        $randomCards = DefaultCard::inRandomOrder()->limit(200)->get(['id', 'finishes']);
         $languages = [CardLanguage::En, CardLanguage::De];
 
-        foreach ($randomCards as $cardId) {
+        foreach ($randomCards as $card) {
             $container = $createdContainers[array_rand($createdContainers)];
+            $availableFinishes = Finish::labelsFromMask($card->finishes);
+            $finish = Finish::fromLabel($availableFinishes[array_rand($availableFinishes)]);
 
             CardStack::create([
                 'user_id' => $user->id,
-                'default_card_id' => $cardId,
+                'default_card_id' => $card->id,
                 'container_id' => $container->id,
                 'amount' => random_int(1, 4),
                 'language' => $languages[array_rand($languages)],
+                'finish' => $finish,
             ]);
         }
     }

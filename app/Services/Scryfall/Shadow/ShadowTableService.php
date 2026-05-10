@@ -52,42 +52,84 @@ class ShadowTableService
     }
 
     /**
-     * Restore the foreign-key constraints declared in
-     * {@see ShadowTableRegistry::FK_RESTORATIONS} on every shadow table.
+     * Capture every FK constraint that references one of the registered
+     * scryfall tables. Used by the orchestrator to drop these BEFORE the
+     * swap and re-add them AFTER.
      *
-     * Why this is needed: `CREATE TABLE LIKE` copies columns, indexes, and
-     * the auto-increment value but NOT FK constraints — so a freshly built
-     * shadow table has no FKs at all. Without this step, the post-swap
-     * live tables would lose every cascade-on-delete and FK validation
-     * defined in the original migrations.
+     * Why we need this: MariaDB auto-rotates FK references when the
+     * referenced (parent) table is renamed. So when the swap renames
+     * `sets` → `sets__retired`, every FK pointing at `sets` (including
+     * user-data FKs from deck_cards/card_stacks/etc.) silently rotates
+     * to point at `sets__retired`. After dropRetired, those FKs reference
+     * a table that no longer exists — every user-data write that triggers
+     * FK validation breaks.
      *
-     * Why FK_CHECKS=0: at the time we ALTER TABLE, the FK references the
-     * parent table by name (e.g. `oracle_cards`) — which still resolves
-     * to the LIVE table containing stale data. With FK_CHECKS=1 the ALTER
-     * would validate the shadow data against stale live data and falsely
-     * flag every brand-new card as a violation. The validator
-     * {@see ShadowValidationService} already proves data integrity
-     * against the shadow build itself.
+     * The fix: drop these FKs before the swap, do the swap (no FKs to
+     * rotate), drop retired, then re-add the FKs. After re-add the
+     * references resolve to the new live tables (which now own the names
+     * the FKs target).
      *
-     * After the atomic RENAME, the FK by-name reference rotates to the
-     * swapped-in shadow (now live). Future operations are correctly
-     * validated against the new dataset.
-     *
-     * @param  array<int, array{0: string, 1: string, 2: string, 3: string}>  $restorations
+     * @return array<int, object{TABLE_NAME: string, CONSTRAINT_NAME: string, COLUMN_NAME: string, REFERENCED_TABLE_NAME: string, REFERENCED_COLUMN_NAME: string, UPDATE_RULE: string, DELETE_RULE: string}>
      */
-    public function restoreForeignKeys(array $restorations = ShadowTableRegistry::FK_RESTORATIONS): void
+    public function captureForeignKeys(array $tables = ShadowTableRegistry::TABLES): array
     {
-        $this->withForeignKeyChecksDisabled(function () use ($restorations): void {
-            foreach ($restorations as [$child, $fk, $parent, $onDelete]) {
-                $childShadow = ShadowTableRegistry::shadow($child);
-                $constraint = "{$child}_{$fk}_foreign_shadow";
+        $database = DB::connection()->getDatabaseName();
+        $placeholders = implode(',', array_fill(0, count($tables), '?'));
+        $params = array_merge([$database], $tables);
+
+        $sql = "
+            SELECT
+                kcu.TABLE_NAME, kcu.CONSTRAINT_NAME, kcu.COLUMN_NAME,
+                kcu.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME,
+                rc.UPDATE_RULE, rc.DELETE_RULE
+            FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE kcu
+            JOIN INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS rc
+                ON rc.CONSTRAINT_NAME = kcu.CONSTRAINT_NAME
+                AND rc.CONSTRAINT_SCHEMA = kcu.CONSTRAINT_SCHEMA
+            WHERE kcu.TABLE_SCHEMA = ?
+            AND kcu.REFERENCED_TABLE_NAME IN ($placeholders)
+        ";
+
+        return DB::select($sql, $params);
+    }
+
+    /**
+     * Drop every FK constraint in the given list. FK checks disabled so
+     * the drop succeeds regardless of current data state.
+     *
+     * @param  array<int, object>  $fks  As returned by {@see captureForeignKeys()}.
+     */
+    public function dropForeignKeys(array $fks): void
+    {
+        $this->withForeignKeyChecksDisabled(function () use ($fks): void {
+            foreach ($fks as $fk) {
+                DB::statement("ALTER TABLE `{$fk->TABLE_NAME}` DROP FOREIGN KEY `{$fk->CONSTRAINT_NAME}`");
+            }
+        });
+        Log::channel('scryfall')->debug('ShadowTableService: dropped '.count($fks).' FK constraints before swap.');
+    }
+
+    /**
+     * Add every FK constraint in the given list back. Run AFTER the swap
+     * and AFTER dropRetired so the parent table names resolve to the
+     * new live tables. FK checks disabled during ALTER so existing data
+     * isn't re-validated (it was already validated by
+     * {@see ShadowValidationService} pre-swap).
+     *
+     * @param  array<int, object>  $fks  As returned by {@see captureForeignKeys()}.
+     */
+    public function addForeignKeys(array $fks): void
+    {
+        $this->withForeignKeyChecksDisabled(function () use ($fks): void {
+            foreach ($fks as $fk) {
                 DB::statement(
-                    "ALTER TABLE `$childShadow` ADD CONSTRAINT `$constraint` "
-                    ."FOREIGN KEY (`$fk`) REFERENCES `$parent` (`id`) ON DELETE $onDelete"
+                    "ALTER TABLE `{$fk->TABLE_NAME}` ADD CONSTRAINT `{$fk->CONSTRAINT_NAME}` "
+                    ."FOREIGN KEY (`{$fk->COLUMN_NAME}`) REFERENCES `{$fk->REFERENCED_TABLE_NAME}` (`{$fk->REFERENCED_COLUMN_NAME}`) "
+                    ."ON DELETE {$fk->DELETE_RULE} ON UPDATE {$fk->UPDATE_RULE}"
                 );
             }
         });
-        Log::channel('scryfall')->debug('ShadowTableService: restored '.count($restorations).' FK constraints on shadow tables.');
+        Log::channel('scryfall')->debug('ShadowTableService: re-added '.count($fks).' FK constraints after swap.');
     }
 
     /**

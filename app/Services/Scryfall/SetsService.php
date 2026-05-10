@@ -182,25 +182,19 @@ class SetsService extends ScryfallService
         $this->setsTable = $this->tableName('sets', $shadow);
         $this->cachedSetIcons = null;
         $this->setup();
-        try {
-            $response = $this->http()
-                ->get('https://api.scryfall.com/sets');
-            if ($response->successful()) {
-                $sets = $response->json();
-                if (array_key_exists('data', $sets)) { // all seems fine, proceed with updating tb
-                    $sets = collect($sets['data'])->filter(function ($set) {
-                        return $set['card_count'] > 0;
-                    });
-                    $sets->each(fn ($set) => $this->insertSet($set));
-                } else { // json does not have 'data' prop
-                    Log::channel('scryfall')->error("Scryfall response successful, but json does not have a field 'data'.");
-                }
-            } else { // scryfall response not successful
-                Log::channel('scryfall')->error('Scryfall response failed: '.$response->body());
-            }
-        } catch (\Exception $exception) {
-            Log::channel('scryfall')->error($exception->getMessage());
-            report($exception);
+        $response = $this->http()
+            ->get('https://api.scryfall.com/sets');
+        if ($response->failed()) {
+            Log::channel('scryfall')->error('Scryfall response failed: '.$response->body());
+            throw new \RuntimeException('scryfall /sets request failed with HTTP '.$response->status());
         }
+        $sets = $response->json();
+        if (! array_key_exists('data', $sets)) {
+            Log::channel('scryfall')->error("Scryfall response successful, but json does not have a field 'data'.");
+            throw new \RuntimeException("scryfall /sets response missing 'data' field");
+        }
+        collect($sets['data'])
+            ->filter(fn ($set) => $set['card_count'] > 0)
+            ->each(fn ($set) => $this->insertSet($set));
     }
 }

@@ -111,34 +111,38 @@ class ShadowTableServiceTest extends TestCase
     }
 
     #[Test]
-    public function restore_foreign_keys_adds_constraints_to_shadow_tables(): void
+    public function capture_drop_and_readd_foreign_keys_round_trip(): void
     {
-        // Live parent + shadow parent.
+        // Throwaway parent + child with an FK between them. Pass the
+        // parent name explicitly to captureForeignKeys() so we don't
+        // touch the real registered scryfall tables on staging.
         DB::statement('CREATE TABLE _shadow_test_a (id INT UNSIGNED PRIMARY KEY)');
-        DB::statement('CREATE TABLE _shadow_test_a__shadow (id INT UNSIGNED PRIMARY KEY)');
-        // Shadow child without FK — restoreForeignKeys should add it.
-        DB::statement('CREATE TABLE _shadow_test_b__shadow (id INT UNSIGNED PRIMARY KEY, parent_id INT UNSIGNED NOT NULL)');
+        DB::statement('CREATE TABLE _shadow_test_b (id INT UNSIGNED PRIMARY KEY, parent_id INT UNSIGNED, '
+            .'CONSTRAINT _shadow_test_b_fk FOREIGN KEY (parent_id) REFERENCES _shadow_test_a (id) ON DELETE CASCADE)');
 
-        // Need a live `_shadow_test_b` so the FK reference target exists at
-        // ALTER time (FK_CHECKS=0 inside restoreForeignKeys skips data
-        // validation but the parent table still has to exist by name).
-        DB::statement('CREATE TABLE _shadow_test_b (id INT UNSIGNED PRIMARY KEY, parent_id INT UNSIGNED NOT NULL)');
+        $captured = $this->service->captureForeignKeys(['_shadow_test_a']);
+        $this->assertCount(1, $captured, 'capture must find the throwaway FK.');
+        $this->assertSame('_shadow_test_b', $captured[0]->TABLE_NAME);
+        $this->assertSame('_shadow_test_b_fk', $captured[0]->CONSTRAINT_NAME);
+        $this->assertSame('_shadow_test_a', $captured[0]->REFERENCED_TABLE_NAME);
+        $this->assertSame('CASCADE', $captured[0]->DELETE_RULE);
 
-        $this->service->restoreForeignKeys([
-            ['_shadow_test_b', 'parent_id', '_shadow_test_a', 'CASCADE'],
-        ]);
+        $this->service->dropForeignKeys($captured);
+        $afterDrop = DB::table('information_schema.KEY_COLUMN_USAGE')
+            ->where('TABLE_SCHEMA', DB::connection()->getDatabaseName())
+            ->where('TABLE_NAME', '_shadow_test_b')
+            ->where('CONSTRAINT_NAME', '_shadow_test_b_fk')
+            ->count();
+        $this->assertSame(0, $afterDrop, 'drop must remove the FK.');
 
-        $constraints = DB::table('information_schema.KEY_COLUMN_USAGE')
-            ->where('TABLE_SCHEMA', config('database.connections.'.config('database.default').'.database'))
-            ->where('TABLE_NAME', '_shadow_test_b__shadow')
-            ->whereNotNull('REFERENCED_TABLE_NAME')
-            ->get();
-
-        $this->assertCount(1, $constraints, 'expected exactly one FK on the shadow child.');
-        $this->assertSame('parent_id', $constraints[0]->COLUMN_NAME);
-        $this->assertSame('_shadow_test_a', $constraints[0]->REFERENCED_TABLE_NAME);
-        $this->assertSame('id', $constraints[0]->REFERENCED_COLUMN_NAME);
-        $this->assertSame('_shadow_test_b_parent_id_foreign_shadow', $constraints[0]->CONSTRAINT_NAME);
+        $this->service->addForeignKeys($captured);
+        $afterAdd = DB::table('information_schema.KEY_COLUMN_USAGE')
+            ->where('TABLE_SCHEMA', DB::connection()->getDatabaseName())
+            ->where('TABLE_NAME', '_shadow_test_b')
+            ->where('CONSTRAINT_NAME', '_shadow_test_b_fk')
+            ->where('REFERENCED_TABLE_NAME', '_shadow_test_a')
+            ->count();
+        $this->assertSame(1, $afterAdd, 'addForeignKeys must restore the FK with original references.');
     }
 
     #[Test]

@@ -54,9 +54,13 @@ class UpdateDefaultCards extends Command
             $this->line("inserted $count rows into $table.");
             Log::channel('scryfall')->notice("inserted $count rows into $table.");
         }
+        if ($this->defaultCardsService->relationsRetargeted > 0) {
+            $retargeted = number_format($this->defaultCardsService->relationsRetargeted, 0, ',', '.');
+            $this->line("re-targeted $retargeted orphan default_card_relations edges to default printings of the same oracle.");
+        }
         if ($this->defaultCardsService->relationsSkippedOrphan > 0) {
             $skipped = number_format($this->defaultCardsService->relationsSkippedOrphan, 0, ',', '.');
-            $this->line("filtered $skipped orphan default_card_relations edges (related printing not in bulk).");
+            $this->line("dropped $skipped default_card_relations edges (no matching oracle in default_cards).");
         }
         if ($this->defaultCardsService->relationsSkippedComponent > 0) {
             $skipped = number_format($this->defaultCardsService->relationsSkippedComponent, 0, ',', '.');

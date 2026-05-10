@@ -58,6 +58,8 @@ class DefaultCardsService extends ScryfallService
 
     public int $relationsSkippedComponent = 0;
 
+    public int $relationsRetargeted = 0;
+
     public int $relationsSkippedOrphan = 0;
 
     public function __construct()
@@ -145,15 +147,18 @@ class DefaultCardsService extends ScryfallService
      *
      * Skips entries with an unknown `component` value (Scryfall could
      * theoretically add a fifth) and self-references (Scryfall sometimes
-     * lists the source itself as a `combo_piece`). FK safety is implicit:
-     * the buffer is only flushed at the end of the file walk by
-     * {@see flushRelationsBuffer()}, by which point every printing
-     * referenced here has been inserted by {@see insertCard()}.
+     * lists the source itself as a `combo_piece`).
+     *
+     * The related card's display `name` is captured alongside the FK so
+     * {@see flushRelationsBuffer()} can re-target orphan edges (where
+     * Scryfall's all_parts.id points at a printing not in default_cards)
+     * to a valid printing of the same oracle.
      *
      * Periodic mid-walk flushing is deliberately NOT done — a relation
      * row whose related_id sits later in the bulk would FK-fail if
-     * flushed before its target card was inserted. ~120 k rows × ~50 B
-     * = ~6 MB peak, freed after the single end-of-walk flush.
+     * flushed before its target card was inserted. ~120 k rows × ~80 B
+     * (with the name field) = ~10 MB peak, freed after the single
+     * end-of-walk flush.
      *
      * @param  array  $card  A single card object from the bulk JSON.
      */
@@ -177,29 +182,30 @@ class DefaultCardsService extends ScryfallService
             $this->relationsBuffer[] = [
                 'source_default_card_id' => $card['id'],
                 'related_default_card_id' => $relatedId,
+                'related_name' => $part['name'] ?? null,
                 'component' => $component->value,
             ];
         }
     }
 
     /**
-     * Bulk-insert the buffered relations in chunks and clear the buffer.
+     * Resolve buffered edges and bulk-insert in chunks, then clear the buffer.
      *
-     * Chunked to stay under MySQL's 65 535-placeholder ceiling per
-     * prepared statement (3 columns × 5 000 rows = 15 000 placeholders,
-     * comfortable headroom). `insertOrIgnore` drops duplicate composite
-     * keys (Scryfall sometimes emits the same edge twice across reprints).
+     * Chunked to stay under MySQL's 65 535-placeholder ceiling per prepared
+     * statement (3 columns × 5 000 rows = 15 000 placeholders, comfortable
+     * headroom). `insertOrIgnore` drops duplicate composite keys (Scryfall
+     * sometimes emits the same edge twice across reprints).
      *
-     * Orphan filtering: Scryfall emits ~2 000 edges per bulk that reference
-     * printings not present in default_cards (e.g. tokens cross-referenced
-     * from a non-bulk printing). The old live flow relied on the
-     * default_card_relations.related_default_card_id FK to convert these
-     * into INSERT IGNORE warnings. Shadow tables have no FK constraints
-     * during build (CREATE TABLE LIKE doesn't copy them — see
-     * {@see ShadowTableService::restoreForeignKeys()}), so we filter
-     * orphans here at the application level instead. Without this, the
-     * pre-swap orphan validator aborts the run with thousands of
-     * legitimate-but-unresolvable edges.
+     * Orphan re-targeting: Scryfall emits ~2 000 edges per bulk where
+     * `all_parts.id` points at a printing not in default_cards (foreign-
+     * language UUID, excluded layout, printing variant Scryfall didn't pick
+     * for the bulk, etc.). Rather than drop these silently like the old
+     * live flow did via FK-violation-as-IGNORE, we re-target them to a
+     * valid printing of the same oracle: look up the related card's
+     * display name (captured by {@see bufferRelations()}) in a
+     * `searchable_name → default_cards.id` map, and rewrite the FK to
+     * point at that printing. Edges whose oracle has no matching
+     * default_cards entry at all are dropped as a last resort.
      */
     private function flushRelationsBuffer(): void
     {
@@ -207,20 +213,69 @@ class DefaultCardsService extends ScryfallService
             return;
         }
 
-        $validIds = DB::table($this->defaultCardsTable)->pluck('id')->all();
-        $validIdSet = array_flip($validIds);
-        $filtered = array_values(array_filter(
-            $this->relationsBuffer,
-            fn (array $edge): bool => isset($validIdSet[$edge['source_default_card_id']])
-                && isset($validIdSet[$edge['related_default_card_id']]),
-        ));
-        $orphanCount = count($this->relationsBuffer) - count($filtered);
-        $this->relationsSkippedOrphan += $orphanCount;
-        if ($orphanCount > 0) {
-            Log::channel('scryfall')->notice("filtered $orphanCount orphan default_card_relations edges (related printing not in bulk).");
+        $validIds = array_flip(
+            DB::table($this->defaultCardsTable)->pluck('id')->all()
+        );
+
+        // Build a "searchable_name → default_card.id" lookup so orphan
+        // edges can be re-targeted to a valid printing of the same oracle.
+        // MIN(dc.id) picks an arbitrary-but-stable printing per oracle.
+        $oracleCardsTable = $this->tableName('oracle_cards', $this->shadow);
+        $nameToDefaultCard = DB::table("$oracleCardsTable as oc")
+            ->join("{$this->defaultCardsTable} as dc", 'dc.oracle_id', '=', 'oc.id')
+            ->select('oc.searchable_name', DB::raw('MIN(dc.id) as default_card_id'))
+            ->groupBy('oc.searchable_name')
+            ->pluck('default_card_id', 'searchable_name')
+            ->all();
+
+        $resolved = [];
+        $retargeted = 0;
+        $dropped = 0;
+        foreach ($this->relationsBuffer as $edge) {
+            // The source is always the card we just inserted, so it must
+            // be in default_cards — defensive check, shouldn't fire.
+            if (! isset($validIds[$edge['source_default_card_id']])) {
+                $dropped++;
+
+                continue;
+            }
+            $relatedId = $edge['related_default_card_id'];
+            if (! isset($validIds[$relatedId])) {
+                // Orphan — try to re-target via name lookup.
+                $name = $edge['related_name'];
+                $newId = null;
+                if ($name !== null) {
+                    $normalized = CardNameNormalizer::normalize($name);
+                    $newId = $nameToDefaultCard[$normalized] ?? null;
+                }
+                if ($newId === null) {
+                    $dropped++;
+
+                    continue;
+                }
+                $relatedId = $newId;
+                $retargeted++;
+            }
+            $resolved[] = [
+                'source_default_card_id' => $edge['source_default_card_id'],
+                'related_default_card_id' => $relatedId,
+                'component' => $edge['component'],
+            ];
+        }
+        $this->relationsRetargeted += $retargeted;
+        $this->relationsSkippedOrphan += $dropped;
+        // Mirror to the process-local stats bag so UpdateEverything can
+        // surface these in its end-of-run summary.
+        ScryfallRunStats::$relationsRetargeted += $retargeted;
+        ScryfallRunStats::$relationsSkippedOrphan += $dropped;
+        if ($retargeted > 0) {
+            Log::channel('scryfall')->notice("re-targeted $retargeted orphan default_card_relations edges to default printings of the same oracle.");
+        }
+        if ($dropped > 0) {
+            Log::channel('scryfall')->notice("dropped $dropped default_card_relations edges (no matching oracle in default_cards).");
         }
 
-        foreach (array_chunk($filtered, 5000) as $chunk) {
+        foreach (array_chunk($resolved, 5000) as $chunk) {
             $this->relationsInserted += DB::table($this->defaultCardRelationsTable)->insertOrIgnore($chunk);
         }
         $this->relationsBuffer = [];

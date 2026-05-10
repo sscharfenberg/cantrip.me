@@ -124,22 +124,17 @@ class SymbolsService extends ScryfallService
         $this->shadow = $shadow;
         $this->symbolsTable = $this->tableName('symbols', $shadow);
         $this->setup();
-        try {
-            $response = $this->http()
-                ->get('https://api.scryfall.com/symbology');
-            if ($response->successful()) {
-                $symbols = $response->json();
-                if (array_key_exists('data', $symbols)) {
-                    collect($symbols['data'])->each(fn ($symbol) => $this->insertSymbol($symbol));
-                } else {
-                    Log::channel('scryfall')->error("Scryfall response successful, but json does not have a field 'data'.");
-                }
-            } else {
-                Log::channel('scryfall')->error('Scryfall response failed: '.$response->body());
-            }
-        } catch (\Exception $exception) {
-            Log::channel('scryfall')->error($exception->getMessage());
-            report($exception);
+        $response = $this->http()
+            ->get('https://api.scryfall.com/symbology');
+        if ($response->failed()) {
+            Log::channel('scryfall')->error('Scryfall response failed: '.$response->body());
+            throw new \RuntimeException('scryfall /symbology request failed with HTTP '.$response->status());
         }
+        $symbols = $response->json();
+        if (! array_key_exists('data', $symbols)) {
+            Log::channel('scryfall')->error("Scryfall response successful, but json does not have a field 'data'.");
+            throw new \RuntimeException("scryfall /symbology response missing 'data' field");
+        }
+        collect($symbols['data'])->each(fn ($symbol) => $this->insertSymbol($symbol));
     }
 }
