@@ -30,4 +30,15 @@ return [
         'line3' => 'If you did not request this, no further action is required.',
     ],
 
+    'scryfall_failure' => [
+        'subject' => '[cantrip.me] Scryfall update failed: :command',
+        'intro' => 'A scryfall update step failed on :host.',
+        'command_label' => 'Failing command:',
+        'exception_label' => 'Exception:',
+        'message_label' => 'Message:',
+        'location_label' => 'Location:',
+        'time_label' => 'Time:',
+        'closing' => 'See the scryfall log channel for the full stack trace.',
+    ],
+
 ];

@@ -30,4 +30,15 @@ return [
         'line3' => 'Wenn du diese Anfrage nicht gestellt hast, ist keine weitere Aktion erforderlich.',
     ],
 
+    'scryfall_failure' => [
+        'subject' => '[cantrip.me] Scryfall-Update fehlgeschlagen: :command',
+        'intro' => 'Ein Scryfall-Update-Schritt ist auf :host fehlgeschlagen.',
+        'command_label' => 'Fehlgeschlagener Befehl:',
+        'exception_label' => 'Exception:',
+        'message_label' => 'Nachricht:',
+        'location_label' => 'Datei:',
+        'time_label' => 'Zeitpunkt:',
+        'closing' => 'Den vollständigen Stack-Trace siehst du im Scryfall-Log-Channel.',
+    ],
+
 ];

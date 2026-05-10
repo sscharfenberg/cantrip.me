@@ -10,8 +10,8 @@ A Magic: The Gathering card collection manager with a focus on UX: Dark/Light mo
 
 * PHP 8.4+
 * Composer
-* Node 24.11+ / npm 11.3+
-* MariaDB
+* Node 26.1+ / npm 11.13+
+* MariaDB (MySQL might work as well)
 * `27.6 Gb` of harddisk space for image and json downloads. This will increase over time.
 
 ## Installation
@@ -287,7 +287,7 @@ The PHPUnit configuration in `phpunit.xml` defines two physically separate tests
 Runs the **`Local`** suite against the default SQLite in-memory driver. Fast, local, no DB setup required. Covers all unit tests and the write-heavy feature tests that use `RefreshDatabase` — those need a fresh schema each run, which is cheap on `:memory:` SQLite and catastrophic on a real MariaDB.
 
 ```bash
-composer test                                         # Local suite (94 tests)
+composer test                                         # Local suite (189 tests)
 composer test -- --filter=DeckFinalizeServiceTest     # filtered (note the `--`)
 ```
 
@@ -297,7 +297,7 @@ Runs the **`Staging`** suite against MariaDB. Use this on staging (or any server
 
 ```bash
 # On staging
-composer test:mysql                                   # Staging suite (~36 tests)
+composer test:mysql                                   # Staging suite (36 tests)
 composer test:mysql -- --filter=DeckServiceTest       # filtered (note the `--`)
 ```
 
