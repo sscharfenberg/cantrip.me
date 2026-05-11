@@ -127,6 +127,16 @@ const cardSearch = useTemplateRef<{ focus: () => void }>("cardSearch");
 onMounted(() => {
     if (!isEditMode) cardSearch.value?.focus();
 });
+/**
+ * "Save and add more" success handler. The Form is keyed on
+ * `searchKey`; bumping it via resetToDefaults() remounts the form and
+ * its CardStackSearch child, which drops focus. Re-focus after the
+ * remount so the next card name can be typed without grabbing the mouse.
+ */
+function onAddMoreSuccess() {
+    resetToDefaults();
+    nextTick(() => cardSearch.value?.focus());
+}
 /** Called when the user selects a card from search results. */
 function onCardSelected(card: DefaultCardImage) {
     availableFinishes.value = card.finishes;
@@ -180,7 +190,7 @@ const unclaim = () => {
         :action="isEditMode ? `/collection/cardstack/${cardStack!.id}` : '/collection/add'"
         :method="isEditMode ? 'patch' : 'post'"
         class="form"
-        @success="isEditMode ? undefined : resetToDefaults()"
+        @success="isEditMode ? undefined : onAddMoreSuccess()"
         #default="{ validate, processing, validating, errors, valid }"
     >
         <card-stack-defaults

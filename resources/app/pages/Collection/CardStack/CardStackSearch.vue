@@ -44,10 +44,24 @@ defineExpose({
         @cleared="emit('cleared')"
     >
         <template #result="{ card }">
-            <card-face-image :card="card as DefaultCardImage" interactive />
+            <card-face-image
+                v-if="(card as DefaultCardImage).card_image_0"
+                :card="card as DefaultCardImage"
+                interactive
+            />
         </template>
         <template #selected="{ card }">
-            <card-face-image :card="card as DefaultCardImage" />
+            <card-face-image v-if="(card as DefaultCardImage).card_image_0" :card="card as DefaultCardImage" />
         </template>
     </card-search>
 </template>
+
+<style lang="scss" scoped>
+// Hide result entries whose card has no face-image — gated by the v-if
+// on <card-face-image> above. The :has() selector keeps the empty <li>
+// (rendered by Results.vue, outside this component) from leaving a
+// clickable hole in the grid.
+:deep(.result:not(:has(.face-image))) {
+    display: none;
+}
+</style>
