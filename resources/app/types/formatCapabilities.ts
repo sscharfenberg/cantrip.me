@@ -17,4 +17,5 @@ export type FormatCapabilities = {
     enforcesColorIdentity: boolean;
     hasSignatureSpell: boolean;
     companionPlacement: "sideboard" | "outside";
+    usesGameChangerList: boolean;
 };

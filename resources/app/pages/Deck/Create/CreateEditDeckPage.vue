@@ -397,8 +397,15 @@ setBreadcrumbs(
         </form-group>
         <!-- Commander Bracket — optional, no preselection. Clearable so
              the user can drop the choice after picking. Submitted as a
-             hidden input; the controller stores null when empty. -->
-        <form-group :label="$t('form.fields.deck_bracket')" :error="errors.bracket ?? ''" :invalid="!!errors?.bracket">
+             hidden input; the controller stores null when empty.
+             Only rendered for formats that use the Wizards Game Changer
+             list (currently the official Commander format only). -->
+        <form-group
+            v-if="selectedCapabilities?.usesGameChangerList"
+            :label="$t('form.fields.deck_bracket')"
+            :error="errors.bracket ?? ''"
+            :invalid="!!errors?.bracket"
+        >
             <mono-select
                 :options="bracketOptions"
                 :selected="bracket"
@@ -434,7 +441,7 @@ setBreadcrumbs(
              post-finalize cleanup paths. Submits as a hidden input so
              the wrapping <Form> picks it up alongside the other fields. -->
         <form-group
-            v-if="isEdit && containers.length > 0"
+            v-if="isEdit && containers?.length"
             :label="$t('form.fields.deck_container')"
             :error="errors.container_id ?? ''"
             :invalid="!!errors?.container_id"

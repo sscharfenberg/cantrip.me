@@ -227,12 +227,15 @@ class DecksController extends Controller
             $profile = $format?->rules();
             $requiresCommander = $profile !== null && $profile->requiresCommander();
             $requiresSignatureSpell = $requiresCommander && $profile->hasSignatureSpell();
+            $usesGameChangerList = $profile !== null && $profile->usesGameChangerList();
 
             $request->validate([
                 'format' => ['required', 'string', Rule::enum(CardFormat::class)],
                 'deck_name' => ['required', 'string', 'max:'.Deck::NAME_MAX],
                 'deck_description' => ['nullable', 'string', 'max:'.Deck::DESCRIPTION_MAX],
-                'bracket' => ['nullable', 'integer', 'between:1,5'],
+                'bracket' => $usesGameChangerList
+                    ? ['nullable', 'integer', 'between:1,5']
+                    : ['prohibited'],
                 'commander_id' => [
                     $requiresCommander ? 'required' : 'nullable',
                     'string',
@@ -867,12 +870,15 @@ class DecksController extends Controller
             $profile = $deck->format->rules();
             $requiresCommander = $profile->requiresCommander();
             $requiresSignatureSpell = $requiresCommander && $profile->hasSignatureSpell();
+            $usesGameChangerList = $profile->usesGameChangerList();
 
             $request->validate([
                 'deck_name' => ['required', 'string', 'max:'.Deck::NAME_MAX],
                 'deck_description' => ['nullable', 'string', 'max:'.Deck::DESCRIPTION_MAX],
                 'deck_visibility' => ['required', Rule::enum(ContainerVisibility::class)],
-                'bracket' => ['nullable', 'integer', 'between:1,5'],
+                'bracket' => $usesGameChangerList
+                    ? ['nullable', 'integer', 'between:1,5']
+                    : ['prohibited'],
                 'commander_id' => [
                     $requiresCommander ? 'required' : 'nullable',
                     'string',
