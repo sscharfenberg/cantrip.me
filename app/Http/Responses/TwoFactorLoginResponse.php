@@ -16,12 +16,7 @@ class TwoFactorLoginResponse implements TwoFactorLoginResponseContract
      * so the same locale problem as LoginResponse applies: ConfigureLocale
      * middleware runs before the challenge is verified, leaving Auth::user()
      * null at that point and the locale at the browser/session default.
-     * Re-set it from the user's stored preference before translating the flash.
-     *
-     * The flash must also be set before the wantsJson() branch for the same
-     * reason as LoginResponse — the frontend drives navigation via
-     * router.visit('/dashboard') and the session must already contain the
-     * flash when that Inertia request arrives.
+     * Re-set it from the user's stored preference before responding.
      *
      * @param  mixed  $request
      * @return Response
@@ -34,9 +29,6 @@ class TwoFactorLoginResponse implements TwoFactorLoginResponseContract
         if ($user = $request->user()) {
             app()->setLocale($user->locale->value);
         }
-
-        $request->session()->flash('message', __('auth.logged_in'));
-        $request->session()->flash('type', 'success');
 
         if ($request->wantsJson()) {
             return new JsonResponse([
