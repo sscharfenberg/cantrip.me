@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-cantrip.me — a Magic: The Gathering card collection manager. Laravel 13 + Vue 3 + Inertia.js, currently WIP.
+cantrip.me — a Magic: The Gathering card collection manager. Laravel 13 + Vue 3 + Inertia.js.
 
 ## Commands
 

@@ -50,6 +50,13 @@ class CommandZoneService
             ));
         }
 
+        if ($parsed['collector_number']) {
+            $query->whereHas(
+                'defaults',
+                fn (Builder $q) => $q->where('collector_number', $parsed['collector_number'])
+            );
+        }
+
         foreach ($parsed['normalized_name_segments'] as $segment) {
             $query->where('searchable_name', 'like', "%$segment%");
         }
@@ -221,6 +228,13 @@ class CommandZoneService
                 'set',
                 fn (Builder $sq) => $sq->where('code', $parsed['set_code'])
             ));
+        }
+
+        if ($parsed['collector_number']) {
+            $query->whereHas(
+                'defaults',
+                fn (Builder $q) => $q->where('collector_number', $parsed['collector_number'])
+            );
         }
 
         foreach ($parsed['normalized_name_segments'] as $segment) {
