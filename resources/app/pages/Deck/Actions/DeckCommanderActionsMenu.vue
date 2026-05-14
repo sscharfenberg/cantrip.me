@@ -99,7 +99,7 @@ async function switchPrinting(printing: DeckPrinting): Promise<void> {
         body: JSON.stringify({ default_card_id: printing.id })
     });
     if (response.ok) {
-        router.reload({ only: ["deck", "commanders"] });
+        router.reload({ only: ["deck", "commanders", "tokens"] });
     }
 }
 /**
@@ -125,7 +125,7 @@ async function changeCommander(commander: CommanderResult, second: CommanderResu
         body: JSON.stringify(body)
     });
     if (response.ok) {
-        router.reload({ only: ["deck", "commanders", "cards", "violations"] });
+        router.reload({ only: ["deck", "commanders", "cards", "violations", "tokens"] });
     }
 }
 </script>

@@ -92,7 +92,7 @@ async function removeCompanion(): Promise<void> {
         return;
     }
     router.reload({
-        only: ["deck", "companion", "cards", "violations"],
+        only: ["deck", "companion", "cards", "violations", "tokens"],
         onFinish: () => {
             removing.value = false;
         }
@@ -110,7 +110,7 @@ async function switchPrinting(printing: DeckPrinting): Promise<void> {
         body: JSON.stringify({ default_card_id: printing.id })
     });
     if (response.ok) {
-        router.reload({ only: ["deck", "companion"] });
+        router.reload({ only: ["deck", "companion", "tokens"] });
     }
 }
 </script>

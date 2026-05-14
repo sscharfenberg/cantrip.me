@@ -74,7 +74,7 @@ async function addCard(result: DeckSearchResult, zone: string): Promise<void> {
                 searchInput.value?.focus();
                 searchInput.value?.select();
             });
-            router.reload({ only: ["cards", "deck", "violations"] });
+            router.reload({ only: ["cards", "deck", "violations", "tokens"] });
         }
     } finally {
         adding.value = false;
