@@ -942,6 +942,8 @@
                     "row": "{color} {count} pips, {percent}% of all colored pips",
                     "cost_aria": "Cost - {color}: {count} pips ({percent}%)",
                     "production_aria": "Production - {color}: {count} pips ({percent}%)",
+                    "cost_tooltip": "Cost: {count} {symbol} pips",
+                    "production_tooltip": "Production: {count} {symbol} pips",
                     "karsten": {
                         "title": "Mana sources",
                         "sufficient": "{color} {have} sources, {need} recommended.",

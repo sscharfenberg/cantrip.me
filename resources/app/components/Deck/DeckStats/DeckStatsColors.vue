@@ -286,6 +286,36 @@ const ariaForProduction = (seg: Segment): string =>
         count: seg.count,
         percent: formatPercent(seg.percent)
     });
+
+/**
+ * Mana-symbol image markup for inline use inside HTML tooltip strings.
+ * Inlined styling because the FloatingVue tooltip popper renders at
+ * `body` level — the component's scoped `.color-donut__symbol` rule
+ * would not apply.
+ */
+const symbolImg = (color: HighlightColor): string => {
+    const alt = t(`pages.deck.stats.colors.color.${color}`);
+    return `<img src="/symbol/${color}.svg" alt="${alt}" style="width:1em;height:1em;vertical-align:-0.15em;margin:0 0.15em;" />`;
+};
+
+/**
+ * Tooltip body for an outer-ring (cost) segment — "Cost: {count}
+ * {symbol} pips" with the WUBRG symbol rendered inline. FloatingVue is
+ * configured with `html: true` (see main.ts) so the returned string is
+ * mounted as HTML.
+ */
+const tooltipForCost = (seg: Segment): string =>
+    t("pages.deck.stats.colors.cost_tooltip", {
+        count: seg.count,
+        symbol: symbolImg(seg.color)
+    });
+
+/** Tooltip body for an inner-ring (production) segment — same shape as `tooltipForCost`. */
+const tooltipForProduction = (seg: Segment): string =>
+    t("pages.deck.stats.colors.production_tooltip", {
+        count: seg.count,
+        symbol: symbolImg(seg.color)
+    });
 </script>
 
 <template>
@@ -305,6 +335,7 @@ const ariaForProduction = (seg: Segment): string =>
                     <path
                         v-for="seg in outerSegments"
                         :key="`outer-${seg.color}`"
+                        v-tooltip="{ content: tooltipForCost(seg), html: true }"
                         class="color-donut__segment"
                         :class="[
                             `color-donut__segment--${seg.color}`,
@@ -335,6 +366,7 @@ const ariaForProduction = (seg: Segment): string =>
                     <path
                         v-for="seg in innerSegments"
                         :key="`inner-${seg.color}`"
+                        v-tooltip="{ content: tooltipForProduction(seg), html: true }"
                         class="color-donut__segment"
                         :class="[
                             `color-donut__segment--${seg.color}`,

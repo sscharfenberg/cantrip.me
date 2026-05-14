@@ -942,6 +942,8 @@
                     "row": "{color} {count} Pips, {percent}% aller farbigen Pips",
                     "cost_aria": "Kosten - {color}: {count} Pips ({percent}%)",
                     "production_aria": "Produktion - {color}: {count} Pips ({percent}%)",
+                    "cost_tooltip": "Kosten: {count} {symbol} Pips",
+                    "production_tooltip": "Produktion: {count} {symbol} Pips",
                     "karsten": {
                         "title": "Manaquellen",
                         "sufficient": "{color} {have} Quellen, {need} empfohlen.",
