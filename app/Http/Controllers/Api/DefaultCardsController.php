@@ -79,6 +79,10 @@ class DefaultCardsController extends Controller
         if ($base === null) {
             return response()->json(['total' => 0, 'results' => []]);
         }
+        // Drop printings with no face image — the UI can't render them and
+        // they'd leave a clickable empty cell in the results grid. Mirrors
+        // the `whereNotNull('art_crop')` filter in `artCropSearch`.
+        $base->whereNotNull('default_cards.card_image_0');
 
         $total = (clone $base)->count();
 
