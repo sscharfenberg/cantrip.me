@@ -127,8 +127,16 @@ class DefaultCardsService extends ScryfallService
             'artist_id' => $this->artistsService->resolveArtistId($card['artist'] ?? null),
         ];
         // nullable values
-        if (array_key_exists('oracle_id', $card)) {
+        if (array_key_exists('oracle_id', $card) && $card['oracle_id'] !== null) {
             $arr['oracle_id'] = $card['oracle_id'];
+        } elseif (isset($card['card_faces'][0]['oracle_id'])) {
+            // Reversible cards (layout=reversible_card) ship a NULL top-level
+            // oracle_id from Scryfall — each face carries its own. Fall back
+            // to face[0]'s oracle so the printing stays joinable in any query
+            // gated by oracle_id (notably the deck card-add search, which
+            // applies legality + color identity on oracle_cards and would
+            // otherwise drop these printings entirely).
+            $arr['oracle_id'] = $card['card_faces'][0]['oracle_id'];
         }
         if (array_key_exists('layout', $card)) {
             $arr['layout'] = $card['layout'];
