@@ -1320,7 +1320,11 @@
             "loading": "Lade Kartendetails…",
             "error": "Kartendetails konnten nicht geladen werden.",
             "game_changer": "Diese Karte steht auf der Commander Game-Changer-Liste.",
-            "mld": "Diese Karte zählt in Commander als Massen Landzerstörung."
+            "mld": "Diese Karte zählt in Commander als Massen Landzerstörung.",
+            "collection": {
+                "same_printing": "In deiner Sammlung",
+                "other_printings": "Andere Editionen, die du besitzt"
+            }
         },
         "badges": {
             "game_changer": "Game Changer",

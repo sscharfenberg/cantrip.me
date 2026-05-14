@@ -13,6 +13,33 @@ export interface CardRuling {
     comment: string;
 }
 
+/** One stack of the previewed printing in the viewer's own collection. */
+export interface CollectionSamePrintingEntry {
+    /** Container name or null when the stack is unsorted. */
+    container_name: string | null;
+    amount: number;
+}
+
+/** One stack of a *different* printing of the same oracle card in the viewer's collection. */
+export interface CollectionOtherPrintingEntry {
+    default_card_id: string;
+    set_code: string | null;
+    set_name: string | null;
+    set_path: string | null;
+    collector_number: string;
+    /** Front-face image URL; rendered as a tiny thumbnail in the modal. */
+    card_image_0: string | null;
+    /** Container name or null when the stack is unsorted. */
+    container_name: string | null;
+    amount: number;
+}
+
+/** Viewer-collection block — present only for authenticated requests. */
+export interface CollectionInfo {
+    same_printing: CollectionSamePrintingEntry[];
+    other_printings: CollectionOtherPrintingEntry[];
+}
+
 /**
  * Response shape from the card preview endpoints.
  *
@@ -62,4 +89,11 @@ export interface CardPreview {
      * preview modal body. Stack-only.
      */
     claims?: StackClaim[];
+    /**
+     * Viewer-collection info — shipped only when the request is
+     * authenticated. Always reflects the *viewer's* collection, not
+     * the stack owner's, so a viewer browsing someone else's public
+     * stack still sees what they personally own.
+     */
+    collection?: CollectionInfo;
 }

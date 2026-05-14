@@ -49,7 +49,7 @@ class CardStackPreviewController extends Controller
 
         $claims = CardStackClaimService::bulkClaimsForStacks([$cardStack->id])[$cardStack->id] ?? [];
 
-        return response()->json([
+        $payload = [
             ...CardPreviewService::payloadFor($card, $currency),
             'price' => (float) ($priceRow->unit_price ?? 0),
             'amount' => $cardStack->amount,
@@ -61,6 +61,12 @@ class CardStackPreviewController extends Controller
             'total_price' => (float) ($priceRow->stack_price ?? 0),
             'proxy' => (bool) $cardStack->proxy,
             'claims' => $claims,
-        ]);
+        ];
+
+        if ($user = $request->user()) {
+            $payload['collection'] = CardPreviewService::collectionInfoFor($card, $user);
+        }
+
+        return response()->json($payload);
     }
 }

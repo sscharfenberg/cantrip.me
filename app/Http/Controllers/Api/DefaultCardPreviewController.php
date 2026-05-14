@@ -37,6 +37,10 @@ class DefaultCardPreviewController extends Controller
             $payload['total_price'] = (float) $payload['price'] * $quantity;
         }
 
+        if ($user = $request->user()) {
+            $payload['collection'] = CardPreviewService::collectionInfoFor($defaultCard, $user);
+        }
+
         return response()->json($payload);
     }
 }

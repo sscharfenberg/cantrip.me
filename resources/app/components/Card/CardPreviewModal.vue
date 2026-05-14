@@ -10,6 +10,7 @@ import CardRulings from "Components/Card/CardRulings.vue";
 import ManaCost from "Components/Card/ManaCost.vue";
 import CardStackClaimBadge from "Components/Collection/CardStackClaimBadge.vue";
 import Modal from "Components/Modal/Modal.vue";
+import Headline from "Components/UI/Headline.vue";
 import Icon from "Components/UI/Icon.vue";
 import LoadingSpinner from "Components/UI/LoadingSpinner.vue";
 import { useFormatting } from "Composables/useFormatting";
@@ -172,6 +173,51 @@ onMounted(async () => {
                         </dd>
                     </template>
                 </dl>
+                <div v-if="card.collection?.same_printing.length" class="cardstack-preview__collection">
+                    <headline :size="4">{{ t("components.card_preview.collection.same_printing") }}</headline>
+                    <ul class="cardstack-preview__copies">
+                        <li v-for="(entry, i) in card.collection.same_printing" :key="`same-${i}`">
+                            <span class="cardstack-preview__copies-container">
+                                <em v-if="!entry.container_name">
+                                    {{ t("pages.collection.unsorted") }}
+                                </em>
+                                <template v-else>{{ entry.container_name }}</template>
+                            </span>
+                            <span class="cardstack-preview__copies-amount"> {{ formatDecimals(entry.amount) }}× </span>
+                        </li>
+                    </ul>
+                </div>
+                <div v-if="card.collection?.other_printings.length" class="cardstack-preview__collection">
+                    <headline :size="4">{{ t("components.card_preview.collection.other_printings") }}</headline>
+                    <ul class="cardstack-preview__copies">
+                        <li v-for="(entry, i) in card.collection.other_printings" :key="`other-${i}`">
+                            <img
+                                v-if="entry.card_image_0"
+                                :src="entry.card_image_0"
+                                :alt="`[${entry.set_code?.toUpperCase()}] #${entry.collector_number}`"
+                                class="cardstack-preview__copies-thumb"
+                                loading="lazy"
+                            />
+                            <span class="cardstack-preview__copies-printing">
+                                <img
+                                    v-if="entry.set_path"
+                                    :src="entry.set_path"
+                                    :alt="`[${entry.set_code?.toUpperCase()}] ${entry.set_name}`"
+                                    class="cardstack-preview__copies-set"
+                                />
+                                <span> [{{ entry.set_code?.toUpperCase() }}] #{{ entry.collector_number }} </span>
+                            </span>
+                            <span class="cardstack-preview__copies-container">
+                                <em v-if="!entry.container_name">
+                                    {{ t("pages.collection.unsorted") }}
+                                </em>
+                                <template v-else>{{ entry.container_name }}</template>
+                            </span>
+                            <span class="cardstack-preview__copies-amount"> {{ formatDecimals(entry.amount) }}× </span>
+                        </li>
+                    </ul>
+                </div>
+
                 <br />
                 <a
                     v-if="card.scryfall_uri"
@@ -202,6 +248,10 @@ onMounted(async () => {
         min-width: map.get(s.$components, "modal", "max-width");
     }
 }
+
+:deep(.cardstack-preview__collection h4) {
+    margin-top: 1rem;
+}
 </style>
 
 <style lang="scss">
@@ -209,7 +259,7 @@ onMounted(async () => {
 // dark mode needs the (black filled svg) image reverted so it is visible.
 @use "Abstracts/mixins" as m;
 
-@include m.theme-dark(".cardstack-preview__set img") {
+@include m.theme-dark(".cardstack-preview__set img, .cardstack-preview__copies-set") {
     filter: invert(1);
 }
 </style>

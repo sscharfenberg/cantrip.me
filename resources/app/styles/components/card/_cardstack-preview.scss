@@ -91,6 +91,57 @@
         flex-grow: 1;
     }
 
+    &__copies {
+        display: flex;
+        flex-direction: column;
+
+        padding: 0;
+
+        margin: 0;
+        gap: 0.5rem;
+
+        list-style: none;
+
+        li {
+            display: flex;
+            align-items: center;
+
+            gap: 0.5rem;
+        }
+    }
+
+    &__copies-thumb {
+        width: map.get(s.$components, "cardstack-preview", "thumb", "width");
+        height: map.get(s.$components, "cardstack-preview", "thumb", "height");
+
+        border-radius: map.get(s.$components, "cardstack-preview", "thumb", "radius");
+
+        object-fit: cover;
+        object-position: top center;
+    }
+
+    &__copies-printing {
+        display: flex;
+        align-items: center;
+
+        gap: 0.25rem;
+    }
+
+    &__copies-set {
+        width: map.get(s.$components, "cardstack-preview", "set", "width");
+        height: map.get(s.$components, "cardstack-preview", "set", "height");
+
+        filter: none;
+    }
+
+    &__copies-container {
+        flex-grow: 1;
+    }
+
+    &__copies-amount {
+        font-weight: 600;
+    }
+
     &__meta {
         display: flex;
         flex-direction: column;

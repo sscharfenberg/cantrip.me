@@ -6,5 +6,10 @@ $cardstack-preview: (
     "set": (
         "width": map.get(s.$icons, "medium"),
         "height": map.get(s.$icons, "medium")
+    ),
+    "thumb": (
+        "width": 1.75rem,
+        "height": 2.4rem,
+        "radius": 0.125rem
     )
 );

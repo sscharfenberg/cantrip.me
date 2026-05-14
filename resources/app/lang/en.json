@@ -1320,7 +1320,11 @@
             "loading": "Loading card details…",
             "error": "Could not load card details.",
             "game_changer": "This card is on the Commander Game Changer list.",
-            "mld": "This card counts as Mass Land Denial in Commander."
+            "mld": "This card counts as Mass Land Denial in Commander.",
+            "collection": {
+                "same_printing": "In your collection",
+                "other_printings": "Other printings you own"
+            }
         },
         "badges": {
             "game_changer": "Game Changer",
