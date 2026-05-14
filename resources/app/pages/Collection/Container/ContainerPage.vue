@@ -75,7 +75,7 @@ setBreadcrumbs(
         </li>
         <li><icon name="deck" />{{ cardsCountLabel }}</li>
         <li><icon name="money" />{{ formatPrice(container.totalPrice) }}</li>
-        <li>
+        <li v-if="isOwner">
             <Link class="btn-default" :href="`/containers/${container.id}/add`">
                 <icon name="add" :size="1" />
                 {{ $t("pages.add_cards.link") }}
