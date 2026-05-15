@@ -839,28 +839,32 @@
                 "set_built_label": "Den Status dieses Decks zusätzlich auf „fertig\" setzen",
                 "submit": "Alle hinzufügen"
             },
-            "finalize": {
-                "title": "{name} fertigstellen",
-                "heading": "Ordne dem Deck physische Kartenstapel zu",
-                "intro": "Wähle die Stapel aus deiner Sammlung, die du für dieses Deck reservieren möchtest. Du kannst diesen Schritt komplett überspringen oder einzelne Zeilen leer lassen - du kannst jederzeit zurückkommen.",
-                "col_needed": "Benötigt im Deck",
-                "col_assignment": "Aus deiner Sammlung zuordnen",
-                "no_match": "Kein passender Stapel in deiner Sammlung.",
+            "bulk_claim": {
+                "title": "Karten für {name} reservieren",
+                "heading": "Physische Stapel für dieses Deck reservieren",
+                "intro": "Wähle die Stapel aus deiner Sammlung, die du für dieses Deck reservieren möchtest. Nicht angefasste Zeilen bleiben unreserviert und tauchen auf der nächsten Seite auf.",
+                "empty": "Alle Karten dieses Decks sind bereits reserviert.",
+                "col_assignment": "Stapel wählen",
+                "col_assignment_alt": "Druck wählen",
                 "stack_label": "{type}: {name} (×{amount})",
                 "stack_unsorted": "Unsortiert (×{amount})",
+                "alt_stack_label": "{printing} — ×{amount} in {where}",
+                "printing_unknown": "(unbekannter Druck)",
+                "unsorted": "Unsortiert",
+                "section_exact": "Genauer Druck in deiner Sammlung verfügbar",
+                "section_alt": "Anderer Druck in deiner Sammlung verfügbar",
+                "section_missing": "Nicht in deiner Sammlung",
                 "container_heading": "Container für dieses Deck",
-                "container_hint": "Optional. Eine Deck Box ist der empfohlene Container-Typ - Auswahl aus deiner Sammlung.",
+                "container_hint": "Optional. Eine Deck Box ist der empfohlene Container-Typ.",
                 "container_unset": "- Kein Container -",
                 "deckbox_hint": "Empfohlen",
-                "partial_coverage": "{claimed} von {needed} werden reserviert; der Rest bleibt offen.",
                 "buy_new": {
-                    "label": "Die fehlenden Exemplare habe ich gerade gekauft",
-                    "will_create": "Fügt {amount}× zur Sammlung hinzu.",
-                    "fully_covered": "Bereits durch deine Auswahl gedeckt."
+                    "label_partial": "Ich habe gerade {amount} weitere Exemplare gekauft",
+                    "label_full": "Ich habe gerade alle {amount} Exemplare gekauft"
                 },
-                "submit": "Deck fertigstellen",
-                "skip": "Überspringen - ohne Reservierung fertigstellen",
-                "back": "Zurück zum Deck"
+                "submit": "Karten reservieren",
+                "back": "Zurück zum Deck",
+                "menu_link": "Karten reservieren"
             },
             "legality": {
                 "title": "{count} Legalitätsproblem | {count} Legalitätsprobleme",

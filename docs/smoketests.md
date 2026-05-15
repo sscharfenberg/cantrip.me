@@ -8,18 +8,41 @@ The `decks.collection_mode` column is no longer inferred. It is set explicitly b
 
 ### Pre-deploy
 
-- Production data: any deck rows with `collection_mode IS NULL` must be backfilled before this migration is re-run. The column is now `NOT NULL DEFAULT 'A'`. Suggested backfill rule (mirrors the previous inference):
-  ```sql
-  -- Pinned-C stays C.
-  UPDATE decks SET collection_mode = 'C' WHERE collection_mode IS NULL AND id IN (
-      SELECT DISTINCT dc.deck_id FROM deck_cards dc
-      JOIN deck_card_card_stack p ON p.deck_card_id = dc.id
-  );
-  -- Has container → B.
-  UPDATE decks SET collection_mode = 'B' WHERE collection_mode IS NULL AND container_id IS NOT NULL;
-  -- Everything else → A.
-  UPDATE decks SET collection_mode = 'A' WHERE collection_mode IS NULL;
-  ```
+The migration file changed an existing column (`nullable` → `NOT NULL DEFAULT 'A'`). Laravel won't re-run an already-applied migration, so existing databases need a manual one-time SQL pass.
+
+**Order matters:** backfill all NULL rows first, then flip the column. A `NOT NULL` flip on a column that still has NULL rows aborts.
+
+```sql
+-- 1. Backfill NULLs per the previous inference rules.
+UPDATE decks
+   SET collection_mode = 'C'
+ WHERE collection_mode IS NULL
+   AND id IN (
+       SELECT DISTINCT dc.deck_id
+         FROM deck_cards dc
+         JOIN deck_card_card_stack p ON p.deck_card_id = dc.id
+   );
+
+UPDATE decks
+   SET collection_mode = 'B'
+ WHERE collection_mode IS NULL
+   AND container_id IS NOT NULL;
+
+UPDATE decks
+   SET collection_mode = 'A'
+ WHERE collection_mode IS NULL;
+
+-- 2. Flip the column. Quote the literal — bare `DEFAULT A` makes MariaDB
+--    parse `A` as a column reference and fail with "Unknown column 'A'".
+ALTER TABLE decks
+MODIFY COLUMN collection_mode VARCHAR(1)
+    CHARACTER SET utf8mb4
+    COLLATE utf8mb4_unicode_ci
+    NOT NULL
+    DEFAULT 'A';
+```
+
+Verify with `SELECT collection_mode, COUNT(*) FROM decks GROUP BY collection_mode;` after step 1 — there should be no NULL bucket. Then run step 2.
 
 ### Owner flow
 
@@ -83,7 +106,62 @@ Any deck state (`planned` / `built` / `archived`) can transition to any other di
 ### Automated coverage (delta)
 
 ```bash
-composer test -- --filter="DeckFinalizeControllerTest"
+composer test -- --filter="DeckBulkClaimControllerTest"
 ```
 
-The added `set_state_endpoint_free_flips_between_every_pair_of_states` test walks every (from → to) pair.
+The `set_state_endpoint_free_flips_between_every_pair_of_states` test walks every (from → to) pair.
+
+## PR 2 — BulkClaim rename + restructure
+
+The planned→built finalize wizard has been renamed and restructured. Route `/decks/{deck}/finalize` is now `/decks/{deck}/bulk-claim`, the controller methods are `bulkClaim` / `storeBulkClaim`, and the page lives at `resources/app/pages/Deck/BulkClaim/BulkClaimCardsPage.vue`. State transitions are no longer driven by submitting the page (PR 1 decoupled state).
+
+### Owner flow (mode C deck)
+
+- [ ] Open an owned mode-C deck with at least one unclaimed card. The deck-actions menu shows a "Claim cards" entry.
+- [ ] Click "Claim cards" — `/decks/{id}/bulk-claim` opens, breadcrumb shows the deck name + "Claim cards for {name}".
+- [ ] Header reads "Claim physical card stacks for this deck". There is no "Skip" button; the only primary button is "Claim cards".
+
+### §1 exact printing
+
+- [ ] At least one card row appears under "Exact printing available in your collection" when the user owns the same printing as the deck.
+- [ ] Pick a stack from the dropdown. If the stack's `amount` is less than the deck card's `quantity`, a "I just bought {N} more copies" checkbox appears.
+- [ ] Submit. Pivot rows are written; the deck's state is unchanged (still planned/built/whatever it was).
+
+### §2 different printing
+
+- [ ] A card row appears under "A different printing available in your collection" when the user owns an alternate printing.
+- [ ] The dropdown labels include the printing's `SET:collector#` and amount.
+- [ ] Submit. `deck_cards.default_card_id` for that row is updated to the picked stack's printing, AND the pivot row is written. After the redirect, the deck view shows the alternate printing AND a green "claimed" badge for that row (NOT `wrong_printing`).
+
+### §3 nothing available
+
+- [ ] A card row appears under "Not in your collection" when the user owns nothing of the oracle card.
+- [ ] The row has only an "I just bought all {N} copies" checkbox, no dropdown.
+- [ ] Tick the checkbox and submit. A new stack of `quantity` copies is minted and claimed. The deck view shows a green "claimed" badge.
+
+### Cross-deck poaching guard
+
+- [ ] User has two decks. Deck A has `container_id = deckbox-A`. Deck B has no container_id. A card stack sits in deckbox-A.
+- [ ] Open BulkClaim for deck B. The stack from deckbox-A does NOT appear in §1/§2 dropdowns — it's physically allocated to deck A and the eligibility filter excludes it.
+
+### Mode gating
+
+- [ ] Set a deck to mode A. The "Claim cards" menu entry disappears. Hitting `/decks/{id}/bulk-claim` directly returns 403.
+- [ ] Set a deck to mode B. Same — entry hidden, direct URL returns 403.
+- [ ] Set back to mode C. Entry returns.
+
+### Non-owner
+
+- [ ] Visit a public deck owned by someone else. No "Claim cards" entry. Direct GET to `/decks/{id}/bulk-claim` returns 403.
+
+### Empty / fully claimed deck
+
+- [ ] Open BulkClaim for a deck where every card is already claimed. The page renders an "Every card in this deck is already claimed." message and the submit button is disabled.
+
+### Automated coverage (delta)
+
+```bash
+composer test -- --filter="DeckBulkClaimControllerTest|DeckFinalizeServiceTest"
+```
+
+New tests cover §2 printing-swap, mode-C gating, and the cross-deck deckbox filter.

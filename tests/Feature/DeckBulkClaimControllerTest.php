@@ -21,16 +21,20 @@ use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 /**
- * Feature coverage for the planned→built finalize endpoints exposed by
+ * Feature coverage for the BulkClaim endpoints exposed by
  * {@see DecksController}.
  *
- *  - GET /decks/{deck}/finalize renders the wizard for the owner.
- *  - POST /decks/{deck}/finalize with assignments persists pivot rows.
- *  - POST /decks/{deck}/finalize with empty body still flips the state.
- *  - PATCH /decks/{deck}/state flips the state directly (mode-A path).
- *  - Both endpoints reject non-owners.
+ *  - GET /decks/{deck}/bulk-claim renders the page for the owner of a
+ *    mode-C deck.
+ *  - POST /decks/{deck}/bulk-claim with assignments persists pivot rows
+ *    without touching state (state independence per PR 1).
+ *  - POST /decks/{deck}/bulk-claim with an empty body is a no-op.
+ *  - BulkClaim is gated to mode C — owners of mode-A / mode-B decks are
+ *    rejected by {@see BulkClaimRequest::authorize()}.
+ *  - PATCH /decks/{deck}/state flips the state directly (free flip).
+ *  - All endpoints reject non-owners.
  */
-class DeckFinalizeControllerTest extends TestCase
+class DeckBulkClaimControllerTest extends TestCase
 {
     use RefreshDatabase;
 
@@ -90,13 +94,19 @@ class DeckFinalizeControllerTest extends TestCase
         ]);
     }
 
+    /**
+     * BulkClaim is gated to mode C, so the default test deck is pinned
+     * there. Tests that need a different mode (or no claim plumbing at
+     * all) update the column explicitly.
+     */
     private function makeDeck(User $user): Deck
     {
         return Deck::create([
             'user_id' => $user->id,
-            'name' => 'Finalize Test Deck',
+            'name' => 'BulkClaim Test Deck',
             'format' => CardFormat::Legacy->value,
             'state' => DeckState::Planned->value,
+            'collection_mode' => 'C',
         ]);
     }
 
@@ -124,7 +134,7 @@ class DeckFinalizeControllerTest extends TestCase
     }
 
     #[Test]
-    public function finalize_page_renders_for_owner(): void
+    public function bulk_claim_page_renders_for_owner_in_mode_c(): void
     {
         $user = User::factory()->create();
         $deck = $this->makeDeck($user);
@@ -133,25 +143,41 @@ class DeckFinalizeControllerTest extends TestCase
         $this->makeDeckCard($deck, $oracle, $default);
         $this->makeCardStack($user, $default);
 
-        $response = $this->actingAs($user)->get("/decks/{$deck->id}/finalize");
+        $response = $this->actingAs($user)->get("/decks/{$deck->id}/bulk-claim");
 
         $response->assertOk();
     }
 
     #[Test]
-    public function finalize_page_rejects_non_owner(): void
+    public function bulk_claim_page_rejects_non_owner(): void
     {
         $owner = User::factory()->create();
         $other = User::factory()->create();
         $deck = $this->makeDeck($owner);
 
-        $response = $this->actingAs($other)->get("/decks/{$deck->id}/finalize");
+        $response = $this->actingAs($other)->get("/decks/{$deck->id}/bulk-claim");
 
         $response->assertForbidden();
     }
 
     #[Test]
-    public function store_finalize_with_assignments_persists_pivot_and_redirects(): void
+    public function bulk_claim_page_rejects_non_mode_c_decks(): void
+    {
+        // BulkClaim is gated to mode C — modes A and B are inadmissible.
+        // Owners of mode-A / mode-B decks must switch via the deck-header
+        // collection-tracking badge before the page becomes reachable.
+        $user = User::factory()->create();
+        $deck = $this->makeDeck($user);
+        $deck->update(['collection_mode' => 'A']);
+
+        $this->actingAs($user)->get("/decks/{$deck->id}/bulk-claim")->assertForbidden();
+
+        $deck->update(['collection_mode' => 'B']);
+        $this->actingAs($user)->get("/decks/{$deck->id}/bulk-claim")->assertForbidden();
+    }
+
+    #[Test]
+    public function store_bulk_claim_with_assignments_persists_pivot_and_leaves_state_alone(): void
     {
         $user = User::factory()->create();
         $deck = $this->makeDeck($user);
@@ -161,7 +187,7 @@ class DeckFinalizeControllerTest extends TestCase
         $stack = $this->makeCardStack($user, $default);
 
         $response = $this->actingAs($user)->post(
-            "/decks/{$deck->id}/finalize",
+            "/decks/{$deck->id}/bulk-claim",
             [
                 'assignments' => [
                     $deckCard->id => [$stack->id],
@@ -171,7 +197,8 @@ class DeckFinalizeControllerTest extends TestCase
         );
 
         $response->assertRedirect("/decks/{$deck->id}");
-        $this->assertSame('built', $deck->fresh()->state->value);
+        // State independence: BulkClaim does not transition state.
+        $this->assertSame('planned', $deck->fresh()->state->value);
         $this->assertDatabaseHas('deck_card_card_stack', [
             'deck_card_id' => $deckCard->id,
             'card_stack_id' => $stack->id,
@@ -179,7 +206,7 @@ class DeckFinalizeControllerTest extends TestCase
     }
 
     #[Test]
-    public function store_finalize_handles_mixed_buy_new_and_assignment_rows(): void
+    public function store_bulk_claim_handles_mixed_buy_new_and_assignment_rows(): void
     {
         // End-to-end: a deck with two rows. Row A gets a real assignment,
         // row B gets buy_new=true (no assignment, no existing stack).
@@ -196,7 +223,7 @@ class DeckFinalizeControllerTest extends TestCase
         $existingA = $this->makeCardStack($user, $defaultA, amount: 1);
 
         $response = $this->actingAs($user)->post(
-            "/decks/{$deck->id}/finalize",
+            "/decks/{$deck->id}/bulk-claim",
             [
                 'assignments' => [$deckCardA->id => [$existingA->id]],
                 'buy_new' => [$deckCardB->id => true],
@@ -205,10 +232,8 @@ class DeckFinalizeControllerTest extends TestCase
         );
 
         $response->assertRedirect("/decks/{$deck->id}");
-        $this->assertSame('built', $deck->fresh()->state->value);
         $this->assertSame('C', $deck->fresh()->collection_mode);
 
-        // Row A pivots to the existing stack, row B pivots to a new stack of 2.
         $this->assertDatabaseHas('deck_card_card_stack', [
             'deck_card_id' => $deckCardA->id,
             'card_stack_id' => $existingA->id,
@@ -226,7 +251,7 @@ class DeckFinalizeControllerTest extends TestCase
     }
 
     #[Test]
-    public function store_finalize_with_empty_body_skips_to_built(): void
+    public function store_bulk_claim_with_empty_body_is_a_noop(): void
     {
         $user = User::factory()->create();
         $deck = $this->makeDeck($user);
@@ -235,13 +260,78 @@ class DeckFinalizeControllerTest extends TestCase
         $deckCard = $this->makeDeckCard($deck, $oracle, $default);
         $this->makeCardStack($user, $default);
 
-        $response = $this->actingAs($user)->post("/decks/{$deck->id}/finalize");
+        $response = $this->actingAs($user)->post("/decks/{$deck->id}/bulk-claim");
 
         $response->assertRedirect("/decks/{$deck->id}");
-        $this->assertSame('built', $deck->fresh()->state->value);
+        // No pivot written, no state change.
+        $this->assertSame('planned', $deck->fresh()->state->value);
         $this->assertDatabaseMissing('deck_card_card_stack', [
             'deck_card_id' => $deckCard->id,
         ]);
+    }
+
+    #[Test]
+    public function store_bulk_claim_swaps_deck_card_printing_when_alt_printing_picked(): void
+    {
+        // §2 path: user owns a stack of a different printing of the same
+        // oracle card. Picking that stack should swap the deck_card's
+        // default_card_id before claiming, so the badge reads
+        // `claimed_for_this_deck` rather than `wrong_printing`.
+        $user = User::factory()->create();
+        $deck = $this->makeDeck($user);
+        $oracle = $this->makeOracleCard('Brainstorm');
+        $primaryPrinting = $this->makeDefaultCard($oracle);
+        $altPrinting = $this->makeDefaultCard($oracle);
+        $deckCard = $this->makeDeckCard($deck, $oracle, $primaryPrinting);
+        $altStack = $this->makeCardStack($user, $altPrinting);
+
+        $this->actingAs($user)->post(
+            "/decks/{$deck->id}/bulk-claim",
+            [
+                'assignments' => [$deckCard->id => [$altStack->id]],
+                'container_id' => null,
+            ],
+        );
+
+        $deckCard->refresh();
+        $this->assertSame($altPrinting->id, $deckCard->default_card_id, 'Deck card printing was swapped to the picked stack.');
+        $this->assertDatabaseHas('deck_card_card_stack', [
+            'deck_card_id' => $deckCard->id,
+            'card_stack_id' => $altStack->id,
+        ]);
+    }
+
+    #[Test]
+    public function bulk_claim_page_excludes_stacks_in_other_decks_deckboxes(): void
+    {
+        // Cross-deck poaching guard: stacks in *another* deck's deckbox
+        // container are physically allocated to that deck — they must
+        // not surface in this deck's BulkClaim dropdowns.
+        $user = User::factory()->create();
+        $thisDeck = $this->makeDeck($user);
+        $otherDeck = $this->makeDeck($user);
+        $otherDeckbox = Container::create([
+            'user_id' => $user->id,
+            'name' => 'Other deckbox',
+            'type' => 'deckbox',
+            'sort_order' => 1,
+        ]);
+        $otherDeck->update(['container_id' => $otherDeckbox->id]);
+
+        $oracle = $this->makeOracleCard();
+        $default = $this->makeDefaultCard($oracle);
+        $this->makeDeckCard($thisDeck, $oracle, $default);
+        // Stack lives in the *other* deck's deckbox — should be filtered out.
+        $this->makeCardStack($user, $default, $otherDeckbox);
+
+        $response = $this->actingAs($user)->get("/decks/{$thisDeck->id}/bulk-claim");
+
+        $response->assertOk();
+        $response->assertInertia(fn ($page) => $page
+            ->where('cards.0.section', 'missing')
+            ->where('cards.0.exact_stacks', [])
+            ->where('cards.0.alt_stacks', [])
+        );
     }
 
     #[Test]
@@ -395,7 +485,7 @@ class DeckFinalizeControllerTest extends TestCase
     }
 
     #[Test]
-    public function store_finalize_persists_optional_container_id(): void
+    public function store_bulk_claim_persists_optional_container_id(): void
     {
         $user = User::factory()->create();
         $deck = $this->makeDeck($user);
@@ -407,7 +497,7 @@ class DeckFinalizeControllerTest extends TestCase
         ]);
 
         $response = $this->actingAs($user)->post(
-            "/decks/{$deck->id}/finalize",
+            "/decks/{$deck->id}/bulk-claim",
             [
                 'assignments' => [],
                 'container_id' => $container->id,

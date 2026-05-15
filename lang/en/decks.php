@@ -32,8 +32,8 @@ return [
     'deck_state_built' => 'Deck ":name" is now finished.',
     'deck_state_archived' => 'Deck ":name" has been archived.',
 
-    'finalize' => [
-        'flash_built' => 'Deck ":name" is finished.',
+    'bulk_claim' => [
+        'flash' => 'Claims persisted for deck ":name".',
     ],
 
     'add_all_to_collection' => [

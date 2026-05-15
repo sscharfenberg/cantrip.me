@@ -32,8 +32,8 @@ return [
     'deck_state_built' => 'Deck ":name" ist jetzt fertig.',
     'deck_state_archived' => 'Deck ":name" wurde archiviert.',
 
-    'finalize' => [
-        'flash_built' => 'Deck ":name" ist fertig.',
+    'bulk_claim' => [
+        'flash' => 'Reservierungen für Deck „:name" gespeichert.',
     ],
 
     'add_all_to_collection' => [

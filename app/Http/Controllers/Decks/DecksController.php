@@ -15,10 +15,10 @@ use App\Enums\Scryfall\ScryfallRelatedComponent;
 use App\Formats\FormatProfile;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Decks\AddAllToCollectionRequest;
+use App\Http\Requests\Decks\BulkClaimRequest;
 use App\Http\Requests\Decks\DeckQrSvgRequest;
 use App\Http\Requests\Decks\DeleteDeckRequest;
 use App\Http\Requests\Decks\EditDeckRequest;
-use App\Http\Requests\Decks\FinalizeDeckRequest;
 use App\Http\Requests\Decks\GenerateDeckQrRequest;
 use App\Http\Requests\Decks\SetDeckCollectionModeRequest;
 use App\Http\Requests\Decks\SetDeckHeroImageRequest;
@@ -710,17 +710,24 @@ class DecksController extends Controller
     }
 
     /**
-     * Render the "finalize deck" wizard (planned → built transition).
+     * Render the BulkClaim page (route `/decks/{deck}/bulk-claim`).
      *
-     * Available to deck owners only. The page lists each deck card,
-     * the user's matching stacks (grouped by `default_card_id`), and a
-     * dropdown of containers (deckboxes sorted to the top) so the user
-     * can claim physical copies and pick a deckbox in one shot.
+     * Owner-only AND gated to mode C via {@see BulkClaimRequest}. Each
+     * unclaimed deck_card row is partitioned into one of three sections:
      *
-     * Mode A users never reach this page — the action menu PATCHes the
-     * deck state directly. Modes B and C both render the wizard.
+     *  - §1 `exact` — the user owns at least one eligible stack of the
+     *    same `default_card_id` as the deck_card.
+     *  - §2 `alt`   — the user owns at least one eligible stack of a
+     *    different printing of the same oracle card. Picking one swaps
+     *    `deck_cards.default_card_id` to the picked printing.
+     *  - §3 `missing` — the user owns no eligible stacks of any printing
+     *    of this oracle card.
+     *
+     * "Eligible stack" = owned by the user + no pivot row in
+     * `deck_card_card_stack` + not living in another deck's deckbox
+     * container (cross-deck poaching guard).
      */
-    public function finalize(FinalizeDeckRequest $request, Deck $deck): Response
+    public function bulkClaim(BulkClaimRequest $request, Deck $deck): Response
     {
         $deck->load([
             'deckCards.oracleCard:id,name',
@@ -728,22 +735,71 @@ class DecksController extends Controller
             'deckCards.defaultCard.set:id,name,code',
         ]);
 
-        $defaultCardIds = $deck->deckCards->pluck('default_card_id')->unique()->values();
+        // Deck cards still needing a claim — already-claimed rows hide
+        // here (they're surfaced by the per-card status badges instead).
+        $unclaimedDeckCards = $deck->deckCards->filter(
+            fn (DeckCard $dc) => $dc->cardStacks()->count() === 0
+        )->values();
 
-        // Stacks owned by the user that match any default_card_id appearing
-        // in the deck. Excludes anything already claimed by another deck so
-        // the wizard can't surface a stack that's effectively unavailable.
-        $stacks = CardStack::query()
+        $oracleIds = $unclaimedDeckCards->pluck('oracle_card_id')->unique()->values();
+        if ($oracleIds->isEmpty()) {
+            return Inertia::render('Deck/BulkClaim/BulkClaimCardsPage', [
+                'deck' => [
+                    'id' => $deck->id,
+                    'name' => $deck->name,
+                    'container_id' => $deck->container_id,
+                ],
+                'cards' => [],
+                'containers' => $this->containerPickerOptions($request->user()),
+            ]);
+        }
+
+        // Containers that act as another deck's deckbox — used to skip
+        // stacks the other deck has visually allocated, even though the
+        // pivot table doesn't bind them.
+        $otherDecksDeckboxes = Deck::query()
             ->where('user_id', $request->user()->id)
-            ->whereIn('default_card_id', $defaultCardIds)
+            ->where('id', '!=', $deck->id)
+            ->whereNotNull('container_id')
+            ->whereHas('container', fn ($q) => $q->where('type', ContainerType::Deckbox->value))
+            ->pluck('container_id');
+
+        // All eligible stacks of any printing of any oracle card in the
+        // deck — one query, partitioned in PHP.
+        $stacksQuery = CardStack::query()
+            ->where('user_id', $request->user()->id)
             ->whereNotIn('id', DB::table('deck_card_card_stack')->select('card_stack_id'))
-            ->with(['container:id,name,type'])
-            ->get(['id', 'default_card_id', 'container_id', 'amount', 'finish', 'language']);
+            ->whereHas('defaultCard', fn ($q) => $q->whereIn('oracle_id', $oracleIds))
+            ->with([
+                'container:id,name,type',
+                'defaultCard:id,collector_number,set_id,oracle_id,card_image_0',
+                'defaultCard.set:id,code',
+            ]);
+        if ($otherDecksDeckboxes->isNotEmpty()) {
+            $stacksQuery->whereNotIn('container_id', $otherDecksDeckboxes);
+        }
+        $stacks = $stacksQuery->get(['id', 'default_card_id', 'container_id', 'amount']);
 
-        $stacksByDefault = $stacks->groupBy('default_card_id');
+        $stacksByOracle = $stacks->groupBy(fn (CardStack $s) => $s->defaultCard->oracle_id);
 
-        $cards = $deck->deckCards->map(function (DeckCard $dc) use ($stacksByDefault) {
-            $matching = $stacksByDefault->get($dc->default_card_id, collect());
+        $cards = $unclaimedDeckCards->map(function (DeckCard $dc) use ($stacksByOracle) {
+            $matching = $stacksByOracle->get($dc->oracle_card_id, collect());
+
+            $exactStacks = $matching
+                ->filter(fn (CardStack $s) => $s->default_card_id === $dc->default_card_id)
+                ->map(fn (CardStack $s) => $this->shapeExactStack($s))
+                ->values();
+
+            $altStacks = $matching
+                ->reject(fn (CardStack $s) => $s->default_card_id === $dc->default_card_id)
+                ->map(fn (CardStack $s) => $this->shapeAltStack($s))
+                ->values();
+
+            $section = match (true) {
+                $exactStacks->isNotEmpty() => 'exact',
+                $altStacks->isNotEmpty() => 'alt',
+                default => 'missing',
+            };
 
             return [
                 'id' => $dc->id,
@@ -752,20 +808,62 @@ class DecksController extends Controller
                 'set_code' => $dc->defaultCard?->set?->code,
                 'collector_number' => $dc->defaultCard?->collector_number,
                 'card_image_0' => $dc->defaultCard?->card_image_0,
-                'card_image_1' => $dc->defaultCard?->card_image_1,
-                'available' => $matching->map(fn (CardStack $s) => [
-                    'id' => $s->id,
-                    'amount' => $s->amount,
-                    'container' => $s->container ? [
-                        'id' => $s->container->id,
-                        'name' => $s->container->name,
-                        'type' => $s->container->type->value,
-                    ] : null,
-                ])->values(),
+                'section' => $section,
+                'exact_stacks' => $exactStacks,
+                'alt_stacks' => $altStacks,
             ];
         })->values();
 
-        $containers = $request->user()->containers()
+        return Inertia::render('Deck/BulkClaim/BulkClaimCardsPage', [
+            'deck' => [
+                'id' => $deck->id,
+                'name' => $deck->name,
+                'container_id' => $deck->container_id,
+            ],
+            'cards' => $cards,
+            'containers' => $this->containerPickerOptions($request->user()),
+        ]);
+    }
+
+    /**
+     * Persist the BulkClaim submission. Always routes through
+     * {@see DeckFinalizeService::persistAssignments}; an empty body is
+     * still a valid submit (user just opened the page, picked nothing,
+     * clicked "Claim cards" — no-op).
+     *
+     * State is NOT touched here — state transitions are decoupled from
+     * claim activity since PR 1. The redirect target is the deck show
+     * page; PR 3 will swap it to `/decks/{deck}/unclaimed`.
+     */
+    public function storeBulkClaim(BulkClaimRequest $request, Deck $deck): RedirectResponse
+    {
+        $validated = $request->validated();
+        /** @var array<string, array<int, string>> $assignments */
+        $assignments = $validated['assignments'] ?? [];
+        /** @var array<string, bool> $buyNew */
+        $buyNew = $validated['buy_new'] ?? [];
+        $containerId = $validated['container_id'] ?? null;
+
+        if ($assignments !== [] || array_filter($buyNew) !== [] || $containerId !== null) {
+            DeckFinalizeService::persistAssignments($deck, $assignments, $buyNew, $containerId);
+        }
+
+        $request->session()->flash('message', __('decks.bulk_claim.flash', ['name' => $deck->name]));
+        $request->session()->flash('type', 'success');
+
+        return redirect(route('decks.show', $deck->id));
+    }
+
+    /**
+     * Container-picker payload reused by both the GET (initial render)
+     * and the empty-deck early-return branch. Deckboxes pinned to the
+     * top so the implicit-tracking anchor is the obvious pick.
+     *
+     * @return Collection<int, array{id: string, name: string, type: string, is_deckbox: bool}>
+     */
+    private function containerPickerOptions($user): Collection
+    {
+        return $user->containers()
             ->orderBy('sort_order')
             ->get(['id', 'name', 'type'])
             ->map(fn (Container $c) => [
@@ -776,53 +874,48 @@ class DecksController extends Controller
             ])
             ->sortByDesc('is_deckbox')
             ->values();
-
-        return Inertia::render('Deck/Finalize/DeckFinalizePage', [
-            'deck' => [
-                'id' => $deck->id,
-                'name' => $deck->name,
-                'container_id' => $deck->container_id,
-            ],
-            'cards' => $cards,
-            'containers' => $containers,
-        ]);
     }
 
     /**
-     * Persist the wizard's submission and transition the deck to Built.
+     * Shape an exact-printing stack option for the §1 dropdown.
      *
-     * Two paths:
-     *  - "Submit" with assignments: writes pivot rows, splits stacks /
-     *    deck_cards as needed, sets `decks.container_id`, then
-     *    transitions state. See {@see DeckFinalizeService::persistAssignments}.
-     *  - "Skip" (no assignments): just transitions state. Mode A's
-     *    direct PATCH from the action menu lands here too with an empty
-     *    body.
-     *
-     * @param  array<string, mixed>  $validated  Shape `{assignments?: array<deck_card_id, string[]>, container_id?: string|null}`.
+     * @return array{id: string, amount: int, container: array{id: string, name: string, type: string}|null}
      */
-    public function storeFinalize(FinalizeDeckRequest $request, Deck $deck): RedirectResponse
+    private function shapeExactStack(CardStack $stack): array
     {
-        $validated = $request->validated();
-        /** @var array<string, array<int, string>> $assignments */
-        $assignments = $validated['assignments'] ?? [];
-        /** @var array<string, bool> $buyNew */
-        $buyNew = $validated['buy_new'] ?? [];
-        $containerId = $validated['container_id'] ?? null;
+        return [
+            'id' => $stack->id,
+            'amount' => (int) $stack->amount,
+            'container' => $stack->container ? [
+                'id' => $stack->container->id,
+                'name' => $stack->container->name,
+                'type' => $stack->container->type->value,
+            ] : null,
+        ];
+    }
 
-        // Empty everything → bare state transition. Any non-empty piece
-        // (assignments, bought-new flags, or a container pick) routes
-        // through the full persist path so the wizard's intent lands.
-        if ($assignments === [] && array_filter($buyNew) === [] && $containerId === null) {
-            DeckFinalizeService::transitionToBuilt($deck);
-        } else {
-            DeckFinalizeService::persistAssignments($deck, $assignments, $buyNew, $containerId);
-        }
-
-        $request->session()->flash('message', __('decks.finalize.flash_built', ['name' => $deck->name]));
-        $request->session()->flash('type', 'success');
-
-        return redirect(route('decks.show', $deck->id));
+    /**
+     * Shape an alternate-printing stack option for the §2 dropdown.
+     * Includes the printing's set + collector number + thumbnail so the
+     * dropdown can render which printing the user owns.
+     *
+     * @return array{id: string, amount: int, container: array{id: string, name: string, type: string}|null, default_card_id: string, set_code: string|null, collector_number: string|null, card_image_0: string|null}
+     */
+    private function shapeAltStack(CardStack $stack): array
+    {
+        return [
+            'id' => $stack->id,
+            'amount' => (int) $stack->amount,
+            'container' => $stack->container ? [
+                'id' => $stack->container->id,
+                'name' => $stack->container->name,
+                'type' => $stack->container->type->value,
+            ] : null,
+            'default_card_id' => $stack->default_card_id,
+            'set_code' => $stack->defaultCard?->set?->code,
+            'collector_number' => $stack->defaultCard?->collector_number,
+            'card_image_0' => $stack->defaultCard?->card_image_0,
+        ];
     }
 
     /**

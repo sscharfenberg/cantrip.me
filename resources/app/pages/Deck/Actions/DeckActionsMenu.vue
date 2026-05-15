@@ -56,10 +56,9 @@ const props = withDefaults(
          */
         isArchived?: boolean;
         /**
-         * Effective collection-integration mode. Reserved for the
-         * upcoming "Unclaimed cards" menu entry (PR 3 of the BulkClaim
-         * rework). Currently unused; kept here so callers don't need
-         * to be touched again when that entry lands.
+         * Effective collection-integration mode. Gates the BulkClaim
+         * entry (mode C only) and — once PR 3 lands — the
+         * "Unclaimed cards" entry (modes B and C).
          */
         collectionMode?: "A" | "B" | "C";
         /**
@@ -123,6 +122,11 @@ function openAddAllToCollection(): void {
 function onEditSettings(): void {
     closePopover();
     router.visit(`/decks/${props.deck.id}/edit`);
+}
+/** Navigate to the BulkClaim page. Only reachable in mode C — gated below. */
+function onBulkClaim(): void {
+    closePopover();
+    router.visit(`/decks/${props.deck.id}/bulk-claim`);
 }
 /** Navigate to the QR code page for this deck. */
 function onQrClick(): void {
@@ -234,6 +238,12 @@ function onDeleteClick(): void {
                 <button class="popover-list-item" @click.prevent="openCustomGroups">
                     <icon name="edit" :size="1" />
                     {{ $t("pages.deck.custom_groups.link") }}
+                </button>
+            </li>
+            <li v-if="isOwner && !isArchived && collectionMode === 'C'">
+                <button class="popover-list-item" @click.prevent="onBulkClaim">
+                    <icon name="cards" :size="1" />
+                    {{ $t("pages.deck.bulk_claim.menu_link") }}
                 </button>
             </li>
             <li v-if="isOwner && !isArchived">

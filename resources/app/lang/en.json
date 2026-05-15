@@ -839,28 +839,32 @@
                 "set_built_label": "Also set this deck's state to finished",
                 "submit": "Add all to collection"
             },
-            "finalize": {
-                "title": "Finalize {name}",
-                "heading": "Please assign physical card stacks to finalize the deck",
-                "intro": "Pick the stacks from your collection you want to claim for this deck. You can skip this step entirely or leave individual rows blank - you can always come back later.",
-                "col_needed": "Needed for deck",
-                "col_assignment": "Assign from your collection",
-                "no_match": "No matching stacks in your collection.",
+            "bulk_claim": {
+                "title": "Claim cards for {name}",
+                "heading": "Claim physical card stacks for this deck",
+                "intro": "Pick the stacks from your collection you want to claim for this deck. Rows you don't touch are left unclaimed and will surface on the next page.",
+                "empty": "Every card in this deck is already claimed.",
+                "col_assignment": "Pick a stack",
+                "col_assignment_alt": "Pick a printing",
                 "stack_label": "{type}: {name} (×{amount})",
                 "stack_unsorted": "Unsorted (×{amount})",
+                "alt_stack_label": "{printing} — ×{amount} in {where}",
+                "printing_unknown": "(unknown printing)",
+                "unsorted": "Unsorted",
+                "section_exact": "Exact printing available in your collection",
+                "section_alt": "A different printing available in your collection",
+                "section_missing": "Not in your collection",
                 "container_heading": "Container for this deck",
-                "container_hint": "Optional. A Deck Box is the recommended container type - picks from your collection.",
+                "container_hint": "Optional. A Deck Box is the recommended container type.",
                 "container_unset": "- No container -",
                 "deckbox_hint": "Recommended",
-                "partial_coverage": "{claimed} of {needed} will be claimed; the remainder stays unassigned.",
                 "buy_new": {
-                    "label": "I just bought the missing copies",
-                    "will_create": "Will add {amount}× to your collection.",
-                    "fully_covered": "Already fully covered by your assignment."
+                    "label_partial": "I just bought {amount} more copies",
+                    "label_full": "I just bought all {amount} copies"
                 },
-                "submit": "Finalize deck",
-                "skip": "Skip - finalize without claiming",
-                "back": "Back to deck"
+                "submit": "Claim cards",
+                "back": "Back to deck",
+                "menu_link": "Claim cards"
             },
             "legality": {
                 "title": "{count} legality issue | {count} legality issues",

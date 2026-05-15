@@ -23,7 +23,8 @@ use Tests\TestCase;
 /**
  * Coverage for {@see DeckFinalizeService}.
  *
- *  - Plain finalize creates pivot rows + transitions state to Built.
+ *  - Plain submit creates pivot rows; state is intentionally NOT touched
+ *    (state transitions are decoupled from claim activity since PR 1).
  *  - Auto-splits a deck_card row when partial coverage is offered.
  *  - Auto-splits a card_stack when its `amount` exceeds the deck_card's quantity.
  *  - Skip path just transitions state.
@@ -122,7 +123,7 @@ class DeckFinalizeServiceTest extends TestCase
     }
 
     #[Test]
-    public function persist_assignments_attaches_pivot_rows_and_sets_state_to_built(): void
+    public function persist_assignments_attaches_pivot_rows_and_leaves_state_alone(): void
     {
         $user = User::factory()->create();
         $deck = $this->makeDeck($user);
@@ -138,7 +139,8 @@ class DeckFinalizeServiceTest extends TestCase
             null,
         );
 
-        $this->assertSame('built', $deck->fresh()->state->value);
+        // State independence: persisting claims must NOT touch state.
+        $this->assertSame('planned', $deck->fresh()->state->value);
         $this->assertDatabaseHas('deck_card_card_stack', [
             'deck_card_id' => $deckCard->id,
             'card_stack_id' => $stack->id,
@@ -237,7 +239,7 @@ class DeckFinalizeServiceTest extends TestCase
         DeckFinalizeService::persistAssignments($deck, [], [], $container->id);
 
         $this->assertSame($container->id, $deck->fresh()->container_id);
-        $this->assertSame('built', $deck->fresh()->state->value);
+        $this->assertSame('planned', $deck->fresh()->state->value);
     }
 
     #[Test]
@@ -276,25 +278,8 @@ class DeckFinalizeServiceTest extends TestCase
         DeckFinalizeService::persistAssignments($deck, [], [], null);
 
         $this->assertSame('A', $deck->fresh()->collection_mode);
-        $this->assertSame('built', $deck->fresh()->state->value);
-    }
-
-    #[Test]
-    public function transition_to_built_changes_state_without_pivot_writes(): void
-    {
-        $user = User::factory()->create();
-        $deck = $this->makeDeck($user);
-        $oracle = $this->makeOracleCard();
-        $default = $this->makeDefaultCard($oracle);
-        $deckCard = $this->makeDeckCard($deck, $oracle, $default);
-        $this->makeCardStack($user, $default);
-
-        DeckFinalizeService::transitionToBuilt($deck);
-
-        $this->assertSame('built', $deck->fresh()->state->value);
-        $this->assertDatabaseMissing('deck_card_card_stack', [
-            'deck_card_id' => $deckCard->id,
-        ]);
+        // State independence: even an empty submit must not touch state.
+        $this->assertSame('planned', $deck->fresh()->state->value);
     }
 
     // ── buy_new (Phase 2.4) ────────────────────────────────────────────────

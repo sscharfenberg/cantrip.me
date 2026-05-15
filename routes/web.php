@@ -155,10 +155,10 @@ Route::middleware(array_filter(['auth', Features::enabled(Features::emailVerific
         ->name('decks.collection-mode.set');
     Route::post('/decks/{deck}/add-all-to-collection', [DecksController::class, 'addAllToCollection'])
         ->name('decks.add-all-to-collection');
-    Route::get('/decks/{deck}/finalize', [DecksController::class, 'finalize'])
-        ->name('decks.finalize');
-    Route::post('/decks/{deck}/finalize', [DecksController::class, 'storeFinalize'])
-        ->name('decks.finalize.store');
+    Route::get('/decks/{deck}/bulk-claim', [DecksController::class, 'bulkClaim'])
+        ->name('decks.bulk-claim');
+    Route::post('/decks/{deck}/bulk-claim', [DecksController::class, 'storeBulkClaim'])
+        ->name('decks.bulk-claim.store');
     Route::patch('/decks/{deck}', [DecksController::class, 'update'])
         ->middleware([HandleControllerPrecognitiveRequest::class])
         ->name('decks.update');
