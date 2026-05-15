@@ -125,12 +125,12 @@ The planned→built finalize wizard has been renamed and restructured. Route `/d
 
 - [x] At least one card row appears under "Exact printing available in your collection" when the user owns the same printing as the deck.
 - [x] Pick a stack from the dropdown. If the stack's `amount` is less than the deck card's `quantity`, an "Add {N} more copies to my collection" checkbox appears.
-- [ ] Submit. Pivot rows are written; the deck's state is unchanged (still planned/built/whatever it was).
+- [x] Submit. Pivot rows are written; the deck's state is unchanged (still planned/built/whatever it was).
 
 ### §2 different printing
 
-- [ ] A card row appears under "A different printing available in your collection" when the user owns an alternate printing.
-- [ ] The dropdown labels include the printing's `SET:collector#` and amount.
+- [x] A card row appears under "A different printing available in your collection" when the user owns an alternate printing.
+- [x] The dropdown labels include the printing's `SET:collector#` and amount.
 - [ ] Submit. `deck_cards.default_card_id` for that row is updated to the picked stack's printing, AND the pivot row is written. After the redirect, the deck view shows the alternate printing AND a green "claimed" badge for that row (NOT `wrong_printing`).
 
 ### §3 nothing available

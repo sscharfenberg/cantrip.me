@@ -964,7 +964,15 @@ class DecksController extends Controller
      */
     private function collectUnclaimedRows(Deck $deck, string $mode): Collection
     {
-        $deck->load([
+        // `loadMissing` instead of `load` is load-bearing here: when this
+        // helper is called from `show()` to drive the `hasUnclaimedCards`
+        // flag, the deck's `deckCards.defaultCard` relation has already
+        // been eager-loaded with a richer column set (including
+        // `card_image_0` / `card_image_1` / `name` that the card hover
+        // preview reads). A bare `load()` would re-fetch with this
+        // narrower subset and drop those columns, breaking the hover
+        // preview in the text deck view.
+        $deck->loadMissing([
             'deckCards.oracleCard:id,name',
             'deckCards.defaultCard:id,collector_number,set_id,oracle_id',
             'deckCards.defaultCard.set:id,code',

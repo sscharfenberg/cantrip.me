@@ -489,6 +489,38 @@ class DeckBulkClaimControllerTest extends TestCase
     }
 
     #[Test]
+    public function deck_show_preserves_card_image_urls_when_unclaimed_flag_is_computed(): void
+    {
+        // Regression: PR 3's controller computes `hasUnclaimedCards` by
+        // calling `collectUnclaimedRows`, which used a bare `$deck->load()`
+        // that re-loaded `deckCards.defaultCard` with a narrower column
+        // set — dropping `card_image_0` / `card_image_1` / `name` from
+        // the already-eager-loaded relation. The text deck view's hover
+        // preview reads `card_image_0`, so the page-level reload silently
+        // killed every hover trigger. Fix uses `loadMissing` to skip the
+        // re-fetch when the relation is already loaded.
+        $user = User::factory()->create();
+        $deck = $this->makeDeck($user);
+        $deck->update(['collection_mode' => 'C']);
+        $oracle = $this->makeOracleCard();
+        $default = $this->makeDefaultCard($oracle);
+        $default->update([
+            'card_image_0' => 'https://example.com/front.jpg',
+            'card_image_1' => 'https://example.com/back.jpg',
+        ]);
+        $this->makeDeckCard($deck->fresh(), $oracle, $default);
+
+        $response = $this->actingAs($user)->get("/decks/{$deck->id}");
+
+        $response->assertOk();
+        $response->assertInertia(fn ($page) => $page
+            ->where('hasUnclaimedCards', true)
+            ->where('cards.0.default_card.card_image_0', 'https://example.com/front.jpg')
+            ->where('cards.0.default_card.card_image_1', 'https://example.com/back.jpg')
+        );
+    }
+
+    #[Test]
     public function deck_show_keeps_badge_mode_in_sync_with_real_mode_when_anchor_exists(): void
     {
         // Under explicit modes `collectionBadgeMode === collectionMode`
