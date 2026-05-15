@@ -15,12 +15,10 @@ import DeckActionsMenu from "./Actions/DeckActionsMenu.vue";
 import type { DeckActionsContainer, DeckActionsTarget } from "./Actions/DeckActionsMenu.vue";
 import DeckLegalityPanel from "./DeckLegalityPanel.vue";
 
-/** Owner-only context that gates and sizes the collection-mode badge. */
+/** Owner-only context that gates the collection-mode badge. */
 interface CollectionModeContext {
     /** User-level master switch. Off ⇒ badge is hidden entirely. */
     master_switch_enabled: boolean;
-    /** Pivot rows attached to this deck — sizes the C → B/A cascade-delete confirm. */
-    claimed_count: number;
 }
 
 const props = defineProps<{
@@ -119,7 +117,6 @@ const { formatPrice } = useFormatting();
                 v-if="isOwner && collectionModeContext !== null && collectionModeContext.master_switch_enabled"
                 :deck-id="deck.id"
                 :mode="collectionBadgeMode"
-                :claimed-count="collectionModeContext.claimed_count"
             />
             <visibility-badge :visibility="deck.visibility" />
         </div>

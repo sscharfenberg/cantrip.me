@@ -46,12 +46,12 @@ Verify with `SELECT collection_mode, COUNT(*) FROM decks GROUP BY collection_mod
 
 ### Owner flow
 
-- [ ] Open an owned deck. Header shows the collection-tracking badge.
-- [ ] Click the badge — a popover opens with three entries (`Tracking off`, `Implicit tracking`, `Explicit tracking`). The current mode is visually selected.
-- [ ] Click `Implicit tracking` on a deck currently in `A` — page reloads, badge now shows `Implicit tracking`, success flash appears. DB row shows `collection_mode = 'B'`.
-- [ ] Click `Explicit tracking` — badge now shows `Explicit tracking`, DB row shows `collection_mode = 'C'`.
-- [ ] With at least one claimed stack attached to the deck, click `Implicit tracking` from `C`. Browser asks for confirmation, message includes the claim count. Confirming cascade-deletes every `deck_card_card_stack` row for this deck and writes `B`. Cancelling leaves both the mode and pivot rows alone.
-- [ ] Same as above but `C → A` — also cascade-deletes pivot rows and writes `A`.
+- [x] Open an owned deck. Header shows the collection-tracking badge.
+- [x] Click the badge — a popover opens with three entries (`Tracking off`, `Implicit tracking`, `Explicit tracking`). The current mode is visually selected.
+- [x] Click `Implicit tracking` on a deck currently in `A` — page reloads, badge now shows `Implicit tracking`, success flash appears. DB row shows `collection_mode = 'B'`.
+- [x] Click `Explicit tracking` — badge now shows `Explicit tracking`, DB row shows `collection_mode = 'C'`.
+- [ ] With at least one claimed stack attached to the deck, click `Implicit tracking` from `C`. Transition is silent — cascade-delete fires server-side, the deck moves to `B`, success flash appears. No prompt (the user chose cascade-delete in the spec, so no per-action friction).
+- [ ] Same as above but `C → A` — also silent cascade-delete + flash.
 - [ ] Re-pick the same mode that's already selected — no DB write, no flash, popover just closes.
 
 ### Master switch override

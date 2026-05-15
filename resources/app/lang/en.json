@@ -825,8 +825,7 @@
                         "description": "Specific physical copies from your collection are claimed for this deck. Each card row shows whether it's claimed, available, claimed by another deck, or missing.",
                         "tooltip": "Collection tracking: explicit per-copy."
                     }
-                },
-                "cascade_confirm": "Switching tracking will release {count} claimed stack from this deck. Continue? | Switching tracking will release {count} claimed stacks from this deck. Continue?"
+                }
             },
             "add_all_to_collection": {
                 "link": "Add all cards to collection",

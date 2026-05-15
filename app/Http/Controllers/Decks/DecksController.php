@@ -357,21 +357,11 @@ class DecksController extends Controller
             // reflect their choice.
             $collectionBadgeMode = $collectionMode;
 
-            // Context for the collection-mode modal: the master switch
-            // gates the radio (off = "go to settings" link instead),
-            // and the claimed count drives the C → B/A cascade-delete
-            // warning copy.
-            $claimedCount = (int) DB::table('deck_card_card_stack')
-                ->whereIn(
-                    'deck_card_id',
-                    DB::table('deck_cards')
-                        ->where('deck_id', $deck->id)
-                        ->select('id')
-                )
-                ->count();
+            // Context for the collection-mode badge popover: just the
+            // master switch flag. When off, the parent hides the badge
+            // entirely (no popover trigger surface).
             $collectionModeContext = [
                 'master_switch_enabled' => (bool) $request->user()->collection_integration_enabled,
-                'claimed_count' => $claimedCount,
             ];
 
             // Container picker options for the owner-only "Add all to

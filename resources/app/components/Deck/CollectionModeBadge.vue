@@ -10,8 +10,10 @@
  *   C  per-copy        — key icon (each row pinned to a specific stack)
  *
  * Owner-only — the parent already gates rendering on `isOwner` and on the
- * user-level master switch. Switching C → B/A triggers a native confirm
- * because pivot rows are cascade-deleted server-side.
+ * user-level master switch. Switching C → B/A cascade-deletes every
+ * `deck_card_card_stack` pivot row on the server side; the transition is
+ * silent + immediate (user explicitly opted into this behaviour) with the
+ * success flash as the only feedback.
  *****************************************************************************/
 import { router } from "@inertiajs/vue3";
 import { computed, ref, useId } from "vue";
@@ -23,8 +25,6 @@ const props = defineProps<{
     deckId: string;
     /** The deck's currently stored collection mode. */
     mode: "A" | "B" | "C";
-    /** Pivot rows attached to this deck — sizes the cascade-delete confirm. */
-    claimedCount: number;
 }>();
 
 const { t } = useI18n();
@@ -58,15 +58,6 @@ function closePopover(): void {
 function onSelect(target: Mode): void {
     closePopover();
     if (target === props.mode || processing.value) return;
-
-    if (props.mode === "C" && props.claimedCount > 0) {
-        const msg = t(
-            "pages.deck.collection_mode.cascade_confirm",
-            { count: props.claimedCount },
-            props.claimedCount
-        );
-        if (!window.confirm(msg)) return;
-    }
 
     processing.value = true;
     router.patch(

@@ -825,8 +825,7 @@
                         "description": "Konkrete Exemplare aus deiner Sammlung sind diesem Deck zugeordnet. Jede Kartenzeile zeigt, ob das Exemplar reserviert, verfügbar, von einem anderen Deck reserviert oder gar nicht im Besitz ist.",
                         "tooltip": "Sammlungsintegration: exemplargenau."
                     }
-                },
-                "cascade_confirm": "Der Moduswechsel löst {count} reservierten Stapel von diesem Deck. Fortfahren? | Der Moduswechsel löst {count} reservierte Stapel von diesem Deck. Fortfahren?"
+                }
             },
             "add_all_to_collection": {
                 "link": "Alle Karten zur Sammlung hinzufügen",

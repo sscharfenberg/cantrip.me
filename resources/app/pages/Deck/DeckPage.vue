@@ -59,7 +59,6 @@ const props = defineProps<{
      */
     collectionModeContext: {
         master_switch_enabled: boolean;
-        claimed_count: number;
     } | null;
     /** Owner-only flag — true when at least one deck slot is uncovered. Drives the "Unclaimed cards" menu entry. */
     hasUnclaimedCards: boolean;
