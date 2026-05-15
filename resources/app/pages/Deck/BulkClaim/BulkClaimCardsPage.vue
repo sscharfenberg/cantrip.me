@@ -84,10 +84,15 @@ useBreadcrumbs().setBreadcrumbs([
     { label: props.deck.name, href: `/decks/${props.deck.id}`, icon: "cards" },
     { labelKey: "pages.deck.bulk_claim.title", params: { name: props.deck.name } }
 ]);
+/** Card rows the controller bucketed into §1 (exact-printing available). */
 const exactCards = computed(() => props.cards.filter(c => c.section === "exact"));
+/** §2 — alternate printing available; picking one swaps deck_card.default_card_id server-side. */
 const altCards = computed(() => props.cards.filter(c => c.section === "alt"));
+/** §3 — nothing in the user's collection; only buy-new is offered. */
 const missingCards = computed(() => props.cards.filter(c => c.section === "missing"));
+/** One slot per deck_card_id, empty list. Single-stack-per-row UI so the inner array is at most one element. */
 const initialAssignments: Record<string, string[]> = Object.fromEntries(props.cards.map(c => [c.id, []]));
+/** Mirror map keyed by deck_card_id — flips to true when the user ticks "I just bought N more copies". */
 const initialBuyNew: Record<string, boolean> = Object.fromEntries(props.cards.map(c => [c.id, false]));
 const form = useForm<{
     assignments: Record<string, string[]>;
@@ -98,12 +103,14 @@ const form = useForm<{
     buy_new: initialBuyNew,
     container_id: props.deck.container_id
 });
+/** Container-picker options. Deckboxes get a " — Recommended" suffix; ordering is server-side. */
 const containerOptions = computed(() => [
     ...props.containers.map(c => ({
         value: c.id,
         label: c.is_deckbox ? `${c.name} — ${t("pages.deck.bulk_claim.deckbox_hint")}` : c.name
     }))
 ]);
+/** §1 dropdown labels: "{container-type}: {name} (×{amount})" or "Unsorted (×{amount})". */
 function exactStackOptions(card: BulkClaimCard): { value: string; label: string }[] {
     return card.exact_stacks.map(stack => ({
         value: stack.id,
@@ -116,6 +123,7 @@ function exactStackOptions(card: BulkClaimCard): { value: string; label: string 
             : t("pages.deck.bulk_claim.stack_unsorted", { amount: stack.amount })
     }));
 }
+/** §2 dropdown labels — include `SET:collector#` so the user can tell printings apart. */
 function altStackOptions(card: BulkClaimCard): { value: string; label: string }[] {
     return card.alt_stacks.map(stack => {
         const printing =
@@ -135,6 +143,7 @@ function altStackOptions(card: BulkClaimCard): { value: string; label: string }[
         };
     });
 }
+/** Amount of the stack the user picked for this row (across exact + alt buckets). 0 when none picked. */
 function pickedStackAmount(card: BulkClaimCard): number {
     const id = form.assignments[card.id]?.[0];
     if (!id) return 0;
@@ -143,12 +152,15 @@ function pickedStackAmount(card: BulkClaimCard): number {
     const alt = card.alt_stacks.find(s => s.id === id);
     return alt?.amount ?? 0;
 }
+/** How many of the deck card's slots are *not* covered by the picked stack — drives the buy-more checkbox. */
 function uncoveredFor(card: BulkClaimCard): number {
     return Math.max(0, card.quantity - pickedStackAmount(card));
 }
+/** Single-stack-per-row replace. Empty value clears the row. */
 function onPickStack(cardId: string, value: string): void {
     form.assignments[cardId] = value ? [value] : [];
 }
+/** Submit the form. Server redirects to `/decks/{id}/unclaimed` so the user sees what's still missing. */
 function onSubmit(): void {
     form.post(`/decks/${props.deck.id}/bulk-claim`);
 }

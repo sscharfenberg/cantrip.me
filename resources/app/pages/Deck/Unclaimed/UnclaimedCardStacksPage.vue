@@ -22,7 +22,6 @@ import Checkbox from "Components/Form/Checkbox.vue";
 import Headline from "Components/UI/Headline.vue";
 import Icon from "Components/UI/Icon.vue";
 import { useBreadcrumbs } from "Composables/useBreadcrumbs.ts";
-
 interface UnclaimedCard {
     id: string;
     name: string;
@@ -33,38 +32,38 @@ interface UnclaimedCard {
     zone: string;
     role: string | null;
 }
-
 interface DeckSnapshot {
     id: string;
     name: string;
     container_id: string | null;
 }
-
 const props = defineProps<{
     deck: DeckSnapshot;
     mode: "A" | "B" | "C";
     cards: UnclaimedCard[];
 }>();
-
 const { t } = useI18n();
 useBreadcrumbs().setBreadcrumbs([
     { labelKey: "pages.decks.link", href: "/decks", icon: "deck" },
-    { label: props.deck.name, href: `/decks/${props.deck.id}` },
+    { label: props.deck.name, href: `/decks/${props.deck.id}`, icon: "cards" },
     { label: t("pages.deck.unclaimed.menu_link") }
 ]);
-
 /** Per-row "I just bought this" checkboxes — only meaningful in mode C. */
 const form = useForm<{ bought: string[] }>({ bought: [] });
-
+/**
+ * Master "I bought all of these" checkbox. Two-way: reading reports
+ * "all rows ticked"; writing flips every row at once. Reports unchecked
+ * for the empty-list case so it doesn't render as a meaningless tick.
+ */
 const allChecked = computed({
     get: () => props.cards.length > 0 && form.bought.length === props.cards.length,
     set: (value: boolean) => {
         form.bought = value ? props.cards.map(c => c.id) : [];
     }
 });
-
+/** Gates the submit button — at least one row must be ticked. */
 const someChecked = computed(() => form.bought.length > 0);
-
+/** Push / pull a deck_card_id into `form.bought` based on the row checkbox state. */
 function toggleRow(cardId: string, checked: boolean): void {
     if (checked) {
         if (!form.bought.includes(cardId)) form.bought.push(cardId);
@@ -72,11 +71,11 @@ function toggleRow(cardId: string, checked: boolean): void {
         form.bought = form.bought.filter(id => id !== cardId);
     }
 }
-
+/** Mirror of the row checkbox state — drives `:checked-initially` after re-renders. */
 function isRowChecked(cardId: string): boolean {
     return form.bought.includes(cardId);
 }
-
+/** Submit the bought-rows list. No-op if nothing is ticked (button is already disabled). */
 function onSubmit(): void {
     if (!someChecked.value) return;
     form.post(`/decks/${props.deck.id}/unclaimed/buy`);
@@ -98,11 +97,7 @@ function onSubmit(): void {
 
     <template v-else>
         <p class="unclaimed__intro">
-            {{
-                mode === "B"
-                    ? $t("pages.deck.unclaimed.intro_mode_b")
-                    : $t("pages.deck.unclaimed.intro_mode_c")
-            }}
+            {{ mode === "B" ? $t("pages.deck.unclaimed.intro_mode_b") : $t("pages.deck.unclaimed.intro_mode_c") }}
         </p>
 
         <div class="unclaimed__toolbar">
