@@ -19,13 +19,14 @@ use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 /**
- * Feature coverage for the collection-mode promote / clear endpoints.
+ * Feature coverage for the PATCH /decks/{deck}/collection-mode endpoint.
  *
- *  - PATCH `/decks/{deck}/collection-mode/promote` flips a mode-B deck
- *    to mode C with no claims; owner-only.
- *  - DELETE `/decks/{deck}/collection-mode/assignments` detaches every
- *    pivot row and nulls the sticky pin; owner-only.
- *  - Both endpoints redirect to the deck show page with a flash message.
+ *  - Persists the requested mode (A / B / C).
+ *  - Transitioning C → B/A cascade-deletes every pivot row attached to
+ *    this deck.
+ *  - Owner-only — non-owners receive 403 and the deck is untouched.
+ *  - Rejects unknown mode values with a 422.
+ *  - Redirects to the deck show page with a success flash on success.
  */
 class DeckCollectionModeControllerTest extends TestCase
 {
@@ -116,34 +117,23 @@ class DeckCollectionModeControllerTest extends TestCase
     }
 
     #[Test]
-    public function promote_endpoint_pins_collection_mode_to_c_for_owner(): void
+    public function set_endpoint_persists_each_valid_mode_for_owner(): void
     {
         $user = User::factory()->create();
         $deck = $this->makeDeck($user);
 
-        $response = $this->actingAs($user)->patch("/decks/{$deck->id}/collection-mode/promote");
+        foreach (['B', 'C', 'A'] as $mode) {
+            $response = $this->actingAs($user)->patch("/decks/{$deck->id}/collection-mode", ['mode' => $mode]);
 
-        $response->assertRedirect("/decks/{$deck->id}");
-        $response->assertSessionHas('message');
-        $response->assertSessionHas('type', 'success');
-        $this->assertSame('C', $deck->fresh()->collection_mode);
+            $response->assertRedirect("/decks/{$deck->id}");
+            $response->assertSessionHas('message');
+            $response->assertSessionHas('type', 'success');
+            $this->assertSame($mode, $deck->fresh()->collection_mode);
+        }
     }
 
     #[Test]
-    public function promote_endpoint_rejects_non_owner(): void
-    {
-        $owner = User::factory()->create();
-        $other = User::factory()->create();
-        $deck = $this->makeDeck($owner);
-
-        $response = $this->actingAs($other)->patch("/decks/{$deck->id}/collection-mode/promote");
-
-        $response->assertForbidden();
-        $this->assertNull($deck->fresh()->collection_mode);
-    }
-
-    #[Test]
-    public function clear_endpoint_detaches_pivots_and_nulls_pin_for_owner(): void
+    public function set_endpoint_cascade_deletes_pivot_rows_on_c_to_b_transition(): void
     {
         $user = User::factory()->create();
         $deck = $this->makeDeck($user);
@@ -154,37 +144,39 @@ class DeckCollectionModeControllerTest extends TestCase
         $deckCard->cardStacks()->attach($stack->id);
         $deck->update(['collection_mode' => 'C']);
 
-        $response = $this->actingAs($user)->delete("/decks/{$deck->id}/collection-mode/assignments");
+        $response = $this->actingAs($user)->patch("/decks/{$deck->id}/collection-mode", ['mode' => 'B']);
 
         $response->assertRedirect("/decks/{$deck->id}");
-        $response->assertSessionHas('message');
-        $response->assertSessionHas('type', 'success');
-        $this->assertNull($deck->fresh()->collection_mode);
+        $this->assertSame('B', $deck->fresh()->collection_mode);
         $this->assertDatabaseMissing('deck_card_card_stack', [
             'deck_card_id' => $deckCard->id,
         ]);
     }
 
     #[Test]
-    public function clear_endpoint_rejects_non_owner(): void
+    public function set_endpoint_rejects_non_owner(): void
     {
         $owner = User::factory()->create();
         $other = User::factory()->create();
         $deck = $this->makeDeck($owner);
-        $oracle = $this->makeOracleCard();
-        $default = $this->makeDefaultCard($oracle);
-        $deckCard = $this->makeDeckCard($deck, $oracle, $default);
-        $stack = $this->makeCardStack($owner, $default);
-        $deckCard->cardStacks()->attach($stack->id);
-        $deck->update(['collection_mode' => 'C']);
 
-        $response = $this->actingAs($other)->delete("/decks/{$deck->id}/collection-mode/assignments");
+        $response = $this->actingAs($other)->patch("/decks/{$deck->id}/collection-mode", ['mode' => 'C']);
 
         $response->assertForbidden();
-        $this->assertSame('C', $deck->fresh()->collection_mode);
-        $this->assertDatabaseHas('deck_card_card_stack', [
-            'deck_card_id' => $deckCard->id,
-            'card_stack_id' => $stack->id,
-        ]);
+        $this->assertSame('A', $deck->fresh()->collection_mode);
+    }
+
+    #[Test]
+    public function set_endpoint_rejects_unknown_mode_value(): void
+    {
+        $user = User::factory()->create();
+        $deck = $this->makeDeck($user);
+
+        $response = $this->actingAs($user)
+            ->from("/decks/{$deck->id}")
+            ->patch("/decks/{$deck->id}/collection-mode", ['mode' => 'Z']);
+
+        $response->assertSessionHasErrors('mode');
+        $this->assertSame('A', $deck->fresh()->collection_mode);
     }
 }

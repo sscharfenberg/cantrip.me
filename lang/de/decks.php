@@ -41,8 +41,12 @@ return [
     ],
 
     'collection_mode' => [
-        'promoted_flash' => 'Deck „:name" nutzt jetzt exemplargenaues Tracking.',
-        'cleared_flash' => 'Alle Sammlungs-Reservierungen für „:name" entfernt.',
+        'set_flash' => 'Sammlungs-Tracking für „:name" ist jetzt :mode.',
+        'modes' => [
+            'A' => 'aus',
+            'B' => 'implizit',
+            'C' => 'explizit',
+        ],
     ],
 
     'companion' => [

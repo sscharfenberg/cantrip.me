@@ -15,13 +15,12 @@ use App\Enums\Scryfall\ScryfallRelatedComponent;
 use App\Formats\FormatProfile;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Decks\AddAllToCollectionRequest;
-use App\Http\Requests\Decks\ClearDeckCollectionAssignmentsRequest;
 use App\Http\Requests\Decks\DeckQrSvgRequest;
 use App\Http\Requests\Decks\DeleteDeckRequest;
 use App\Http\Requests\Decks\EditDeckRequest;
 use App\Http\Requests\Decks\FinalizeDeckRequest;
 use App\Http\Requests\Decks\GenerateDeckQrRequest;
-use App\Http\Requests\Decks\PromoteDeckCollectionModeRequest;
+use App\Http\Requests\Decks\SetDeckCollectionModeRequest;
 use App\Http\Requests\Decks\SetDeckHeroImageRequest;
 use App\Http\Requests\Decks\SetDeckStateRequest;
 use App\Http\Requests\Decks\SetDeckVisibilityRequest;
@@ -348,19 +347,16 @@ class DecksController extends Controller
                 $collectionImplicitStatuses = DeckCollectionStatusService::implicitStatusForDeck($deck);
             }
 
-            // Badge presentation mode — A whenever effective mode is B but
-            // the deck has no `container_id` (the per-row implicit badges
-            // can't render without an anchor, so the header badge would
-            // otherwise promise "Implicit tracking" while nothing visibly
-            // tracks). The real `collectionMode` continues to drive the
-            // wizard trigger and the modal's why-recap + actions.
-            $collectionBadgeMode = $collectionMode === DeckCollectionStatusService::MODE_B && $deck->container_id === null
-                ? DeckCollectionStatusService::MODE_A
-                : $collectionMode;
+            // Badge presents the user's explicitly chosen mode — no
+            // longer downgraded to A when mode B has no container_id,
+            // since the user actively picked B and the badge should
+            // reflect their choice.
+            $collectionBadgeMode = $collectionMode;
 
-            // Context for the deck-header collection-mode modal (Phase 2.6).
-            // Lets the modal phrase the "why am I in this mode?" recap and
-            // size the C→B clear-all confirm copy from real numbers.
+            // Context for the collection-mode modal: the master switch
+            // gates the radio (off = "go to settings" link instead),
+            // and the claimed count drives the C → B/A cascade-delete
+            // warning copy.
             $claimedCount = (int) DB::table('deck_card_card_stack')
                 ->whereIn(
                     'deck_card_id',
@@ -369,11 +365,8 @@ class DecksController extends Controller
                         ->select('id')
                 )
                 ->count();
-            $hasStacks = $request->user()->cardStacks()->exists();
             $collectionModeContext = [
                 'master_switch_enabled' => (bool) $request->user()->collection_integration_enabled,
-                'has_stacks' => $hasStacks,
-                'has_container' => $deck->container_id !== null,
                 'claimed_count' => $claimedCount,
             ];
 
@@ -1132,44 +1125,26 @@ class DecksController extends Controller
     }
 
     /**
-     * Promote the deck from mode B to mode C without claiming any
-     * stacks — pins `decks.collection_mode = 'C'` so the per-card
-     * "Assign physical copy" picker becomes reachable and per-row
-     * status badges flip on.
+     * Set the deck's `collection_mode` to one of A / B / C, chosen by
+     * the owner via the collection-mode modal's radio + submit.
      *
-     * Triggered from the deck-header collection-mode modal. Idempotent
-     * (the service no-ops when already pinned).
+     * Transition semantics — including the C → B/A cascade-delete of
+     * every `deck_card_card_stack` pivot row attached to this deck —
+     * live in {@see DeckCollectionModeService::setMode}. No-op when the
+     * requested mode equals the current one.
      */
-    public function promoteCollectionMode(PromoteDeckCollectionModeRequest $request, Deck $deck): RedirectResponse
+    public function setCollectionMode(SetDeckCollectionModeRequest $request, Deck $deck): RedirectResponse
     {
-        DeckCollectionModeService::promoteToExplicit($deck);
+        $mode = (string) $request->validated('mode');
+
+        DeckCollectionModeService::setMode($deck, $mode);
 
         $request->session()->flash('message', __(
-            'decks.collection_mode.promoted_flash',
-            ['name' => $deck->name],
-        ));
-        $request->session()->flash('type', 'success');
-
-        return redirect(route('decks.show', $deck));
-    }
-
-    /**
-     * Clear every collection assignment on this deck and reset the
-     * sticky mode pin — explicit C→B transition. Destructive: every
-     * pivot row attached to a deck_card on this deck is deleted, and
-     * `decks.collection_mode` is nulled.
-     *
-     * Triggered from the deck-header collection-mode modal after the
-     * two-step in-modal confirm. Idempotent (the service no-ops when
-     * there's nothing to clear).
-     */
-    public function clearCollectionAssignments(ClearDeckCollectionAssignmentsRequest $request, Deck $deck): RedirectResponse
-    {
-        DeckCollectionModeService::clearAssignments($deck);
-
-        $request->session()->flash('message', __(
-            'decks.collection_mode.cleared_flash',
-            ['name' => $deck->name],
+            'decks.collection_mode.set_flash',
+            [
+                'name' => $deck->name,
+                'mode' => __('decks.collection_mode.modes.'.$mode),
+            ],
         ));
         $request->session()->flash('type', 'success');
 

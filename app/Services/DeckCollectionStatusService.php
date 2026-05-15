@@ -2,7 +2,6 @@
 
 namespace App\Services;
 
-use App\Models\CardStack;
 use App\Models\Deck;
 use App\Models\DeckCard;
 use App\Models\User;
@@ -12,29 +11,22 @@ use Illuminate\Support\Facades\DB;
  * Resolves the per-deck "collection integration" mode and per-card
  * status that drive collection-aware UI on the deck show page.
  *
- * Three modes are inferred from data (never explicitly toggled by the
- * user beyond the {@see User::$collection_integration_enabled} master
- * switch):
+ * Three modes, explicitly chosen by the user via the collection-mode
+ * modal (the {@see User::$collection_integration_enabled} master switch
+ * is a global UI gate that overrides every deck to effective mode A
+ * while it's off):
  *
- *   A — no collection: user has zero card_stacks (or has opted out via
- *       the master switch).
- *   B — implicit deckbox: user has card_stacks but this deck has not
- *       been pinned to mode C and has no pivot rows. Mode B is the
- *       trigger for the planned→built finalize wizard — it includes
- *       decks that don't yet have a `container_id` (the wizard is
- *       precisely where the user picks one). Mode-B *badge rendering*
- *       is gated separately on the controller side: the implicit-status
+ *   A — off. No badges, no claim UI, no implicit coverage. New decks
+ *       start here.
+ *   B — implicit deckbox. Coverage is inferred from `decks.container_id`
+ *       (cards in that container count as covered). Mode-B *badge
+ *       rendering* is gated on the controller side: the implicit-status
  *       payload only ships when `decks.container_id` is set so the
  *       per-row "in this deckbox / elsewhere" count has an anchor.
- *   C — explicit assignment: the deck is pinned via `decks.collection_mode`
- *       OR currently has at least one pivot row in `deck_card_card_stack`.
- *
- * Mode C is **sticky**: once the wizard claims at least one stack for
- * a deck, `decks.collection_mode` is set to 'C' and the deck stays in
- * C even if every claimed stack is later deleted from the collection.
- * Per the design doc, C→B is rare and lives in deck settings as a
- * future "clear all collection assignments" action — never via implicit
- * cascade.
+ *   C — explicit assignment. Per-card pivot rows in
+ *       `deck_card_card_stack` drive coverage. Switching C → B/A
+ *       cascade-deletes every pivot row attached to this deck (see
+ *       {@see DeckCollectionModeService::setMode}).
  *
  * The five per-card status values returned by {@see statusForDeck}
  * mirror the design-doc taxonomy. Resolution priority (highest →
@@ -64,6 +56,11 @@ class DeckCollectionStatusService
     /**
      * Determine which of the three collection-integration modes applies
      * to this user/deck combination.
+     *
+     * The user-level master switch overrides the per-deck choice — while
+     * it's off, every deck reports effective mode A regardless of its
+     * stored `collection_mode`. The stored value is preserved so flipping
+     * the master switch back on restores each deck to its prior mode.
      */
     public static function effectiveMode(User $user, Deck $deck): string
     {
@@ -71,28 +68,7 @@ class DeckCollectionStatusService
             return self::MODE_A;
         }
 
-        $stackCount = CardStack::query()
-            ->where('user_id', $user->id)
-            ->count();
-
-        if ($stackCount === 0) {
-            return self::MODE_A;
-        }
-
-        // Sticky pin: a deck that's previously been promoted to C stays
-        // in C even if every pivot row was later cascade-deleted via
-        // stack removal. Without this, deleting any claimed stack would
-        // silently drop all of the deck's status badges.
-        if ($deck->collection_mode === self::MODE_C) {
-            return self::MODE_C;
-        }
-
-        $pivotCount = DB::table('deck_card_card_stack')
-            ->join('deck_cards', 'deck_cards.id', '=', 'deck_card_card_stack.deck_card_id')
-            ->where('deck_cards.deck_id', $deck->id)
-            ->count();
-
-        return $pivotCount > 0 ? self::MODE_C : self::MODE_B;
+        return $deck->collection_mode ?? self::MODE_A;
     }
 
     /**

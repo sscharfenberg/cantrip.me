@@ -25,7 +25,7 @@ use Tests\TestCase;
  *  - Owner can DELETE; the pivot rows are removed; flash message lands.
  *  - Non-owners receive 403; pivot rows survive.
  *  - Multi-claim case: every pivot row is removed in one shot.
- *  - Sticky `decks.collection_mode = 'C'` is preserved on the affected
+ *  - The deck's `collection_mode` is preserved on the affected
  *    deck — clearing the pin is a separate action (deck-header modal).
  *  - Redirect target follows the `?from=` query parameter.
  */
@@ -197,13 +197,13 @@ class CardStackUnclaimControllerTest extends TestCase
     }
 
     #[Test]
-    public function affected_deck_keeps_its_sticky_collection_mode_pin(): void
+    public function affected_deck_keeps_its_collection_mode(): void
     {
         // Per the design: unclaiming from the collection side does
-        // *not* clear `decks.collection_mode = 'C'`. The pin survives
-        // even when the unclaim removes the deck's only claim. Users
-        // clear the pin via the deck-header modal's
-        // "Clear all collection assignments" — distinct intent.
+        // *not* change `decks.collection_mode`. The user's explicit
+        // mode choice survives even when the unclaim removes the
+        // deck's only claim. Mode transitions are owned by the
+        // collection-mode badge's per-deck setter.
         $user = User::factory()->create();
         $deck = $this->makeDeck($user);
         $oracle = $this->makeOracleCard();

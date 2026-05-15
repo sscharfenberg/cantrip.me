@@ -279,7 +279,7 @@ class DeckFinalizeControllerTest extends TestCase
     public function deck_show_emits_mode_b_implicit_status_per_card(): void
     {
         // Mode B decks expose `collectionMode: 'B'` plus per-card
-        // `collection_implicit_status` counts (Phase 2.2). The mode-C
+        // `collection_implicit_status` counts. The mode-C
         // `collection_status` field stays null on mode-B decks — the two
         // render paths are mutually exclusive.
         $user = User::factory()->create();
@@ -290,7 +290,7 @@ class DeckFinalizeControllerTest extends TestCase
             'sort_order' => 1,
         ]);
         $deck = $this->makeDeck($user);
-        $deck->update(['container_id' => $deckbox->id]);
+        $deck->update(['container_id' => $deckbox->id, 'collection_mode' => 'B']);
         $oracle = $this->makeOracleCard();
         $default = $this->makeDefaultCard($oracle);
         $this->makeCardStack($user, $default, $deckbox);
@@ -311,27 +311,25 @@ class DeckFinalizeControllerTest extends TestCase
     #[Test]
     public function deck_show_keeps_mode_b_silent_when_deck_has_no_container(): void
     {
-        // Mode B still resolves (so the planned→built wizard fires
-        // correctly — that's where the user picks a container), but
-        // the per-card "in this deckbox / elsewhere" partition has no
-        // anchor without `decks.container_id`. The controller therefore
-        // ships a null `collection_implicit_status` per card so badges
-        // stay silent — and demotes `collectionBadgeMode` to A so the
-        // header badge doesn't promise "Implicit tracking" while no
-        // per-row badges actually render.
+        // The per-card "in this deckbox / elsewhere" partition has no
+        // anchor without `decks.container_id`, so the controller ships
+        // a null `collection_implicit_status` per card. Under explicit
+        // modes the badge still reports the user's chosen mode (B) —
+        // we no longer downgrade to A on missing container.
         $user = User::factory()->create();
         $deck = $this->makeDeck($user);
+        $deck->update(['collection_mode' => 'B']);
         $oracle = $this->makeOracleCard();
         $default = $this->makeDefaultCard($oracle);
         $this->makeCardStack($user, $default);
-        $this->makeDeckCard($deck, $oracle, $default);
+        $this->makeDeckCard($deck->fresh(), $oracle, $default);
 
         $response = $this->actingAs($user)->get("/decks/{$deck->id}");
 
         $response->assertOk();
         $response->assertInertia(fn ($page) => $page
             ->where('collectionMode', 'B')
-            ->where('collectionBadgeMode', 'A')
+            ->where('collectionBadgeMode', 'B')
             ->where('cards.0.collection_status', null)
             ->where('cards.0.collection_implicit_status', null)
         );
@@ -340,8 +338,9 @@ class DeckFinalizeControllerTest extends TestCase
     #[Test]
     public function deck_show_keeps_badge_mode_in_sync_with_real_mode_when_anchor_exists(): void
     {
-        // Sanity: when mode B has an anchor, badge mode equals real mode
-        // (no demotion). Same for the trivial mode-A case.
+        // Under explicit modes `collectionBadgeMode === collectionMode`
+        // for every deck — the controller no longer demotes the badge
+        // on a missing container.
         $user = User::factory()->create();
         $deckbox = Container::create([
             'user_id' => $user->id,
@@ -350,7 +349,7 @@ class DeckFinalizeControllerTest extends TestCase
             'sort_order' => 1,
         ]);
         $deck = $this->makeDeck($user);
-        $deck->update(['container_id' => $deckbox->id]);
+        $deck->update(['container_id' => $deckbox->id, 'collection_mode' => 'B']);
         $oracle = $this->makeOracleCard();
         $default = $this->makeDefaultCard($oracle);
         $this->makeCardStack($user, $default, $deckbox);

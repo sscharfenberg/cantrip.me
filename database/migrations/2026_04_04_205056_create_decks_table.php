@@ -28,14 +28,16 @@ return new class extends Migration
                 ->default(DeckState::Planned->value);
             $table->string('colors', 5)->nullable();
             $table->unsignedTinyInteger('bracket')->nullable();
-            // Sticky collection-integration mode marker. Null = mode is
-            // inferred (A or B based on user-level state). 'C' = the deck
-            // has been pinned to explicit-claims mode by the wizard or a
-            // per-card assign action; stays 'C' even if every pivot row
-            // is later cascade-deleted via stack removal. Future "clear
-            // all collection assignments" deck setting flips it back to
-            // null. See {@see DeckCollectionStatusService::effectiveMode}.
-            $table->string('collection_mode', 1)->nullable();
+            // Per-deck collection-integration mode, explicitly set by the
+            // user via the collection-mode modal. 'A' = off, 'B' = implicit
+            // (container-based coverage), 'C' = explicit (per-card pivot
+            // rows). New decks start in 'A'. Switching C → B/A cascades a
+            // delete of every deck_card_card_stack pivot row attached to
+            // this deck. The user-level `collection_integration_enabled`
+            // master switch overrides this column at read time, presenting
+            // every deck as effective mode A while the switch is off.
+            // See {@see DeckCollectionStatusService::effectiveMode}.
+            $table->string('collection_mode', 1)->default('A');
             $table->foreignUuid('user_id')
                 ->constrained()
                 ->cascadeOnDelete();

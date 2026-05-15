@@ -45,6 +45,18 @@ class Deck extends Model
         'collection_mode',
     ];
 
+    /**
+     * Model-level defaults applied to fresh instances before insert. The
+     * `collection_mode` default mirrors the migration's column default so
+     * the in-memory model agrees with the persisted row when `Deck::create`
+     * is called without an explicit mode.
+     *
+     * @var array<string, mixed>
+     */
+    protected $attributes = [
+        'collection_mode' => 'A',
+    ];
+
     protected function casts(): array
     {
         return [

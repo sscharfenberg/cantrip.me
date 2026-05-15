@@ -22,12 +22,12 @@ use Tests\TestCase;
 /**
  * Coverage for {@see DeckCollectionModeService}.
  *
- *  - promoteToExplicit pins `collection_mode = 'C'` and is a no-op when
- *    already pinned (avoids spurious updates).
- *  - clearAssignments detaches every pivot row attached to this deck's
- *    deck_cards and nulls the sticky pin atomically.
- *  - clearAssignments leaves pivots on *other* decks alone.
- *  - clearAssignments is a no-op for a deck without pivots and no pin.
+ *  - setMode writes the requested column value (A / B / C).
+ *  - setMode is a no-op when the deck is already in the requested mode.
+ *  - Transitioning C → B or C → A cascade-deletes every pivot row
+ *    attached to this deck's deck_cards.
+ *  - Cascade-delete on C → B/A leaves pivots on other decks alone.
+ *  - Non-C → non-C transitions don't touch the pivot table.
  */
 class DeckCollectionModeServiceTest extends TestCase
 {
@@ -122,19 +122,21 @@ class DeckCollectionModeServiceTest extends TestCase
     }
 
     #[Test]
-    public function promote_to_explicit_pins_collection_mode_to_c(): void
+    public function set_mode_writes_the_requested_column_value(): void
     {
         $user = User::factory()->create();
         $deck = $this->makeDeck($user);
-        $this->assertNull($deck->collection_mode);
+        $this->assertSame('A', $deck->collection_mode);
 
-        DeckCollectionModeService::promoteToExplicit($deck);
+        DeckCollectionModeService::setMode($deck, 'B');
+        $this->assertSame('B', $deck->fresh()->collection_mode);
 
+        DeckCollectionModeService::setMode($deck->fresh(), 'C');
         $this->assertSame('C', $deck->fresh()->collection_mode);
     }
 
     #[Test]
-    public function promote_to_explicit_is_a_noop_when_already_pinned(): void
+    public function set_mode_is_a_noop_when_already_in_the_requested_mode(): void
     {
         $user = User::factory()->create();
         $deck = $this->makeDeck($user);
@@ -143,15 +145,14 @@ class DeckCollectionModeServiceTest extends TestCase
         $beforeUpdatedAt = $deck->fresh()->updated_at;
         sleep(1);
 
-        DeckCollectionModeService::promoteToExplicit($deck->fresh());
+        DeckCollectionModeService::setMode($deck->fresh(), 'C');
 
         $this->assertSame('C', $deck->fresh()->collection_mode);
-        // No write happened — `updated_at` should be untouched.
         $this->assertEquals($beforeUpdatedAt->toIso8601String(), $deck->fresh()->updated_at->toIso8601String());
     }
 
     #[Test]
-    public function clear_assignments_detaches_pivots_and_nulls_the_pin(): void
+    public function transition_from_c_to_b_cascade_deletes_every_pivot_row(): void
     {
         $user = User::factory()->create();
         $deck = $this->makeDeck($user);
@@ -162,9 +163,9 @@ class DeckCollectionModeServiceTest extends TestCase
         $deckCard->cardStacks()->attach($stack->id);
         $deck->update(['collection_mode' => 'C']);
 
-        DeckCollectionModeService::clearAssignments($deck->fresh());
+        DeckCollectionModeService::setMode($deck->fresh(), 'B');
 
-        $this->assertNull($deck->fresh()->collection_mode);
+        $this->assertSame('B', $deck->fresh()->collection_mode);
         $this->assertDatabaseMissing('deck_card_card_stack', [
             'deck_card_id' => $deckCard->id,
             'card_stack_id' => $stack->id,
@@ -174,7 +175,27 @@ class DeckCollectionModeServiceTest extends TestCase
     }
 
     #[Test]
-    public function clear_assignments_leaves_pivots_on_other_decks_alone(): void
+    public function transition_from_c_to_a_cascade_deletes_every_pivot_row(): void
+    {
+        $user = User::factory()->create();
+        $deck = $this->makeDeck($user);
+        $oracle = $this->makeOracleCard();
+        $default = $this->makeDefaultCard($oracle);
+        $deckCard = $this->makeDeckCard($deck, $oracle, $default);
+        $stack = $this->makeCardStack($user, $default);
+        $deckCard->cardStacks()->attach($stack->id);
+        $deck->update(['collection_mode' => 'C']);
+
+        DeckCollectionModeService::setMode($deck->fresh(), 'A');
+
+        $this->assertSame('A', $deck->fresh()->collection_mode);
+        $this->assertDatabaseMissing('deck_card_card_stack', [
+            'deck_card_id' => $deckCard->id,
+        ]);
+    }
+
+    #[Test]
+    public function cascade_delete_leaves_pivots_on_other_decks_alone(): void
     {
         $user = User::factory()->create();
         $deck = $this->makeDeck($user);
@@ -190,12 +211,11 @@ class DeckCollectionModeServiceTest extends TestCase
         $deck->update(['collection_mode' => 'C']);
         $otherDeck->update(['collection_mode' => 'C']);
 
-        DeckCollectionModeService::clearAssignments($deck->fresh());
+        DeckCollectionModeService::setMode($deck->fresh(), 'B');
 
         $this->assertDatabaseMissing('deck_card_card_stack', [
             'deck_card_id' => $deckCard->id,
         ]);
-        // Pivot on the other deck must survive.
         $this->assertDatabaseHas('deck_card_card_stack', [
             'deck_card_id' => $otherDeckCard->id,
             'card_stack_id' => $stackB->id,
@@ -204,18 +224,40 @@ class DeckCollectionModeServiceTest extends TestCase
     }
 
     #[Test]
-    public function clear_assignments_is_a_noop_for_a_clean_deck(): void
+    public function transition_from_a_to_b_does_not_touch_pivot_table(): void
     {
+        // Sanity: only C → non-C cascade-deletes. Going from A or B to
+        // any other mode is a pure column write.
         $user = User::factory()->create();
         $deck = $this->makeDeck($user);
 
-        $beforeUpdatedAt = $deck->fresh()->updated_at;
-        sleep(1);
+        DeckCollectionModeService::setMode($deck->fresh(), 'B');
 
-        DeckCollectionModeService::clearAssignments($deck->fresh());
+        $this->assertSame('B', $deck->fresh()->collection_mode);
+    }
 
-        $this->assertNull($deck->fresh()->collection_mode);
-        // No write should have happened.
-        $this->assertEquals($beforeUpdatedAt->toIso8601String(), $deck->fresh()->updated_at->toIso8601String());
+    #[Test]
+    public function transition_from_b_to_c_does_not_delete_pivot_rows(): void
+    {
+        // Edge: mode B technically shouldn't have pivot rows under the
+        // explicit-mode model, but if any exist (legacy data) the
+        // B → C transition must leave them intact — only C → B/A
+        // triggers cascade-delete.
+        $user = User::factory()->create();
+        $deck = $this->makeDeck($user);
+        $oracle = $this->makeOracleCard();
+        $default = $this->makeDefaultCard($oracle);
+        $deckCard = $this->makeDeckCard($deck, $oracle, $default);
+        $stack = $this->makeCardStack($user, $default);
+        $deckCard->cardStacks()->attach($stack->id);
+        $deck->update(['collection_mode' => 'B']);
+
+        DeckCollectionModeService::setMode($deck->fresh(), 'C');
+
+        $this->assertSame('C', $deck->fresh()->collection_mode);
+        $this->assertDatabaseHas('deck_card_card_stack', [
+            'deck_card_id' => $deckCard->id,
+            'card_stack_id' => $stack->id,
+        ]);
     }
 }

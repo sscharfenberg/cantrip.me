@@ -1,47 +1,126 @@
 <script setup lang="ts">
 /******************************************************************************
- * Deck-header badge surfacing the current collection-integration mode.
+ * Deck-header badge surfacing the current collection-integration mode and
+ * doubling as a popover-trigger that lets the owner switch the deck's
+ * mode in one click.
  *
- * Three states (A / B / C — see `DeckCollectionStatusService`):
+ * Three states (A / B / C — see {@see DeckCollectionStatusService}):
  *   A  tracking off    — clear icon
  *   B  implicit        — storage icon (count-based)
  *   C  per-copy        — key icon (each row pinned to a specific stack)
  *
- * Owner-only — the modal behind the click is the actionable surface.
+ * Owner-only — the parent already gates rendering on `isOwner` and on the
+ * user-level master switch. Switching C → B/A triggers a native confirm
+ * because pivot rows are cascade-deleted server-side.
  *****************************************************************************/
-import { computed } from "vue";
+import { router } from "@inertiajs/vue3";
+import { computed, ref, useId } from "vue";
 import { useI18n } from "vue-i18n";
 import Icon from "Components/UI/Icon.vue";
+
 const props = defineProps<{
-    /** Effective mode resolved by the controller. */
+    /** Deck UUID — used in the PATCH endpoint. */
+    deckId: string;
+    /** The deck's currently stored collection mode. */
     mode: "A" | "B" | "C";
+    /** Pivot rows attached to this deck — sizes the cascade-delete confirm. */
+    claimedCount: number;
 }>();
-const emit = defineEmits<{ click: [] }>();
+
 const { t } = useI18n();
-const iconName = computed(() => {
-    switch (props.mode) {
+const popoverId = useId();
+const reference = ref("--" + popoverId);
+/** True while a PATCH is in flight — disables the menu to prevent double-submit. */
+const processing = ref(false);
+
+const modes = ["A", "B", "C"] as const;
+type Mode = (typeof modes)[number];
+
+function iconFor(m: Mode): string {
+    switch (m) {
         case "A":
             return "clear";
         case "B":
             return "storage";
         case "C":
-        default:
             return "key";
     }
-});
+}
+
 const tooltip = computed(() => t(`pages.deck.collection_mode.modes.${props.mode}.tooltip`));
 const label = computed(() => t(`pages.deck.collection_mode.modes.${props.mode}.label`));
+
+function closePopover(): void {
+    const el = document.getElementById(popoverId);
+    if (el !== null) el.hidePopover();
+}
+
+function onSelect(target: Mode): void {
+    closePopover();
+    if (target === props.mode || processing.value) return;
+
+    if (props.mode === "C" && props.claimedCount > 0) {
+        const msg = t(
+            "pages.deck.collection_mode.cascade_confirm",
+            { count: props.claimedCount },
+            props.claimedCount
+        );
+        if (!window.confirm(msg)) return;
+    }
+
+    processing.value = true;
+    router.patch(
+        `/decks/${props.deckId}/collection-mode`,
+        { mode: target },
+        {
+            preserveScroll: true,
+            onFinish: () => {
+                processing.value = false;
+            }
+        }
+    );
+}
 </script>
 
 <template>
-    <button type="button" class="badge warning" v-tooltip="tooltip" @click="emit('click')">
-        <icon :name="iconName" :size="1" />
-        {{ label }}
-    </button>
+    <div class="collection-mode-badge">
+        <button
+            :popovertarget="popoverId"
+            class="badge warning collection-mode-badge__trigger"
+            v-tooltip="tooltip"
+            :disabled="processing"
+        >
+            <icon :name="iconFor(mode)" :size="1" />
+            {{ label }}
+        </button>
+        <dialog :id="popoverId" popover class="popover-content collection-mode-badge__menu">
+            <ul class="popover-list">
+                <li v-for="m in modes" :key="m">
+                    <button
+                        type="button"
+                        class="popover-list-item"
+                        :class="{ 'popover-list-item--selected': m === mode }"
+                        :disabled="processing"
+                        @click.prevent="onSelect(m)"
+                    >
+                        <icon :name="iconFor(m)" :size="1" />
+                        {{ $t(`pages.deck.collection_mode.modes.${m}.label`) }}
+                    </button>
+                </li>
+            </ul>
+        </dialog>
+    </div>
 </template>
 
 <style scoped lang="scss">
-button {
-    cursor: pointer;
+.collection-mode-badge {
+    &__trigger {
+        cursor: pointer;
+        anchor-name: v-bind(reference);
+    }
+
+    &__menu {
+        position-anchor: v-bind(reference);
+    }
 }
 </style>

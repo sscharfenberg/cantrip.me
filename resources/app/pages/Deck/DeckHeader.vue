@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 import ColorIdentity from "Components/Card/ColorIdentity.vue";
 import CollectionModeBadge from "Components/Deck/CollectionModeBadge.vue";
@@ -14,13 +14,12 @@ import type { DeckCardRow, DeckCategoryRow, DeckCompanion, DeckMeta, DeckViolati
 import DeckActionsMenu from "./Actions/DeckActionsMenu.vue";
 import type { DeckActionsContainer, DeckActionsTarget } from "./Actions/DeckActionsMenu.vue";
 import DeckLegalityPanel from "./DeckLegalityPanel.vue";
-import CollectionModeModal from "./Modals/CollectionModeModal.vue";
 
-/** Shape of the `collectionModeContext` Inertia prop — owner-only. */
+/** Owner-only context that gates and sizes the collection-mode badge. */
 interface CollectionModeContext {
+    /** User-level master switch. Off ⇒ badge is hidden entirely. */
     master_switch_enabled: boolean;
-    has_stacks: boolean;
-    has_container: boolean;
+    /** Pivot rows attached to this deck — sizes the C → B/A cascade-delete confirm. */
     claimed_count: number;
 }
 
@@ -31,8 +30,7 @@ const props = defineProps<{
     isOwner: boolean;
     /**
      * True when the deck is archived — collapses the actions menu to a
-     * read-only set (QR / CSV / restore / delete) and removes the
-     * collection-mode modal's mutating actions.
+     * read-only set (QR / CSV / restore / delete).
      */
     isArchived: boolean;
     /** hasCommanders **/
@@ -51,16 +49,11 @@ const props = defineProps<{
     heroArtCrop: string | null;
     /** Effective collection-integration mode — drives "Set to finished" routing. */
     collectionMode: "A" | "B" | "C";
-    /**
-     * Badge presentation mode — A whenever effective mode is B with no
-     * `container_id`. Used for the badge label and the modal's heading
-     * + description; the modal's why-recap and actions still use the
-     * real `collectionMode`.
-     */
+    /** Badge presentation mode — kept distinct in the prop API for future divergence. */
     collectionBadgeMode: "A" | "B" | "C";
     /**
-     * Owner-only context for the collection-mode modal. Null for non-owners
-     * (the badge is gated on `isOwner`, so the modal never opens for them).
+     * Owner-only context for the collection-mode badge popover. Null for
+     * non-owners (the badge is gated on `isOwner`).
      */
     collectionModeContext: CollectionModeContext | null;
     /**
@@ -69,8 +62,6 @@ const props = defineProps<{
      */
     containers: DeckActionsContainer[];
 }>();
-/** Controls visibility of the collection-mode explainer modal. */
-const showCollectionModeModal = ref(false);
 const heroBackgroundStyle = computed<Record<string, string> | undefined>(() =>
     props.heroArtCrop ? { "--hero-art-crop": `url('${props.heroArtCrop}')` } : undefined
 );
@@ -121,21 +112,17 @@ const { formatPrice } = useFormatting();
             <badge type="info" v-tooltip="$t('pages.deck.total_worth')">
                 <icon name="money" :size="1" />{{ formatPrice(deck.total_worth) }}
             </badge>
-            <collection-mode-badge v-if="isOwner" :mode="collectionBadgeMode" @click="showCollectionModeModal = true" />
+            <collection-mode-badge
+                v-if="isOwner && collectionModeContext !== null && collectionModeContext.master_switch_enabled"
+                :deck-id="deck.id"
+                :mode="collectionBadgeMode"
+                :claimed-count="collectionModeContext.claimed_count"
+            />
             <visibility-badge :visibility="deck.visibility" />
         </div>
         <paragraph v-if="deck.description">{{ deck.description }}</paragraph>
         <deck-legality-panel v-if="violations.length > 0" :violations="violations" :cards="cards" />
     </section>
-    <collection-mode-modal
-        v-if="showCollectionModeModal && collectionModeContext !== null"
-        :deck-id="deck.id"
-        :mode="collectionMode"
-        :badge-mode="collectionBadgeMode"
-        :context="collectionModeContext"
-        :is-archived="isArchived"
-        @close="showCollectionModeModal = false"
-    />
 </template>
 
 <style lang="scss" scoped>

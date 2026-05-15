@@ -22,7 +22,8 @@ use Tests\TestCase;
 /**
  * Coverage for {@see DeckCollectionStatusService}.
  *
- *  - effectiveMode returns A / B / C correctly given the data shape.
+ *  - effectiveMode returns the deck's stored `collection_mode`, with the
+ *    user-level master switch overriding to A while it is off.
  *  - statusForDeck resolves each of the five status values.
  *  - statusForDeck issues a single batched join per call (perf smoke).
  */
@@ -126,87 +127,61 @@ class DeckCollectionStatusServiceTest extends TestCase
     // ── effectiveMode ──────────────────────────────────────────────────────
 
     #[Test]
-    public function mode_a_when_user_has_no_card_stacks(): void
+    public function new_deck_defaults_to_mode_a(): void
     {
         $user = User::factory()->create();
         $deck = $this->makeDeck($user);
 
+        $this->assertSame('A', $deck->collection_mode);
         $this->assertSame('A', DeckCollectionStatusService::effectiveMode($user, $deck));
     }
 
     #[Test]
-    public function mode_a_when_user_opted_out_via_master_switch(): void
+    public function effective_mode_reads_the_stored_column_value(): void
     {
+        $user = User::factory()->create();
+        $deck = $this->makeDeck($user);
+
+        $deck->update(['collection_mode' => 'B']);
+        $this->assertSame('B', DeckCollectionStatusService::effectiveMode($user, $deck->fresh()));
+
+        $deck->update(['collection_mode' => 'C']);
+        $this->assertSame('C', DeckCollectionStatusService::effectiveMode($user, $deck->fresh()));
+    }
+
+    #[Test]
+    public function master_switch_off_overrides_to_mode_a_regardless_of_column(): void
+    {
+        // The master switch is a global UI gate — when it's off, every
+        // deck reports effective mode A, but the stored per-deck choice
+        // is preserved so flipping the switch back on restores it.
         $user = User::factory()->create(['collection_integration_enabled' => false]);
-        $oracle = $this->makeOracleCard('Sol Ring');
-        $default = $this->makeDefaultCard($oracle);
-        $this->makeCardStack($user, $default);
         $deck = $this->makeDeck($user);
+        $deck->update(['collection_mode' => 'C']);
 
-        $this->assertSame('A', DeckCollectionStatusService::effectiveMode($user, $deck));
+        $this->assertSame('A', DeckCollectionStatusService::effectiveMode($user, $deck->fresh()));
+        $this->assertSame('C', $deck->fresh()->collection_mode);
     }
 
     #[Test]
-    public function mode_b_when_user_has_stacks_but_deck_has_no_pivot_rows(): void
-    {
-        // Mode B is independent of `decks.container_id` so the
-        // planned→built finalize wizard still fires for users who
-        // haven't picked a container yet — the wizard is precisely
-        // where they pick one. Per-card badge rendering is gated
-        // separately at the controller layer (see
-        // {@see DeckFinalizeControllerTest}).
-        $user = User::factory()->create();
-        $oracle = $this->makeOracleCard('Sol Ring');
-        $default = $this->makeDefaultCard($oracle);
-        $this->makeCardStack($user, $default);
-        $deck = $this->makeDeck($user);
-
-        $this->assertSame('B', DeckCollectionStatusService::effectiveMode($user, $deck));
-    }
-
-    #[Test]
-    public function mode_c_is_sticky_after_all_pivot_rows_are_cascade_deleted(): void
+    public function mode_c_survives_cascade_delete_of_all_pivot_rows(): void
     {
         // Regression: deleting a claimed card stack from the collection
-        // cascade-removes the pivot row. Before the fix, that left the
-        // deck with zero pivot rows, dropping it from C back to B and
-        // hiding every status badge — including the `not_owned` badge
-        // the user was expecting on the now-orphaned deck card row.
-        // The sticky `decks.collection_mode = 'C'` pin keeps the deck in
-        // mode C so the badge layer keeps rendering.
+        // cascade-removes the pivot row. The stored `collection_mode`
+        // column is the source of truth, so mode C survives even when
+        // every pivot row is gone — the user explicitly opted in.
         $user = User::factory()->create();
         $oracle = $this->makeOracleCard('Sticky Card');
         $default = $this->makeDefaultCard($oracle);
         $stack = $this->makeCardStack($user, $default);
-        // Unrelated stack so the user still owns a collection after the
-        // claimed stack is deleted (otherwise mode A would short-circuit).
-        $unrelatedOracle = $this->makeOracleCard('Filler');
-        $unrelatedDefault = $this->makeDefaultCard($unrelatedOracle);
-        $this->makeCardStack($user, $unrelatedDefault);
-
         $deck = $this->makeDeck($user);
         $deckCard = $this->makeDeckCard($deck, $oracle, $default);
         $deckCard->cardStacks()->attach($stack->id);
-        // Simulate the wizard pinning the mode after a claim.
         $deck->update(['collection_mode' => 'C']);
 
         $stack->delete(); // cascade removes the only pivot row.
 
         $this->assertSame('C', DeckCollectionStatusService::effectiveMode($user->fresh(), $deck->fresh()));
-    }
-
-    #[Test]
-    public function mode_c_when_deck_has_at_least_one_pivot_row(): void
-    {
-        $user = User::factory()->create();
-        $oracle = $this->makeOracleCard('Sol Ring');
-        $default = $this->makeDefaultCard($oracle);
-        $stack = $this->makeCardStack($user, $default);
-        $deck = $this->makeDeck($user);
-        $deckCard = $this->makeDeckCard($deck, $oracle, $default);
-        $deckCard->cardStacks()->attach($stack->id);
-
-        $this->assertSame('C', DeckCollectionStatusService::effectiveMode($user, $deck));
     }
 
     // ── statusForDeck ──────────────────────────────────────────────────────

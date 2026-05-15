@@ -41,8 +41,12 @@ return [
     ],
 
     'collection_mode' => [
-        'promoted_flash' => 'Deck ":name" is now using per-copy tracking.',
-        'cleared_flash' => 'All collection assignments cleared from ":name".',
+        'set_flash' => 'Collection tracking for ":name" is now set to ":mode".',
+        'modes' => [
+            'A' => 'off',
+            'B' => 'implicit',
+            'C' => 'explicit',
+        ],
     ],
 
     'companion' => [

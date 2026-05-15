@@ -51,23 +51,14 @@ const props = defineProps<{
      * Mode C is the only mode that surfaces per-card status badges.
      */
     collectionMode: "A" | "B" | "C";
-    /**
-     * Badge-presentation mode — equals `collectionMode` except when the
-     * deck is in mode B with no `container_id`, where it demotes to A so
-     * the header badge doesn't claim "Implicit tracking" while no per-row
-     * badges actually render. The real `collectionMode` still drives the
-     * wizard trigger and the modal's why-recap + actions.
-     */
+    /** Badge presentation mode — kept distinct from `collectionMode` for future divergence. */
     collectionBadgeMode: "A" | "B" | "C";
     /**
-     * Owner-only context shaping the collection-mode modal in `DeckHeader`.
-     * Null for non-owners — the badge that opens the modal is gated on
-     * `isOwner`, so a missing context is never reached on the modal side.
+     * Owner-only context for the collection-mode badge popover. Null for
+     * non-owners — the badge is gated on `isOwner`.
      */
     collectionModeContext: {
         master_switch_enabled: boolean;
-        has_stacks: boolean;
-        has_container: boolean;
         claimed_count: number;
     } | null;
     /**

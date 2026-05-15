@@ -250,7 +250,9 @@ class DeckFinalizeServiceTest extends TestCase
         $deckCard = $this->makeDeckCard($deck, $oracle, $default);
         $stack = $this->makeCardStack($user, $default);
 
-        $this->assertNull($deck->collection_mode);
+        // New decks start in mode A; persistAssignments auto-promotes to
+        // C the first time at least one pivot row is written.
+        $this->assertSame('A', $deck->collection_mode);
 
         DeckFinalizeService::persistAssignments(
             $deck,
@@ -273,7 +275,7 @@ class DeckFinalizeServiceTest extends TestCase
 
         DeckFinalizeService::persistAssignments($deck, [], [], null);
 
-        $this->assertNull($deck->fresh()->collection_mode);
+        $this->assertSame('A', $deck->fresh()->collection_mode);
         $this->assertSame('built', $deck->fresh()->state->value);
     }
 
