@@ -50,30 +50,30 @@ Verify with `SELECT collection_mode, COUNT(*) FROM decks GROUP BY collection_mod
 - [x] Click the badge — a popover opens with three entries (`Tracking off`, `Implicit tracking`, `Explicit tracking`). The current mode is visually selected.
 - [x] Click `Implicit tracking` on a deck currently in `A` — page reloads, badge now shows `Implicit tracking`, success flash appears. DB row shows `collection_mode = 'B'`.
 - [x] Click `Explicit tracking` — badge now shows `Explicit tracking`, DB row shows `collection_mode = 'C'`.
-- [ ] With at least one claimed stack attached to the deck, click `Implicit tracking` from `C`. Transition is silent — cascade-delete fires server-side, the deck moves to `B`, success flash appears. No prompt (the user chose cascade-delete in the spec, so no per-action friction).
-- [ ] Same as above but `C → A` — also silent cascade-delete + flash.
-- [ ] Re-pick the same mode that's already selected — no DB write, no flash, popover just closes.
+- [x] With at least one claimed stack attached to the deck, click `Implicit tracking` from `C`. Transition is silent — cascade-delete fires server-side, the deck moves to `B`, success flash appears. No prompt (the user chose cascade-delete in the spec, so no per-action friction).
+- [x] Same as above but `C → A` — also silent cascade-delete + flash.
+- [x] Re-pick the same mode that's already selected — no DB write, no flash, popover just closes.
 
 ### Master switch override
 
-- [ ] Settings → toggle "Collection integration" off. Open a deck. The collection-tracking badge is hidden entirely (no popover trigger). Other deck UI still functions.
-- [ ] Toggle the master switch back on. Open the same deck. Badge reappears with the deck's stored mode preserved (whatever was set before).
+- [x] Settings → toggle "Collection integration" off. Open a deck. The collection-tracking badge is hidden entirely (no popover trigger). Other deck UI still functions.
+- [x] Toggle the master switch back on. Open the same deck. Badge reappears with the deck's stored mode preserved (whatever was set before).
 
 ### Non-owner
 
-- [ ] Visit a public deck owned by someone else. No collection-tracking badge appears. PATCH `/decks/{id}/collection-mode` returns 403 for non-owners.
+- [x] Visit a public deck owned by someone else. No collection-tracking badge appears. PATCH `/decks/{id}/collection-mode` returns 403 for non-owners.
 
 ### Mode A (silent)
 
-- [ ] Set a deck to mode A. The deck show page renders no per-card status badges (neither explicit nor implicit). `BulkClaim` / `UnclaimedCardStacks` entry points (introduced in later PRs) are hidden.
+- [x] Set a deck to mode A. The deck show page renders no per-card status badges (neither explicit nor implicit). `BulkClaim` / `UnclaimedCardStacks` entry points (introduced in later PRs) are hidden.
 
 ### Mode B (implicit, no container)
 
-- [ ] Set a deck to mode B with no `container_id`. Badge shows `Implicit tracking`. Per-card implicit-status badges stay silent (no anchor). Edit the deck and pick a deckbox container — per-card counts now render.
+- [x] Set a deck to mode B with no `container_id`. Badge shows `Implicit tracking`. Per-card implicit-status badges stay silent (no anchor). Edit the deck and pick a deckbox container — per-card counts now render.
 
 ### Validation
 
-- [ ] PATCH `/decks/{id}/collection-mode` with `mode=Z` returns 422 with a `mode` error. DB row is untouched.
+- [x] PATCH `/decks/{id}/collection-mode` with `mode=Z` returns 422 with a `mode` error. DB row is untouched.
 
 ### Automated coverage (delta)
 
@@ -89,19 +89,19 @@ Any deck state (`planned` / `built` / `archived`) can transition to any other di
 
 ### Owner flow
 
-- [ ] Open an owned deck currently in `planned`. Deck-actions menu shows two state entries: `Set to finished` and `Set to archived`. (No `Set to planned` because that's the current state.)
-- [ ] Click `Set to finished` — page reloads, deck state is now `built`, success flash appears. The finalize wizard is **not** opened.
-- [ ] Menu now shows `Set to planned` and `Set to archived`.
-- [ ] Click `Set to archived` — state is now `archived`. Menu now shows `Set to planned` and `Set to finished` (i.e. archived decks can move directly to either non-archived state).
-- [ ] Click `Set to finished` from the archived state — state moves directly to `built` without passing through `planned`.
+- [x] Open an owned deck currently in `planned`. Deck-actions menu shows two state entries: `Set to finished` and `Set to archived`. (No `Set to planned` because that's the current state.)
+- [x] Click `Set to finished` — page reloads, deck state is now `built`, success flash appears. The finalize wizard is **not** opened.
+- [x] Menu now shows `Set to planned` and `Set to archived`.
+- [x] Click `Set to archived` — state is now `archived`. Menu now shows `Set to planned` and `Set to finished` (i.e. archived decks can move directly to either non-archived state).
+- [x] Click `Set to finished` from the archived state — state moves directly to `built` without passing through `planned`.
 
 ### State independence
 
-- [ ] On a deck in mode C with several claimed stacks, flip state planned → built → archived → planned. Pivot rows survive every transition (only the explicit collection-tracking radio cascade-deletes them).
+- [x] On a deck in mode C with several claimed stacks, flip state planned → built → archived → planned. Pivot rows survive every transition (only the explicit collection-tracking radio cascade-deletes them).
 
 ### Non-owner
 
-- [ ] Visit a public deck owned by someone else. The state-transition menu entries are absent. PATCH `/decks/{id}/state` returns 403 for non-owners.
+- [x] Visit a public deck owned by someone else. The state-transition menu entries are absent. PATCH `/decks/{id}/state` returns 403 for non-owners.
 
 ### Automated coverage (delta)
 
@@ -117,13 +117,13 @@ The planned→built finalize wizard has been renamed and restructured. Route `/d
 
 ### Owner flow (mode C deck)
 
-- [ ] Open an owned mode-C deck with at least one unclaimed card. The deck-actions menu shows a "Claim cards" entry.
-- [ ] Click "Claim cards" — `/decks/{id}/bulk-claim` opens, breadcrumb shows the deck name + "Claim cards for {name}".
-- [ ] Header reads "Claim physical card stacks for this deck". There is no "Skip" button; the only primary button is "Claim cards".
+- [x] Open an owned mode-C deck with at least one unclaimed card. The deck-actions menu shows a "Claim cards" entry.
+- [x] Click "Claim cards" — `/decks/{id}/bulk-claim` opens, breadcrumb shows the deck name + "Claim cards for {name}".
+- [x] Header reads "Claim physical card stacks for this deck". There is no "Skip" button; the only primary button is "Claim cards".
 
 ### §1 exact printing
 
-- [ ] At least one card row appears under "Exact printing available in your collection" when the user owns the same printing as the deck.
+- [x] At least one card row appears under "Exact printing available in your collection" when the user owns the same printing as the deck.
 - [ ] Pick a stack from the dropdown. If the stack's `amount` is less than the deck card's `quantity`, a "I just bought {N} more copies" checkbox appears.
 - [ ] Submit. Pivot rows are written; the deck's state is unchanged (still planned/built/whatever it was).
 

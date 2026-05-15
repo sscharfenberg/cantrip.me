@@ -778,7 +778,14 @@ class DecksController extends Controller
                 'defaultCard.set:id,code',
             ]);
         if ($otherDecksDeckboxes->isNotEmpty()) {
-            $stacksQuery->whereNotIn('container_id', $otherDecksDeckboxes);
+            // SQL three-valued logic: `container_id NOT IN (...)` evaluates
+            // to UNKNOWN (≠ TRUE) for rows with `container_id IS NULL`,
+            // so a bare `whereNotIn` silently drops every unsorted stack.
+            // Add an explicit OR-null branch to keep unsorted stacks in.
+            $stacksQuery->where(function ($q) use ($otherDecksDeckboxes): void {
+                $q->whereNull('container_id')
+                    ->orWhereNotIn('container_id', $otherDecksDeckboxes);
+            });
         }
         $stacks = $stacksQuery->get(['id', 'default_card_id', 'container_id', 'amount']);
 

@@ -302,6 +302,39 @@ class DeckBulkClaimControllerTest extends TestCase
     }
 
     #[Test]
+    public function bulk_claim_page_keeps_unsorted_stacks_visible_when_another_deck_has_a_deckbox(): void
+    {
+        // Regression: SQL `container_id NOT IN (...)` evaluates to
+        // UNKNOWN for NULL `container_id`, which a bare `whereNotIn`
+        // treats as FALSE — silently dropping every unsorted stack
+        // whenever the user has any *other* deck pointed at a deckbox.
+        $user = User::factory()->create();
+        $thisDeck = $this->makeDeck($user);
+        $otherDeck = $this->makeDeck($user);
+        $otherDeckbox = Container::create([
+            'user_id' => $user->id,
+            'name' => 'Other deckbox',
+            'type' => 'deckbox',
+            'sort_order' => 1,
+        ]);
+        $otherDeck->update(['container_id' => $otherDeckbox->id]);
+
+        $oracle = $this->makeOracleCard();
+        $default = $this->makeDefaultCard($oracle);
+        $this->makeDeckCard($thisDeck, $oracle, $default, quantity: 2);
+        // Unsorted stack — must still surface in §1 exact_stacks.
+        $unsortedStack = $this->makeCardStack($user, $default, amount: 1);
+
+        $response = $this->actingAs($user)->get("/decks/{$thisDeck->id}/bulk-claim");
+
+        $response->assertOk();
+        $response->assertInertia(fn ($page) => $page
+            ->where('cards.0.section', 'exact')
+            ->where('cards.0.exact_stacks.0.id', $unsortedStack->id)
+        );
+    }
+
+    #[Test]
     public function bulk_claim_page_excludes_stacks_in_other_decks_deckboxes(): void
     {
         // Cross-deck poaching guard: stacks in *another* deck's deckbox
