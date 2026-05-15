@@ -226,8 +226,8 @@ const { setBreadcrumbs } = useBreadcrumbs();
 setBreadcrumbs(
     isEdit.value && props.existingDeck
         ? [
-              { labelKey: "pages.decks.link", href: "/decks" },
-              { label: props.existingDeck.name, href: `/decks/${props.existingDeck.id}` },
+              { labelKey: "pages.decks.link", href: "/decks", icon: "deck" },
+              { label: props.existingDeck.name, href: `/decks/${props.existingDeck.id}`, icon: "cards" },
               { labelKey: "pages.create_deck.edit_link" }
           ]
         : [{ labelKey: "pages.decks.link", href: "/decks" }, { labelKey: "pages.create_deck.link" }]
@@ -239,7 +239,7 @@ setBreadcrumbs(
         <title>{{ isEdit ? $t("pages.create_deck.edit_title") : $t("pages.create_deck.title") }}</title>
     </Head>
     <headline>
-        <icon name="deck" :size="3" />
+        <icon name="cards" :size="3" />
         {{ isEdit ? $t("pages.create_deck.edit_title") : $t("pages.create_deck.title") }}
     </headline>
     <Form

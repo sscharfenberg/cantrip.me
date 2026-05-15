@@ -1,0 +1,18 @@
+@use "sass:math"; // https://sass-lang.com/documentation/modules/math/
+@use "sass:map"; // https://sass-lang.com/documentation/modules/map
+@use "../../global-size-tokens" as s;
+
+$bulk-claim: (
+    "list-gap": 0.5rem,
+    "thumbnail": (
+        "width": 3rem,
+        "radius": map.get(s.$radius, "base")
+    ),
+    "row": (
+        "gap": 0.5rem,
+        "border": map.get(s.$border, "base"),
+        "padding": 0.5rem,
+        "radius": map.get(s.$radius, "featured")
+    ),
+    "actions-gap": 1rem
+);

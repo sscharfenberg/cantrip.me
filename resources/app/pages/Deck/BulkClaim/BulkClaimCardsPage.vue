@@ -28,21 +28,18 @@ import MonoSelect from "Components/Form/Select/MonoSelect.vue";
 import Headline from "Components/UI/Headline.vue";
 import Icon from "Components/UI/Icon.vue";
 import { useBreadcrumbs } from "Composables/useBreadcrumbs.ts";
-
 /** Container summary for one stack option. */
 interface StackContainer {
     id: string;
     name: string;
     type: string;
 }
-
 /** §1 stack option — same printing as the deck_card. */
 interface ExactStack {
     id: string;
     amount: number;
     container: StackContainer | null;
 }
-
 /** §2 stack option — alternate printing of the same oracle card. */
 interface AltStack {
     id: string;
@@ -54,7 +51,6 @@ interface AltStack {
     /** Thumbnail of the alternate printing — handy hint without a custom select. */
     card_image_0: string | null;
 }
-
 interface BulkClaimCard {
     id: string;
     name: string;
@@ -66,20 +62,17 @@ interface BulkClaimCard {
     exact_stacks: ExactStack[];
     alt_stacks: AltStack[];
 }
-
 interface BulkClaimContainer {
     id: string;
     name: string;
     type: string;
     is_deckbox: boolean;
 }
-
 interface DeckSnapshot {
     id: string;
     name: string;
     container_id: string | null;
 }
-
 const props = defineProps<{
     deck: DeckSnapshot;
     cards: BulkClaimCard[];
@@ -88,17 +81,14 @@ const props = defineProps<{
 const { t } = useI18n();
 useBreadcrumbs().setBreadcrumbs([
     { labelKey: "pages.decks.link", href: "/decks", icon: "deck" },
-    { label: props.deck.name, href: `/decks/${props.deck.id}` },
+    { label: props.deck.name, href: `/decks/${props.deck.id}`, icon: "cards" },
     { labelKey: "pages.deck.bulk_claim.title", params: { name: props.deck.name } }
 ]);
-
 const exactCards = computed(() => props.cards.filter(c => c.section === "exact"));
 const altCards = computed(() => props.cards.filter(c => c.section === "alt"));
 const missingCards = computed(() => props.cards.filter(c => c.section === "missing"));
-
 const initialAssignments: Record<string, string[]> = Object.fromEntries(props.cards.map(c => [c.id, []]));
 const initialBuyNew: Record<string, boolean> = Object.fromEntries(props.cards.map(c => [c.id, false]));
-
 const form = useForm<{
     assignments: Record<string, string[]>;
     buy_new: Record<string, boolean>;
@@ -108,14 +98,12 @@ const form = useForm<{
     buy_new: initialBuyNew,
     container_id: props.deck.container_id
 });
-
 const containerOptions = computed(() => [
     ...props.containers.map(c => ({
         value: c.id,
         label: c.is_deckbox ? `${c.name} — ${t("pages.deck.bulk_claim.deckbox_hint")}` : c.name
     }))
 ]);
-
 function exactStackOptions(card: BulkClaimCard): { value: string; label: string }[] {
     return card.exact_stacks.map(stack => ({
         value: stack.id,
@@ -128,7 +116,6 @@ function exactStackOptions(card: BulkClaimCard): { value: string; label: string 
             : t("pages.deck.bulk_claim.stack_unsorted", { amount: stack.amount })
     }));
 }
-
 function altStackOptions(card: BulkClaimCard): { value: string; label: string }[] {
     return card.alt_stacks.map(stack => {
         const printing =
@@ -148,7 +135,6 @@ function altStackOptions(card: BulkClaimCard): { value: string; label: string }[
         };
     });
 }
-
 function pickedStackAmount(card: BulkClaimCard): number {
     const id = form.assignments[card.id]?.[0];
     if (!id) return 0;
@@ -157,15 +143,12 @@ function pickedStackAmount(card: BulkClaimCard): number {
     const alt = card.alt_stacks.find(s => s.id === id);
     return alt?.amount ?? 0;
 }
-
 function uncoveredFor(card: BulkClaimCard): number {
     return Math.max(0, card.quantity - pickedStackAmount(card));
 }
-
 function onPickStack(cardId: string, value: string): void {
     form.assignments[cardId] = value ? [value] : [];
 }
-
 function onSubmit(): void {
     form.post(`/decks/${props.deck.id}/bulk-claim`);
 }
@@ -326,9 +309,7 @@ function onSubmit(): void {
                                     :checked-initially="form.buy_new[card.id]"
                                     @change="form.buy_new[card.id] = $event"
                                 />
-                                {{
-                                    $t("pages.deck.bulk_claim.buy_new.label_full", { amount: card.quantity })
-                                }}
+                                {{ $t("pages.deck.bulk_claim.buy_new.label_full", { amount: card.quantity }) }}
                             </label>
                         </div>
                     </li>
@@ -341,6 +322,7 @@ function onSubmit(): void {
                 {{ $t("pages.deck.bulk_claim.back") }}
             </Link>
             <button type="submit" class="btn-primary" :disabled="form.processing || cards.length === 0">
+                <icon name="save" />
                 {{ $t("pages.deck.bulk_claim.submit") }}
             </button>
         </div>
@@ -348,6 +330,10 @@ function onSubmit(): void {
 </template>
 
 <style scoped lang="scss">
+@use "sass:map"; // https://sass-lang.com/documentation/modules/map
+@use "Abstracts/colors" as c;
+@use "Abstracts/sizes" as s;
+
 .bulk-claim {
     &__section {
         margin-top: 1.5rem;
@@ -359,7 +345,7 @@ function onSubmit(): void {
 
         padding: 0;
         margin: 0;
-        gap: 0.5rem;
+        gap: map.get(s.$pages, "bulk-claim", "list-gap");
 
         list-style: none;
     }
@@ -369,7 +355,20 @@ function onSubmit(): void {
         align-items: center;
         grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
 
-        gap: 0.75rem;
+        padding: map.get(s.$pages, "bulk-claim", "row", "padding");
+        border: map.get(s.$pages, "bulk-claim", "row", "border") solid map.get(c.$pages, "bulk-claim", "row", "border");
+        gap: map.get(s.$pages, "bulk-claim", "row", "gap");
+
+        backdrop-filter: blur(12px);
+        border-radius: map.get(s.$pages, "bulk-claim", "row", "radius");
+
+        &:nth-child(even) {
+            background-color: map.get(c.$pages, "bulk-claim", "row", "background", "even");
+        }
+
+        &:nth-child(odd) {
+            background-color: map.get(c.$pages, "bulk-claim", "row", "background", "odd");
+        }
     }
 
     &__needed {
@@ -380,8 +379,10 @@ function onSubmit(): void {
     }
 
     &__thumb {
-        width: 3rem;
+        width: map.get(s.$pages, "bulk-claim", "thumbnail", "width");
         flex: 0 0 auto;
+
+        border-radius: map.get(s.$pages, "bulk-claim", "thumbnail", "radius");
     }
 
     &__needed-text {
@@ -399,14 +400,14 @@ function onSubmit(): void {
         display: flex;
         flex-direction: column;
 
-        gap: 0.25rem;
+        gap: map.get(s.$pages, "bulk-claim", "list-gap");
     }
 
     &__buy-new {
         display: flex;
         align-items: center;
 
-        gap: 0.5rem;
+        gap: map.get(s.$pages, "bulk-claim", "list-gap");
     }
 
     &__actions {
@@ -414,7 +415,7 @@ function onSubmit(): void {
         justify-content: flex-end;
 
         margin-top: 1rem;
-        gap: 0.5rem;
+        gap: map.get(s.$pages, "bulk-claim", "actions-gap");
     }
 
     &__empty {
