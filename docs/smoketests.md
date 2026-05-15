@@ -131,32 +131,33 @@ The planned→built finalize wizard has been renamed and restructured. Route `/d
 
 - [x] A card row appears under "A different printing available in your collection" when the user owns an alternate printing.
 - [x] The dropdown labels include the printing's `SET:collector#` and amount.
-- [ ] Submit. `deck_cards.default_card_id` for that row is updated to the picked stack's printing, AND the pivot row is written. After the redirect, the deck view shows the alternate printing AND a green "claimed" badge for that row (NOT `wrong_printing`).
+- [x] Submit. `deck_cards.default_card_id` for that row is updated to the picked stack's printing, AND the pivot row is written. After the redirect, the deck view shows the alternate printing AND a green "claimed" badge for that row (NOT `wrong_printing`).
 
 ### §3 nothing available
 
-- [ ] A card row appears under "Not in your collection" when the user owns nothing of the oracle card.
-- [ ] The row has only an "Add all {N} copies to my collection" checkbox, no dropdown.
-- [ ] Tick the checkbox and submit. A new stack of `quantity` copies is minted and claimed. The deck view shows a green "claimed" badge.
+- [x] A card row appears under "Not in your collection" when the user owns nothing of the oracle card.
+- [x] The row has only an "Add all {N} copies to my collection" checkbox, no dropdown.
+- [x] Tick the checkbox and submit. A new stack of `quantity` copies is minted and claimed. The deck view shows a green "claimed" badge.
 
 ### Cross-deck poaching guard
 
-- [ ] User has two decks. Deck A has `container_id = deckbox-A`. Deck B has no container_id. A card stack sits in deckbox-A.
-- [ ] Open BulkClaim for deck B. The stack from deckbox-A does NOT appear in §1/§2 dropdowns — it's physically allocated to deck A and the eligibility filter excludes it.
+- [x] User has two decks. Deck A has `container_id = deckbox-A`. Deck B has no container_id. A card stack sits in deckbox-A.
+- [x] Open BulkClaim for deck B. The stack from deckbox-A does NOT appear in §1/§2 dropdowns — it's physically allocated to deck A and the eligibility filter excludes it.
 
 ### Mode gating
 
-- [ ] Set a deck to mode A. The "Claim cards" menu entry disappears. Hitting `/decks/{id}/bulk-claim` directly returns 403.
-- [ ] Set a deck to mode B. Same — entry hidden, direct URL returns 403.
-- [ ] Set back to mode C. Entry returns.
+- [x] Set a deck to mode A. The "Claim cards" menu entry disappears. Hitting `/decks/{id}/bulk-claim` directly returns 403.
+- [x] Set a deck to mode B. Same — entry hidden, direct URL returns 403.
+- [x] Set back to mode C. Entry returns.
 
 ### Non-owner
 
-- [ ] Visit a public deck owned by someone else. No "Claim cards" entry. Direct GET to `/decks/{id}/bulk-claim` returns 403.
+- [x] Visit a public deck owned by someone else while logged in. No "Claim cards" entry. Direct GET to `/decks/{id}/bulk-claim` returns 403 (FormRequest authorize).
+- [x] Same URL while logged out: 302 → `/login` (auth middleware fires before the FormRequest).
 
 ### Empty / fully claimed deck
 
-- [ ] Open BulkClaim for a deck where every card is already claimed. The page renders an "Every card in this deck is already claimed." message and the submit button is disabled.
+- [x] Open BulkClaim for a deck where every card is already claimed. The page renders an "Every card in this deck is already claimed." message and the submit button is disabled.
 
 ### Automated coverage (delta)
 
@@ -174,12 +175,12 @@ The deck-actions menu surfaces an "Unclaimed cards" entry when coverage is incom
 
 ### Owner flow (mode C deck with uncovered cards)
 
-- [ ] Open an owned mode-C deck where at least one slot is uncovered. The deck-actions menu shows an "Unclaimed cards" entry.
-- [ ] Click "Unclaimed cards" — `/decks/{id}/unclaimed` opens. The header reads "Unclaimed cards for {name}".
-- [ ] Each row shows `{unclaimed}× {card name}` plus `SET:collector#`.
-- [ ] Tick the master checkbox "Add all to my collection". Every row checkbox flips on.
-- [ ] Tick a specific row. Untick the master. Verify only that row stays checked.
-- [ ] Submit. A new stack of `unclaimed` size is minted for each ticked row and claimed for the deck. The new stack lands in the deck's `container_id` (or unsorted if none set). Page reloads; the just-claimed rows are gone from the list.
+- [x] Open an owned mode-C deck where at least one slot is uncovered. The deck-actions menu shows an "Unclaimed cards" entry.
+- [x] Click "Unclaimed cards" — `/decks/{id}/unclaimed` opens. The header reads "Unclaimed cards for {name}".
+- [x] Each row shows `{unclaimed}× {card name}` plus `SET:collector#`.
+- [x] Tick the master checkbox "Add all to my collection". Every row checkbox flips on.
+- [x] Tick a specific row. Untick the master. Verify only that row stays checked.
+- [x] Submit. A new stack of `unclaimed` size is minted for each ticked row and claimed for the deck. The new stack lands in the deck's `container_id` (or unsorted if none set). Page reloads; the just-claimed rows are gone from the list.
 
 ### Owner flow (mode B deck with uncovered cards)
 
@@ -196,7 +197,7 @@ The deck-actions menu surfaces an "Unclaimed cards" entry when coverage is incom
 
 - [ ] Mode A deck: "Unclaimed cards" entry is hidden.
 - [ ] Mode B / mode C deck with 100% coverage: entry is hidden.
-- [ ] Public deck owned by someone else: entry is hidden; direct GET to `/decks/{id}/unclaimed` returns 403.
+- [ ] Public deck owned by someone else while logged in: entry is hidden; direct GET to `/decks/{id}/unclaimed` returns 403. Logged out: 302 → `/login` (auth middleware).
 - [ ] Mode A direct GET to `/decks/{id}/unclaimed` returns 403.
 - [ ] Mode B direct POST to `/decks/{id}/unclaimed/buy` returns 403 (only mode C may mint+claim).
 

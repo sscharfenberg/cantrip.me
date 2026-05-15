@@ -252,15 +252,13 @@ function onDeleteClick(): void {
             </li>
             <li v-if="isOwner && !isArchived && collectionMode === 'C'">
                 <button class="popover-list-item" @click.prevent="onBulkClaim">
-                    <icon name="cards" :size="1" />
+                    <icon name="claimed" :size="1" />
                     {{ $t("pages.deck.bulk_claim.menu_link") }}
                 </button>
             </li>
-            <li
-                v-if="isOwner && (collectionMode === 'B' || collectionMode === 'C') && hasUnclaimedCards"
-            >
+            <li v-if="isOwner && (collectionMode === 'B' || collectionMode === 'C') && hasUnclaimedCards">
                 <button class="popover-list-item" @click.prevent="onUnclaimed">
-                    <icon name="cards" :size="1" />
+                    <icon name="unclaimed" :size="1" />
                     {{ $t("pages.deck.unclaimed.menu_link") }}
                 </button>
             </li>

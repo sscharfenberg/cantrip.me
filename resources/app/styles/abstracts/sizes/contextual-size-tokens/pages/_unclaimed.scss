@@ -1,0 +1,23 @@
+@use "sass:math"; // https://sass-lang.com/documentation/modules/math/
+@use "sass:map"; // https://sass-lang.com/documentation/modules/map
+@use "../../global-size-tokens" as s;
+
+$unclaimed: (
+    "toolbar-margin": 1lh 0,
+    "master": (
+        "gap": 0.5rem,
+        "padding": 0.25rem 0.5rem,
+        "border": map.get(s.$border, "base"),
+        "radius": map.get(s.$radius, "base")
+    ),
+    "list": (
+        "gap": 0.5rem,
+        "margin": 0.5rem 0 0
+    ),
+    "row": (
+        "gap": 0.5rem,
+        "padding": 0.25rem 0.5rem,
+        "border": map.get(s.$border, "base"),
+        "radius": map.get(s.$radius, "base")
+    )
+);

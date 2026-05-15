@@ -841,11 +841,12 @@
             "unclaimed": {
                 "title": "Unclaimed cards for '{name}'",
                 "heading": "Unclaimed cards for '{name}'",
-                "intro_mode_b": "Cards that aren't in this deck's container yet. Buy or move them into the container to cover the deck.",
-                "intro_mode_c": "Cards without a claimed copy yet. Tick the rows you want to add to your collection — a fresh stack is created and reserved for this deck.",
+                "intro_mode_b": "Cards needed by this deck that aren't in its container yet. Buy them or move them in from another container to cover the deck.",
+                "intro_mode_c": "Cards needed by this deck that don't have a claimed copy yet. Tick the rows you don't already own — a fresh stack is minted and reserved for this deck. Rows for cards you already own in a different printing also appear here; for those, use the deck's \"Claim cards\" page instead so you don't end up with a duplicate stack.",
                 "empty": "Every card in this deck is covered.",
                 "master_label": "Add all to my collection",
                 "csv_link": "Download CSV of unclaimed cards",
+                "show_in_collection": "View your copies",
                 "submit": "Add selected to my collection",
                 "back": "Back to deck",
                 "menu_link": "Unclaimed cards"

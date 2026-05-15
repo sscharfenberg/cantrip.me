@@ -974,10 +974,24 @@ class DecksController extends Controller
         // preview in the text deck view.
         $deck->loadMissing([
             'deckCards.oracleCard:id,name',
-            'deckCards.defaultCard:id,collector_number,set_id,oracle_id',
+            'deckCards.defaultCard:id,collector_number,set_id,oracle_id,card_image_0',
             'deckCards.defaultCard.set:id,code',
             'deckCards.cardStacks:id,amount',
         ]);
+
+        // Per-row "the user owns at least one printing of this oracle
+        // card" flag — drives the optional "View your copies" link that
+        // points at the collection list filtered by card name.
+        $allOracleIds = $deck->deckCards->pluck('oracle_card_id')->unique()->values();
+        $ownedOracleIds = $allOracleIds->isEmpty() ? [] : array_flip(
+            DB::table('card_stacks')
+                ->join('default_cards', 'default_cards.id', '=', 'card_stacks.default_card_id')
+                ->where('card_stacks.user_id', $deck->user_id)
+                ->whereIn('default_cards.oracle_id', $allOracleIds)
+                ->pluck('default_cards.oracle_id')
+                ->unique()
+                ->all()
+        );
 
         $inDeckboxByPrinting = [];
         if ($mode === DeckCollectionStatusService::MODE_B && $deck->container_id !== null) {
@@ -992,7 +1006,7 @@ class DecksController extends Controller
         }
 
         return $deck->deckCards
-            ->map(function (DeckCard $dc) use ($mode, $inDeckboxByPrinting): ?array {
+            ->map(function (DeckCard $dc) use ($mode, $inDeckboxByPrinting, $ownedOracleIds): ?array {
                 $needed = (int) $dc->quantity;
                 if ($needed <= 0) {
                     return null;
@@ -1012,9 +1026,11 @@ class DecksController extends Controller
                     'set_code' => $dc->defaultCard?->set?->code,
                     'collector_number' => $dc->defaultCard?->collector_number,
                     'default_card_id' => $dc->default_card_id,
+                    'card_image_0' => $dc->defaultCard?->card_image_0,
                     'unclaimed' => $unclaimed,
                     'zone' => $dc->zone->value,
                     'role' => $dc->role?->value,
+                    'has_any_printing' => isset($ownedOracleIds[$dc->oracle_card_id]),
                 ];
             })
             ->filter()

@@ -45,7 +45,8 @@ $pages: (
     "containers": pa.$containers,
     "defaults": pa.$defaults,
     "decklist": pa.$decklist,
-    "deck": pa.$deck
+    "deck": pa.$deck,
+    "unclaimed": pa.$unclaimed
 ) !default;
 
 // size tokens for components

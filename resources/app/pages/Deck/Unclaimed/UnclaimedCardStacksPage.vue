@@ -18,9 +18,12 @@
 import { Head, Link, useForm } from "@inertiajs/vue3";
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
+import CardImagePreview from "Components/Card/CardImagePreview.vue";
 import Checkbox from "Components/Form/Checkbox.vue";
+import FormLegend from "Components/Form/FormLegend.vue";
 import Headline from "Components/UI/Headline.vue";
 import Icon from "Components/UI/Icon.vue";
+import LabelledLink from "Components/UI/LabelledLink.vue";
 import { useBreadcrumbs } from "Composables/useBreadcrumbs.ts";
 interface UnclaimedCard {
     id: string;
@@ -28,9 +31,13 @@ interface UnclaimedCard {
     set_code: string | null;
     collector_number: string | null;
     default_card_id: string;
+    /** Thumbnail URL for the hover preview; null when the printing has no front image. */
+    card_image_0: string | null;
     unclaimed: number;
     zone: string;
     role: string | null;
+    /** True when the user already owns at least one stack of any printing of this oracle card — drives the "View your copies" link. */
+    has_any_printing: boolean;
 }
 interface DeckSnapshot {
     id: string;
@@ -87,7 +94,7 @@ function onSubmit(): void {
         <title>{{ $t("pages.deck.unclaimed.title", { name: deck.name }) }}</title>
     </Head>
     <headline>
-        <icon name="cards" :size="3" />
+        <icon name="unclaimed" :size="3" />
         {{ $t("pages.deck.unclaimed.heading", { name: deck.name }) }}
     </headline>
 
@@ -96,9 +103,11 @@ function onSubmit(): void {
     </p>
 
     <template v-else>
-        <p class="unclaimed__intro">
-            {{ mode === "B" ? $t("pages.deck.unclaimed.intro_mode_b") : $t("pages.deck.unclaimed.intro_mode_c") }}
-        </p>
+        <form-legend :items="[{ slot: 'intro', icon: 'info' }]">
+            <template #intro>
+                {{ mode === "B" ? $t("pages.deck.unclaimed.intro_mode_b") : $t("pages.deck.unclaimed.intro_mode_c") }}
+            </template>
+        </form-legend>
 
         <div class="unclaimed__toolbar">
             <a :href="`/decks/${deck.id}/unclaimed/export`" class="btn-default">
@@ -121,11 +130,20 @@ function onSubmit(): void {
                             :checked-initially="isRowChecked(card.id)"
                             @change="toggleRow(card.id, $event)"
                         />
-                        <strong>{{ card.unclaimed }}× {{ card.name }}</strong>
+                        <card-image-preview :src="card.card_image_0" :alt="card.name">
+                            {{ card.unclaimed }}× {{ card.name }}
+                        </card-image-preview>
                         <span v-if="card.set_code" class="unclaimed__set">
                             {{ card.set_code.toUpperCase() }}:{{ card.collector_number }}
                         </span>
                     </label>
+                    <labelled-link
+                        v-if="card.has_any_printing"
+                        :href="`/collection?search=${encodeURIComponent(card.name)}`"
+                        icon="search"
+                    >
+                        {{ $t("pages.deck.unclaimed.show_in_collection") }}
+                    </labelled-link>
                 </li>
             </ul>
 
@@ -141,35 +159,52 @@ function onSubmit(): void {
 
         <ul v-else class="unclaimed__list unclaimed__list--readonly">
             <li v-for="card in cards" :key="card.id" class="unclaimed__row">
-                <strong>{{ card.unclaimed }}× {{ card.name }}</strong>
+                <card-image-preview :src="card.card_image_0" :alt="card.name">
+                    <strong>{{ card.unclaimed }}× {{ card.name }}</strong>
+                </card-image-preview>
                 <span v-if="card.set_code" class="unclaimed__set">
                     {{ card.set_code.toUpperCase() }}:{{ card.collector_number }}
                 </span>
+                <labelled-link
+                    v-if="card.has_any_printing"
+                    :href="`/collection?search=${encodeURIComponent(card.name)}`"
+                    icon="card"
+                >
+                    {{ $t("pages.deck.unclaimed.show_in_collection") }}
+                </labelled-link>
             </li>
         </ul>
     </template>
 </template>
 
 <style scoped lang="scss">
-.unclaimed {
-    &__intro {
-        margin: 0 0 1rem;
-    }
+@use "sass:map";
+@use "Abstracts/colors" as c;
+@use "Abstracts/sizes" as s;
+@use "Abstracts/timings" as ti;
 
+.unclaimed {
     &__toolbar {
         display: flex;
         justify-content: flex-end;
 
-        margin-bottom: 0.5rem;
+        margin: map.get(s.$pages, "unclaimed", "toolbar-margin");
     }
 
     &__master {
         display: flex;
         align-items: center;
 
-        gap: 0.5rem;
+        padding: map.get(s.$pages, "unclaimed", "master", "padding");
+        border: map.get(s.$pages, "unclaimed", "master", "border") solid
+            map.get(c.$pages, "unclaimed", "master", "border");
+        gap: map.get(s.$pages, "unclaimed", "master", "gap");
 
-        font-weight: bold;
+        background-color: map.get(c.$pages, "unclaimed", "master", "background");
+        color: map.get(c.$pages, "unclaimed", "master", "surface");
+        border-radius: map.get(s.$pages, "unclaimed", "master", "radius");
+
+        cursor: pointer;
     }
 
     &__list {
@@ -178,8 +213,8 @@ function onSubmit(): void {
 
         padding: 0;
 
-        margin: 0.5rem 0;
-        gap: 0.25rem;
+        margin: map.get(s.$pages, "unclaimed", "list", "margin");
+        gap: map.get(s.$pages, "unclaimed", "list", "gap");
 
         list-style: none;
     }
@@ -188,12 +223,32 @@ function onSubmit(): void {
         display: flex;
         align-items: center;
 
-        gap: 0.5rem;
+        padding: map.get(s.$pages, "unclaimed", "row", "padding");
+        border: map.get(s.$pages, "unclaimed", "row", "border") solid map.get(c.$pages, "unclaimed", "row", "border");
+        gap: map.get(s.$pages, "unclaimed", "row", "gap");
+
+        background-color: map.get(c.$pages, "unclaimed", "row", "background", "even");
+        color: map.get(c.$pages, "unclaimed", "row", "surface", "default");
+        border-radius: map.get(s.$pages, "unclaimed", "row", "radius");
+
+        transition:
+            background-color map.get(ti.$timings, "fast") linear,
+            color map.get(ti.$timings, "fast") linear;
+
+        &:nth-child(odd) {
+            background-color: map.get(c.$pages, "unclaimed", "row", "background", "odd");
+        }
+
+        &:hover {
+            background-color: map.get(c.$pages, "unclaimed", "row", "background", "hover");
+            color: map.get(c.$pages, "unclaimed", "row", "surface", "hover");
+        }
     }
 
     &__row-label {
         display: flex;
         align-items: center;
+        flex-grow: 1;
 
         gap: 0.5rem;
 
@@ -201,7 +256,7 @@ function onSubmit(): void {
     }
 
     &__set {
-        opacity: 0.7;
+        opacity: 0.8;
 
         font-size: 0.875rem;
     }

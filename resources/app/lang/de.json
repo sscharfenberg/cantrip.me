@@ -841,11 +841,12 @@
             "unclaimed": {
                 "title": "Offene Karten für '{name}'",
                 "heading": "Offene Karten für '{name}'",
-                "intro_mode_b": "Karten, die noch nicht im Container dieses Decks liegen. Kaufe sie oder lege sie in den Container, um das Deck abzudecken.",
-                "intro_mode_c": "Karten ohne reservierten Stapel. Hake die Zeilen an, die du zur Sammlung hinzufügen willst - es wird ein frischer Stapel angelegt und für dieses Deck reserviert.",
+                "intro_mode_b": "Karten, die dieses Deck braucht, aber noch nicht in seinem Container liegen. Kaufe sie oder verschiebe sie aus einem anderen Container hierher, um das Deck abzudecken.",
+                "intro_mode_c": "Karten, die dieses Deck braucht und für die noch kein Stapel reserviert ist. Hake die Zeilen an, die du noch nicht besitzt — pro Zeile wird ein frischer Stapel angelegt und für dieses Deck reserviert. Karten, die du in einem anderen Druck schon besitzt, tauchen ebenfalls hier auf; nutze für diese die „Karten reservieren\"-Seite, sonst werden Stapel doppelt angelegt.",
                 "empty": "Jede Karte dieses Decks ist abgedeckt.",
                 "master_label": "Alle zur Sammlung hinzufügen",
                 "csv_link": "CSV der offenen Karten herunterladen",
+                "show_in_collection": "Exemplare anzeigen",
                 "submit": "Auswahl zur Sammlung hinzufügen",
                 "back": "Zurück zum Deck",
                 "menu_link": "Offene Karten"

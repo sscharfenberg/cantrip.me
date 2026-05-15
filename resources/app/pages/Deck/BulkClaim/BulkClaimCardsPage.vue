@@ -171,7 +171,7 @@ function onSubmit(): void {
         <title>{{ $t("pages.deck.bulk_claim.title", { name: deck.name }) }}</title>
     </Head>
     <headline>
-        <icon name="cards" :size="3" />
+        <icon name="claimed" :size="3" />
         {{ $t("pages.deck.bulk_claim.heading") }}
     </headline>
     <form class="form" @submit.prevent="onSubmit">
