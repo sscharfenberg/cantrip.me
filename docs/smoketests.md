@@ -124,7 +124,7 @@ The planned→built finalize wizard has been renamed and restructured. Route `/d
 ### §1 exact printing
 
 - [x] At least one card row appears under "Exact printing available in your collection" when the user owns the same printing as the deck.
-- [ ] Pick a stack from the dropdown. If the stack's `amount` is less than the deck card's `quantity`, a "I just bought {N} more copies" checkbox appears.
+- [x] Pick a stack from the dropdown. If the stack's `amount` is less than the deck card's `quantity`, an "Add {N} more copies to my collection" checkbox appears.
 - [ ] Submit. Pivot rows are written; the deck's state is unchanged (still planned/built/whatever it was).
 
 ### §2 different printing
@@ -136,7 +136,7 @@ The planned→built finalize wizard has been renamed and restructured. Route `/d
 ### §3 nothing available
 
 - [ ] A card row appears under "Not in your collection" when the user owns nothing of the oracle card.
-- [ ] The row has only an "I just bought all {N} copies" checkbox, no dropdown.
+- [ ] The row has only an "Add all {N} copies to my collection" checkbox, no dropdown.
 - [ ] Tick the checkbox and submit. A new stack of `quantity` copies is minted and claimed. The deck view shows a green "claimed" badge.
 
 ### Cross-deck poaching guard
@@ -168,7 +168,7 @@ New tests cover §2 printing-swap, mode-C gating, and the cross-deck deckbox fil
 
 ## PR 3 — UnclaimedCardStacks page + menu entry
 
-A new `/decks/{deck}/unclaimed` page lists every uncovered deck slot. Mode B is read-only (the user is expected to physically move cards into the deckbox container); mode C adds per-row "I just bought this" checkboxes that mint a stack and claim it on submit. Both modes get a same-page CSV download.
+A new `/decks/{deck}/unclaimed` page lists every uncovered deck slot. Mode B is read-only (the user is expected to physically move cards into the deckbox container); mode C adds per-row "add to collection" checkboxes that mint a stack and claim it on submit. Both modes get a same-page CSV download.
 
 The deck-actions menu surfaces an "Unclaimed cards" entry when coverage is incomplete (modes B/C, owner-only). BulkClaim's submit now redirects to this page so the user immediately sees what's still missing.
 
@@ -177,7 +177,7 @@ The deck-actions menu surfaces an "Unclaimed cards" entry when coverage is incom
 - [ ] Open an owned mode-C deck where at least one slot is uncovered. The deck-actions menu shows an "Unclaimed cards" entry.
 - [ ] Click "Unclaimed cards" — `/decks/{id}/unclaimed` opens. The header reads "Unclaimed cards for {name}".
 - [ ] Each row shows `{unclaimed}× {card name}` plus `SET:collector#`.
-- [ ] Tick the master checkbox "I bought all of these". Every row checkbox flips on.
+- [ ] Tick the master checkbox "Add all to my collection". Every row checkbox flips on.
 - [ ] Tick a specific row. Untick the master. Verify only that row stays checked.
 - [ ] Submit. A new stack of `unclaimed` size is minted for each ticked row and claimed for the deck. The new stack lands in the deck's `container_id` (or unsorted if none set). Page reloads; the just-claimed rows are gone from the list.
 

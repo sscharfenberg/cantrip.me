@@ -839,14 +839,14 @@
                 "submit": "Alle hinzufügen"
             },
             "unclaimed": {
-                "title": "Offene Karten für {name}",
-                "heading": "Offene Karten für {name}",
+                "title": "Offene Karten für '{name}'",
+                "heading": "Offene Karten für '{name}'",
                 "intro_mode_b": "Karten, die noch nicht im Container dieses Decks liegen. Kaufe sie oder lege sie in den Container, um das Deck abzudecken.",
-                "intro_mode_c": "Karten ohne reservierten Stapel. Hake die Zeilen an, die du gerade gekauft hast - es wird ein frischer Stapel angelegt und für dieses Deck reserviert.",
+                "intro_mode_c": "Karten ohne reservierten Stapel. Hake die Zeilen an, die du zur Sammlung hinzufügen willst - es wird ein frischer Stapel angelegt und für dieses Deck reserviert.",
                 "empty": "Jede Karte dieses Decks ist abgedeckt.",
-                "master_label": "Alle gerade gekauft",
+                "master_label": "Alle zur Sammlung hinzufügen",
                 "csv_link": "CSV der offenen Karten herunterladen",
-                "submit": "Käufe speichern",
+                "submit": "Auswahl zur Sammlung hinzufügen",
                 "back": "Zurück zum Deck",
                 "menu_link": "Offene Karten"
             },
@@ -870,8 +870,8 @@
                 "container_unset": "- Kein Container -",
                 "deckbox_hint": "Empfohlen",
                 "buy_new": {
-                    "label_partial": "Ich habe gerade {amount} weitere Exemplare gekauft",
-                    "label_full": "Ich habe gerade alle {amount} Exemplare gekauft"
+                    "label_partial": "Füge {amount} weitere Exemplare zur Sammlung hinzu",
+                    "label_full": "Füge alle {amount} Exemplare zur Sammlung hinzu"
                 },
                 "submit": "Karten reservieren",
                 "back": "Zurück zum Deck",
