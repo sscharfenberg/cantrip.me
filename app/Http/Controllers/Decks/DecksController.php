@@ -1179,12 +1179,14 @@ class DecksController extends Controller
     }
 
     /**
-     * Quick-toggle the deck's lifecycle state.
+     * Set the deck's lifecycle state to one of `planned` / `built` /
+     * `archived`. Free flip — any state can transition to any other
+     * via the deck-actions menu's "Set to X" entries.
      *
-     * Hit by mode-A's "Set to finished" entry from the actions menu —
-     * mode A has no collection to claim from, so the wizard would be
-     * empty UI. Modes B and C go through the wizard instead. Reusable
-     * for archive/unarchive transitions later.
+     * State changes are independent of collection-integration mode and
+     * of pivot rows: claims survive across state transitions. Users
+     * who want to clear claims do it via the collection-tracking badge
+     * (C → B/A cascade-delete).
      */
     public function setState(SetDeckStateRequest $request, Deck $deck): RedirectResponse
     {

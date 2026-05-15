@@ -59,3 +59,31 @@ composer test -- --filter="DeckCollectionStatusServiceTest|DeckCollectionModeSer
 ```
 
 Should be green on the `Local` (SQLite) suite.
+
+## PR 1 — Free-flip state transitions
+
+Any deck state (`planned` / `built` / `archived`) can transition to any other directly from the deck-actions menu. The finalize wizard no longer drives state changes (the wizard is renamed to BulkClaim in PR 2 and gains its own menu entry).
+
+### Owner flow
+
+- [ ] Open an owned deck currently in `planned`. Deck-actions menu shows two state entries: `Set to finished` and `Set to archived`. (No `Set to planned` because that's the current state.)
+- [ ] Click `Set to finished` — page reloads, deck state is now `built`, success flash appears. The finalize wizard is **not** opened.
+- [ ] Menu now shows `Set to planned` and `Set to archived`.
+- [ ] Click `Set to archived` — state is now `archived`. Menu now shows `Set to planned` and `Set to finished` (i.e. archived decks can move directly to either non-archived state).
+- [ ] Click `Set to finished` from the archived state — state moves directly to `built` without passing through `planned`.
+
+### State independence
+
+- [ ] On a deck in mode C with several claimed stacks, flip state planned → built → archived → planned. Pivot rows survive every transition (only the explicit collection-tracking radio cascade-deletes them).
+
+### Non-owner
+
+- [ ] Visit a public deck owned by someone else. The state-transition menu entries are absent. PATCH `/decks/{id}/state` returns 403 for non-owners.
+
+### Automated coverage (delta)
+
+```bash
+composer test -- --filter="DeckFinalizeControllerTest"
+```
+
+The added `set_state_endpoint_free_flips_between_every_pair_of_states` test walks every (from → to) pair.

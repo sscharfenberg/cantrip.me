@@ -56,9 +56,10 @@ const props = withDefaults(
          */
         isArchived?: boolean;
         /**
-         * Effective collection-integration mode. When provided, drives "Set to
-         * finished": mode A patches the state directly, modes B and C open
-         * the wizard. When omitted, the state-flip items are hidden.
+         * Effective collection-integration mode. Reserved for the
+         * upcoming "Unclaimed cards" menu entry (PR 3 of the BulkClaim
+         * rework). Currently unused; kept here so callers don't need
+         * to be touched again when that entry lands.
          */
         collectionMode?: "A" | "B" | "C";
         /**
@@ -149,39 +150,14 @@ function onToggleVisibility(): void {
     router.patch(`/decks/${props.deck.id}/visibility`, { visibility: next }, { preserveScroll: true });
 }
 /**
- * "Set to finished" handler. Mode A patches state directly because the
- * wizard has nothing to claim; modes B and C open the wizard so the
- * user can claim physical copies before the transition. Only reachable
- * when `collectionMode` is set — the button is hidden otherwise.
+ * Free-flip the deck's lifecycle state. Any state can transition to
+ * any other via the dedicated PATCH endpoint. Pivot rows and
+ * `decks.container_id` are deliberately preserved — state and
+ * collection_mode are orthogonal, claims survive state changes.
  */
-function onSetBuilt(): void {
+function onSetState(target: "planned" | "built" | "archived"): void {
     closePopover();
-    if (props.collectionMode === "A" || props.collectionMode === undefined) {
-        router.patch(`/decks/${props.deck.id}/state`, { state: "built" }, { preserveScroll: true });
-        return;
-    }
-    router.visit(`/decks/${props.deck.id}/finalize`);
-}
-/**
- * "Set to planned" handler — pure built→planned state flip. Pivot rows
- * and `decks.container_id` are deliberately preserved (state and
- * collection_mode are orthogonal: claims survive across state changes).
- * Users who want a clean slate can clear claims via the deck-header
- * collection-mode modal's "Clear all collection assignments" action.
- */
-function onSetPlanned(): void {
-    closePopover();
-    router.patch(`/decks/${props.deck.id}/state`, { state: "planned" }, { preserveScroll: true });
-}
-/** Flip the deck to "archived" — available from any non-archived state. */
-function onSetArchived(): void {
-    closePopover();
-    router.patch(`/decks/${props.deck.id}/state`, { state: "archived" }, { preserveScroll: true });
-}
-/** Restore an archived deck back to "planned". */
-function onUnarchive(): void {
-    closePopover();
-    router.patch(`/decks/${props.deck.id}/state`, { state: "planned" }, { preserveScroll: true });
+    router.patch(`/decks/${props.deck.id}/state`, { state: target }, { preserveScroll: true });
 }
 /**
  * Delete button handler. Skips the confirm prompt for an effectively-empty
@@ -230,28 +206,22 @@ function onDeleteClick(): void {
                     }}
                 </button>
             </li>
-            <li v-if="isOwner && collectionMode !== undefined && deck.state === 'planned'">
-                <button class="popover-list-item" @click.prevent="onSetBuilt">
-                    <icon name="finished" :size="1" />
-                    {{ $t("pages.decks.actions.set_built") }}
-                </button>
-            </li>
-            <li v-else-if="isOwner && collectionMode !== undefined && deck.state === 'built'">
-                <button class="popover-list-item" @click.prevent="onSetPlanned">
+            <li v-if="isOwner && deck.state !== 'planned'">
+                <button class="popover-list-item" @click.prevent="onSetState('planned')">
                     <icon name="planned" :size="1" />
                     {{ $t("pages.decks.actions.set_planned") }}
                 </button>
             </li>
-            <li v-if="isOwner && deck.state !== 'archived'">
-                <button class="popover-list-item" @click.prevent="onSetArchived">
-                    <icon name="archived" :size="1" />
-                    {{ $t("pages.decks.actions.set_archived") }}
+            <li v-if="isOwner && deck.state !== 'built'">
+                <button class="popover-list-item" @click.prevent="onSetState('built')">
+                    <icon name="finished" :size="1" />
+                    {{ $t("pages.decks.actions.set_built") }}
                 </button>
             </li>
-            <li v-else-if="isOwner && deck.state === 'archived'">
-                <button class="popover-list-item" @click.prevent="onUnarchive">
+            <li v-if="isOwner && deck.state !== 'archived'">
+                <button class="popover-list-item" @click.prevent="onSetState('archived')">
                     <icon name="archived" :size="1" />
-                    {{ $t("pages.decks.actions.unarchive") }}
+                    {{ $t("pages.decks.actions.set_archived") }}
                 </button>
             </li>
             <li v-if="isOwner && !isArchived && showGroupActions">

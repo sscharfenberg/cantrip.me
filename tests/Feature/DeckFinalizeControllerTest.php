@@ -276,6 +276,36 @@ class DeckFinalizeControllerTest extends TestCase
     }
 
     #[Test]
+    public function set_state_endpoint_free_flips_between_every_pair_of_states(): void
+    {
+        // Any state can transition to any other via the dedicated PATCH
+        // endpoint — no order constraint. Walk every non-current target
+        // from every starting state to lock in the free-flip behavior.
+        $user = User::factory()->create();
+        $deck = $this->makeDeck($user);
+
+        $transitions = [
+            ['planned', 'built'],
+            ['built', 'archived'],
+            ['archived', 'planned'],
+            ['planned', 'archived'],
+            ['archived', 'built'],
+            ['built', 'planned'],
+        ];
+        foreach ($transitions as [$from, $to]) {
+            $deck->update(['state' => $from]);
+
+            $response = $this->actingAs($user)->patch(
+                "/decks/{$deck->id}/state",
+                ['state' => $to],
+            );
+
+            $response->assertRedirect("/decks/{$deck->id}");
+            $this->assertSame($to, $deck->fresh()->state->value, "Expected {$from} → {$to}");
+        }
+    }
+
+    #[Test]
     public function deck_show_emits_mode_b_implicit_status_per_card(): void
     {
         // Mode B decks expose `collectionMode: 'B'` plus per-card

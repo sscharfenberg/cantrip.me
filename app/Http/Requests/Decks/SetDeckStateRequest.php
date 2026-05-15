@@ -9,9 +9,8 @@ use Illuminate\Validation\Rule;
 
 /**
  * Authorises the deck-state quick toggle: only the owner may change a
- * deck's state. Used by mode-A's "Set to finished" action menu entry
- * (which bypasses the finalize wizard) and reusable for future planned
- * → archived transitions.
+ * deck's state. Free-flip endpoint — any of `planned` / `built` /
+ * `archived` can move to any other, driven by the deck-actions menu.
  */
 class SetDeckStateRequest extends FormRequest
 {
