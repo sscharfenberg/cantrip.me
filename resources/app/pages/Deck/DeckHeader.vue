@@ -56,6 +56,8 @@ const props = defineProps<{
      * non-owners (the badge is gated on `isOwner`).
      */
     collectionModeContext: CollectionModeContext | null;
+    /** Owner-only flag — true when at least one deck slot is uncovered. */
+    hasUnclaimedCards: boolean;
     /**
      * Owner-only container list for the "Add all cards to collection"
      * modal — empty for non-owners.
@@ -93,6 +95,7 @@ const { formatPrice } = useFormatting();
                 :categories="categories"
                 :category-name-max="categoryNameMax"
                 :collection-mode="collectionMode"
+                :has-unclaimed-cards="hasUnclaimedCards"
                 :containers="isOwner ? containers : undefined"
             />
         </header>

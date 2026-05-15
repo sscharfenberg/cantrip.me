@@ -16,6 +16,7 @@ use App\Formats\FormatProfile;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Decks\AddAllToCollectionRequest;
 use App\Http\Requests\Decks\BulkClaimRequest;
+use App\Http\Requests\Decks\BuyUnclaimedCardsRequest;
 use App\Http\Requests\Decks\DeckQrSvgRequest;
 use App\Http\Requests\Decks\DeleteDeckRequest;
 use App\Http\Requests\Decks\EditDeckRequest;
@@ -25,6 +26,7 @@ use App\Http\Requests\Decks\SetDeckHeroImageRequest;
 use App\Http\Requests\Decks\SetDeckStateRequest;
 use App\Http\Requests\Decks\SetDeckVisibilityRequest;
 use App\Http\Requests\Decks\ShowDeckRequest;
+use App\Http\Requests\Decks\UnclaimedCardsRequest;
 use App\Models\CardStack;
 use App\Models\Container;
 use App\Models\Deck;
@@ -52,6 +54,7 @@ use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class DecksController extends Controller
 {
@@ -333,6 +336,7 @@ class DecksController extends Controller
         $collectionImplicitStatuses = [];
         $collectionModeContext = null;
         $containers = collect();
+        $hasUnclaimedCards = false;
         if ($request->user()?->id === $deck->user_id) {
             $collectionMode = DeckCollectionStatusService::effectiveMode($request->user(), $deck);
             if ($collectionMode === DeckCollectionStatusService::MODE_C) {
@@ -384,6 +388,13 @@ class DecksController extends Controller
                 ])
                 ->sortByDesc('is_deckbox')
                 ->values();
+
+            // Gate for the "Unclaimed cards" entry in DeckActionsMenu —
+            // visible only when coverage is incomplete in modes B/C.
+            if ($collectionMode === DeckCollectionStatusService::MODE_B
+                || $collectionMode === DeckCollectionStatusService::MODE_C) {
+                $hasUnclaimedCards = $this->collectUnclaimedRows($deck, $collectionMode)->isNotEmpty();
+            }
         }
 
         // Build the `$companion` shape now that collection statuses are
@@ -680,6 +691,7 @@ class DecksController extends Controller
             'collectionMode' => $collectionMode,
             'collectionBadgeMode' => $collectionBadgeMode,
             'collectionModeContext' => $collectionModeContext,
+            'hasUnclaimedCards' => $hasUnclaimedCards,
             'containers' => $containers,
             'tokens' => $tokens,
         ]);
@@ -832,8 +844,9 @@ class DecksController extends Controller
      * clicked "Claim cards" — no-op).
      *
      * State is NOT touched here — state transitions are decoupled from
-     * claim activity since PR 1. The redirect target is the deck show
-     * page; PR 3 will swap it to `/decks/{deck}/unclaimed`.
+     * claim activity since PR 1. After persisting, redirects to the
+     * UnclaimedCardStacks page so the user can immediately see what's
+     * still missing and either mark "just bought" or download the CSV.
      */
     public function storeBulkClaim(BulkClaimRequest $request, Deck $deck): RedirectResponse
     {
@@ -851,7 +864,156 @@ class DecksController extends Controller
         $request->session()->flash('message', __('decks.bulk_claim.flash', ['name' => $deck->name]));
         $request->session()->flash('type', 'success');
 
-        return redirect(route('decks.show', $deck->id));
+        return redirect(route('decks.unclaimed', $deck->id));
+    }
+
+    /**
+     * Render the UnclaimedCardStacks page (route
+     * `/decks/{deck}/unclaimed`). Lists every deck slot that isn't
+     * covered yet:
+     *
+     *  - Mode B: a slot is uncovered when the card isn't in the deck's
+     *    `container_id` deckbox. The page is read-only; the user is
+     *    expected to physically buy / move cards into the deckbox.
+     *  - Mode C: a slot is uncovered when the deck_card's pivot
+     *    coverage is less than its quantity. The page surfaces a per-
+     *    row "I just bought this" checkbox plus a master "I bought all
+     *    of these" toggle that submits {@see buyUnclaimed} to mint
+     *    fresh stacks and claim them.
+     *
+     * Both modes get a "Download CSV of unclaimed stacks" link
+     * pointing at {@see exportUnclaimed}.
+     */
+    public function unclaimed(UnclaimedCardsRequest $request, Deck $deck): Response
+    {
+        $mode = DeckCollectionStatusService::effectiveMode($request->user(), $deck);
+        $cards = $this->collectUnclaimedRows($deck, $mode);
+
+        return Inertia::render('Deck/Unclaimed/UnclaimedCardStacksPage', [
+            'deck' => [
+                'id' => $deck->id,
+                'name' => $deck->name,
+                'container_id' => $deck->container_id,
+            ],
+            'mode' => $mode,
+            'cards' => $cards->values(),
+        ]);
+    }
+
+    /**
+     * Persist the mode-C "just bought these" submission from the
+     * UnclaimedCardStacks page. For each ticked deck_card, mints a
+     * fresh stack of the row's outstanding `unclaimed` count and
+     * attaches it via the pivot. The new stack lands in the deck's
+     * `container_id` (if set) so bought cards are physically in the
+     * deckbox.
+     */
+    public function buyUnclaimed(BuyUnclaimedCardsRequest $request, Deck $deck): RedirectResponse
+    {
+        $boughtIds = (array) $request->validated('bought');
+        $buyNew = [];
+        foreach ($boughtIds as $deckCardId) {
+            $buyNew[$deckCardId] = true;
+        }
+
+        DeckFinalizeService::persistAssignments($deck, [], $buyNew, $deck->container_id);
+
+        $request->session()->flash('message', __('decks.bulk_claim.flash', ['name' => $deck->name]));
+        $request->session()->flash('type', 'success');
+
+        return redirect(route('decks.unclaimed', $deck->id));
+    }
+
+    /**
+     * Stream a CSV of the deck's unclaimed slots (one row per uncovered
+     * slot). Columns: name, edition, collector_number, qty, scryfall id,
+     * zone, role. Triggered by the same-page "Download CSV" link on the
+     * UnclaimedCardStacks page.
+     */
+    public function exportUnclaimed(UnclaimedCardsRequest $request, Deck $deck): StreamedResponse
+    {
+        $mode = DeckCollectionStatusService::effectiveMode($request->user(), $deck);
+        $cards = $this->collectUnclaimedRows($deck, $mode);
+
+        $filename = Str::slug($deck->name).'-unclaimed-'.now()->format('Y-m-d').'.csv';
+
+        return response()->streamDownload(function () use ($cards): void {
+            $handle = fopen('php://output', 'w');
+            fputcsv($handle, ['name', 'edition', 'collector_number', 'qty', 'scryfall_id', 'zone', 'role']);
+            foreach ($cards as $card) {
+                fputcsv($handle, [
+                    $card['name'],
+                    $card['set_code'],
+                    $card['collector_number'],
+                    $card['unclaimed'],
+                    $card['default_card_id'],
+                    $card['zone'],
+                    $card['role'] ?? '',
+                ]);
+            }
+            fclose($handle);
+        }, $filename, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+        ]);
+    }
+
+    /**
+     * Collect uncovered deck_card rows per mode. Mode B counts in-
+     * deckbox coverage from `card_stacks.container_id`; mode C counts
+     * pivot coverage from `deck_card_card_stack.amount` summed across
+     * attached stacks.
+     *
+     * @return Collection<int, array<string, mixed>>
+     */
+    private function collectUnclaimedRows(Deck $deck, string $mode): Collection
+    {
+        $deck->load([
+            'deckCards.oracleCard:id,name',
+            'deckCards.defaultCard:id,collector_number,set_id,oracle_id',
+            'deckCards.defaultCard.set:id,code',
+            'deckCards.cardStacks:id,amount',
+        ]);
+
+        $inDeckboxByPrinting = [];
+        if ($mode === DeckCollectionStatusService::MODE_B && $deck->container_id !== null) {
+            $inDeckboxByPrinting = DB::table('card_stacks')
+                ->where('user_id', $deck->user_id)
+                ->where('container_id', $deck->container_id)
+                ->whereIn('default_card_id', $deck->deckCards->pluck('default_card_id')->unique()->values())
+                ->selectRaw('default_card_id, SUM(amount) as total')
+                ->groupBy('default_card_id')
+                ->pluck('total', 'default_card_id')
+                ->all();
+        }
+
+        return $deck->deckCards
+            ->map(function (DeckCard $dc) use ($mode, $inDeckboxByPrinting): ?array {
+                $needed = (int) $dc->quantity;
+                if ($needed <= 0) {
+                    return null;
+                }
+
+                $covered = $mode === DeckCollectionStatusService::MODE_C
+                    ? (int) $dc->cardStacks->sum('amount')
+                    : (int) ($inDeckboxByPrinting[$dc->default_card_id] ?? 0);
+                $unclaimed = max(0, $needed - $covered);
+                if ($unclaimed === 0) {
+                    return null;
+                }
+
+                return [
+                    'id' => $dc->id,
+                    'name' => $dc->oracleCard?->name ?? '',
+                    'set_code' => $dc->defaultCard?->set?->code,
+                    'collector_number' => $dc->defaultCard?->collector_number,
+                    'default_card_id' => $dc->default_card_id,
+                    'unclaimed' => $unclaimed,
+                    'zone' => $dc->zone->value,
+                    'role' => $dc->role?->value,
+                ];
+            })
+            ->filter()
+            ->values();
     }
 
     /**

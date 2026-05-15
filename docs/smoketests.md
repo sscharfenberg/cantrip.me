@@ -165,3 +165,50 @@ composer test -- --filter="DeckBulkClaimControllerTest|DeckFinalizeServiceTest"
 ```
 
 New tests cover §2 printing-swap, mode-C gating, and the cross-deck deckbox filter.
+
+## PR 3 — UnclaimedCardStacks page + menu entry
+
+A new `/decks/{deck}/unclaimed` page lists every uncovered deck slot. Mode B is read-only (the user is expected to physically move cards into the deckbox container); mode C adds per-row "I just bought this" checkboxes that mint a stack and claim it on submit. Both modes get a same-page CSV download.
+
+The deck-actions menu surfaces an "Unclaimed cards" entry when coverage is incomplete (modes B/C, owner-only). BulkClaim's submit now redirects to this page so the user immediately sees what's still missing.
+
+### Owner flow (mode C deck with uncovered cards)
+
+- [ ] Open an owned mode-C deck where at least one slot is uncovered. The deck-actions menu shows an "Unclaimed cards" entry.
+- [ ] Click "Unclaimed cards" — `/decks/{id}/unclaimed` opens. The header reads "Unclaimed cards for {name}".
+- [ ] Each row shows `{unclaimed}× {card name}` plus `SET:collector#`.
+- [ ] Tick the master checkbox "I bought all of these". Every row checkbox flips on.
+- [ ] Tick a specific row. Untick the master. Verify only that row stays checked.
+- [ ] Submit. A new stack of `unclaimed` size is minted for each ticked row and claimed for the deck. The new stack lands in the deck's `container_id` (or unsorted if none set). Page reloads; the just-claimed rows are gone from the list.
+
+### Owner flow (mode B deck with uncovered cards)
+
+- [ ] Open an owned mode-B deck where the container doesn't cover every card. The "Unclaimed cards" entry shows.
+- [ ] Click it. The page is read-only — no checkboxes, no submit button. The intro copy reads "Cards that aren't in this deck's container yet."
+- [ ] Each row shows the unclaimed count + card name + edition + collector#.
+
+### CSV download
+
+- [ ] On the unclaimed page (mode B OR mode C), click "Download CSV of unclaimed cards". A CSV downloads named `{deck-slug}-unclaimed-{YYYY-MM-DD}.csv`.
+- [ ] The CSV has header row `name,edition,collector_number,qty,scryfall_id,zone,role` and one row per uncovered slot.
+
+### Menu gating
+
+- [ ] Mode A deck: "Unclaimed cards" entry is hidden.
+- [ ] Mode B / mode C deck with 100% coverage: entry is hidden.
+- [ ] Public deck owned by someone else: entry is hidden; direct GET to `/decks/{id}/unclaimed` returns 403.
+- [ ] Mode A direct GET to `/decks/{id}/unclaimed` returns 403.
+- [ ] Mode B direct POST to `/decks/{id}/unclaimed/buy` returns 403 (only mode C may mint+claim).
+
+### Redirect from BulkClaim
+
+- [ ] On a mode-C deck, open BulkClaim, claim a card, submit. The redirect lands on `/decks/{id}/unclaimed`, not on the deck show page.
+- [ ] If every card was just claimed, the unclaimed page shows "Every card in this deck is covered."
+
+### Automated coverage (delta)
+
+```bash
+composer test -- --filter="DeckUnclaimedControllerTest"
+```
+
+Covers mode-B / mode-C coverage math, the mint+claim endpoint, the CSV stream, and 403 paths for non-owners / mode A.

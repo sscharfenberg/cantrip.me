@@ -196,7 +196,7 @@ class DeckBulkClaimControllerTest extends TestCase
             ],
         );
 
-        $response->assertRedirect("/decks/{$deck->id}");
+        $response->assertRedirect("/decks/{$deck->id}/unclaimed");
         // State independence: BulkClaim does not transition state.
         $this->assertSame('planned', $deck->fresh()->state->value);
         $this->assertDatabaseHas('deck_card_card_stack', [
@@ -231,7 +231,7 @@ class DeckBulkClaimControllerTest extends TestCase
             ],
         );
 
-        $response->assertRedirect("/decks/{$deck->id}");
+        $response->assertRedirect("/decks/{$deck->id}/unclaimed");
         $this->assertSame('C', $deck->fresh()->collection_mode);
 
         $this->assertDatabaseHas('deck_card_card_stack', [
@@ -262,7 +262,7 @@ class DeckBulkClaimControllerTest extends TestCase
 
         $response = $this->actingAs($user)->post("/decks/{$deck->id}/bulk-claim");
 
-        $response->assertRedirect("/decks/{$deck->id}");
+        $response->assertRedirect("/decks/{$deck->id}/unclaimed");
         // No pivot written, no state change.
         $this->assertSame('planned', $deck->fresh()->state->value);
         $this->assertDatabaseMissing('deck_card_card_stack', [
@@ -504,7 +504,7 @@ class DeckBulkClaimControllerTest extends TestCase
             ],
         );
 
-        $response->assertRedirect("/decks/{$deck->id}");
+        $response->assertRedirect("/decks/{$deck->id}/unclaimed");
         $this->assertSame($container->id, $deck->fresh()->container_id);
     }
 }

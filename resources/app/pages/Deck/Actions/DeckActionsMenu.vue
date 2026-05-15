@@ -57,10 +57,15 @@ const props = withDefaults(
         isArchived?: boolean;
         /**
          * Effective collection-integration mode. Gates the BulkClaim
-         * entry (mode C only) and — once PR 3 lands — the
-         * "Unclaimed cards" entry (modes B and C).
+         * entry (mode C only) and the "Unclaimed cards" entry (modes
+         * B and C).
          */
         collectionMode?: "A" | "B" | "C";
+        /**
+         * True when at least one deck slot is uncovered. Gates the
+         * "Unclaimed cards" entry alongside `collectionMode`.
+         */
+        hasUnclaimedCards?: boolean;
         /**
          * All cards in the deck. When omitted (together with `categories` /
          * `categoryNameMax`), the create-group + custom-groups items are
@@ -79,7 +84,7 @@ const props = withDefaults(
          */
         containers?: DeckActionsContainer[];
     }>(),
-    { isOwner: true, isArchived: false }
+    { isOwner: true, isArchived: false, hasUnclaimedCards: false }
 );
 const { t } = useI18n();
 const popoverId = useId();
@@ -127,6 +132,11 @@ function onEditSettings(): void {
 function onBulkClaim(): void {
     closePopover();
     router.visit(`/decks/${props.deck.id}/bulk-claim`);
+}
+/** Navigate to the UnclaimedCardStacks page. Modes B/C, coverage < 100% — gated below. */
+function onUnclaimed(): void {
+    closePopover();
+    router.visit(`/decks/${props.deck.id}/unclaimed`);
 }
 /** Navigate to the QR code page for this deck. */
 function onQrClick(): void {
@@ -244,6 +254,14 @@ function onDeleteClick(): void {
                 <button class="popover-list-item" @click.prevent="onBulkClaim">
                     <icon name="cards" :size="1" />
                     {{ $t("pages.deck.bulk_claim.menu_link") }}
+                </button>
+            </li>
+            <li
+                v-if="isOwner && (collectionMode === 'B' || collectionMode === 'C') && hasUnclaimedCards"
+            >
+                <button class="popover-list-item" @click.prevent="onUnclaimed">
+                    <icon name="cards" :size="1" />
+                    {{ $t("pages.deck.unclaimed.menu_link") }}
                 </button>
             </li>
             <li v-if="isOwner && !isArchived">

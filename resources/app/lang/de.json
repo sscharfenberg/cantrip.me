@@ -839,6 +839,18 @@
                 "set_built_label": "Den Status dieses Decks zusätzlich auf „fertig\" setzen",
                 "submit": "Alle hinzufügen"
             },
+            "unclaimed": {
+                "title": "Offene Karten für {name}",
+                "heading": "Offene Karten für {name}",
+                "intro_mode_b": "Karten, die noch nicht im Container dieses Decks liegen. Kaufe sie oder lege sie in den Container, um das Deck abzudecken.",
+                "intro_mode_c": "Karten ohne reservierten Stapel. Hake die Zeilen an, die du gerade gekauft hast - es wird ein frischer Stapel angelegt und für dieses Deck reserviert.",
+                "empty": "Jede Karte dieses Decks ist abgedeckt.",
+                "master_label": "Alle gerade gekauft",
+                "csv_link": "CSV der offenen Karten herunterladen",
+                "submit": "Käufe speichern",
+                "back": "Zurück zum Deck",
+                "menu_link": "Offene Karten"
+            },
             "bulk_claim": {
                 "title": "Karten für {name} reservieren",
                 "heading": "Physische Stapel für dieses Deck reservieren",

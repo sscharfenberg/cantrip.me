@@ -839,6 +839,18 @@
                 "set_built_label": "Also set this deck's state to finished",
                 "submit": "Add all to collection"
             },
+            "unclaimed": {
+                "title": "Unclaimed cards for {name}",
+                "heading": "Unclaimed cards for {name}",
+                "intro_mode_b": "Cards that aren't in this deck's container yet. Buy or move them into the container to cover the deck.",
+                "intro_mode_c": "Cards without a claimed copy yet. Tick the rows you just bought to mint a fresh stack and claim it for this deck.",
+                "empty": "Every card in this deck is covered.",
+                "master_label": "I bought all of these",
+                "csv_link": "Download CSV of unclaimed cards",
+                "submit": "Save bought copies",
+                "back": "Back to deck",
+                "menu_link": "Unclaimed cards"
+            },
             "bulk_claim": {
                 "title": "Claim cards for {name}",
                 "heading": "Claim physical card stacks for this deck",

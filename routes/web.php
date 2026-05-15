@@ -159,6 +159,12 @@ Route::middleware(array_filter(['auth', Features::enabled(Features::emailVerific
         ->name('decks.bulk-claim');
     Route::post('/decks/{deck}/bulk-claim', [DecksController::class, 'storeBulkClaim'])
         ->name('decks.bulk-claim.store');
+    Route::get('/decks/{deck}/unclaimed', [DecksController::class, 'unclaimed'])
+        ->name('decks.unclaimed');
+    Route::post('/decks/{deck}/unclaimed/buy', [DecksController::class, 'buyUnclaimed'])
+        ->name('decks.unclaimed.buy');
+    Route::get('/decks/{deck}/unclaimed/export', [DecksController::class, 'exportUnclaimed'])
+        ->name('decks.unclaimed.export');
     Route::patch('/decks/{deck}', [DecksController::class, 'update'])
         ->middleware([HandleControllerPrecognitiveRequest::class])
         ->name('decks.update');

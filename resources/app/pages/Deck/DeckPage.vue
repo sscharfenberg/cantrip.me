@@ -61,6 +61,8 @@ const props = defineProps<{
         master_switch_enabled: boolean;
         claimed_count: number;
     } | null;
+    /** Owner-only flag — true when at least one deck slot is uncovered. Drives the "Unclaimed cards" menu entry. */
+    hasUnclaimedCards: boolean;
     /**
      * Owner's containers — drives the "Add all cards to collection" modal
      * inside `DeckActionsMenu`. Empty array for non-owners.
@@ -159,6 +161,7 @@ const cardNameByDefaultCardId = computed<Record<string, string>>(() => {
         :collection-mode="collectionMode"
         :collection-badge-mode="collectionBadgeMode"
         :collection-mode-context="collectionModeContext"
+        :has-unclaimed-cards="hasUnclaimedCards"
         :containers="containers"
     />
     <deck-navigation
