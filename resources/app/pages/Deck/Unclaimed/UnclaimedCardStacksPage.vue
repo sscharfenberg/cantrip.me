@@ -160,7 +160,7 @@ function onSubmit(): void {
         <ul v-else class="unclaimed__list unclaimed__list--readonly">
             <li v-for="card in cards" :key="card.id" class="unclaimed__row">
                 <card-image-preview :src="card.card_image_0" :alt="card.name">
-                    <strong>{{ card.unclaimed }}× {{ card.name }}</strong>
+                    {{ card.unclaimed }}× {{ card.name }}
                 </card-image-preview>
                 <span v-if="card.set_code" class="unclaimed__set">
                     {{ card.set_code.toUpperCase() }}:{{ card.collector_number }}
@@ -242,6 +242,10 @@ function onSubmit(): void {
         &:hover {
             background-color: map.get(c.$pages, "unclaimed", "row", "background", "hover");
             color: map.get(c.$pages, "unclaimed", "row", "surface", "hover");
+        }
+
+        .text-link {
+            margin-left: auto;
         }
     }
 
