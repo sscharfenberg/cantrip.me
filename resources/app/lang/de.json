@@ -158,7 +158,8 @@
     },
     "toast": {
         "close": "Hinweis schließen",
-        "region": "Benachrichtigungen"
+        "region": "Benachrichtigungen",
+        "maintenance": "Die Seite wird gerade gewartet. Bitte versuche es in einem Moment erneut."
     },
     "pages": {
         "welcome": {

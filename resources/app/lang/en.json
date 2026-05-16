@@ -158,7 +158,8 @@
     },
     "toast": {
         "close": "Close notification",
-        "region": "Notifications"
+        "region": "Notifications",
+        "maintenance": "The site is currently under maintenance. Please try again in a moment."
     },
     "pages": {
         "welcome": {
