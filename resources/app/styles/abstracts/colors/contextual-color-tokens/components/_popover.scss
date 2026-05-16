@@ -16,8 +16,8 @@ $popover: (
     "item-surface-selected": light-dark(map.get(c.$brand, "light1", "contrast"), map.get(c.$brand, "dark1", "color")),
     "item-surface": light-dark(map.get(c.$grey, "ebony"), map.get(c.$grey, "astral")),
     "item-surface-hover": light-dark(map.get(c.$brand, "light2", "contrast"), map.get(c.$brand, "dark2", "contrast")),
-    "border-from": light-dark(map.get(c.$grey, "iron"), map.get(c.$grey, "asher")),
-    "border-to": light-dark(map.get(c.$grey, "fog"), map.get(c.$grey, "abbey")),
+    "border": light-dark(map.get(c.$grey, "iron"), map.get(c.$grey, "asher")),
+    "border-divider": light-dark(map.get(c.$brand, "light1", "contrast"), map.get(c.$brand, "dark1", "contrast")),
     "button": (
         "background": light-dark(
                 color.adjust(map.get(c.$grey, "infra"), $alpha: -0.25),

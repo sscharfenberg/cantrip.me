@@ -95,6 +95,22 @@ const showAddAllToCollectionModal = ref(false);
 const showGroupActions = computed(
     () => props.cards !== undefined && props.categories !== undefined && props.categoryNameMax !== undefined
 );
+/**
+ * Per-group visibility, used to decide which inter-group dividers to render.
+ * Groups: 1 settings/state, 2 custom groups, 3 collection actions,
+ * 4 QR + CSV (always visible — CSV has no auth gate), 5 delete.
+ * Divider visibility = "previous group visible AND any following group visible";
+ * since G4 always shows, the trailing-half always evaluates true for d1/d2/d3.
+ */
+const showGroup1 = computed(() => props.isOwner);
+const showGroup2 = computed(() => props.isOwner && !props.isArchived && showGroupActions.value);
+const showGroup3 = computed(
+    () =>
+        props.isOwner &&
+        (!props.isArchived ||
+            (props.hasUnclaimedCards && (props.collectionMode === "B" || props.collectionMode === "C")))
+);
+const showGroup5 = computed(() => props.isOwner);
 const deleteTarget = computed<DeleteDeckTarget>(() => ({
     id: props.deck.id,
     name: props.deck.name,
@@ -238,6 +254,7 @@ function onDeleteClick(): void {
                     {{ $t("pages.decks.actions.set_archived") }}
                 </button>
             </li>
+            <li v-if="showGroup1" class="popover-list__divider" aria-hidden="true" />
             <li v-if="isOwner && !isArchived && showGroupActions">
                 <button class="popover-list-item" @click.prevent="openCreateGroup">
                     <icon name="add" :size="1" />
@@ -250,6 +267,7 @@ function onDeleteClick(): void {
                     {{ $t("pages.deck.custom_groups.link") }}
                 </button>
             </li>
+            <li v-if="showGroup2" class="popover-list__divider" aria-hidden="true" />
             <li v-if="isOwner && !isArchived && collectionMode === 'C'">
                 <button class="popover-list-item" @click.prevent="onBulkClaim">
                     <icon name="claimed" :size="1" />
@@ -268,6 +286,7 @@ function onDeleteClick(): void {
                     {{ $t("pages.deck.add_all_to_collection.link") }}
                 </button>
             </li>
+            <li v-if="showGroup3" class="popover-list__divider" aria-hidden="true" />
             <li v-if="isOwner">
                 <button class="popover-list-item" @click.prevent="onQrClick">
                     <icon name="qr-code" :size="1" />
@@ -280,7 +299,8 @@ function onDeleteClick(): void {
                     {{ $t("pages.decks.actions.export") }}
                 </button>
             </li>
-            <li v-if="isOwner">
+            <li v-if="showGroup5" class="popover-list__divider" aria-hidden="true" />
+            <li v-if="showGroup5">
                 <button class="popover-list-item popover-list-item--error" @click.prevent="onDeleteClick">
                     <icon name="delete" :size="1" />
                     {{ $t("pages.decks.actions.delete") }}

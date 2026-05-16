@@ -19,8 +19,24 @@
 
     > li:not(:last-child) {
         padding-bottom: 0.25rem;
-        border-bottom: map.get(s.$components, "popover", "border") solid
-            map.get(c.$components, "popover", "border-from");
+        border-bottom: map.get(s.$components, "popover", "border") solid map.get(c.$components, "popover", "border");
+    }
+
+    // Inter-group separator: a 2px coloured rule between conceptual sections
+    // (settings/state → custom groups → collection actions → QR+CSV → delete).
+    // Authored as an empty <li class="popover-list__divider"> with v-if gates
+    // in DeckActionsMenu.vue, so a divider only renders when there's a
+    // visible group on either side of it.
+    > li.popover-list__divider {
+        padding: 0;
+        border-bottom: 2px solid map.get(c.$components, "popover", "border-divider");
+    }
+
+    // Drop the regular border-bottom on the item immediately before a divider
+    // so we don't end up with a doubled rule (subtle grey stacked on accent).
+    > li:has(+ .popover-list__divider) {
+        padding-bottom: 0;
+        border-bottom: 0;
     }
 
     &-item {
