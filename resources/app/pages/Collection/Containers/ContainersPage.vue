@@ -77,6 +77,10 @@ setBreadcrumbs([
                     <icon name="qr-code" />
                     {{ $t("pages.container_qr.link") }}
                 </Link>
+                <Link v-if="containersAmount > 0" class="btn-default" href="/containers/qr-sheet">
+                    <icon name="qr-code" />
+                    {{ $t("pages.container_qr_sheet.link") }}
+                </Link>
             </link-group>
         </li>
         <li v-if="isSaving" class="meta__saving" aria-live="polite">

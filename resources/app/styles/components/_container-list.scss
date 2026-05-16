@@ -1,0 +1,195 @@
+/******************************************************************************
+ * Shared container-list layout — the row-per-container grid used by
+ * the containers index (ContainersResultList) AND the printable
+ * QR-sheet picker (ContainerQrSheet). Both lists share the exact same
+ * column layout (image / name+description / type / count / price /
+ * visibility) and chrome (alternating row background, border, hover).
+ * The only differences:
+ *   - Col 1: drag-handle (sortable list) OR checkbox (selectable list)
+ *   - Trailing col: ContainerMenu (sortable list) OR nothing (selectable list)
+ * Variants are switched by modifier classes (`--selectable`, `--no-menu`)
+ * rather than duplicating the whole stylesheet.
+ *
+ * @type {Sass}
+ * @layer components
+ *****************************************************************************/
+@use "sass:map";
+@use "Abstracts/colors" as c;
+@use "Abstracts/mixins" as m;
+@use "Abstracts/sizes" as s;
+@use "Abstracts/timings" as ti;
+
+.clist {
+    display: grid;
+    grid-template-columns: auto 1fr auto auto auto auto;
+
+    padding: 0;
+    margin: 1lh 0 0;
+    row-gap: 0.5lh;
+
+    list-style: none;
+
+    @include m.mq("landscape") {
+        grid-template-columns: auto 4rem 1fr auto auto auto auto auto;
+    }
+
+    // Selectable variant: rows have a click-to-toggle cursor on the
+    // whole item (vs the sortable variant where each affordance has
+    // its own cursor — grab on drag handle, pointer inside the link).
+    &--selectable .clist__item {
+        cursor: pointer;
+    }
+
+    &__item {
+        display: grid;
+        align-items: center;
+        grid-template-columns: subgrid;
+        grid-column: 1 / -1;
+
+        padding-right: 1ch;
+        border: map.get(s.$pages, "containers", "border") solid map.get(c.$pages, "containers", "border");
+        row-gap: 0.5rem;
+
+        background: map.get(c.$pages, "containers", "background", "odd");
+        color: map.get(c.$pages, "containers", "surface");
+        border-radius: map.get(s.$pages, "containers", "radius");
+
+        transition: background-color map.get(ti.$timings, "fast") linear;
+
+        &:hover {
+            background: map.get(c.$pages, "containers", "background-hover", "odd");
+        }
+
+        &:nth-of-type(even) {
+            background: map.get(c.$pages, "containers", "background", "even");
+
+            &:hover {
+                background: map.get(c.$pages, "containers", "background-hover", "even");
+            }
+        }
+
+        &--ghost {
+            opacity: 0.3;
+        }
+
+        @include m.mq("portrait") {
+            row-gap: 1rem;
+        }
+    }
+
+    // Col 1 — either a drag handle (sortable list) or a selection
+    // checkbox (selectable list). Same box, different cursor.
+    &__drag-handle,
+    &__check {
+        display: inline-flex;
+        align-items: center;
+        align-self: stretch;
+
+        padding: 1ex 1ch;
+    }
+
+    &__drag-handle {
+        border-top-left-radius: calc(
+            map.get(s.$pages, "containers", "radius") - map.get(s.$pages, "containers", "border")
+        );
+        border-bottom-left-radius: calc(
+            map.get(s.$pages, "containers", "radius") - map.get(s.$pages, "containers", "border")
+        );
+
+        cursor: grab;
+
+        &:active {
+            cursor: grabbing;
+        }
+    }
+
+    // Inner data grid — spans cols 2..-2 by default (leaves the last
+    // column for ContainerMenu). Use --no-menu when the list has no
+    // trailing actions column (e.g. the QR-sheet picker).
+    &__data {
+        display: grid;
+        align-items: center;
+        grid-template-columns: subgrid;
+        grid-column: 2 / -2;
+
+        padding-right: 1ch;
+        column-gap: 1ch;
+
+        color: inherit;
+
+        text-decoration: none;
+
+        &--no-menu {
+            grid-column: 2 / -1;
+        }
+    }
+
+    &__name {
+        overflow: hidden;
+        min-width: 0;
+        padding: 0.5ex 0;
+
+        white-space: nowrap;
+        text-overflow: ellipsis;
+    }
+
+    &__description {
+        display: block;
+
+        overflow: hidden;
+        min-width: 0;
+        padding: 0 0 0.5ex;
+
+        color: map.get(c.$pages, "containers", "surface-description");
+
+        font-size: 0.8rem;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+    }
+
+    &__type,
+    &__count,
+    &__price {
+        display: flex;
+        align-items: center;
+
+        gap: 0.5ch;
+
+        .icon {
+            display: none;
+
+            @include m.mq("landscape") {
+                display: block;
+            }
+        }
+    }
+
+    &__visibility {
+        display: none;
+
+        @include m.mq("landscape") {
+            display: inline-flex;
+        }
+    }
+
+    &__image {
+        display: none;
+        align-self: stretch;
+
+        width: 100%;
+
+        object-fit: cover;
+
+        @include m.mq("landscape") {
+            display: block;
+        }
+    }
+
+    &__price {
+        display: none;
+
+        @include m.mq("landscape") {
+            display: flex;
+        }
+    }
+}

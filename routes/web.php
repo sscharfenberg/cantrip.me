@@ -83,6 +83,10 @@ Route::middleware(array_filter(['auth', Features::enabled(Features::emailVerific
         ->name('container.reorder');
     Route::get('containers/qr', [ContainerController::class, 'generateQr'])
         ->name('containers.qr');
+    Route::get('containers/qr-sheet', [ContainerController::class, 'qrSheet'])
+        ->name('containers.qr-sheet');
+    Route::get('containers/qr-sheet/pdf', [ContainerController::class, 'qrSheetPdf'])
+        ->name('containers.qr-sheet.pdf');
     Route::get('containers/{container}/export', [ExportController::class, 'container'])
         ->name('container.export');
     Route::get('containers/{container}/import', [ImportController::class, 'show'])
@@ -223,7 +227,8 @@ Route::middleware(array_filter(['auth', Features::enabled(Features::emailVerific
 /******************************************************************************
  * Public deck/container pages (visibility check handled in controller).
  * Must be registered after the auth group so that specific routes like
- * containers/new, containers/qr, containers/sort, decks/add are matched first.
+ * containers/new, containers/qr, containers/qr-sheet, containers/sort,
+ * decks/add are matched first.
  *****************************************************************************/
 Route::get('/decks/{deck}', [DecksController::class, 'show'])
     ->name('decks.show');

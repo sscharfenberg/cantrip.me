@@ -641,6 +641,20 @@
             "loading": "QR Code wird generiert...",
             "no_selection": "Bitte wähle einen Container."
         },
+        "container_qr_sheet": {
+            "link": "QR-Aufkleberbogen drucken",
+            "title": "QR-Aufkleberbogen drucken",
+            "explanation": "Wähle die Container aus, für die du Aufkleber willst, und lade einen druckfertigen A4-PDF herunter — 9 Aufkleber pro Seite, je 6×6 cm, mit roten Schnittlinien.",
+            "selected": "{count} von {total} ausgewählt — {pages} Seite(n)",
+            "select_all": "Alle auswählen",
+            "select_none": "Auswahl aufheben",
+            "toggle": "{name} umschalten",
+            "submit": "PDF herunterladen",
+            "none": "Du hast noch keine Container.",
+            "nav": {
+                "label": "Auswahlaktionen"
+            }
+        },
         "deck_qr": {
             "link": "QR code generieren",
             "title": "QR code für {name} generieren",

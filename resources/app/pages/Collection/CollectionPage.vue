@@ -60,6 +60,18 @@ setBreadcrumbs([{ labelKey: "pages.collection.link" }]);
                             {{ $t("pages.containers.link") }}
                         </Link>
                     </li>
+                    <li v-if="canCreateNewContainer">
+                        <Link href="/containers/new" class="popover-list-item" @click="closePopover">
+                            <icon name="add" :size="1" />
+                            {{ $t("pages.new_container.link") }}
+                        </Link>
+                    </li>
+                    <li>
+                        <Link href="/containers/qr-sheet" class="popover-list-item" @click="closePopover">
+                            <icon name="qr-code" :size="1" />
+                            {{ $t("pages.container_qr_sheet.link") }}
+                        </Link>
+                    </li>
                     <li>
                         <Link class="popover-list-item" href="/collection/add" @click="closePopover">
                             <icon name="add" :size="1" />
@@ -146,7 +158,7 @@ setBreadcrumbs([{ labelKey: "pages.collection.link" }]);
             {{ $t("pages.new_container.link") }}
         </Link>
         <Link href="/collection/add" class="btn-default">
-            <icon name="card" />
+            <icon name="add" />
             {{ $t("pages.add_cards.link") }}
         </Link>
     </nav>

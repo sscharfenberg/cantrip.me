@@ -11,6 +11,7 @@
     "require": {
         "php": "^8.4",
         "ext-intl": "*",
+        "barryvdh/laravel-dompdf": "^3.1",
         "bjeavons/zxcvbn-php": "^1.4",
         "cerbero/json-parser": "^1.1",
         "inertiajs/inertia-laravel": "^3.0",

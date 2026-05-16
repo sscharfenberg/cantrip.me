@@ -641,6 +641,20 @@
             "loading": "Generating QR code...",
             "no_selection": "Please select a container."
         },
+        "container_qr_sheet": {
+            "link": "Print QR sticker sheet",
+            "title": "Print QR sticker sheet",
+            "explanation": "Tick the containers you want stickers for and download a printable A4 PDF — 9 stickers per page, 6×6 cm each, with red cut lines.",
+            "selected": "{count} of {total} selected — {pages} page(s)",
+            "select_all": "Select all",
+            "select_none": "Deselect all",
+            "toggle": "Toggle {name}",
+            "submit": "Download PDF",
+            "none": "You don't have any containers yet.",
+            "nav": {
+                "label": "Selection actions"
+            }
+        },
         "deck_qr": {
             "link": "Create QR code",
             "title": "Create QR code for {name}",

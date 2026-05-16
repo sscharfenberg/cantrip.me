@@ -10,6 +10,7 @@ use App\Http\Requests\Collection\ContainerQrSvgRequest;
 use App\Http\Requests\Collection\DeleteContainerRequest;
 use App\Http\Requests\Collection\EditContainerRequest;
 use App\Http\Requests\Collection\GenerateContainerQrRequest;
+use App\Http\Requests\Collection\GenerateContainerQrSheetRequest;
 use App\Http\Requests\Collection\PruneContainerRequest;
 use App\Http\Requests\Collection\ShowContainerRequest;
 use App\Http\Requests\Collection\UpdateContainerRequest;
@@ -20,9 +21,11 @@ use App\Services\CardStackClaimService;
 use App\Services\ContainerService;
 use App\Services\DataTableService;
 use App\Services\QrCodeService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response as HttpResponse;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -389,5 +392,76 @@ class ContainerController extends Controller
         $svg = QrCodeService::generateSvg($url);
 
         return response()->json(['svg' => $svg]);
+    }
+
+    /**
+     * Picker page for the printable QR sticker sheet.
+     *
+     * Lists every container the user owns so they can tick the ones they
+     * want on the sheet, then hits the PDF endpoint with the selected ids
+     * in the query string.
+     */
+    public function qrSheet(Request $request): Response
+    {
+        $containers = $request->user()->containers()
+            ->with('defaultCard.set', 'defaultCard.artist')
+            ->withSum('cardStacks', 'amount')
+            ->addSelect([
+                'total_price' => ContainerService::totalPriceSubquery($request->user()->currency),
+            ])
+            ->orderBy('sort_order')
+            ->get();
+
+        return Inertia::render('Collection/Container/ContainerQrSheet', [
+            'containers' => $containers->map(fn ($c) => ContainerService::serializeContainer($c)),
+        ]);
+    }
+
+    /**
+     * Stream a printable A4 PDF with QR stickers for the selected containers.
+     *
+     * 9-up layout (3×3), 60×60 mm QR + 10 mm label band per sticker,
+     * 5 mm gutters, red cut lines, corner crop marks. dompdf renders the
+     * blade template at `views/pdf/container-qr-sheet.blade.php`.
+     */
+    public function qrSheetPdf(GenerateContainerQrSheetRequest $request): HttpResponse
+    {
+        $containers = Container::query()
+            ->where('user_id', $request->user()->id)
+            ->whereIn('id', $request->input('ids'))
+            ->orderBy('sort_order')
+            ->get(['id', 'name', 'type', 'custom_type']);
+
+        // Generate one labelled SVG per container up front so the blade
+        // template stays presentational — no service calls inside the
+        // view loop. The container's name is baked directly onto the QR
+        // via generateSvgWithLabel(), so the cut sticker stays self-
+        // identifying once applied to a binder. The QR uses ECC level H
+        // (≈30% redundancy) so the white caption rect doesn't break
+        // scanning. Names are hard-capped at 23 visible chars (incl.
+        // ellipsis) — roughly the length of "A very long binder name"
+        // — to keep captions legible at the sticker's 60mm width.
+        $tiles = $containers->map(function (Container $container) {
+            $typeLabel = $container->type === ContainerType::Other && $container->custom_type
+                ? $container->custom_type
+                : __('enums.container_type.'.$container->type->value);
+
+            $caption = $container->name;
+            if (mb_strlen($caption) > 23) {
+                $caption = mb_substr($caption, 0, 22).'…';
+            }
+
+            return [
+                'name' => $container->name,
+                'type_label' => $typeLabel,
+                'svg' => QrCodeService::generateSvgWithLabel(route('container.show', $container), $caption, 600),
+            ];
+        });
+
+        $pdf = Pdf::loadView('pdf.container-qr-sheet', [
+            'tiles' => $tiles,
+        ])->setPaper('a4', 'portrait');
+
+        return $pdf->download('container-qr-sheet.pdf');
     }
 }
