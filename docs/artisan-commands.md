@@ -125,12 +125,74 @@ Dispatches a synthetic `ScryfallUpdateFailedNotification` (mail + Discord embed)
 
 Used to verify mail+Discord wiring without breaking a real `scryfall:update` run.
 
+## Database backups
+
+Self-managed MySQL/MariaDB backup pair. Independent of the host-level Hetzner backups — these are restorable in-place via `db:restore` so the round-trip is actually testable.
+
+Both commands work in every environment, but the daily schedule only fires in `production` so staging doesn't accumulate dumps from a DB it mostly mirrors anyway. Test on staging by running `php artisan db:backup` / `db:restore` manually.
+
+Backups land in `config('cantrip.db_backup.path')` (default `storage/app/db-backups`). Retention is `config('cantrip.db_backup.retention_days')` (default 7), overridable per-env via the `DB_BACKUP_RETENTION_DAYS` env var.
+
+### `php artisan db:backup`
+
+Dumps the configured MySQL/MariaDB database via `mysqldump --single-transaction --quick --skip-lock-tables --default-character-set=utf8mb4`, then rotates older dumps to `.tar.gz` and prunes anything beyond the retention window.
+
+Directory layout after a few days:
+
+```
+db-backup-2026-05-17.sql      ← today's dump (uncompressed, mode 0640)
+db-backup-2026-05-16.tar.gz   ← yesterday, compressed
+db-backup-2026-05-15.tar.gz
+…
+db-backup-2026-05-11.tar.gz   ← oldest still inside the 7-day window
+```
+
+Anything dated more than `retention_days` before today is unlinked on every run.
+
+Credentials reach `mysqldump` via a 0600 temp file with `--defaults-extra-file`, so the DB password never appears in `ps` or `/proc/<pid>/cmdline`.
+
+Options:
+
+* `--retention-days=<n>` — override the retention window for this run (does not change the persisted config).
+
+Scheduled daily at 00:15 in production via `routes/console.php`. Logs to the `schedule` channel (`storage/logs/schedule.log`, 14-day rotation): info on start/finish + bytes written, debug on individual compressions, error + non-zero exit on failure.
+
+### `php artisan db:restore`
+
+Restore from a `db:backup` dump. **Strictly manual** — no schedule, no automation. Listed via Laravel Prompts with newest-first ordering; pick one, confirm at the destructive-operation prompt, and the dump is piped straight into `mysql`.
+
+Picker labels show filename + age + type + size:
+
+```
+db-backup-2026-05-17.sql (today) — sql — 148.14MB
+db-backup-2026-05-16.tar.gz (1 day ago) — tar.gz — 12.34MB
+db-backup-2026-05-10.tar.gz (7 days ago) — tar.gz — 12.30MB
+```
+
+`.tar.gz` archives are extracted to a fresh `/tmp/cantrip-restore-<hex>` directory, imported, and cleaned up in a `finally` block (whether the import succeeded or not — no orphaned multi-hundred-megabyte dumps in `/tmp` after a failure).
+
+The SQL stream is piped to mysql's stdin via Symfony Process input — never buffered in PHP — so the memory footprint stays constant regardless of dump size.
+
+Options:
+
+* `--file=<path>` — restore a specific file directly, skipping the picker. Useful for scripting or restoring from a path outside the backup directory.
+* `--force` — skip the destructive-operation confirmation prompt. Picker still applies unless `--file` is also passed.
+
+Logs to the `schedule` channel: info on start/done, debug on archive extraction + cleanup, error + non-zero exit on failure.
+
+**Verifying a backup is actually restorable** — pick today's dump, hit "yes" at the prompt, and check the app still works. The mysqldump `DROP TABLE IF EXISTS` defaults make the restore idempotent for tables that exist in both the dump and the current DB; tables only in the current DB but not the dump are left untouched (rare in practice).
+
 ## Scheduled tasks
 
-Laravel's task scheduler handles recurring jobs (e.g. temporary file cleanup). To activate, add this cron entry for the web server user:
+Laravel's task scheduler handles recurring jobs. To activate, add this cron entry for the web server user:
 
 ```bash
 * * * * * php /path/to/artisan schedule:run >> /dev/null 2>&1
 ```
 
-Runs `schedule:run` every minute; Laravel determines internally which scheduled tasks are due. Scheduled tasks are defined in `routes/console.php`.
+Runs `schedule:run` every minute; Laravel determines internally which scheduled tasks are due. Scheduled tasks are defined in `routes/console.php`:
+
+| Schedule | When | Environments |
+|---|---|---|
+| `CleanupTempUploads` job | daily at 00:00 | all |
+| `db:backup` command | daily at 00:15 | production only |

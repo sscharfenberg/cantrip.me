@@ -10,3 +10,14 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 Schedule::job(new CleanupTempUploads)->daily()->evenInMaintenanceMode();
+// DB backup runs 15 minutes after the temp-upload cleanup so the two
+// don't contend for I/O at midnight. Production-only — staging shares
+// most assets with prod and we don't want a daily flood of staging
+// dumps cluttering the disk. The command itself has no env gating, so
+// running `php artisan db:backup` manually on staging still works for
+// ad-hoc testing. evenInMaintenanceMode() so a prod deploy that
+// catches midnight still gets its daily snapshot.
+Schedule::command('db:backup')
+    ->dailyAt('00:15')
+    ->environments(['production'])
+    ->evenInMaintenanceMode();

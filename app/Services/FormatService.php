@@ -43,7 +43,7 @@ class FormatService
      * @param  int|float  $bytes  The number of bytes.
      * @param  int  $precision  Decimal places to round to.
      */
-    public function formatBytes($bytes, int $precision = 2): string
+    public function formatBytes(int|float $bytes, int $precision = 2): string
     {
         $units = ['B', 'KB', 'MB', 'GB', 'TB'];
 
