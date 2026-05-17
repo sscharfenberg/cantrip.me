@@ -438,17 +438,18 @@ class ContainerController extends Controller
         // via generateSvgWithLabel(), so the cut sticker stays self-
         // identifying once applied to a binder. The QR uses ECC level H
         // (≈30% redundancy) so the white caption rect doesn't break
-        // scanning. Names are hard-capped at 23 visible chars (incl.
-        // ellipsis) — roughly the length of "A very long binder name"
-        // — to keep captions legible at the sticker's 60mm width.
+        // scanning. Names are hard-capped at 26 visible chars (incl.
+        // ellipsis) to keep captions legible at the sticker's 60mm
+        // width; longer names get ellipsised, slightly-shorter ones may
+        // still trigger the font-shrink fallback in generateSvgWithLabel.
         $tiles = $containers->map(function (Container $container) {
             $typeLabel = $container->type === ContainerType::Other && $container->custom_type
                 ? $container->custom_type
                 : __('enums.container_type.'.$container->type->value);
 
             $caption = $container->name;
-            if (mb_strlen($caption) > 23) {
-                $caption = mb_substr($caption, 0, 22).'…';
+            if (mb_strlen($caption) > 26) {
+                $caption = mb_substr($caption, 0, 25).'…';
             }
 
             return [
