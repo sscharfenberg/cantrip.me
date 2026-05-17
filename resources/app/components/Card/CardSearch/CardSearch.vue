@@ -1,5 +1,6 @@
 <script setup lang="ts" generic="T extends { id: string }">
-import { nextTick, useTemplateRef } from "vue";
+import type { Ref } from "vue";
+import { nextTick, toRef, useTemplateRef } from "vue";
 import CurrentSelection from "Components/Card/CardSearch/CurrentSelection.vue";
 import Results from "Components/Card/CardSearch/Results.vue";
 import SearchSyntax from "Components/Card/SearchSyntax.vue";
@@ -28,14 +29,23 @@ const props = withDefaults(
         invalid?: boolean;
         /** When true, the selected card cannot be changed (edit mode). */
         locked?: boolean;
+        /**
+         * Optional set-code filter. When non-empty, the composable
+         * strips any `set:`/`s:`/`e:` token from the user's typed
+         * query and replaces it with `set:<setCode>` on the wire — so
+         * the dropdown's choice always wins over typed tokens.
+         */
+        setCode?: string;
     }>(),
     {
         required: false,
         error: "",
         invalid: false,
-        locked: false
+        locked: false,
+        setCode: ""
     }
 );
+const setCodeRef = toRef(props, "setCode") as Ref<string>;
 const emit = defineEmits<{
     /** Emitted when the user selects a card from the search results. */
     selected: [card: T];
@@ -51,7 +61,7 @@ const {
     refValue,
     onCardSelected: selectCard,
     onClearSelection
-} = useCardSearch<T>(props.endpoint);
+} = useCardSearch<T>(props.endpoint, setCodeRef);
 /** Wraps composable selection to also emit the event to the parent. */
 function onCardSelected(card: T) {
     selectCard(card);

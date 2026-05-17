@@ -1145,7 +1145,9 @@
                 "clear": "Clear defaults"
             },
             "submit": "Save",
-            "submit_and_add_more": "Save and add more"
+            "submit_and_add_more": "Save and add more",
+            "all_sets": "All sets",
+            "clear_set": "Clear set"
         },
         "edit_card": {
             "title": "Edit card",
@@ -1187,6 +1189,7 @@
             },
             "card": "Card",
             "name": "Card name",
+            "restrict_to_set": "Restrict results to set",
             "set_name": "Set",
             "collector_number": "No.",
             "container_name": "Container",

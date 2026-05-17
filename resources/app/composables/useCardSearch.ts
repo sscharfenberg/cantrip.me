@@ -1,3 +1,4 @@
+import type { Ref } from "vue";
 import { ref, watch } from "vue";
 
 /** Server response shape for paged card-search endpoints. `total` is the
@@ -8,8 +9,24 @@ interface CardSearchResponse<T> {
     results: T[];
 }
 
-/** Reactive state and helpers for a debounced card search against a JSON API endpoint. */
-export function useCardSearch<T>(endpoint: string) {
+/**
+ * Backend set-filter tokens we strip from raw user input before
+ * prepending the dropdown-driven setCode. Matches `set:abc`, `s:abc`,
+ * `e:abc` anywhere in the query (leading/middle/trailing). Case-insensitive.
+ */
+const SET_TOKEN_RE = /(?:^|\s)(?:set|s|e):\S+/gi;
+
+/**
+ * Reactive state and helpers for a debounced card search against a JSON API endpoint.
+ *
+ * @param endpoint  API endpoint to fetch from (e.g. "/api/card-image").
+ * @param setCode   Optional reactive set-code filter. When present and
+ *                  non-empty, any `set:`/`s:`/`e:` token the user types
+ *                  in the input is stripped out and replaced by
+ *                  `set:<setCode>` on the wire — the dropdown's choice
+ *                  wins over typed tokens.
+ */
+export function useCardSearch<T>(endpoint: string, setCode?: Ref<string>) {
     /** The current text in the search input, bound via v-model. */
     const searchQuery = ref("");
     /** Card results returned by the search endpoint (capped server-side). */
@@ -29,11 +46,35 @@ export function useCardSearch<T>(endpoint: string) {
     let abortController: AbortController | null = null;
 
     /**
-     * Fetch matching cards from the API and populate results.
-     * Clears results if the query is empty.
+     * Build the actual query string sent to the server from the raw
+     * user input.
+     *
+     * - No dropdown set selected → pass the user's query through
+     *   unchanged. Any typed `set:`/`s:`/`e:` token reaches the
+     *   backend's CardSearchParser and works as before.
+     * - Dropdown set selected → strip any conflicting `set:`/`s:`/`e:`
+     *   token the user typed and prepend `set:<code>`. The dropdown
+     *   always wins. If nothing's left after stripping, the query is
+     *   empty (set:CODE alone would dump a whole set's catalogue and
+     *   isn't useful here).
      */
-    async function searchCards(query: string) {
-        if (!query.trim()) {
+    function buildQuery(rawQuery: string): string {
+        const code = setCode?.value?.trim() ?? "";
+        if (!code) {
+            return rawQuery.trim();
+        }
+        const namePart = rawQuery.replace(SET_TOKEN_RE, " ").replace(/\s+/g, " ").trim();
+        if (!namePart) return "";
+        return `set:${code} ${namePart}`;
+    }
+
+    /**
+     * Fetch matching cards from the API and populate results.
+     * Clears results if the effective query is empty.
+     */
+    async function searchCards(rawQuery: string) {
+        const query = buildQuery(rawQuery);
+        if (!query) {
             results.value = [];
             totalResults.value = 0;
             return;
@@ -74,10 +115,14 @@ export function useCardSearch<T>(endpoint: string) {
         searchQuery.value = "";
     }
 
-    /** Debounce search input changes by 500 ms before calling the API. */
-    watch(searchQuery, query => {
+    /**
+     * Debounce search input changes (and setCode changes, when bound)
+     * by 500 ms before calling the API. setCode flips re-run the
+     * current query so the result list reacts to dropdown changes.
+     */
+    watch([searchQuery, () => setCode?.value ?? ""], () => {
         if (debounceTimer) clearTimeout(debounceTimer);
-        debounceTimer = setTimeout(() => searchCards(query), 500);
+        debounceTimer = setTimeout(() => searchCards(searchQuery.value), 500);
     });
 
     return {

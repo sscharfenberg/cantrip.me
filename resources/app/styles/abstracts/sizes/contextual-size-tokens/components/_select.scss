@@ -8,5 +8,10 @@ $select: (
     "height": map.get(s.$icons, "medium"),
     "caret": math.round(s.$base * 0.4),
     "option": 1ex 1ch,
-    "clear": map.get(s.$icons, "medium") * 2
+    "clear": map.get(s.$icons, "medium") * 2,
+    "image": (
+        "width": 1.25rem,
+        "height": 1.25rem,
+        "margin": 1ch
+    )
 );

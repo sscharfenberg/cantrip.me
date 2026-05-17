@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Form, Head, router } from "@inertiajs/vue3";
-import { type Ref, computed, nextTick, onMounted, ref, useTemplateRef } from "vue";
+import { type Ref, computed, nextTick, onMounted, onUnmounted, ref, useTemplateRef, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import CardStackDefaults from "@/pages/Collection/CardStack/CardStackDefaults.vue";
 import CardStackFinish from "@/pages/Collection/CardStack/CardStackFinish.vue";
@@ -39,6 +39,15 @@ type CardStackEdit = {
      */
     claims: { deck_id: string; deck_name: string }[];
 };
+/** Shape of one set option shipped from the backend for the set-filter picker. */
+type SetRow = {
+    code: string;
+    name: string;
+    /** Set-icon URL (Scryfall SVG path). */
+    path: string;
+    /** Year extracted from released_at, or null when unknown. */
+    year: number | null;
+};
 const props = defineProps<{
     /** Present when adding cards to a specific container; null for unsorted / collection-level. */
     container: Container | null;
@@ -52,6 +61,12 @@ const props = defineProps<{
     languages: string[];
     /** Present when editing an existing card stack; absent for "add" mode. */
     cardStack?: CardStackEdit;
+    /**
+     * All sets, server-sorted alphabetically by name. Drives the
+     * "Restrict results to set" picker; absent in edit mode is fine
+     * (the picker is rendered in both modes but only the search uses it).
+     */
+    sets?: SetRow[];
 }>();
 
 const isEditMode = !!props.cardStack;
@@ -124,8 +139,109 @@ const onSelectChange = (field: string, value: string, validate: (field: string) 
 /** Available finishes for the currently selected card. All finishes when no card is selected. */
 const availableFinishes = ref<string[]>(isEditMode ? props.cardStack!.default_card.finishes : [...props.finishes]);
 const cardSearch = useTemplateRef<{ focus: () => void }>("cardSearch");
+/**
+ * Set-filter dropdown state — persists across page reloads / Inertia
+ * navigations within the same tab via sessionStorage so a typical
+ * "set up filter, then bulk-add 50 cards from one set" workflow
+ * doesn't reset on every redirect back to this page.
+ *
+ * The "All sets" option uses a sentinel string (not "") so the option's
+ * value stays truthy in places like MonoSelect's clear-button guard
+ * (`v-if="selectedValue && clearable"`) — every other MonoSelect caller
+ * treats empty-string as "no selection", and we don't want to fight
+ * that convention. The composable + plumbing translate the sentinel
+ * back to "no filter" before hitting the server.
+ *
+ * The stored value is validated against the current `sets` list to
+ * guard against stale codes after a Scryfall sync drops a set.
+ */
+const ALL_SETS = "__all__";
+const SET_FILTER_STORAGE_KEY = "cardStack:setFilter";
+function readStoredSetCode(): string {
+    try {
+        const stored = sessionStorage.getItem(SET_FILTER_STORAGE_KEY) ?? "";
+        if (!stored || !props.sets) return ALL_SETS;
+        return props.sets.some(s => s.code === stored) ? stored : ALL_SETS;
+    } catch {
+        return ALL_SETS;
+    }
+}
+const selectedSetCode = ref(readStoredSetCode());
+/** Listbox options: pinned "All sets" first, then one entry per set. */
+const setOptions = computed(() => {
+    const all: { value: string; label: string; imageUrl?: string }[] = [
+        { value: ALL_SETS, label: t("pages.add_cards.all_sets") }
+    ];
+    if (!props.sets) return all;
+    return all.concat(
+        props.sets.map(s => ({
+            value: s.code,
+            // Name-first so MonoSelect's typeahead (jump to first option
+            // whose label starts with typed letters) is intuitive — the
+            // user types the set's first letter to land on its block.
+            // Year goes into `meta` so it renders right-aligned and
+            // muted, out of the way of the primary label.
+            label: `${s.name} [${s.code.toUpperCase()}]`,
+            imageUrl: s.path,
+            meta: s.year !== null ? String(s.year) : undefined
+        }))
+    );
+});
+/** True when no set filter is active. Drives both the search wiring and the clear-button disabled state. */
+const isAllSetsSelected = computed(() => selectedSetCode.value === ALL_SETS);
+/** Set-code value handed to the search composable: empty string when "All sets". */
+const activeSetCode = computed(() => (isAllSetsSelected.value ? "" : selectedSetCode.value));
+/** Persist (or clear) the selection in sessionStorage on every change. */
+watch(selectedSetCode, value => {
+    try {
+        if (value && value !== ALL_SETS) {
+            sessionStorage.setItem(SET_FILTER_STORAGE_KEY, value);
+        } else {
+            sessionStorage.removeItem(SET_FILTER_STORAGE_KEY);
+        }
+    } catch {
+        // sessionStorage can throw in private mode / when full — ignore.
+    }
+});
+/** Reset the set filter back to "All sets" (and drop the sessionStorage entry). */
+function clearSetFilter(): void {
+    selectedSetCode.value = ALL_SETS;
+}
+/**
+ * Global Enter-to-submit shortcut.
+ *
+ * The page has no textareas (where Enter means newline) and no other
+ * legitimate Enter semantics — so a plain Enter anywhere on the page
+ * fires a submit. Preference order:
+ *   1. `add_more` (add mode — keeps the user on the form for rapid entry)
+ *   2. `back` (add mode "Save" button, or the edit-mode submit which
+ *      carries the same `redirect=back` marker for selector parity)
+ *
+ * Skipped when:
+ *   - any modifier key is held (Cmd/Ctrl/Alt/Shift+Enter is preserved
+ *     for browser/OS shortcuts)
+ *   - a child handler already called event.preventDefault() (e.g. an
+ *     autocomplete that uses Enter to commit a selection — we shouldn't
+ *     submit on top of that)
+ */
+function onGlobalEnter(event: KeyboardEvent): void {
+    if (event.key !== "Enter") return;
+    if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return;
+    if (event.defaultPrevented) return;
+    const target =
+        document.querySelector<HTMLButtonElement>('button[name="redirect"][value="add_more"]:not([disabled])') ??
+        document.querySelector<HTMLButtonElement>('button[name="redirect"][value="back"]:not([disabled])');
+    if (target !== null) {
+        event.preventDefault();
+        target.click();
+    }
+}
 onMounted(() => {
     if (!isEditMode) cardSearch.value?.focus();
+    window.addEventListener("keydown", onGlobalEnter);
+});
+onUnmounted(() => {
+    window.removeEventListener("keydown", onGlobalEnter);
 });
 /**
  * "Save and add more" success handler. The Form is keyed on
@@ -149,7 +265,7 @@ function onCardCleared() {
     availableFinishes.value = [...props.finishes];
 }
 /**
- * Phase 2.7 — collection-side unclaim from the edit form. Detaches
+ * collection-side unclaim from the edit form. Detaches
  * every deck claim against this stack atomically (multi-claim case
  * included). Spins the button while the request is in-flight; the
  * controller redirects back to this same edit page on success and the
@@ -204,12 +320,71 @@ const unclaim = () => {
             @save="saveDefaults"
             @clear="clearDefaults"
         />
+        <!-- Duplicate of the bottom submit row, mirrored at the top of
+             the form so the user can submit without scrolling all the
+             way down on long forms. Both groups submit the same form
+             and react to the same `processing` flag. -->
+        <form-group class="button-group">
+            <button-group>
+                <template v-if="isEditMode">
+                    <!-- name="redirect" value="back": ignored by the
+                         update controller (only the add flow reads
+                         $request->redirect), present purely so the
+                         global Enter-to-submit selector can match this
+                         button in edit mode the same way it matches
+                         the back button in add mode. -->
+                    <button type="submit" name="redirect" value="back" class="btn-primary" :disabled="processing">
+                        <icon name="save" />
+                        {{ $t("pages.edit_card.submit") }}
+                        <loading-spinner v-if="processing" :size="2" />
+                    </button>
+                </template>
+                <template v-else>
+                    <button type="submit" name="redirect" value="back" class="btn-default" :disabled="processing">
+                        <icon name="save" />
+                        {{ $t("pages.add_cards.submit") }}
+                        <loading-spinner v-if="processing" :size="2" />
+                    </button>
+                    <button type="submit" name="redirect" value="add_more" class="btn-primary" :disabled="processing">
+                        <icon name="add" />
+                        {{ $t("pages.add_cards.submit_and_add_more") }}
+                        <loading-spinner v-if="processing" :size="2" />
+                    </button>
+                </template>
+            </button-group>
+        </form-group>
+        <!-- Set filter: restrict card-search results to a single MTG
+             set. Selection persists across page navigations via
+             sessionStorage. Edit mode skips the row (the card is
+             locked, so filtering has no effect). -->
+        <form-group v-if="!isEditMode && sets" :label="$t('form.fields.restrict_to_set')">
+            <!-- :clearable="false" hides MonoSelect's inline X — clearing
+                 it would set the value to "" (placeholder shown), but the
+                 picker's "no filter" state is the sentinel `__all__`
+                 ("All sets") instead. The external "Clear set" button
+                 resets to that sentinel correctly. -->
+            <mono-select
+                :options="setOptions"
+                :selected="selectedSetCode"
+                :sort="false"
+                :clearable="false"
+                addon-icon="card"
+                @change="selectedSetCode = $event"
+            />
+            <template v-if="!isAllSetsSelected" #text>
+                <button type="button" class="btn-default" @click="clearSetFilter">
+                    <icon name="clear" />
+                    {{ $t("pages.add_cards.clear_set") }}
+                </button>
+            </template>
+        </form-group>
         <card-stack-search
             ref="cardSearch"
             :error="errors.default_card_id ?? ''"
             :invalid="!!errors?.default_card_id"
             :card="isEditMode ? cardStack!.default_card : null"
             :locked="isEditMode"
+            :set-code="activeSetCode"
             @selected="onCardSelected"
             @cleared="onCardCleared"
         />
@@ -268,7 +443,7 @@ const unclaim = () => {
             />
             <input type="hidden" name="container_id" :value="selectedContainer" />
         </form-group>
-        <!-- Phase 2.5: separate (non-required) form-group surfacing the
+        <!-- separate (non-required) form-group surfacing the
              deck(s) currently claiming this stack. Read-only — the
              container picker above would 422 with "cannot move claimed
              stack" if the user tries to move the stack while it's
@@ -280,7 +455,7 @@ const unclaim = () => {
             class="claim-group"
         >
             <card-stack-claim-badge :claims="cardStack.claims" />
-            <!-- Phase 2.7: in-form unclaim. Lands the user here after
+            <!-- in-form unclaim. Lands the user here after
                  the lifecycle 422 from a container move attempt; this
                  button closes the loop without leaving the page.
                  Detaches every claim atomically (multi-claim case
@@ -310,24 +485,28 @@ const unclaim = () => {
             />
             <input type="hidden" name="condition" :value="selectedCondition" />
         </form-group>
-        <form-group
-            :label="$t('form.fields.proxy.label')"
-            :error="errors.proxy ?? ''"
-            :invalid="!!errors?.proxy"
-        >
-            <Switch
-                ref-id="proxy"
-                value="1"
-                :label="$t('form.fields.proxy.toggle_label')"
-                :checked-initially="isProxy"
-                @change="isProxy = $event"
-            />
-            <template #text>{{ $t("form.fields.proxy.hint") }}</template>
+        <form-group :label="$t('form.fields.proxy.label')" :error="errors.proxy ?? ''" :invalid="!!errors?.proxy">
+            <div class="proxy-label">
+                <Switch
+                    ref-id="proxy"
+                    value="1"
+                    :label="$t('form.fields.proxy.toggle_label')"
+                    :checked-initially="isProxy"
+                    @change="isProxy = $event"
+                />
+                {{ $t("form.fields.proxy.hint") }}
+            </div>
         </form-group>
         <form-group class="button-group">
             <button-group>
                 <template v-if="isEditMode">
-                    <button type="submit" class="btn-primary" :disabled="processing">
+                    <!-- name="redirect" value="back": ignored by the
+                         update controller (only the add flow reads
+                         $request->redirect), present purely so the
+                         global Enter-to-submit selector can match this
+                         button in edit mode the same way it matches
+                         the back button in add mode. -->
+                    <button type="submit" name="redirect" value="back" class="btn-primary" :disabled="processing">
                         <icon name="save" />
                         {{ $t("pages.edit_card.submit") }}
                         <loading-spinner v-if="processing" :size="2" />
@@ -364,5 +543,15 @@ const unclaim = () => {
     align-items: center;
 
     gap: 2ch;
+}
+
+.proxy-label {
+    display: flex;
+    align-items: center;
+    opacity: 0.8;
+
+    gap: 1rem;
+
+    font-size: 0.875rem;
 }
 </style>

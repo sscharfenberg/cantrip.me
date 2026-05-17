@@ -12,6 +12,11 @@ const props = defineProps<{
     card?: DefaultCardImage | null;
     /** When true, the card cannot be changed (edit mode). */
     locked?: boolean;
+    /**
+     * Set-code filter passed through to the underlying CardSearch.
+     * Drives the "restrict results to set" dropdown on the parent page.
+     */
+    setCode?: string;
 }>();
 const emit = defineEmits<{
     /** Emitted when the user selects a card from the search results. */
@@ -40,6 +45,7 @@ defineExpose({
         :required="true"
         :error="error"
         :invalid="invalid"
+        :set-code="setCode ?? ''"
         @selected="emit('selected', $event)"
         @cleared="emit('cleared')"
     >

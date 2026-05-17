@@ -1145,7 +1145,9 @@
                 "clear": "Voreinstellungen zurücksetzen"
             },
             "submit": "Speichern",
-            "submit_and_add_more": "Speichern und mehr hinzufügen"
+            "submit_and_add_more": "Speichern und mehr hinzufügen",
+            "all_sets": "Alle Sets",
+            "clear_set": "Set zurücksetzen"
         },
         "edit_card": {
             "title": "Karte bearbeiten",
@@ -1187,6 +1189,7 @@
             },
             "card": "Karte",
             "name": "Kartenname",
+            "restrict_to_set": "Ergebnisse auf Set einschränken",
             "set_name": "Set",
             "collector_number": "Nr.",
             "container_name": "Container",

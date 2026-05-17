@@ -6,6 +6,14 @@ const { t } = useI18n();
 interface SelectOption {
     value: string;
     label: string;
+    /** Optional thumbnail rendered before the label (e.g. set icon). */
+    imageUrl?: string;
+    /**
+     * Optional secondary text rendered right-aligned at the end of the
+     * option button — used for low-priority metadata that shouldn't
+     * compete with the primary label (e.g. a set's release year).
+     */
+    meta?: string;
 }
 const props = withDefaults(
     defineProps<{
@@ -55,6 +63,9 @@ const dropdown = useTemplateRef<HTMLDivElement>("dropdown");
 const listbox = useTemplateRef<HTMLDivElement>("listbox");
 // Resolves the human-readable label for the currently selected value.
 const selectedLabel = computed(() => props.options.find(o => o.value === selectedValue.value)?.label);
+// Image URL (if any) for the currently selected value — rendered as a
+// thumbnail next to the label inside the trigger button.
+const selectedImageUrl = computed(() => props.options.find(o => o.value === selectedValue.value)?.imageUrl);
 /**
  * Sets the selected value and emits a change event if the value changed.
  * Always closes the menu afterwards.
@@ -101,15 +112,57 @@ watch(
     },
     { immediate: true }
 );
+/**
+ * Multi-letter typeahead — while the menu is open, typing successive
+ * printable keys within a 500ms idle window builds up a buffer and
+ * jumps to the first option whose (case-folded) label starts with it.
+ * Useful for long lists like the set picker (1k+ entries) where
+ * scrolling to find a specific entry is slow.
+ *
+ * After 500ms of idle, the buffer resets to the next key alone — so
+ * typing "Fo" + (pause) + "B" jumps from "Foundations" to "Battle…".
+ */
+let typeaheadBuffer = "";
+let typeaheadTimer: ReturnType<typeof setTimeout> | null = null;
+const onListboxKeydown = (event: KeyboardEvent) => {
+    if (!menuOpen.value) return;
+    if (event.key.length !== 1) return; // skip Tab, Enter, Arrow*, etc.
+    if (event.metaKey || event.ctrlKey || event.altKey) return;
+    typeaheadBuffer += event.key.toLowerCase();
+    if (typeaheadTimer !== null) clearTimeout(typeaheadTimer);
+    typeaheadTimer = setTimeout(() => {
+        typeaheadBuffer = "";
+    }, 500);
+    const match = effectiveOptions.value.find(o => o.label.toLowerCase().startsWith(typeaheadBuffer));
+    if (match === undefined) return;
+    event.preventDefault();
+    const buttons = listbox.value?.querySelectorAll<HTMLButtonElement>("button[data-value]");
+    for (const btn of buttons ?? []) {
+        if (btn.dataset.value === match.value) {
+            btn.scrollIntoView({ block: "nearest" });
+            btn.focus(); // gives a visible focus indicator; Enter also activates the button
+            break;
+        }
+    }
+};
 // Promote the listbox into the browser's top layer via the HTML Popover API
 // whenever it opens. This escapes any ancestor overflow/clipping/stacking context
 // (e.g. when MonoSelect is rendered inside a modal dialog) so the dropdown is
 // never visually cut off. v-if removes the element on close, so no explicit
-// hidePopover() call is needed.
+// hidePopover() call is needed. Also gates the document-level typeahead
+// listener — only active while the menu is visible.
 watch(menuOpen, async open => {
     if (open) {
         await nextTick();
         listbox.value?.showPopover?.();
+        document.addEventListener("keydown", onListboxKeydown);
+    } else {
+        document.removeEventListener("keydown", onListboxKeydown);
+        typeaheadBuffer = "";
+        if (typeaheadTimer !== null) {
+            clearTimeout(typeaheadTimer);
+            typeaheadTimer = null;
+        }
     }
 });
 onMounted(() => {
@@ -117,6 +170,8 @@ onMounted(() => {
 });
 onUnmounted(() => {
     document.removeEventListener("click", onClickOutSide);
+    document.removeEventListener("keydown", onListboxKeydown);
+    if (typeaheadTimer !== null) clearTimeout(typeaheadTimer);
 });
 </script>
 
@@ -135,7 +190,15 @@ onUnmounted(() => {
             :disabled="disabled"
             @click.prevent="toggleMenu"
         >
-            <span v-if="selectedValue">{{ selectedLabel }}</span>
+            <span v-if="selectedValue" class="form-select__selected">
+                <img
+                    v-if="selectedImageUrl"
+                    :src="selectedImageUrl"
+                    class="form-select__option-image"
+                    alt=""
+                />
+                {{ selectedLabel }}
+            </span>
             <span v-else>{{ effectivePlaceholder }}</span>
             <span class="form-select__caret" aria-hidden="true" />
         </button>
@@ -174,7 +237,14 @@ onUnmounted(() => {
                         class="form-select__option"
                         @click.prevent="select(option.value)"
                     >
-                        {{ option.label }}
+                        <img
+                            v-if="option.imageUrl"
+                            :src="option.imageUrl"
+                            class="form-select__option-image"
+                            alt=""
+                        />
+                        <span class="form-select__option-label">{{ option.label }}</span>
+                        <span v-if="option.meta" class="form-select__option-meta">{{ option.meta }}</span>
                     </button>
                 </div>
             </div>

@@ -18,6 +18,7 @@ use App\Http\Requests\Collection\UpdateCardStackRequest;
 use App\Models\CardStack;
 use App\Models\Container;
 use App\Models\DefaultCard;
+use App\Models\Set;
 use App\Services\CardStackClaimService;
 use App\Services\CardStackService;
 use App\Services\ContainerService;
@@ -51,12 +52,27 @@ class CardStackController extends Controller
                 'name' => $c->name,
             ]);
 
+        // Sets drive the "Restrict results to set" picker on this page.
+        // Shipped slim — just the columns the picker renders + the
+        // year derived from released_at — and ordered alphabetically
+        // on the server so the frontend doesn't re-sort.
+        $sets = Set::query()
+            ->orderBy('name')
+            ->get(['code', 'name', 'path', 'released_at'])
+            ->map(fn (Set $s) => [
+                'code' => $s->code,
+                'name' => $s->name,
+                'path' => $s->path,
+                'year' => $s->released_at?->year,
+            ]);
+
         return Inertia::render('Collection/CardStack/CardStackPage', [
             'container' => $container ? ContainerService::serializeContainer($container) : null,
             'containers' => $containers,
             'conditions' => array_column(CardCondition::cases(), 'value'),
             'finishes' => Finish::labels(),
             'languages' => array_column(CardLanguage::cases(), 'value'),
+            'sets' => $sets,
         ]);
     }
 
