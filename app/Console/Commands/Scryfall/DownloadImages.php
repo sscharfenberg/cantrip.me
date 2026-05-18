@@ -14,7 +14,7 @@ class DownloadImages extends Command
      *
      * @var string
      */
-    protected $signature = 'scryfall:images';
+    protected $signature = 'scryfall:images {--target=live : Source table — `live` (default, reads default_cards / sets) or `shadow` (reads the __shadow siblings built by the orchestrator)}';
 
     /**
      * The console command description.
@@ -40,14 +40,15 @@ class DownloadImages extends Command
     public function handle(): void
     {
         $start = now();
-        $this->info("artisan command 'scryfall:images' started.");
+        $target = $this->option('target') === 'shadow' ? 'shadow' : 'live';
+        $this->info("artisan command 'scryfall:images' started (target={$target}).");
         Log::channel('scryfall')->info('=======================================================');
-        Log::channel('scryfall')->info("artisan command 'scryfall:images' started.");
+        Log::channel('scryfall')->info("artisan command 'scryfall:images' started (target={$target}).");
         Log::channel('scryfall')->info('=======================================================');
         // download missing art crop images to disk
-        $this->imageDownloadService->downloadArtCrops();
+        $this->imageDownloadService->downloadArtCrops($target);
         // download missing card images (full scans) to disk
-        $this->imageDownloadService->downloadCardImages();
+        $this->imageDownloadService->downloadCardImages($target);
         $ms = $start->diffInMilliseconds(now());
         Log::channel('scryfall')->info('=======================================================');
         Log::channel('scryfall')->info("artisan command 'scryfall:images' finished in ".$this->formatService->formatMs($ms).'.');

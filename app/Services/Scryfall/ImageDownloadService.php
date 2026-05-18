@@ -2,10 +2,12 @@
 
 namespace App\Services\Scryfall;
 
-use App\Models\DefaultCard;
 use App\Services\FormatService;
+use App\Services\Scryfall\Shadow\ShadowTableRegistry;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use stdClass;
 
 /**
  * Handles downloading Scryfall images to the local filesystem.
@@ -17,6 +19,13 @@ use Illuminate\Support\Facades\Storage;
  * Separation of concerns:
  *   - DefaultCardsService → database (import, path resolution)
  *   - ImageDownloadService → filesystem (downloading images to disk)
+ *
+ * Target-aware: when invoked with `'shadow'`, queries `default_cards__shadow`
+ * joined to `sets__shadow` instead of the live tables. That's the path used
+ * inside `scryfall:update` — the orchestrator hasn't swapped yet, so the new
+ * cards (still carrying `https://…` URLs) live in the shadow tables and need
+ * to be discovered there. Querying the live table during a shadow build
+ * returns zero rows once everything in live has been previously resolved.
  */
 class ImageDownloadService extends ScryfallService
 {
@@ -37,19 +46,26 @@ class ImageDownloadService extends ScryfallService
      * checks the local disk for a cached version with the same timestamp,
      * and downloads if missing or outdated. Does not update the database —
      * path resolution happens in DefaultCardsService during the next import.
+     *
+     * @param  string  $target  `live` (default) or `shadow`.
      */
-    public function downloadArtCrops(): void
+    public function downloadArtCrops(string $target = 'live'): void
     {
         $start = now();
         $downloaded = 0;
         $skipped = 0;
         $failed = 0;
 
-        Log::channel('scryfall')->notice('begin downloading art crop images.');
+        Log::channel('scryfall')->notice("begin downloading art crop images (target={$target}).");
 
-        DefaultCard::whereNotNull('art_crop')
-            ->where('art_crop', 'like', 'https://%')
-            ->with('set:id,code')
+        [$cardsTable, $setsTable] = $this->resolveTables($target);
+
+        DB::table("{$cardsTable} as dc")
+            ->leftJoin("{$setsTable} as s", 'dc.set_id', '=', 's.id')
+            ->select('dc.id', 'dc.name', 'dc.art_crop', 's.code as set_code')
+            ->whereNotNull('dc.art_crop')
+            ->where('dc.art_crop', 'like', 'https://%')
+            ->orderBy('dc.id')
             ->chunkById(200, function ($cards) use (&$downloaded, &$skipped, &$failed) {
                 foreach ($cards as $card) {
                     $result = $this->processArtCrop($card);
@@ -59,7 +75,7 @@ class ImageDownloadService extends ScryfallService
                         'failed' => $failed++,
                     };
                 }
-            });
+            }, 'dc.id', 'id');
 
         $ms = $start->diffInMilliseconds(now());
         $total = $downloaded + $skipped + $failed;
@@ -79,11 +95,11 @@ class ImageDownloadService extends ScryfallService
      *
      * @return string 'downloaded', 'skipped', or 'failed'
      */
-    private function processArtCrop(DefaultCard $card): string
+    private function processArtCrop(stdClass $card): string
     {
         $scryfallUrl = $card->art_crop;
         $timestamp = $this->imageService->parseTimestamp($scryfallUrl);
-        $setCode = $card->set?->code;
+        $setCode = $card->set_code;
 
         if (! $setCode) {
             Log::channel('scryfall')->warning("card {$card->id} ({$card->name}) has no set, skipping art crop.");
@@ -147,21 +163,28 @@ class ImageDownloadService extends ScryfallService
      * Walks every default_card that has Scryfall URLs in card_image_0 or card_image_1,
      * checks the local disk for each face (front/back), and downloads
      * if missing or outdated. Does not update the database.
+     *
+     * @param  string  $target  `live` (default) or `shadow`.
      */
-    public function downloadCardImages(): void
+    public function downloadCardImages(string $target = 'live'): void
     {
         $start = now();
         $downloaded = 0;
         $skipped = 0;
         $failed = 0;
 
-        Log::channel('scryfall')->notice('begin downloading card images.');
+        Log::channel('scryfall')->notice("begin downloading card images (target={$target}).");
 
-        DefaultCard::where(function ($q) {
-            $q->where('card_image_0', 'like', 'https://%')
-                ->orWhere('card_image_1', 'like', 'https://%');
-        })
-            ->with('set:id,code')
+        [$cardsTable, $setsTable] = $this->resolveTables($target);
+
+        DB::table("{$cardsTable} as dc")
+            ->leftJoin("{$setsTable} as s", 'dc.set_id', '=', 's.id')
+            ->select('dc.id', 'dc.name', 'dc.card_image_0', 'dc.card_image_1', 's.code as set_code')
+            ->where(function ($q) {
+                $q->where('dc.card_image_0', 'like', 'https://%')
+                    ->orWhere('dc.card_image_1', 'like', 'https://%');
+            })
+            ->orderBy('dc.id')
             ->chunkById(200, function ($cards) use (&$downloaded, &$skipped, &$failed) {
                 foreach ($cards as $card) {
                     $results = $this->processCardImages($card);
@@ -169,7 +192,7 @@ class ImageDownloadService extends ScryfallService
                     $skipped += $results['skipped'];
                     $failed += $results['failed'];
                 }
-            });
+            }, 'dc.id', 'id');
 
         $ms = $start->diffInMilliseconds(now());
         $total = $downloaded + $skipped + $failed;
@@ -188,10 +211,10 @@ class ImageDownloadService extends ScryfallService
      *
      * @return array{downloaded: int, skipped: int, failed: int}
      */
-    private function processCardImages(DefaultCard $card): array
+    private function processCardImages(stdClass $card): array
     {
         $counts = ['downloaded' => 0, 'skipped' => 0, 'failed' => 0];
-        $setCode = $card->set?->code;
+        $setCode = $card->set_code;
 
         if (! $setCode) {
             Log::channel('scryfall')->warning("card {$card->id} ({$card->name}) has no set, skipping card images.");
@@ -258,5 +281,26 @@ class ImageDownloadService extends ScryfallService
                 Storage::disk('card-images')->delete($file);
             }
         }
+    }
+
+    /**
+     * Resolve the cards + sets table names for the given target. The
+     * sets table also needs to track the target — during a shadow build
+     * a new card may reference a brand-new set that only exists in
+     * `sets__shadow`, so joining against live sets would return null
+     * for `set_code` and the card would be skipped as "no set".
+     *
+     * @return array{0: string, 1: string} [cards-table, sets-table]
+     */
+    private function resolveTables(string $target): array
+    {
+        if ($target === 'shadow') {
+            return [
+                ShadowTableRegistry::shadow('default_cards'),
+                ShadowTableRegistry::shadow('sets'),
+            ];
+        }
+
+        return ['default_cards', 'sets'];
     }
 }

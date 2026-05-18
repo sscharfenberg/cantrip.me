@@ -288,8 +288,13 @@ class UpdateEverything extends Command
         $this->runStep('scryfall:rulings', shadow: true);
         $waitTime += $this->sleep();
 
-        // 4. Image download — pure disk operation, no shadow concept.
-        $this->runStep('scryfall:images');
+        // 4. Image download — queries default_cards__shadow joined to
+        //    sets__shadow to discover the newly-inserted rows whose
+        //    image columns still hold Scryfall URLs. Targeting live
+        //    here would return zero rows (live's already resolved from
+        //    a previous swap), leaving the new cards in the next live
+        //    swap pointing at the Scryfall CDN with no local cache.
+        $this->runStep('scryfall:images', shadow: true);
         $waitTime += $this->sleep();
 
         // 5. Resolve image URLs → local paths on default_cards__shadow.

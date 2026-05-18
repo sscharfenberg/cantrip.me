@@ -86,14 +86,16 @@ Downloads the `rulings` bulk JSON (~25 MB), truncates `rulings`, and stream-pars
 
 ### `php artisan scryfall:images`
 
-Walks `default_cards` looking for rows that still have Scryfall URLs (i.e. images not yet cached locally). Downloads art crops to the `art-crops` disk and card images to the `card-images` disk. Does not modify the database — that is the job of `scryfall:resolve-paths`.
+Walks the `default_cards` table looking for rows that still have Scryfall URLs (i.e. images not yet cached locally). Downloads art crops to the `art-crops` disk and card images to the `card-images` disk. Does not modify the database — that is the job of `scryfall:resolve-paths`.
 
 Long-running:
 
 * ~8 hours on a cold cache (initial download of all images)
 * ~20 seconds on a hot cache (no images need downloading)
 
-Total image cache currently ~25 GB. No `--target` flag — disk operations are mode-agnostic.
+Total image cache currently ~25 GB.
+
+Supports `--target=live|shadow`. The orchestrator invokes this with `--target=shadow` so newly-imported cards (sitting in `default_cards__shadow` with `https://…` URLs) are discoverable — querying live during a shadow build would return zero rows (every live row has already been resolved to a local path by the previous swap), and the new cards would survive the upcoming swap pointing at the Scryfall CDN with no local cache. The shadow query joins `sets__shadow` on `set_id` so brand-new sets are resolvable too.
 
 ### `php artisan scryfall:resolve-paths`
 
