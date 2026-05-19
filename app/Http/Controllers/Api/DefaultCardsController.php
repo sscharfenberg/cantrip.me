@@ -115,6 +115,14 @@ class DefaultCardsController extends Controller
             Auth::user()?->locale->value,
         );
 
+        // Foreign languages each oracle was printed in — drives the
+        // card-stack language picker's narrowing once a card is selected.
+        // English is implicit and not included; the frontend adds 'en'
+        // before intersecting with the full lang enum.
+        $availableLangsByOracle = OracleNameSearch::availableLangsByOracle(
+            array_keys($built['oracle_searchable_names']),
+        );
+
         $results = $rows->map(fn (object $row): array => [
             'id' => $row->id,
             'name' => $row->card_name,
@@ -129,6 +137,7 @@ class DefaultCardsController extends Controller
                 'path' => $row->set_path,
             ] : null,
             'matched_translation' => $matchedTranslations[$row->oracle_id] ?? null,
+            'available_langs' => $availableLangsByOracle[$row->oracle_id] ?? [],
         ])->values();
 
         return response()->json(['total' => $total, 'results' => $results]);

@@ -16,6 +16,13 @@ export type DefaultCardImage = {
      * name badge. Null/absent everywhere else.
      */
     matched_translation?: { lang: string; name: string } | null;
+    /**
+     * Foreign languages the card's oracle has any translation in.
+     * English is implicit (never in the list). Drives the card-stack
+     * language picker's narrowing once the user picks a card. Absent
+     * outside the card-stack add/edit contexts.
+     */
+    available_langs?: string[];
 };
 
 /**

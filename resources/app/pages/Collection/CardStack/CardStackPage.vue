@@ -253,15 +253,65 @@ function onAddMoreSuccess() {
     resetToDefaults();
     nextTick(() => cardSearch.value?.focus());
 }
+/**
+ * Currently picked card — drives the language-picker narrowing
+ * via `displayedLanguages`. Initialized from the edit-mode payload
+ * so the locked card's available_langs feed the picker too.
+ */
+const selectedCard = ref<DefaultCardImage | null>(isEditMode ? props.cardStack!.default_card : null);
+/**
+ * Languages shown in the picker. Before a card is selected we show
+ * the full enum; once a card is picked we narrow to the langs the
+ * oracle has any translation in (English is always implicitly
+ * available). The currently selected language is always kept in the
+ * list, so legacy edit-mode rows with an unusual language (or a
+ * card whose oracle-level translations don't cover that lang) stay
+ * editable instead of vanishing from the picker.
+ */
+const displayedLanguages = computed<string[]>(() => {
+    if (!selectedCard.value || !selectedCard.value.available_langs) {
+        return props.languages;
+    }
+    const allowed = new Set(["en", ...selectedCard.value.available_langs]);
+    // Edit-mode-only safety net: a legacy card stack may have been
+    // saved in a language that isn't (or is no longer) in
+    // available_langs — keep it visible so the user can review and
+    // change it. In add-mode the strict intersection is correct;
+    // letting the leftover selectedLanguage from a previous card
+    // bleed through here is the bug described in 2026-05-19.
+    if (isEditMode) {
+        allowed.add(selectedLanguage.value);
+    }
+    return props.languages.filter(l => allowed.has(l));
+});
 /** Called when the user selects a card from search results. */
 function onCardSelected(card: DefaultCardImage) {
+    selectedCard.value = card;
     availableFinishes.value = card.finishes;
     if (!card.finishes.includes(selectedFinish.value)) {
         selectedFinish.value = card.finishes[0];
     }
+    // Edit mode: the stack's persisted language wins, never touch it.
+    if (isEditMode) return;
+
+    const validLangs = new Set<string>(["en", ...(card.available_langs ?? [])]);
+    if (card.matched_translation && validLangs.has(card.matched_translation.lang)) {
+        // Card was matched by a translated name (user typed "Blitz" →
+        // Aether Flash via DE) — pre-select that lang, they're almost
+        // certainly registering the foreign-language copy.
+        selectedLanguage.value = card.matched_translation.lang;
+    } else if (!validLangs.has(selectedLanguage.value)) {
+        // Carry-over from a previous selection isn't supported by
+        // this card (e.g. previous pick was IT-only Mana Drain, now
+        // picking ZHS-only Cleansing Screech). Fall back to the
+        // user's saved default, else English.
+        const savedLang = savedDefaults.value.language;
+        selectedLanguage.value = savedLang !== undefined && validLangs.has(savedLang) ? savedLang : "en";
+    }
 }
 /** Called when the user clears the card selection. */
 function onCardCleared() {
+    selectedCard.value = null;
     availableFinishes.value = [...props.finishes];
 }
 /**
@@ -417,7 +467,7 @@ const unclaim = () => {
         </form-group>
         <card-stack-language
             v-model="selectedLanguage"
-            :languages="languages"
+            :languages="displayedLanguages"
             :error="errors.language ?? ''"
             :invalid="!!errors?.language"
         />

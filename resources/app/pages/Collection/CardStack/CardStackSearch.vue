@@ -58,8 +58,12 @@ defineExpose({
             />
         </template>
         <template #selected="{ card }">
-            <card-face-image v-if="(card as DefaultCardImage).card_image_0" :card="card as DefaultCardImage" />
+            <card-face-image
+                v-if="(card as DefaultCardImage).card_image_0"
+                :card="card as DefaultCardImage"
+                :translated-name="(card as DefaultCardImage).matched_translation?.name"
+                :translated-lang="(card as DefaultCardImage).matched_translation?.lang"
+            />
         </template>
     </card-search>
 </template>
-

@@ -134,6 +134,7 @@
         position: absolute;
         inset: 10% 0 auto;
         z-index: map.get(z.$index, "main");
+        align-items: center;
 
         padding: map.get(s.$components, "face-image", "panel-padding");
 

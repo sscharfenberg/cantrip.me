@@ -184,6 +184,63 @@ final class OracleNameSearch
     }
 
     /**
+     * For a set of oracle IDs, list the foreign languages each oracle
+     * has any translation in. Drives the card-stack page's language
+     * picker: once a card is selected, the picker narrows to langs
+     * the card was actually printed in (English is always implicit
+     * and not included in the returned array — every card has an
+     * English oracle name).
+     *
+     * **Granularity caveat.** The translation tables are deduped at
+     * the oracle level — one row per `(oracle_id, lang)` — so this
+     * reflects "*some* Scryfall printing of this oracle exists in
+     * lang X", not necessarily "the user's currently picked printing
+     * does". Correct for the standard print-runs of every modern set;
+     * over-permits for English-only outliers (Mystery Booster, The
+     * List, some Secret Lair drops). Deliberate trade-off — see
+     * `docs/foreign-language-search.md` notes / commit history.
+     *
+     * Filtered to {@see SEARCHABLE_LANGS}, so Phyrexian / Latin /
+     * other curiosities never reach the picker even when present in
+     * the underlying tables.
+     *
+     * @param  string[]  $oracleIds
+     * @return array<string, string[]> oracle_card_id => sorted list of langs
+     */
+    public static function availableLangsByOracle(array $oracleIds): array
+    {
+        if ($oracleIds === []) {
+            return [];
+        }
+
+        /** @var array<string, array<string, true>> $byOracle */
+        $byOracle = [];
+        foreach ([self::ORACLE_TRANSLATION_TABLE, self::FACE_TRANSLATION_TABLE] as $table) {
+            $rows = DB::table($table)
+                ->whereIn('oracle_card_id', $oracleIds)
+                ->whereIn('lang', self::SEARCHABLE_LANGS)
+                ->distinct()
+                ->get(['oracle_card_id', 'lang']);
+            foreach ($rows as $row) {
+                $byOracle[$row->oracle_card_id][$row->lang] = true;
+            }
+        }
+
+        $result = [];
+        foreach ($byOracle as $oracleId => $langSet) {
+            $langs = array_keys($langSet);
+            // Sort by SEARCHABLE_LANGS order (rough row-count desc)
+            // so the picker presents the same lang ordering as the
+            // search backend prefers — deterministic and consistent
+            // across the app.
+            usort($langs, fn (string $a, string $b) => array_search($a, self::SEARCHABLE_LANGS, true) <=> array_search($b, self::SEARCHABLE_LANGS, true));
+            $result[$oracleId] = $langs;
+        }
+
+        return $result;
+    }
+
+    /**
      * Apply the multi-segment name filter onto an OracleCard query,
      * OR-ed against the two translation tables for each segment.
      *

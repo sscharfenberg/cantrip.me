@@ -6,7 +6,7 @@ The PHPUnit configuration in `phpunit.xml` defines two physically separate tests
 
 | Suite      | Directories                                                | DB driver            | Composer script        | Tests (2026-05-19) |
 |------------|------------------------------------------------------------|----------------------|------------------------|--------------------|
-| `Local`    | `tests/Unit` + `tests/Feature` *(excl. `Feature/Services`)*| SQLite in-memory     | `composer test`        | 234 (738 asserts)  |
+| `Local`    | `tests/Unit` + `tests/Feature` *(excl. `Feature/Services`)*| SQLite in-memory     | `composer test`        | 239 (745 asserts)  |
 | `Staging`  | `tests/Feature/Services` only                              | MariaDB (`mbos`)     | `composer test:mysql`  | 51                 |
 
 ## `composer test`

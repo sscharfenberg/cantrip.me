@@ -22,6 +22,7 @@ use App\Models\Set;
 use App\Services\CardStackClaimService;
 use App\Services\CardStackService;
 use App\Services\ContainerService;
+use App\Services\OracleNameSearch;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
@@ -184,6 +185,7 @@ class CardStackController extends Controller
                         'code' => $defaultCard->set->code,
                         'path' => $defaultCard->set->path,
                     ],
+                    'available_langs' => OracleNameSearch::availableLangsByOracle([$defaultCard->oracle_id])[$defaultCard->oracle_id] ?? [],
                 ],
             ],
         ]);

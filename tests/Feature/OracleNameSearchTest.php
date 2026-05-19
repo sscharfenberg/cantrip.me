@@ -215,4 +215,72 @@ class OracleNameSearchTest extends TestCase
             OracleNameSearch::resolveMatchedTranslations([$oracle->id => $oracle->searchable_name], [], 'de'),
         );
     }
+
+    #[Test]
+    public function available_langs_empty_input_short_circuits(): void
+    {
+        $this->assertSame([], OracleNameSearch::availableLangsByOracle([]));
+    }
+
+    #[Test]
+    public function available_langs_returns_dedupe_across_oracle_and_face_tables(): void
+    {
+        // Oracle row in DE + face row in DE (same lang, different tables)
+        // should collapse to one DE entry; FR only on the face table
+        // should still surface. Allowlisted langs only.
+        $oracle = $this->makeOracle('Test Card', 'testcard');
+        $this->insertOracleTranslation($oracle->id, 'de', 'Testkarte', 'testkarte');
+        $this->insertFaceTranslation($oracle->id, 'de', 'Testkarte (Vorderseite)', 'testkarte');
+        $this->insertFaceTranslation($oracle->id, 'fr', 'Carte de test', 'cartedetest');
+
+        $result = OracleNameSearch::availableLangsByOracle([$oracle->id]);
+
+        $this->assertSame(['de', 'fr'], $result[$oracle->id]);
+    }
+
+    #[Test]
+    public function available_langs_filters_non_allowlisted_langs(): void
+    {
+        // Phyrexian is off the allowlist and must be dropped.
+        $oracle = $this->makeOracle('Phyrexian Card', 'phyrexiancard');
+        $this->insertOracleTranslation($oracle->id, 'de', 'DEname', 'dename');
+        $this->insertOracleTranslation($oracle->id, 'ph', 'Phname', 'phname');
+
+        $result = OracleNameSearch::availableLangsByOracle([$oracle->id]);
+
+        $this->assertSame(['de'], $result[$oracle->id]);
+    }
+
+    #[Test]
+    public function available_langs_sorts_by_searchable_langs_order(): void
+    {
+        // Inserted in reverse-of-SEARCHABLE_LANGS order; the returned
+        // list should still respect SEARCHABLE_LANGS ordering so the
+        // picker is deterministic.
+        $oracle = $this->makeOracle('Multilingual Card', 'multilingualcard');
+        $this->insertOracleTranslation($oracle->id, 'ru', 'RUname', 'runame');
+        $this->insertOracleTranslation($oracle->id, 'ja', 'JAname', 'janame');
+        $this->insertOracleTranslation($oracle->id, 'de', 'DEname', 'dename');
+
+        $result = OracleNameSearch::availableLangsByOracle([$oracle->id]);
+
+        $this->assertSame(['de', 'ja', 'ru'], $result[$oracle->id]);
+    }
+
+    #[Test]
+    public function available_langs_supports_multi_oracle_batch(): void
+    {
+        $a = $this->makeOracle('Card A', 'carda');
+        $b = $this->makeOracle('Card B', 'cardb');
+        $c = $this->makeOracle('Card C', 'cardc');
+        $this->insertOracleTranslation($a->id, 'de', 'A_DE', 'a_de');
+        $this->insertOracleTranslation($b->id, 'fr', 'B_FR', 'b_fr');
+        // c has no translation rows
+
+        $result = OracleNameSearch::availableLangsByOracle([$a->id, $b->id, $c->id]);
+
+        $this->assertSame(['de'], $result[$a->id]);
+        $this->assertSame(['fr'], $result[$b->id]);
+        $this->assertArrayNotHasKey($c->id, $result);
+    }
 }
