@@ -222,6 +222,11 @@ class UpdateEverything extends Command
      *        - sets, symbols (no bulk_data dependency)
      *        - oracle (reads bulk_data__shadow)
      *        - oracle-tags (UPDATEs oracle_cards__shadow)
+     *        - translations (streams all_cards from Scryfall;
+     *          reads oracle_cards__shadow + oracle_card_faces__shadow
+     *          for FK validation; writes
+     *          oracle_card_translations__shadow +
+     *          oracle_card_face_translations__shadow)
      *        - default_cards (reads bulk_data__shadow + oracle_cards__shadow)
      *        - rulings (reads bulk_data__shadow + oracle_cards__shadow)
      *   4. Image download (disk-only, no shadow concern).
@@ -280,6 +285,16 @@ class UpdateEverything extends Command
         // oracle_cards__shadow (mld, fetch_pattern columns). 1s pacing
         // is enforced inside the service.
         $this->runStep('scryfall:oracle-tags', shadow: true);
+        $waitTime += $this->sleep();
+        // translations: streams the ~2.5 GB all_cards bulk straight
+        // from Scryfall via cerbero's Endpoint source (no on-disk
+        // file). Depends on oracle_cards__shadow + oracle_card_faces__shadow
+        // being populated for FK validation, hence ordered after
+        // oracle. Independent of default_cards / rulings / images so
+        // it can run before or after them; placed here for cleanly
+        // grouping all oracle-derived imports before printing-level
+        // ones.
+        $this->runStep('scryfall:translations', shadow: true);
         $waitTime += $this->sleep();
         $this->runStep('scryfall:default_cards', shadow: true);
         $waitTime += $this->sleep();

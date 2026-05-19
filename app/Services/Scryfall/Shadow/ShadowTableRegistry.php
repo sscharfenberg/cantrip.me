@@ -35,6 +35,8 @@ class ShadowTableRegistry
         'default_cards',
         'default_card_relations',
         'rulings',
+        'oracle_card_translations',
+        'oracle_card_face_translations',
     ];
 
     /**
@@ -61,6 +63,8 @@ class ShadowTableRegistry
         ['default_card_relations', 'source_default_card_id', 'default_cards', 'shadow'],
         ['default_card_relations', 'related_default_card_id', 'default_cards', 'shadow'],
         ['rulings', 'oracle_card_id', 'oracle_cards', 'shadow'],
+        ['oracle_card_translations', 'oracle_card_id', 'oracle_cards', 'shadow'],
+        ['oracle_card_face_translations', 'oracle_card_id', 'oracle_cards', 'shadow'],
         // User-data FKs (live → shadow). A non-zero count here means a
         // Scryfall card has gone missing under user data; the swap aborts.
         ['deck_cards', 'oracle_card_id', 'oracle_cards', 'live'],

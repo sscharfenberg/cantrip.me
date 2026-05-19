@@ -8,27 +8,28 @@ Project-specific commands for Scryfall data sync and image management. Standard 
 
 Orchestrates the full Scryfall sync via the **shadow-table swap flow**: builds every truncate-rebuild table in `*__shadow` siblings, validates FK integrity, captures+drops FKs around an atomic multi-table RENAME, then re-adds FKs to the new live tables. The site stays fully usable throughout — DB churn is invisible to users, the swap itself is sub-second, and a mid-flight failure leaves the live tables byte-for-byte untouched. **No maintenance mode** (`down`/`up`).
 
-Warning: downloads ~700 MB of bulk JSON data from Scryfall per run if in production. Other environments only download the bulks once and keep them on disk for subsequent runs.
+Warning: downloads ~700 MB of bulk JSON data from Scryfall per run if in production, plus another ~2.5 GB streamed (not stored) for the foreign-language translations. Other environments only download the disk-backed bulks once and keep them on disk for subsequent runs; the streamed `all_cards` bulk is re-fetched every run regardless of environment.
 
 Execution order:
 
 ```
 cleanup                 → (drop any leftover __shadow / __retired from a crashed prior run)
-createLike              → create all 10 shadow tables (empty)
+createLike              → create all 12 shadow tables (empty)
 scryfall:bulk           → bulk_data__shadow (writes download URIs)
 scryfall:sets           → sets__shadow (HTTP fetch + set icon SVGs)
 scryfall:symbols        → symbols__shadow (HTTP fetch + symbol SVGs)
 scryfall:oracle         → oracle_cards__shadow + oracle_card_faces__shadow + legalities__shadow
 scryfall:oracle-tags    → UPDATEs oracle_cards__shadow with otag-derived columns
+scryfall:translations   → oracle_card_translations__shadow + oracle_card_face_translations__shadow (streams ~2.5 GB all_cards from Scryfall, no on-disk file)
 scryfall:default_cards  → default_cards__shadow + default_card_relations__shadow + artists__shadow
 scryfall:rulings        → rulings__shadow
 scryfall:images         → downloads art crops + card images to disk (no DB writes)
 scryfall:resolve-paths  → UPDATEs default_cards__shadow.image columns to local paths
 validate orphans        → LEFT JOINs every FK relation against the shadow build
-captureForeignKeys      → snapshot every FK referencing the 10 swap tables
+captureForeignKeys      → snapshot every FK referencing the 12 swap tables
 dropForeignKeys         → drop them so the RENAME doesn't auto-rotate references
-swap                    → atomic multi-table RENAME (10 lives → __retired, 10 shadows → live)
-dropRetired             → drop the 10 __retired tables
+swap                    → atomic multi-table RENAME (12 lives → __retired, 12 shadows → live)
+dropRetired             → drop the 12 __retired tables
 addForeignKeys          → re-add the captured FKs to the new live tables
 scryfall:cache          → refresh welcome-page Scryfall stats cache
 gc-images dry scan      → reports orphan files; warns with the --prune command if any (never deletes from this flow)
@@ -69,6 +70,18 @@ Two strategies ship today:
 Tags are not in Scryfall's bulk data — only reachable via `/cards/search?q=otag:<slug>`. The orchestrator paginates with ≥1s delay between every Scryfall call (across pages AND across syncs in the same run) and applies in a single transaction per sync (clear column → bulk-update grouped values in 1 000-id chunks). Zero results from a tag are treated as a sync failure (taxonomy probably renamed) and the column is **left untouched** rather than zeroed.
 
 Runs in `scryfall:update` immediately after `scryfall:oracle` so the freshly inserted `oracle_cards` rows can be flagged in place. Supports `--target=live|shadow`.
+
+### `php artisan scryfall:translations`
+
+Imports foreign-language card-name translations from Scryfall's `all_cards` bulk (~2.5 GB) into `oracle_card_translations` (one row per `(oracle_card_id, lang)`) and `oracle_card_face_translations` (one row per `(oracle_card_id, face_index, lang)`). Drives the deck card-add / collection-add / commander search services so a German user can find "Blitzschlag" → Lightning Bolt.
+
+**Unique among the scryfall sync commands: streams the bulk directly from Scryfall**, no on-disk file. The shared `BulkdataService::prepareJson()` helper used by `scryfall:oracle` / `scryfall:default_cards` / `scryfall:rulings` materializes the full HTTP response in PHP memory before writing to disk — fine for the smaller bulks but it OOMs on the 2.5 GB `all_cards` payload. Instead, this command engages cerbero's `Endpoint` source on `JsonParser::parse($download_uri)`, which reads the JSON via a PSR-7 stream wrapper. Tradeoff: a mid-stream abort means the next run re-fetches from Scryfall. No `scryfall-bulk` disk activity.
+
+Skips English printings (already in `oracle_cards.name`), printings whose `oracle_id` is unknown (defensive — tokens, etc.), and reprints with a duplicate `(oracle, lang)` or `(oracle, face_index, lang)` key (first occurrence wins). Bulk-inserts deduped rows in 1 000-row chunks at end of walk.
+
+Peak RAM ≈ ~65 MB (both buffers kept in scope across the full walk so dedupe can't be partial). End-of-run log line summarizes skip counts and dedupe hits.
+
+Supports `--target=live|shadow`. The orchestrator invokes this with `--target=shadow` so FK lookups resolve against `oracle_cards__shadow` / `oracle_card_faces__shadow`.
 
 ### `php artisan scryfall:default_cards`
 

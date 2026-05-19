@@ -39,6 +39,35 @@ class ShadowTableRegistryTest extends TestCase
     }
 
     #[Test]
+    public function tables_list_includes_translation_tables(): void
+    {
+        // Foreign-language search lives or dies on these two tables
+        // riding through the shadow swap. If the registry forgets
+        // them, the shadow build won't createLike them, the standard
+        // FK validation won't run, and any post-swap insert into the
+        // live translation tables would crash the very next
+        // scryfall:update — surface that mistake here, not at 3am.
+        $this->assertContains('oracle_card_translations', ShadowTableRegistry::TABLES);
+        $this->assertContains('oracle_card_face_translations', ShadowTableRegistry::TABLES);
+    }
+
+    #[Test]
+    public function fk_checks_include_translation_to_oracle_cards(): void
+    {
+        $expected = [
+            ['oracle_card_translations', 'oracle_card_id', 'oracle_cards', 'shadow'],
+            ['oracle_card_face_translations', 'oracle_card_id', 'oracle_cards', 'shadow'],
+        ];
+        foreach ($expected as $check) {
+            $this->assertContains(
+                $check,
+                ShadowTableRegistry::FK_CHECKS,
+                'translation FK check missing from FK_CHECKS — orphan validation would silently miss the new tables.'
+            );
+        }
+    }
+
+    #[Test]
     public function fk_checks_only_reference_known_target_tables(): void
     {
         $known = ShadowTableRegistry::TABLES;

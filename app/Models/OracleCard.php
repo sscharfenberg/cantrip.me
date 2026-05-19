@@ -7,6 +7,7 @@ use App\Enums\CardLegality;
 use App\Enums\Scryfall\ScryfallCardLayout;
 use App\Enums\Scryfall\ScryfallLang;
 use App\Services\Scryfall\RulingsService;
+use App\Services\Scryfall\TranslationsService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
@@ -124,6 +125,35 @@ class OracleCard extends Model
     public function rulings(): HasMany
     {
         return $this->hasMany(Ruling::class, 'oracle_card_id');
+    }
+
+    /**
+     * Get the foreign-language translations of this card's name.
+     * Populated from Scryfall's `all_cards` bulk export via
+     * {@see TranslationsService}. Used by the search services so
+     * users can find a card by any printed-language name.
+     *
+     * Face-level translations are exposed via {@see faceTranslations()}.
+     *
+     * @return HasMany<OracleCardTranslation>
+     */
+    public function translations(): HasMany
+    {
+        return $this->hasMany(OracleCardTranslation::class, 'oracle_card_id');
+    }
+
+    /**
+     * Get the foreign-language translations of this card's face
+     * names. Only populated for multi-faced layouts (transform,
+     * MDFC, split, adventure, etc.) where each face has its own
+     * printed name. Populated from Scryfall's `all_cards` bulk
+     * export via {@see TranslationsService}.
+     *
+     * @return HasMany<OracleCardFaceTranslation>
+     */
+    public function faceTranslations(): HasMany
+    {
+        return $this->hasMany(OracleCardFaceTranslation::class, 'oracle_card_id');
     }
 
     /**
