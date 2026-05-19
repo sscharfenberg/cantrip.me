@@ -122,4 +122,47 @@ class DefaultCardSearchServiceTest extends TestCase
 
         $this->assertNull(DefaultCardSearchService::buildQuery($parsed));
     }
+
+    // ── Foreign-language search ────────────────────────────────────────────
+
+    /**
+     * "Blitzschlag" is the German printed name of Lightning Bolt. The
+     * phase-1 oracle prefilter ORs against oracle_card_translations, so
+     * the German query should surface the English oracle and its
+     * printings.
+     */
+    #[Test]
+    public function phase_1_resolves_german_printed_name(): void
+    {
+        $rows = $this->search('Blitzschlag');
+
+        $names = array_map(fn ($r) => $r->card_name, $rows);
+        $this->assertContains('Lightning Bolt', $names);
+    }
+
+    /**
+     * "Foudre" is the French printed name of Lightning Bolt.
+     */
+    #[Test]
+    public function phase_1_resolves_french_printed_name(): void
+    {
+        $rows = $this->search('Foudre');
+
+        $names = array_map(fn ($r) => $r->card_name, $rows);
+        $this->assertContains('Lightning Bolt', $names);
+    }
+
+    /**
+     * Sanity: the English query path keeps the previous behavior. The
+     * translation OR adds matches but must not displace exact English
+     * hits.
+     */
+    #[Test]
+    public function english_query_regression_still_finds_card(): void
+    {
+        $rows = $this->search('lightning bolt');
+
+        $names = array_map(fn ($r) => $r->card_name, $rows);
+        $this->assertContains('Lightning Bolt', $names);
+    }
 }

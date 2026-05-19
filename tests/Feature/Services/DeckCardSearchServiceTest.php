@@ -401,6 +401,85 @@ class DeckCardSearchServiceTest extends TestCase
         $this->assertContains('Lightning Bolt', $names);
     }
 
+    // ── Foreign-language search ────────────────────────────────────────────
+
+    #[Test]
+    public function oracle_path_finds_card_by_german_printed_name(): void
+    {
+        // "Blitzschlag" is the German printed name of Lightning Bolt. The
+        // service should resolve it to the English oracle via the
+        // oracle_card_translations join.
+        $results = DeckCardSearchService::searchOracleForDeck(
+            $this->makeDeck(CardFormat::Commander, 'WUBRG'),
+            'Blitzschlag'
+        );
+
+        $this->assertNotEmpty($results);
+        $names = array_column($results, 'name');
+        $this->assertContains('Lightning Bolt', $names);
+    }
+
+    #[Test]
+    public function oracle_path_finds_card_by_french_printed_name(): void
+    {
+        // "Foudre" is the French printed name of Lightning Bolt.
+        $results = DeckCardSearchService::searchOracleForDeck(
+            $this->makeDeck(CardFormat::Commander, 'WUBRG'),
+            'Foudre'
+        );
+
+        $this->assertNotEmpty($results);
+        $names = array_column($results, 'name');
+        $this->assertContains('Lightning Bolt', $names);
+    }
+
+    #[Test]
+    public function oracle_path_finds_card_by_japanese_printed_name(): void
+    {
+        // "稲妻" is the Japanese printed name of Lightning Bolt. The
+        // CardNameNormalizer folds CJK to Latin script via ICU
+        // transliteration so the searchable_name index still applies.
+        $results = DeckCardSearchService::searchOracleForDeck(
+            $this->makeDeck(CardFormat::Commander, 'WUBRG'),
+            '稲妻'
+        );
+
+        $this->assertNotEmpty($results);
+        $names = array_column($results, 'name');
+        $this->assertContains('Lightning Bolt', $names);
+    }
+
+    #[Test]
+    public function oracle_path_english_regression_unaffected_by_translation_or(): void
+    {
+        // Sanity: the English query path keeps the previous behavior.
+        // Lightning Bolt must still be the top result (or close to it) when
+        // the user types its English name — the translation OR adds matches,
+        // not noise.
+        $results = DeckCardSearchService::searchOracleForDeck(
+            $this->makeDeck(CardFormat::Commander, 'WUBRG'),
+            'lightning bolt'
+        );
+
+        $this->assertNotEmpty($results);
+        $this->assertSame('Lightning Bolt', $results[0]['name']);
+    }
+
+    #[Test]
+    public function printings_path_finds_card_by_german_printed_name(): void
+    {
+        // The printings entry point should also resolve foreign-language
+        // names through the phase-1 oracle prefilter.
+        $results = DeckCardSearchService::searchPrintingsForDeck(
+            $this->makeDeck(CardFormat::Commander, 'WUBRG'),
+            'Blitzschlag'
+        );
+
+        $this->assertNotEmpty($results);
+        $names = array_column($results, 'name');
+        $this->assertContains('Lightning Bolt', $names);
+    }
+
     #[Test]
     public function printings_result_shape_matches_contract(): void
     {

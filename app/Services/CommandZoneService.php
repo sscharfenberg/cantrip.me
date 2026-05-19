@@ -57,9 +57,7 @@ class CommandZoneService
             );
         }
 
-        foreach ($parsed['normalized_name_segments'] as $segment) {
-            $query->where('searchable_name', 'like', "%$segment%");
-        }
+        OracleNameSearch::applyMultiTableNameSegments($query, $parsed['normalized_name_segments']);
 
         if ($filters['exclude']) {
             $query->where('id', '!=', $filters['exclude']);
@@ -237,9 +235,7 @@ class CommandZoneService
             );
         }
 
-        foreach ($parsed['normalized_name_segments'] as $segment) {
-            $query->where('searchable_name', 'like', "%$segment%");
-        }
+        OracleNameSearch::applyMultiTableNameSegments($query, $parsed['normalized_name_segments']);
 
         if ($exclude) {
             $query->where('id', '!=', $exclude);

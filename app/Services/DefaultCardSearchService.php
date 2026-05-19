@@ -69,9 +69,7 @@ final class DefaultCardSearchService
         // their indexed columns.
         if ($hasNameSegments) {
             $oracleQuery = OracleCard::query();
-            foreach ($parsed['normalized_name_segments'] as $segment) {
-                $oracleQuery->where('oracle_cards.searchable_name', 'like', "%$segment%");
-            }
+            OracleNameSearch::applyMultiTableNameSegments($oracleQuery, $parsed['normalized_name_segments']);
             if ($parsed['set_code']) {
                 $oracleQuery->whereHas('defaults', fn (Builder $q) => $q->whereHas(
                     'set',

@@ -98,7 +98,7 @@ final class DeckCardSearchService
         $query = OracleCard::query()->legalIn($deck->format);
 
         self::applyColorIdentityFilter($query, $deck);
-        self::applyNameSegments($query, 'oracle_cards.searchable_name', $parsed['normalized_name_segments']);
+        OracleNameSearch::applyMultiTableNameSegments($query, $parsed['normalized_name_segments']);
         self::applyNameRanking($query, 'oracle_cards.searchable_name', 'oracle_cards.name', $parsed['normalized_name_segments']);
 
         $oracleCards = $query
@@ -205,7 +205,7 @@ final class DeckCardSearchService
         $query = OracleCard::query()->legalIn($deck->format);
 
         self::applyColorIdentityFilter($query, $deck);
-        self::applyNameSegments($query, 'oracle_cards.searchable_name', $parsed['normalized_name_segments']);
+        OracleNameSearch::applyMultiTableNameSegments($query, $parsed['normalized_name_segments']);
 
         if ($parsed['set_code']) {
             $query->whereHas('defaults', fn (Builder $q) => $q->whereHas(
@@ -345,7 +345,7 @@ final class DeckCardSearchService
             $oracleQuery->legalIn($deck->format);
             self::applyColorIdentityFilter($oracleQuery, $deck);
         }
-        self::applyNameSegments($oracleQuery, 'oracle_cards.searchable_name', $parsed['normalized_name_segments']);
+        OracleNameSearch::applyMultiTableNameSegments($oracleQuery, $parsed['normalized_name_segments']);
 
         // Push `set:` / `cn:` down to phase 1 so the 200-oracle prefilter only
         // considers oracles that actually have a matching printing. Without
@@ -507,23 +507,10 @@ final class DeckCardSearchService
     }
 
     /**
-     * AND-match each normalized segment against the given column.
-     *
-     * @param  Builder<OracleCard|DefaultCard>  $query
-     * @param  string[]  $segments
-     */
-    private static function applyNameSegments(Builder $query, string $column, array $segments): void
-    {
-        foreach ($segments as $segment) {
-            $query->where($column, 'like', "%{$segment}%");
-        }
-    }
-
-    /**
      * Order by exact/prefix/contains rank on the first segment, then by
      * name length (shortest wins), then alphabetical.
      *
-     * @param  Builder<OracleCard|DefaultCard>  $query
+     * @param  Builder<OracleCard>  $query
      * @param  string[]  $segments
      */
     private static function applyNameRanking(Builder $query, string $searchableColumn, string $nameColumn, array $segments): void
