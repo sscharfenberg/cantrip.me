@@ -10,7 +10,7 @@ A Magic: The Gathering card collection manager with a focus on UX: Dark/Light mo
 * Composer
 * Node 26.1+ / npm 11.13+
 * MariaDB
-* `27.6 GB` of harddisk space for image and JSON downloads. Will increase over time.
+* `~28 GB` of harddisk space for cached Scryfall images (art crops + card images). Will increase over time. Bulk JSONs are streamed, not cached.
 
 ## Installation
 

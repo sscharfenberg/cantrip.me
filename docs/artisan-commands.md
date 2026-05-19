@@ -106,7 +106,7 @@ Long-running:
 * ~8 hours on a cold cache (initial download of all images)
 * ~20 seconds on a hot cache (no images need downloading)
 
-Total image cache currently ~25 GB.
+Total image cache currently ~28 GB.
 
 Supports `--target=live|shadow`. The orchestrator invokes this with `--target=shadow` so newly-imported cards (sitting in `default_cards__shadow` with `https://…` URLs) are discoverable — querying live during a shadow build would return zero rows (every live row has already been resolved to a local path by the previous swap), and the new cards would survive the upcoming swap pointing at the Scryfall CDN with no local cache. The shadow query joins `sets__shadow` on `set_id` so brand-new sets are resolvable too.
 
