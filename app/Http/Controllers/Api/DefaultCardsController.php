@@ -6,8 +6,10 @@ use App\Enums\Finish;
 use App\Http\Controllers\Controller;
 use App\Services\CardSearchParser;
 use App\Services\DefaultCardSearchService;
+use App\Services\OracleNameSearch;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class DefaultCardsController extends Controller
 {
@@ -27,10 +29,11 @@ class DefaultCardsController extends Controller
             return response()->json(['total' => 0, 'results' => []]);
         }
 
-        $base = DefaultCardSearchService::buildQuery($parsed);
-        if ($base === null) {
+        $built = DefaultCardSearchService::buildQuery($parsed);
+        if ($built === null) {
             return response()->json(['total' => 0, 'results' => []]);
         }
+        $base = $built['query'];
         $base->whereNotNull('default_cards.art_crop');
 
         // Total comes from the same filtered base before ORDER BY/LIMIT —
@@ -75,10 +78,11 @@ class DefaultCardsController extends Controller
             return response()->json(['total' => 0, 'results' => []]);
         }
 
-        $base = DefaultCardSearchService::buildQuery($parsed);
-        if ($base === null) {
+        $built = DefaultCardSearchService::buildQuery($parsed);
+        if ($built === null) {
             return response()->json(['total' => 0, 'results' => []]);
         }
+        $base = $built['query'];
         // Drop printings with no face image — the UI can't render them and
         // they'd leave a clickable empty cell in the results grid. Mirrors
         // the `whereNotNull('art_crop')` filter in `artCropSearch`.
@@ -88,6 +92,7 @@ class DefaultCardsController extends Controller
 
         $rows = DefaultCardSearchService::orderAndFetch($base, $parsed['normalized_name_segments'], [
             'default_cards.id',
+            'default_cards.oracle_id',
             'default_cards.name AS card_name',
             'default_cards.card_image_0',
             'default_cards.card_image_1',
@@ -98,6 +103,17 @@ class DefaultCardsController extends Controller
             'sets.path AS set_path',
             'artists.name AS artist_name',
         ]);
+
+        // Per-oracle translation badge — only present when the English
+        // searchable_name didn't already explain the match (e.g. typing
+        // "Blitz" surfaces Aether Flash via DE "Ätherblitz" but leaves
+        // Blitzball Stadium silent). The auth()->user() preference
+        // breaks ties when multiple langs match.
+        $matchedTranslations = OracleNameSearch::resolveMatchedTranslations(
+            $built['oracle_searchable_names'],
+            $parsed['normalized_name_segments'],
+            Auth::user()?->locale->value,
+        );
 
         $results = $rows->map(fn (object $row): array => [
             'id' => $row->id,
@@ -112,6 +128,7 @@ class DefaultCardsController extends Controller
                 'code' => $row->set_code,
                 'path' => $row->set_path,
             ] : null,
+            'matched_translation' => $matchedTranslations[$row->oracle_id] ?? null,
         ])->values();
 
         return response()->json(['total' => $total, 'results' => $results]);

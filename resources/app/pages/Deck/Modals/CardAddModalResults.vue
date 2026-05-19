@@ -91,7 +91,14 @@ onUnmounted(() => observer?.disconnect());
             class="card-add-results__item"
             @click="onCardClick(result)"
         >
-            <card-face-image v-if="result.printing" :card="result.printing" interactive tooltip-container="#modal" />
+            <card-face-image
+                v-if="result.printing"
+                :card="result.printing"
+                interactive
+                tooltip-container="#modal"
+                :translated-name="result.printing.matched_translation?.name"
+                :translated-lang="result.printing.matched_translation?.lang"
+            />
             <span
                 v-if="result.violates_companion"
                 v-tooltip="{ content: t('pages.deck.add.companion_warning'), container: '#modal' }"

@@ -58,11 +58,21 @@ final class DefaultCardSearchService
      * name-only search whose phase-1 prefilter matched zero oracles, or a
      * payload with no filters at all).
      *
+     * The returned `oracle_searchable_names` map (oracle_card_id =>
+     * searchable_name) feeds {@see OracleNameSearch::resolveMatchedTranslations}
+     * so the controller can annotate result rows with their printed
+     * foreign-language name when the English oracle didn't match the
+     * segments. The map is empty on pure set:/cn: payloads — phase 1
+     * is skipped there and there's no foreign-language match to explain.
+     *
      * @param  array{name_segments: string[], normalized_name_segments: string[], set_code: string|null, collector_number: string|null}  $parsed
+     * @return array{query: QueryBuilder, oracle_searchable_names: array<string, string>}|null
      */
-    public static function buildQuery(array $parsed): ?QueryBuilder
+    public static function buildQuery(array $parsed): ?array
     {
         $hasNameSegments = $parsed['normalized_name_segments'] !== [];
+        /** @var array<string, string> $oracleSearchableNames */
+        $oracleSearchableNames = [];
 
         // Phase 1 — only needed when there's a name to match. Pure set:/cn:
         // searches skip this entirely and query default_cards directly via
@@ -94,18 +104,21 @@ final class DefaultCardSearchService
                 END',
                 [$first, $first.'%']
             );
-            $oracleIds = $oracleQuery
+            $oracleRows = $oracleQuery
                 ->limit(self::ORACLE_PREFILTER_LIMIT)
-                ->pluck('id');
+                ->get(['oracle_cards.id', 'oracle_cards.searchable_name']);
 
-            if ($oracleIds->isEmpty()) {
+            if ($oracleRows->isEmpty()) {
                 return null;
+            }
+            foreach ($oracleRows as $row) {
+                $oracleSearchableNames[(string) $row->id] = (string) $row->searchable_name;
             }
         }
 
         $query = DB::table('default_cards');
         if ($hasNameSegments) {
-            $query->whereIn('default_cards.oracle_id', $oracleIds);
+            $query->whereIn('default_cards.oracle_id', array_keys($oracleSearchableNames));
         }
 
         if ($parsed['set_code']) {
@@ -128,7 +141,7 @@ final class DefaultCardSearchService
             return null;
         }
 
-        return $query;
+        return ['query' => $query, 'oracle_searchable_names' => $oracleSearchableNames];
     }
 
     /**

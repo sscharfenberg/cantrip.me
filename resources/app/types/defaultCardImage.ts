@@ -8,6 +8,14 @@ export type DefaultCardImage = {
     cn: string;
     finishes: string[];
     set: { name: string; code: string; path: string | null };
+    /**
+     * Set only by the search-results endpoints, and only on rows where
+     * the English oracle name didn't already match every query segment.
+     * Carries the printed_name + lang of one translation that explains
+     * the match, so the result grid can render a flag + foreign-language
+     * name badge. Null/absent everywhere else.
+     */
+    matched_translation?: { lang: string; name: string } | null;
 };
 
 /**

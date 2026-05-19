@@ -8,7 +8,22 @@ defineProps<{
     interactive?: boolean;
     /** CSS selector for the FloatingVue tooltip container. Defaults to `body`. */
     tooltipContainer?: string;
+    /**
+     * Foreign-language printed_name to render in the panel under cn/artist.
+     * Caller-controlled: search-result grids pass this from the API's
+     * `matched_translation` so users see "Ätherblitz" next to Aether Flash
+     * when their query matched the DE name. Renders nothing unless both
+     * this and `translatedLang` are non-empty.
+     */
+    translatedName?: string | null;
+    /**
+     * Lang code paired with `translatedName`. Must match a file in
+     * `resources/app/assets/flags/<lang>.svg`.
+     */
+    translatedLang?: string | null;
 }>();
+/** Resolve the flag image URL for a given language code. */
+const flagSrc = (lang: string): string => new URL(`../../assets/flags/${lang}.svg`, import.meta.url).href;
 /** True when the back face is showing. */
 const flipped = ref(false);
 /** True while the flip animation is running (prevents rapid double-clicks). */
@@ -41,6 +56,10 @@ function onFlip() {
         <button type="button" class="face-image__flip" v-if="card.card_image_1" @click.stop="onFlip">
             <icon name="flip" />
         </button>
+        <span v-if="translatedName && translatedLang" class="face-image__translation">
+            <img :src="flagSrc(translatedLang)" :alt="translatedLang.toUpperCase()" class="face-image__flag" />
+            {{ translatedName }}
+        </span>
         <div class="face-image__panel">
             <span class="face-image__panel-line">
                 <icon name="star" :size="0" />

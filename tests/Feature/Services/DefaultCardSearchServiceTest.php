@@ -41,10 +41,10 @@ class DefaultCardSearchServiceTest extends TestCase
         $parsed = CardSearchParser::parse($query);
         $this->assertNotNull($parsed, "Parser returned null for query: $query");
 
-        $base = DefaultCardSearchService::buildQuery($parsed);
-        $this->assertNotNull($base, "buildQuery returned null for query: $query");
+        $built = DefaultCardSearchService::buildQuery($parsed);
+        $this->assertNotNull($built, "buildQuery returned null for query: $query");
 
-        return DefaultCardSearchService::orderAndFetch($base, $parsed['normalized_name_segments'], $columns)->all();
+        return DefaultCardSearchService::orderAndFetch($built['query'], $parsed['normalized_name_segments'], $columns)->all();
     }
 
     /**

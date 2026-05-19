@@ -10,6 +10,7 @@ use App\Models\DefaultCard;
 use App\Models\OracleCard;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -383,12 +384,24 @@ final class DeckCardSearchService
         /** @var Collection<string, OracleCard> $oraclesById */
         $oraclesById = $oracleQuery
             ->limit(self::ORACLE_PREFILTER_LIMIT)
-            ->get(['oracle_cards.id', 'oracle_cards.name', 'oracle_cards.cmc', 'oracle_cards.color_identity'])
+            ->get(['oracle_cards.id', 'oracle_cards.name', 'oracle_cards.searchable_name', 'oracle_cards.cmc', 'oracle_cards.color_identity'])
             ->keyBy('id');
 
         if ($oraclesById->isEmpty()) {
             return [];
         }
+
+        // Per-oracle "matched by translated name" badge — only present
+        // when the English searchable_name didn't already explain the
+        // match. Attached to each printing below so the frontend can
+        // render the foreign printed_name + flag without a separate
+        // lookup. Empty when no name segments were provided (pure
+        // set:/cn: query has nothing to match against translations).
+        $matchedTranslations = OracleNameSearch::resolveMatchedTranslations(
+            $oraclesById->mapWithKeys(fn (OracleCard $oc) => [$oc->id => (string) $oc->searchable_name])->all(),
+            $parsed['normalized_name_segments'],
+            Auth::user()?->locale->value,
+        );
 
         // Phase 2: load printings for those oracle ids via the query builder
         // with explicit joins to `sets` and `artists`, bypassing Eloquent
@@ -441,7 +454,7 @@ final class DeckCardSearchService
             ]);
 
         return $rows
-            ->map(function (object $row) use ($oraclesById, $companionProfile, $deck): array {
+            ->map(function (object $row) use ($oraclesById, $companionProfile, $deck, $matchedTranslations): array {
                 $oracle = $oraclesById->get($row->oracle_id);
 
                 return [
@@ -465,6 +478,7 @@ final class DeckCardSearchService
                             'code' => $row->set_code,
                             'path' => $row->set_path,
                         ] : null,
+                        'matched_translation' => $matchedTranslations[$row->oracle_id] ?? null,
                     ],
                 ];
             })

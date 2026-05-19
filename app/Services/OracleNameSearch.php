@@ -77,6 +77,113 @@ final class OracleNameSearch
     public const SEARCHABLE_LANGS = ['de', 'fr', 'ja', 'it', 'es', 'pt', 'zhs', 'ru', 'zht', 'ko'];
 
     /**
+     * For a set of oracle IDs the caller already pre-filtered via
+     * {@see applyMultiTableNameSegments}, find a translation row (per
+     * oracle) whose `searchable_name` contains *every* segment — i.e.
+     * a single foreign-language printing that explains the match.
+     * Used to render a "matched by translated name" badge next to
+     * search-result cards (e.g. typing "Blitz" surfaces Aether Flash,
+     * and we annotate that result with its DE printed_name "Ätherblitz").
+     *
+     * **English wins silently.** Oracles whose own `searchable_name`
+     * already contains every segment are skipped — the result needs
+     * no annotation because the English name explains the match.
+     * "Blitzball Stadium" stays silent for query "Blitz"; "Aether
+     * Flash" gets the DE badge.
+     *
+     * **Why AND-across-segments here, even though the predicate in
+     * applyMultiTableNameSegments allows mixed-table matches per
+     * segment.** The result list does include oracles matched by
+     * scattering segments across the three tables — but no single
+     * translation row "explains" that match, so there's nothing
+     * coherent to show as a badge. Falling through to silent is the
+     * right UX for the mixed case.
+     *
+     * **Lang preference.** If `$preferredLang` is in the allowlist
+     * and has a matching translation, it wins (so a German user who
+     * typed an ambiguous term keeps seeing DE when DE is among the
+     * matches). Otherwise the first lang in {@see SEARCHABLE_LANGS}
+     * order wins — deterministic, biased toward higher-row-count
+     * languages.
+     *
+     * **Cost.** Two indexed queries on small composite-PK tables,
+     * filtered to ≤200 oracle IDs and the lang allowlist. Negligible
+     * compared to the existing phase-1 + phase-2 + join cost.
+     *
+     * @param  array<string, string>  $oracleSearchableNamesById  [oracle_card_id => searchable_name] from phase 1.
+     * @param  string[]  $segments  Normalized segments (from {@see CardNameNormalizer::normalize}).
+     * @param  string|null  $preferredLang  User's locale ('de' / 'en' / null). Used as a tiebreaker.
+     * @return array<string, array{lang: string, name: string}> Keyed by oracle_card_id; only oracles with a coherent translation match are present.
+     */
+    public static function resolveMatchedTranslations(
+        array $oracleSearchableNamesById,
+        array $segments,
+        ?string $preferredLang = null,
+    ): array {
+        if ($oracleSearchableNamesById === [] || $segments === []) {
+            return [];
+        }
+
+        // Filter out oracles whose English searchable_name already
+        // matches every segment — those are silent by spec.
+        $candidateIds = [];
+        foreach ($oracleSearchableNamesById as $id => $searchable) {
+            foreach ($segments as $segment) {
+                if (! str_contains($searchable, $segment)) {
+                    $candidateIds[] = $id;
+
+                    continue 2;
+                }
+            }
+        }
+        if ($candidateIds === []) {
+            return [];
+        }
+
+        // Collect candidate (oracle, lang, printed_name) rows from
+        // both translation tables. Per-table AND-across-segments
+        // narrows to translations that fully explain the match.
+        // Oracle-level table is queried first so it wins over face-
+        // level on the rare oracle where both have a match for the
+        // same lang (the oracle-level translation is the canonical
+        // "printed name" for the whole card).
+        /** @var array<string, array<string, string>> $byOracle */
+        $byOracle = [];
+        foreach ([self::ORACLE_TRANSLATION_TABLE, self::FACE_TRANSLATION_TABLE] as $table) {
+            $q = DB::table($table)
+                ->whereIn('oracle_card_id', $candidateIds)
+                ->whereIn('lang', self::SEARCHABLE_LANGS);
+            foreach ($segments as $segment) {
+                $q->where('searchable_name', 'like', "%$segment%");
+            }
+            foreach ($q->get(['oracle_card_id', 'lang', 'printed_name']) as $row) {
+                $byOracle[$row->oracle_card_id][$row->lang] ??= $row->printed_name;
+            }
+        }
+
+        // Pick the badge lang per oracle.
+        $result = [];
+        foreach ($byOracle as $oracleId => $langs) {
+            $pick = null;
+            if ($preferredLang !== null && isset($langs[$preferredLang])) {
+                $pick = $preferredLang;
+            } else {
+                foreach (self::SEARCHABLE_LANGS as $lang) {
+                    if (isset($langs[$lang])) {
+                        $pick = $lang;
+                        break;
+                    }
+                }
+            }
+            if ($pick !== null) {
+                $result[$oracleId] = ['lang' => $pick, 'name' => $langs[$pick]];
+            }
+        }
+
+        return $result;
+    }
+
+    /**
      * Apply the multi-segment name filter onto an OracleCard query,
      * OR-ed against the two translation tables for each segment.
      *

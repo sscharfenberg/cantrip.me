@@ -50,7 +50,12 @@ defineExpose({
         @cleared="emit('cleared')"
     >
         <template #result="{ card }">
-            <card-face-image :card="card as DefaultCardImage" interactive />
+            <card-face-image
+                :card="card as DefaultCardImage"
+                interactive
+                :translated-name="(card as DefaultCardImage).matched_translation?.name"
+                :translated-lang="(card as DefaultCardImage).matched_translation?.lang"
+            />
         </template>
         <template #selected="{ card }">
             <card-face-image v-if="(card as DefaultCardImage).card_image_0" :card="card as DefaultCardImage" />
