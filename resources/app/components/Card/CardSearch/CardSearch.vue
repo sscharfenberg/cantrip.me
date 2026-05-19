@@ -111,17 +111,30 @@ defineExpose({ focus });
         </template>
         <input type="hidden" :name="refId" :value="refValue" />
         <template v-if="!selectedCard && results.length === 0" #text>
-            <search-syntax />
+            <div v-if="searchQuery.length > 1 && !processing" class="no-results">
+                {{ $t("card.search.no_results") }}
+            </div>
+            <search-syntax v-else />
         </template>
     </form-group>
-    <Results
-        v-if="results.length > 0"
-        :results="results as T[]"
-        :total-results="totalResults"
-        @change="onCardSelected"
-    >
+    <Results v-if="results.length > 0" :results="results as T[]" :total-results="totalResults" @change="onCardSelected">
         <template #result="{ card }">
             <slot name="result" :card="card as T" />
         </template>
     </Results>
 </template>
+
+<style lang="scss" scoped>
+@use "sass:map";
+@use "Abstracts/colors" as c;
+@use "Abstracts/sizes" as s;
+
+.no-results {
+    padding: map.get(s.$components, "card-search", "padding");
+    border: map.get(s.$components, "card-search", "border") solid map.get(c.$state, "error", "border");
+
+    background-color: map.get(c.$state, "error", "background");
+    color: map.get(c.$state, "error", "surface");
+    border-radius: map.get(s.$components, "card-search", "radius");
+}
+</style>

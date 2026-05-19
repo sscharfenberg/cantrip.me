@@ -119,9 +119,23 @@ export function useCardSearch<T>(endpoint: string, setCode?: Ref<string>) {
      * Debounce search input changes (and setCode changes, when bound)
      * by 500 ms before calling the API. setCode flips re-run the
      * current query so the result list reacts to dropdown changes.
+     *
+     * `processing` is flipped on synchronously here (not just inside
+     * `searchCards`) so consumers can distinguish "debounce window is
+     * open, search hasn't happened yet" from "search completed with no
+     * results" — otherwise an empty `results` array reads the same in
+     * both states and a no-results message flickers during the wait.
      */
     watch([searchQuery, () => setCode?.value ?? ""], () => {
         if (debounceTimer) clearTimeout(debounceTimer);
+        const query = buildQuery(searchQuery.value);
+        if (!query) {
+            processing.value = false;
+            results.value = [];
+            totalResults.value = 0;
+            return;
+        }
+        processing.value = true;
         debounceTimer = setTimeout(() => searchCards(searchQuery.value), 500);
     });
 

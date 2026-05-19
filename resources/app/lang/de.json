@@ -1259,6 +1259,7 @@
                 "face": "Karte suchen"
             },
             "showing": "Zeige {visible} Ergebnisse von {total} gesamt. Scrollen für mehr.",
+            "no_results": "Keine Karten gefunden.",
             "tips": {
                 "general": "Du kannst Leerzeichen benutzen um deine Anfrage aufzuteilen - {query} findet (unter anderem) {result}.",
                 "query": "bl kn",

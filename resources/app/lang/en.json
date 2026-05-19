@@ -1259,6 +1259,7 @@
                 "face": "Find card"
             },
             "showing": "Show {visible} results of {total} total. Scroll for more.",
+            "no_results": "No cards match your search.",
             "tips": {
                 "general": "You can use spaces to separate your query - {query} finds (among others) {result}.",
                 "query": "bl kn",

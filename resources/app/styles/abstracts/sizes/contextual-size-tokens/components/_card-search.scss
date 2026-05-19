@@ -1,0 +1,9 @@
+@use "sass:math"; // https://sass-lang.com/documentation/modules/math/
+@use "sass:map"; // https://sass-lang.com/documentation/modules/map
+@use "../../global-size-tokens" as s;
+
+$card-search: (
+    "border": map.get(s.$border, "base"),
+    "radius": map.get(s.$radius, "base"),
+    "padding": 1ex 1ch
+);
