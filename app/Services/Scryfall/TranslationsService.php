@@ -20,20 +20,14 @@ use Illuminate\Support\Facades\Log;
  *
  * Streaming strategy
  * ------------------
- * The `all_cards` bulk is ~2.5 GB. Unlike sibling services
- * ({@see RulingsService}, {@see DefaultCardsService},
- * {@see OracleCardsService}), this service does NOT download the file
- * to disk first via {@see BulkdataService::prepareJson()}. That helper
- * materializes the entire HTTP response in PHP memory via
- * `$response->body()` before writing to disk — fine for the 25 MB
- * rulings and the 537 MB default_cards bulk (given an elevated
- * `memory_limit`), but it OOMs for `all_cards`.
- *
- * Instead, `JsonParser::parse($downloadUri)` engages cerbero's
- * `Endpoint` source which uses Guzzle's PSR-7 streaming response —
- * the JSON arrives chunk-by-chunk and is decoded incrementally
- * without ever materializing the full bulk in memory. Tradeoff: a
- * mid-stream abort means the next run re-fetches from Scryfall.
+ * `JsonParser::parse($downloadUri)` engages cerbero's `Endpoint`
+ * source which uses Guzzle's PSR-7 streaming response — the JSON
+ * arrives chunk-by-chunk and is decoded incrementally without ever
+ * materializing the full bulk in memory. Critical for `all_cards`
+ * at ~2.5 GB; the sibling services ({@see OracleCardsService},
+ * {@see DefaultCardsService}, {@see RulingsService}) use the same
+ * pattern. Tradeoff: a mid-stream abort means the next run re-fetches
+ * from Scryfall.
  *
  * Dedupe + buffer
  * ---------------
@@ -71,6 +65,8 @@ class TranslationsService extends ScryfallService
 
     private FormatService $formatService;
 
+    private BulkdataService $bulkdataService;
+
     private bool $shadow = false;
 
     private string $oracleTranslationsTable = 'oracle_card_translations';
@@ -80,8 +76,6 @@ class TranslationsService extends ScryfallService
     private string $oracleCardsTable = 'oracle_cards';
 
     private string $oracleCardFacesTable = 'oracle_card_faces';
-
-    private string $bulkDataTable = 'bulk_data';
 
     /**
      * Oracle IDs known to exist in the oracle_cards(__shadow) table.
@@ -137,6 +131,7 @@ class TranslationsService extends ScryfallService
     public function __construct()
     {
         $this->formatService = new FormatService;
+        $this->bulkdataService = new BulkdataService;
     }
 
     /**
@@ -159,13 +154,13 @@ class TranslationsService extends ScryfallService
         $this->faceTranslationsTable = $this->tableName('oracle_card_face_translations', $shadow);
         $this->oracleCardsTable = $this->tableName('oracle_cards', $shadow);
         $this->oracleCardFacesTable = $this->tableName('oracle_card_faces', $shadow);
-        $this->bulkDataTable = $this->tableName('bulk_data', $shadow);
 
         $this->resetState();
 
-        $downloadUri = $this->resolveDownloadUri();
+        $downloadUri = $this->bulkdataService->resolveDownloadUri('all_cards', $shadow);
         if ($downloadUri === null) {
-            Log::channel('scryfall')->error("no 'all_cards' row found in $this->bulkDataTable — run `scryfall:bulk` first.");
+            $bulkTable = $this->tableName('bulk_data', $shadow);
+            Log::channel('scryfall')->error("no 'all_cards' row found in $bulkTable — run `scryfall:bulk` first.");
 
             return;
         }
@@ -196,20 +191,6 @@ class TranslationsService extends ScryfallService
         $this->skippedUnknownFace = 0;
         $this->oracleDedupeHits = 0;
         $this->faceDedupeHits = 0;
-    }
-
-    /**
-     * Resolve the `all_cards` download URI from the bulk_data table.
-     * Returns null if the row is missing (caller logs + aborts).
-     */
-    private function resolveDownloadUri(): ?string
-    {
-        $row = DB::table($this->bulkDataTable)->where('type', '=', 'all_cards')->first();
-        if ($row === null || ! isset($row->download_uri)) {
-            return null;
-        }
-
-        return (string) $row->download_uri;
     }
 
     /**

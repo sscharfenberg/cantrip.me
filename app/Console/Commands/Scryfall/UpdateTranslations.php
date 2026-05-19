@@ -21,8 +21,9 @@ use Illuminate\Support\Facades\Log;
  * orchestrator and skips truncate.
  *
  * The bulk is ~2.5 GB and streams directly from Scryfall via
- * cerbero's `Endpoint` source — no on-disk file is created, so this
- * command leaves the `scryfall-bulk` storage disk untouched.
+ * cerbero's `Endpoint` source — no on-disk file is created. The
+ * sibling bulk imports (`scryfall:oracle`, `scryfall:default_cards`,
+ * `scryfall:rulings`) use the same streaming pattern.
  */
 class UpdateTranslations extends Command
 {

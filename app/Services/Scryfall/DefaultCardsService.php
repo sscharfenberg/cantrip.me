@@ -12,7 +12,6 @@ use App\Services\FormatService;
 use Cerbero\JsonParser\JsonParser;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
 
 /**
  * Handles all database operations for the default_cards table.
@@ -30,6 +29,14 @@ use Illuminate\Support\Facades\Storage;
  * during the same file walk — buffered in memory throughout traversal and
  * flushed once at the end so every printing referenced by an edge has
  * already been inserted (Scryfall's bulk isn't dependency-ordered).
+ *
+ * Streaming strategy
+ * ------------------
+ * `JsonParser::parse($downloadUri)` engages cerbero's `Endpoint` source
+ * which uses Guzzle's PSR-7 streaming response — the JSON arrives
+ * chunk-by-chunk and is decoded incrementally without ever materializing
+ * the full bulk in memory. No on-disk caching; every run re-fetches from
+ * Scryfall. Tradeoff: a mid-stream abort means the next run re-fetches.
  */
 class DefaultCardsService extends ScryfallService
 {
@@ -290,22 +297,21 @@ class DefaultCardsService extends ScryfallService
     }
 
     /**
-     * Stream-parse the bulk JSON file and insert each card. Card edges
-     * (all_parts → default_card_relations) are buffered during the walk
-     * and flushed once at the end so FK constraints hold without a
-     * dependency-ordered traversal.
+     * Stream-parse the bulk JSON directly from Scryfall and insert each
+     * card. Card edges (all_parts → default_card_relations) are buffered
+     * during the walk and flushed once at the end so FK constraints hold
+     * without a dependency-ordered traversal.
      *
-     * Uses JsonParser to avoid loading the entire file into memory,
-     * which is critical for the large Scryfall bulk exports.
-     *
-     * @param  string  $fileName  The filename on the "scryfall-bulk" disk.
+     * Uses cerbero's `Endpoint` source so the JSON is read via a PSR-7
+     * stream wrapper — no on-disk file, no full-response materialization
+     * in PHP memory.
      */
-    private function traverseJson($fileName): void
+    private function traverseJson(string $downloadUri): void
     {
         $start = now();
         $count = 0;
-        Log::channel('scryfall')->notice("begin traversing $fileName.");
-        JsonParser::parse(Storage::disk('scryfall-bulk')->get($fileName))->traverse(function (mixed $value, string|int $key, JsonParser $parser) use (&$count) {
+        Log::channel('scryfall')->notice("begin streaming default_cards bulk from '$downloadUri'.");
+        JsonParser::parse($downloadUri)->traverse(function (mixed $value, string|int $key, JsonParser $parser) use (&$count) {
             $this->insertCard($value);
             $this->bufferRelations($value);
             $count++;
@@ -321,10 +327,10 @@ class DefaultCardsService extends ScryfallService
     /**
      * Run a full default-cards import from Scryfall.
      *
-     * Downloads the "default_cards" bulk JSON (if not already cached),
-     * truncates the existing live data (or builds the shadow set),
-     * streams through every card to insert it, and cleans up the
-     * downloaded file afterwards.
+     * Resolves the `default_cards` download URI from bulk_data(__shadow),
+     * truncates the existing live data (or skips in shadow mode where the
+     * orchestrator pre-created empty shadows), and stream-parses every
+     * card from the live Scryfall CDN.
      *
      * In shadow mode: rows go into default_cards__shadow,
      * default_card_relations__shadow, and artists__shadow (via the
@@ -337,14 +343,14 @@ class DefaultCardsService extends ScryfallService
         $this->defaultCardRelationsTable = $this->tableName('default_card_relations', $shadow);
         $this->artistsService->useTarget($shadow);
 
-        $type = 'default_cards';
-        if (! $this->bulkdataService->prepareJson($type, $shadow)) {
-            Log::channel('scryfall')->error("error preparing '$type.json', aborting.");
+        $downloadUri = $this->bulkdataService->resolveDownloadUri('default_cards', $shadow);
+        if ($downloadUri === null) {
+            $bulkTable = $this->tableName('bulk_data', $shadow);
+            Log::channel('scryfall')->error("no 'default_cards' row found in $bulkTable — run `scryfall:bulk` first.");
 
-            return; // error downloading file, abort
+            return;
         }
         $this->preRunCleanup();
-        $this->traverseJson($type.'.json');
-        $this->bulkdataService->postRunCleanup($type.'.json');
+        $this->traverseJson($downloadUri);
     }
 }

@@ -8,9 +8,17 @@ use App\Services\FormatService;
 use Cerbero\JsonParser\JsonParser;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
+/**
+ * Streaming strategy
+ * ------------------
+ * `JsonParser::parse($downloadUri)` engages cerbero's `Endpoint` source
+ * which uses Guzzle's PSR-7 streaming response — the JSON arrives
+ * chunk-by-chunk and is decoded incrementally without ever materializing
+ * the full bulk in memory. No on-disk caching; every run re-fetches from
+ * Scryfall. Tradeoff: a mid-stream abort means the next run re-fetches.
+ */
 class RulingsService extends ScryfallService
 {
     private const BUFFER_SIZE = 500;
@@ -131,18 +139,17 @@ class RulingsService extends ScryfallService
     }
 
     /**
-     * Stream-parse the bulk JSON file and buffer-insert each ruling.
-     *
-     * Uses JsonParser to avoid loading the entire file into memory.
-     *
-     * @param  string  $fileName  The filename on the "scryfall-bulk" disk.
+     * Stream-parse the bulk JSON directly from Scryfall and buffer-insert
+     * each ruling. Uses cerbero's `Endpoint` source so the JSON is read
+     * via a PSR-7 stream wrapper — no on-disk file, no full-response
+     * materialization in PHP memory.
      */
-    private function traverseJson(string $fileName): void
+    private function traverseJson(string $downloadUri): void
     {
         $start = now();
         $count = 0;
-        Log::channel('scryfall')->notice('begin traversing rulings json.');
-        JsonParser::parse(Storage::disk('scryfall-bulk')->get($fileName))->traverse(function (mixed $value, string|int $key, JsonParser $parser) use (&$count) {
+        Log::channel('scryfall')->notice("begin streaming rulings bulk from '$downloadUri'.");
+        JsonParser::parse($downloadUri)->traverse(function (mixed $value, string|int $key, JsonParser $parser) use (&$count) {
             $this->bufferRuling($value);
             $count++;
         });
@@ -156,10 +163,10 @@ class RulingsService extends ScryfallService
     /**
      * Run a full rulings import from Scryfall.
      *
-     * Downloads the "rulings" bulk JSON (if not already cached),
-     * truncates the existing live data (or builds the shadow set),
-     * streams through every ruling to insert it, and cleans up the
-     * downloaded file afterwards.
+     * Resolves the `rulings` download URI from bulk_data(__shadow),
+     * truncates the existing live data (or skips in shadow mode where the
+     * orchestrator pre-created empty shadows), and stream-parses every
+     * ruling from the live Scryfall CDN.
      *
      * In shadow mode: rows go into rulings__shadow and FK lookups read
      * from oracle_cards__shadow so the freshly imported oracle dataset
@@ -171,15 +178,15 @@ class RulingsService extends ScryfallService
         $this->rulingsTable = $this->tableName('rulings', $shadow);
         $this->oracleCardsTable = $this->tableName('oracle_cards', $shadow);
 
-        $type = 'rulings';
-        if (! $this->bulkdataService->prepareJson($type, $shadow)) {
-            Log::channel('scryfall')->error("error preparing '$type.json', aborting.");
+        $downloadUri = $this->bulkdataService->resolveDownloadUri('rulings', $shadow);
+        if ($downloadUri === null) {
+            $bulkTable = $this->tableName('bulk_data', $shadow);
+            Log::channel('scryfall')->error("no 'rulings' row found in $bulkTable — run `scryfall:bulk` first.");
 
             return;
         }
         $this->preRunCleanup();
         $this->loadKnownOracleIds();
-        $this->traverseJson($type.'.json');
-        $this->bulkdataService->postRunCleanup($type.'.json');
+        $this->traverseJson($downloadUri);
     }
 }

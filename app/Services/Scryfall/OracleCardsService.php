@@ -11,9 +11,22 @@ use App\Services\FormatService;
 use Cerbero\JsonParser\JsonParser;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
+/**
+ * Streaming strategy
+ * ------------------
+ * `JsonParser::parse($downloadUri)` engages cerbero's `Endpoint` source
+ * which uses Guzzle's PSR-7 streaming response — the JSON arrives
+ * chunk-by-chunk and is decoded incrementally without ever materializing
+ * the full bulk in memory. No on-disk caching; every run re-fetches from
+ * Scryfall. Tradeoff: a mid-stream abort means the next run re-fetches.
+ *
+ * Eloquent is unsuitable for the inserts here — the `$table` property is
+ * hardcoded on each model, but we need to write to either the live or
+ * shadow table at runtime. Plain `DB::table($name)->insert(...)` is the
+ * documented escape hatch (see CLAUDE.md, "Shadow-table architecture").
+ */
 class OracleCardsService extends ScryfallService
 {
     private const LEGALITY_BUFFER_SIZE = 500;
@@ -223,19 +236,17 @@ class OracleCardsService extends ScryfallService
     }
 
     /**
-     * Stream-parse the bulk JSON file and insert each card.
-     *
-     * Uses JsonParser to avoid loading the entire file into memory,
-     * which is critical for the large Scryfall bulk exports.
-     *
-     * @param  string  $fileName  The filename on the "scryfall-bulk" disk.
+     * Stream-parse the bulk JSON directly from Scryfall and insert each
+     * card. Uses cerbero's `Endpoint` source so the JSON is read via a
+     * PSR-7 stream wrapper — no on-disk file, no full-response
+     * materialization in PHP memory.
      */
-    private function traverseJson($fileName): void
+    private function traverseJson(string $downloadUri): void
     {
         $start = now();
         $count = 0;
-        Log::channel('scryfall')->notice('begin traversing oracle cards json.');
-        JsonParser::parse(Storage::disk('scryfall-bulk')->get($fileName))->traverse(function (mixed $value, string|int $key, JsonParser $parser) use (&$count) {
+        Log::channel('scryfall')->notice("begin streaming oracle_cards bulk from '$downloadUri'.");
+        JsonParser::parse($downloadUri)->traverse(function (mixed $value, string|int $key, JsonParser $parser) use (&$count) {
             $this->insertCard($value);
             $count++;
         });
@@ -249,16 +260,14 @@ class OracleCardsService extends ScryfallService
     /**
      * Run a full oracle-cards import from Scryfall.
      *
-     * Downloads the "oracle_cards" bulk JSON (if not already cached),
-     * truncates the existing live data (or builds the shadow set),
-     * streams through every card to insert it, and cleans up the
-     * downloaded file afterwards.
+     * Resolves the `oracle_cards` download URI from bulk_data(__shadow),
+     * truncates the existing live data (or skips in shadow mode where the
+     * orchestrator pre-created empty shadows), and stream-parses every
+     * card from the live Scryfall CDN.
      *
      * In shadow mode: rows are inserted into oracle_cards__shadow,
-     * oracle_card_faces__shadow, and legalities__shadow. The orchestrator
-     * created those empty tables before invoking this service, and the
-     * BulkdataService lookup reads from bulk_data__shadow so the latest
-     * download URI is used.
+     * oracle_card_faces__shadow, and legalities__shadow. The BulkdataService
+     * lookup reads from bulk_data__shadow so the latest download URI is used.
      */
     public function updateOracleCards(bool $shadow = false): void
     {
@@ -267,14 +276,14 @@ class OracleCardsService extends ScryfallService
         $this->oracleCardFacesTable = $this->tableName('oracle_card_faces', $shadow);
         $this->legalitiesTable = $this->tableName('legalities', $shadow);
 
-        $type = 'oracle_cards';
-        if (! $this->bulkdataService->prepareJson($type, $shadow)) {
-            Log::channel('scryfall')->error("error preparing '$type.json', aborting.");
+        $downloadUri = $this->bulkdataService->resolveDownloadUri('oracle_cards', $shadow);
+        if ($downloadUri === null) {
+            $bulkTable = $this->tableName('bulk_data', $shadow);
+            Log::channel('scryfall')->error("no 'oracle_cards' row found in $bulkTable — run `scryfall:bulk` first.");
 
-            return; // error downloading file, abort
+            return;
         }
         $this->preRunCleanup();
-        $this->traverseJson($type.'.json');
-        $this->bulkdataService->postRunCleanup($type.'.json');
+        $this->traverseJson($downloadUri);
     }
 }

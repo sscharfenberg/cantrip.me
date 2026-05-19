@@ -3,94 +3,34 @@
 namespace App\Services\Scryfall;
 
 use App\Models\BulkData;
-use App\Services\FormatService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
 
 class BulkdataService extends ScryfallService
 {
-    private FormatService $formatService;
-
     private bool $shadow = false;
 
     private string $bulkDataTable = 'bulk_data';
 
-    public function __construct()
-    {
-        $this->formatService = new FormatService;
-    }
-
     /**
-     * Download a Scryfall bulk-data JSON file to local storage.
+     * Resolve the `download_uri` for a bulk-data type from the
+     * `bulk_data(__shadow)` table.
      *
-     * Skips the download if the file already exists on the "scryfall-bulk"
-     * disk. Verifies the downloaded file size against the expected size
-     * from the BulkData model to detect truncated downloads.
-     *
-     * @param  string  $type  The bulk-data type identifier (e.g. "oracle_cards").
-     * @return bool True on success or if the file already exists, false on failure.
+     * Single source of truth for the four streaming bulk imports
+     * ({@see OracleCardsService}, {@see DefaultCardsService},
+     * {@see RulingsService}, {@see TranslationsService}). Returns null
+     * if no row exists for the type — caller should log and abort.
      */
-    public function prepareJson(string $type, bool $shadow = false): bool
+    public function resolveDownloadUri(string $type, bool $shadow = false): ?string
     {
-        $fileName = $type.'.json';
-        if (Storage::disk('scryfall-bulk')->exists($fileName)) {
-            Log::channel('scryfall')->notice("JSON file '$fileName' already exists in disk 'scryfall-bulk'.");
-
-            return true;
+        $table = $this->tableName('bulk_data', $shadow);
+        $row = DB::table($table)->where('type', '=', $type)->first();
+        if ($row === null || ! isset($row->download_uri)) {
+            return null;
         }
-        $start = now();
-        $bulkDataTable = $this->tableName('bulk_data', $shadow);
-        $bd = DB::table($bulkDataTable)->where('type', '=', $type)->first();
-        $uri = $bd->download_uri;
-        try {
-            Log::channel('scryfall')->notice("starting download of '$fileName' from scryfall.");
-            $response = $this->http()
-                ->timeout(-1) // disable timeouts since we want to download large files.
-                ->get($uri);
-            if ($response->failed()) {
-                Log::channel('scryfall')->critical("error calling oracle uri '$uri' from scryfall: ".$response->body());
 
-                return false;
-            } else {
-                Storage::disk('scryfall-bulk')->put($fileName, $response->body());
-                $realSize = Storage::disk('scryfall-bulk')->size($fileName);
-                $realSizeFormatted = number_format($realSize, 0, ',', '.');
-                if ($realSize != $bd->size) {
-                    Log::channel('scryfall')->error("downloaded size for '$fileName' ($realSize) differs from expected size ({$bd->size}).");
-
-                    return false;
-                }
-                Log::channel('scryfall')->debug("downloaded '$fileName' from scryfall to disk 'scryfall-bulk'.");
-                Log::channel('scryfall')->debug("filesize for '$fileName' ($realSizeFormatted = ".$this->formatService->formatBytes($realSize).') as expected.');
-                $ms = $start->diffInMilliseconds(now());
-                Log::channel('scryfall')->notice("downloaded '$fileName' in ".$this->formatService->formatMs($ms).'.');
-
-                return true;
-            }
-        } catch (\Exception $e) {
-            Log::channel('scryfall')->error("error downloading '$fileName': ".$e->getMessage());
-            Log::channel('scryfall')->error($e->getTraceAsString());
-
-            return false;
-        }
-    }
-
-    /**
-     * Remove the downloaded bulk JSON file after processing.
-     *
-     * Only deletes in production to keep local/dev files available
-     * for debugging.
-     *
-     * @param  string  $fileName  The filename on the "scryfall-bulk" disk.
-     */
-    public function postRunCleanup($fileName): void
-    {
-        if (app()->environment('production')) {
-            Storage::disk('scryfall-bulk')->delete($fileName);
-            Log::channel('scryfall')->notice("deleted '$fileName' from disk 'scryfall-bulk'.");
-        }
+        return (string) $row->download_uri;
     }
 
     /**
