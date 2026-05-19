@@ -20,9 +20,11 @@ use Illuminate\Support\Facades\DB;
  *          oracle_cards.searchable_name LIKE '%$s%'
  *       OR EXISTS (SELECT 1 FROM oracle_card_translations oct
  *                  WHERE oct.oracle_card_id = oracle_cards.id
+ *                    AND oct.lang IN (…SEARCHABLE_LANGS…)
  *                    AND oct.searchable_name LIKE '%$s%')
  *       OR EXISTS (SELECT 1 FROM oracle_card_face_translations ofct
  *                  WHERE ofct.oracle_card_id = oracle_cards.id
+ *                    AND ofct.lang IN (…SEARCHABLE_LANGS…)
  *                    AND ofct.searchable_name LIKE '%$s%')
  *     )
  *
@@ -31,13 +33,20 @@ use Illuminate\Support\Facades\DB;
  * or any translation; the outer AND across segments preserves the
  * existing semantics for plain English search.
  *
- * **Why no `lang` filter:** v1 ships unfiltered across all 17
- * non-English languages. The hot-path index on
- * `(lang, searchable_name)` is therefore not used by these queries
- * — the optimizer falls back to the FK `oracle_card_id` (the
- * leading column of the composite PK) for the join. If EXPLAIN
- * shows pain after deploy, the fix is a `WHERE oct.lang IN
- * (user.locale, 'en')` slice — see docs/foreign-language-search.md.
+ * **Why a lang allowlist:** Scryfall ships translations in 17 non-
+ * English languages, but the seven promo/joke languages (Phyrexian,
+ * Ancient Greek, Quenya, Hebrew, Arabic, Sanskrit, Latin) collectively
+ * contribute ~42 rows — search hits there are essentially zero. The
+ * top-10 allowlist (de/fr/ja/it/es/pt/zhs/ru/zht/ko) covers >99.99% of
+ * realistic foreign-language search traffic. Filtering up front lets
+ * the optimizer use the `(lang, searchable_name)` composite index to
+ * slice the translation tables before the LIKE scan, instead of
+ * falling back to the FK join column with no slicing.
+ *
+ * The allowlist is hardcoded for now — `users.locale` is `de` or `en`
+ * for every account today, so per-user filtering would just be a more
+ * complex no-op. Promote to a `lang IN (user.locale, 'en')` slice if/
+ * when the user base diversifies.
  *
  * **Why ranking is unchanged:** the existing `applyNameRanking`
  * helpers on each service rank by `oracle_cards.searchable_name`
@@ -51,6 +60,21 @@ final class OracleNameSearch
     public const ORACLE_TRANSLATION_TABLE = 'oracle_card_translations';
 
     public const FACE_TRANSLATION_TABLE = 'oracle_card_face_translations';
+
+    /**
+     * Languages eligible for foreign-language name search. Ordered by
+     * row-count descending — the order doesn't affect query planning
+     * (MySQL/MariaDB sort the IN list internally for index seeks) but
+     * documents which languages drive the bulk of matches.
+     *
+     * Excludes the seven micro-language cases — `ph`, `grc`, `qya`,
+     * `he`, `ar`, `sa`, `la` — which collectively contribute ~42 rows
+     * out of ~246k and represent promo / joke prints that no user
+     * would realistically search by.
+     *
+     * @var list<string>
+     */
+    public const SEARCHABLE_LANGS = ['de', 'fr', 'ja', 'it', 'es', 'pt', 'zhs', 'ru', 'zht', 'ko'];
 
     /**
      * Apply the multi-segment name filter onto an OracleCard query,
@@ -77,12 +101,14 @@ final class OracleNameSearch
                         $sub->select(DB::raw(1))
                             ->from(self::ORACLE_TRANSLATION_TABLE.' as oct')
                             ->whereColumn('oct.oracle_card_id', 'oracle_cards.id')
+                            ->whereIn('oct.lang', self::SEARCHABLE_LANGS)
                             ->where('oct.searchable_name', 'like', "%$segment%");
                     })
                     ->orWhereExists(function (QueryBuilder $sub) use ($segment): void {
                         $sub->select(DB::raw(1))
                             ->from(self::FACE_TRANSLATION_TABLE.' as ofct')
                             ->whereColumn('ofct.oracle_card_id', 'oracle_cards.id')
+                            ->whereIn('ofct.lang', self::SEARCHABLE_LANGS)
                             ->where('ofct.searchable_name', 'like', "%$segment%");
                     });
             });
