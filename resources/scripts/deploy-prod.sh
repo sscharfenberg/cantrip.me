@@ -46,6 +46,20 @@ php artisan down
 git fetch origin --tags
 git reset --hard "$TAG"
 
+# Re-normalize source-tree perms. `git reset --hard` may write files
+# with mode 644 (ignoring umask in some setups), and any subdir whose
+# setgid bit was lost in the past creates new files in deploy's
+# primary group instead of www-data. The `chgrp` step recovers group
+# ownership, `chmod 2775` on dirs re-establishes setgid so future
+# inheritance works on its own, and `chmod g+w` on files matches the
+# documented `664` convention. Scoped to source dirs so we don't
+# touch vendor/, node_modules/, storage/, public/build/, or .git/
+# (each managed by its own tooling with its own perm needs).
+SOURCE_DIRS=(app database docs tests routes resources lang bootstrap config public)
+chgrp -R www-data "${SOURCE_DIRS[@]}"
+find "${SOURCE_DIRS[@]}" -type d -exec chmod 2775 {} +
+find "${SOURCE_DIRS[@]}" -type f ! -perm -g+w -exec chmod g+w {} +
+
 composer install --no-dev --optimize-autoloader --no-interaction
 npm ci
 npm run build
