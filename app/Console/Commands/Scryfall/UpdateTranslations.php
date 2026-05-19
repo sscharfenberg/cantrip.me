@@ -65,14 +65,16 @@ class UpdateTranslations extends Command
         $shadow = $this->option('target') === 'shadow';
         $this->translationsService->updateTranslations(shadow: $shadow);
 
+        // Console-only row-count echo. The same numbers are logged from
+        // TranslationsService::flushOracleBuffer / flushFaceBuffer — those
+        // are the authoritative scryfall-channel entries and fire whether
+        // the command is invoked directly or by UpdateEverything.
         $oracleTable = $shadow ? 'oracle_card_translations__shadow' : 'oracle_card_translations';
         $faceTable = $shadow ? 'oracle_card_face_translations__shadow' : 'oracle_card_face_translations';
         $oracleCount = number_format(DB::table($oracleTable)->count(), 0, ',', '.');
         $faceCount = number_format(DB::table($faceTable)->count(), 0, ',', '.');
         $this->line("inserted $oracleCount rows into $oracleTable.");
         $this->line("inserted $faceCount rows into $faceTable.");
-        Log::channel('scryfall')->notice("inserted $oracleCount rows into $oracleTable.");
-        Log::channel('scryfall')->notice("inserted $faceCount rows into $faceTable.");
 
         $ms = $start->diffInMilliseconds(now());
         Log::channel('scryfall')->info('=======================================================');
