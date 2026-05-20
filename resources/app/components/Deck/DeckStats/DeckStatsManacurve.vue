@@ -173,8 +173,9 @@ const segmentsFor = (bucket: ManaCurveBucket): { kind: "permanents" | "spells"; 
     &__count {
         align-self: end;
 
-        line-height: 1;
         font-variant-numeric: tabular-nums;
+
+        line-height: 1;
 
         &--zero {
             opacity: 0.4;
@@ -260,8 +261,8 @@ const segmentsFor = (bucket: ManaCurveBucket): { kind: "permanents" | "spells"; 
     }
 
     &__label {
-        line-height: 1;
         font-variant-numeric: tabular-nums;
+        line-height: 1;
     }
 
     &__legend {

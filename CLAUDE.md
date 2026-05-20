@@ -31,7 +31,7 @@ php artisan tinker
 composer setup        # composer install + .env.production + key + migrate + npm install + build
 ```
 
-Requires Node 24.11+ and npm 11.3+.
+Requires Node 26.1+ and npm 11.13+.
 
 ## Architecture
 
@@ -71,11 +71,12 @@ Each deck-owner pair resolves to one of three modes that drive UI gating and dat
 - **Mode A — silent.** Per-card badges, "Assign physical copy", "add all cards to collection", claim flow are all hidden.
 - **Mode B — implicit tracking.** Coverage is *inferred* from `decks.container_id` (the deck's deckbox): cards in that container count as covered, others as elsewhere/missing. Silent at the badge layer if the deck has no `container_id` set.
 - **Mode C — explicit tracking.** Per-card "claimed_for_this_deck / available / claimed_by_other_deck / wrong_printing / not_owned" badges render.
-- Mode is chosen explicitly by the user.
+- Mode is chosen explicitly by the user via the deck-header collection-mode popover (PATCH `/decks/{deck}/collection-mode`); it's no longer inferred from pivot-row presence or stack count.
+- Global master switch `User.collection_integration_enabled` overrides every deck to effective mode A while off — the per-deck `collection_mode` column is preserved so flipping the switch back on restores prior choices. The deck-header badge is hidden entirely while the switch is off.
 
 **Service-of-record map:**
 - `DeckCollectionStatusService` — read-side: resolves `effectiveMode`, ships `statusForDeck` (mode C) or `implicitStatusForDeck` (mode B) to the controller.
-- `DeckCollectionModeService` — write-side mode transitions: `promoteToExplicit` (B→C), `clearAssignments` (C→B + null pin).
+- `DeckCollectionModeService` — write-side: single `setMode($deck, $mode)` method handles every transition. C → B/A cascade-deletes the deck's `deck_card_card_stack` pivot rows in the same transaction as the column write; other transitions are pure column writes. No-op when already in the requested mode.
 - `DeckCardAssignmentService` — single-stack replace on a deck card (per-card "Assign physical copy" picker). Atomic detach + oversize-split via `CardStackService::splitStack` + attach.
 - `CardStackClaimService` — collection-side: `bulkClaimsForStacks` for the "Reserved for [deck]" badges, `unclaimAll` for the row-actions / edit-form unclaim button.
 - `DeckFinalizeService` — wizard at planned→built: persists assignments, auto-splits deck cards on partial coverage, mints stacks for "bought new" rows.
