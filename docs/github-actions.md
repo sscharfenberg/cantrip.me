@@ -9,10 +9,10 @@ Single source of truth: **`package.json`** (`version` field). `config/app.php` r
 To cut a release:
 
 1. Bump `"version"` in `package.json` (e.g. `1.0.2` → `1.0.3`)
-2. Commit
-3. Tag and push: `git tag v1.0.3 && git push origin v1.0.3`
+2. Commit and push to `main`
+3. Trigger **Deploy to production** from the Actions tab and approve when prompted
 
-Pushing the `v*.*.*` tag triggers the production deploy workflow. On the next deploy `php artisan config:cache` re-reads `package.json` and the new value is reflected in `config('app.version')`.
+On the next deploy `php artisan config:cache` re-reads `package.json` and the new value is reflected in `config('app.version')`. Version bumps are decoupled from deploys — you can deploy without bumping (e.g. urgent bugfix that's user-invisible) and you can bump without deploying (until the next manual dispatch).
 
 ## `ci.yml` — Continuous Integration
 
@@ -24,13 +24,13 @@ Pushing the `v*.*.*` tag triggers the production deploy workflow. On the next de
 - **Pint** — `composer pint` for PHP code style.
 - **Frontend** — ESLint, Stylelint, `vue-tsc`, and a production Vite build to catch type errors and broken imports before merge.
 
-CI must pass before deploys are tagged. Nothing in this workflow touches any server.
+CI must pass before deploying. Nothing in this workflow touches any server.
 
 ## `deploy-staging.yml` — Deploy to staging
 
 **Trigger:** `workflow_dispatch` only — manual button in the **Actions** tab.
 
-**Why manual?** The staging server is also used as a remote dev environment. Auto-deploying on every push to `main` would clobber in-progress work uploaded via Rsync. Triggering manually lets you decide when to snap staging to whatever's currently on `main` — typically before tagging a production release.
+**Why manual?** The staging server is also used as a remote dev environment. Auto-deploying on every push to `main` would clobber in-progress work uploaded via Rsync. Triggering manually lets you decide when to snap staging to whatever's currently on `main` — typically before deploying to production.
 
 **What it does:** pulls the current `main` branch on the staging environment, installs PHP and Node dependencies, builds frontend assets, runs migrations, and warms the framework caches.
 
@@ -38,21 +38,22 @@ CI must pass before deploys are tagged. Nothing in this workflow touches any ser
 
 ## `deploy-production.yml` — Deploy to production
 
-**Trigger:** push of any `v*.*.*` tag (semver-style). Branch pushes do not trigger this workflow.
+**Trigger:** `workflow_dispatch` only — manual button in the **Actions** tab. Pick the branch you want to deploy from (typically `main`); the workflow captures that branch's HEAD commit SHA at dispatch time.
 
-**Approval gate:** the `production` environment has a **Required reviewers** protection rule. After the tag is pushed, the workflow queues and pauses with a "Review pending deployment" notification. A reviewer must approve in the Actions UI before any server-side step runs. This means a malicious tag (or a mistakenly-pushed early tag) cannot auto-deploy.
+**Approval gate:** the `production` environment has a **Required reviewers** protection rule. After dispatch, the workflow queues and pauses with a "Review pending deployment" notification. A reviewer must approve in the Actions UI before any server-side step runs. The reviewer gate is the actual security control — anyone with `actions: write` can queue a deploy, but only an approved reviewer can land it.
 
-**What it does:** the same pipeline as staging, but pinned to the tagged commit (`git reset --hard <tag>`) rather than `main`. The tag name is passed through to the production environment, validated against the semver regex on the server side, and used as the deploy target.
+**What it does:** the same pipeline as staging, but pinned to the commit SHA captured at dispatch time (`git reset --hard <sha>`) rather than `main`. This means a reviewer-approval delay doesn't get poisoned by a subsequent push to `main` — what was reviewed is what deploys. The SHA is passed through to the production environment, validated as 40 hex chars on the server side, and used as the deploy target.
 
 **Environment:** `production`.
 
+**Audit trail:** every run records a GitHub Deployment under the repo's **Deployments** tab — timestamp, commit SHA, actor, status. No tags are created; the Deployments view is the source of truth for "what's in prod right now".
+
 ## End-to-end release flow
 
-1. Bump `package.json` `version` (single source of truth — see [Versioning](#versioning) above).
+1. (Optional) Bump `package.json` `version` if the release is user-visible (see [Versioning](#versioning) above).
 2. Commit + push to `main`. CI runs.
-3. (Optional) Trigger **Deploy to staging** manually to verify `main` works on a real environment before tagging.
-4. Tag: `git tag vX.Y.Z && git push origin vX.Y.Z`.
-5. Tag push triggers **Deploy to production**. Approve in the Actions tab when ready.
+3. (Optional) Trigger **Deploy to staging** manually to verify `main` works on a real environment before deploying to prod.
+4. Trigger **Deploy to production** manually. Approve in the Actions tab when prompted.
 
 ## Configuration
 

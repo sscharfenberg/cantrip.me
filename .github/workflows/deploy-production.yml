@@ -4,9 +4,7 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
 
 on:
-  push:
-    tags:
-      - 'v*.*.*'
+  workflow_dispatch:
 
 concurrency:
   group: deploy-production
@@ -14,7 +12,7 @@ concurrency:
 
 jobs:
   deploy:
-    name: ${{ github.ref_name }} → production
+    name: ${{ github.sha }} → production
     runs-on: ubuntu-latest
     environment: production
     timeout-minutes: 30
@@ -35,9 +33,9 @@ jobs:
 
       - name: Run production deploy script on server
         env:
-          TAG: ${{ github.ref_name }}
+          REF: ${{ github.sha }}
           HOST: ${{ vars.DEPLOY_HOST }}
           PORT: ${{ vars.DEPLOY_PORT }}
         run: |
-          echo "Deploying $TAG to production at $HOST:$PORT"
-          ssh -p "$PORT" deploy@"$HOST" "$TAG"
+          echo "Deploying $REF to production at $HOST:$PORT"
+          ssh -p "$PORT" deploy@"$HOST" "$REF"

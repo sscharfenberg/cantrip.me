@@ -49,7 +49,7 @@ In-depth docs live under `docs/`:
 * **[Development](docs/development.md)** — `composer dev`, NPM commands, IDE setup (Prettier / ESLint / Stylelint).
 * **[Testing](docs/testing.md)** — `composer test` (Local / SQLite) vs. `composer test:mysql` (Staging / MariaDB), prerequisites, how to add new tests.
 * **[Artisan commands](docs/artisan-commands.md)** — every project-specific artisan command: the Scryfall sync flow (shadow-table swap), per-step commands, image GC, FK repair, scheduled tasks.
-* **[GitHub Actions](docs/github-actions.md)** — CI pipeline, staging deploy (manual), production deploy (tag-driven, reviewer-gated), versioning, end-to-end release flow.
+* **[GitHub Actions](docs/github-actions.md)** — CI pipeline, staging deploy (manual), production deploy (manual, reviewer-gated), versioning, end-to-end release flow.
 * **[Makefile shortcuts](docs/makefile.md)** — `make logs-staging` / `make logs-prod` for pulling server logs locally.
 
 LLM-targeted architectural notes live in [`CLAUDE.md`](CLAUDE.md).

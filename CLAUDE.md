@@ -88,7 +88,7 @@ Each deck-owner pair resolves to one of three modes that drive UI gating and dat
 **Versioning:**
 - Single source of truth: `package.json#version`. `config/app.php` reads it directly (`json_decode(file_get_contents(base_path('package.json')))->version`) — frozen into `bootstrap/cache/config.php` by `php artisan config:cache` at deploy time, so no per-request reads.
 - **No** `APP_VERSION` in `.env` — it isn't consumed anywhere.
-- Release flow: bump `package.json` version → commit → `git tag vX.Y.Z` + push → tag push triggers prod deploy via `.github/workflows/deploy-production.yml`. Workflows documented in `README.md` § "GitHub Actions workflows".
+- Release flow: bump `package.json` version (when user-visible) → commit + push → manually dispatch **Deploy to production** in the Actions tab → approve at the reviewer gate. No tags involved. Workflows documented in `docs/github-actions.md`.
 
 **Forms and API calls:**
 - Form submission uses `fetch()` with JSON (not Inertia form helpers or traditional HTML forms) for flows that need fine-grained control (e.g. 2FA challenge)

@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # Production deploy script — installed on the production server at
 # /home/deploy/bin/deploy-prod.sh. Invoked over SSH from the
-# `deploy-production` GitHub Actions workflow; the version tag is
+# `deploy-production` GitHub Actions workflow; the commit SHA is
 # passed via $SSH_ORIGINAL_COMMAND (the deploy key's authorized_keys
 # `command=` directive forces this script and routes the client's
 # arg into $SSH_ORIGINAL_COMMAND).
 #
-# Flow: validate tag (vX.Y.Z) → snapshot maintenance state → down
-# → git reset --hard to the tag → composer/npm build → migrate
+# Flow: validate SHA (40 hex chars) → snapshot maintenance state → down
+# → git reset --hard to the SHA → composer/npm build → migrate
 # → artisan caches → conditionally up.
 #
 # `was_down` guard: a manual `php artisan down` survives a deploy —
@@ -24,9 +24,9 @@ export NVM_DIR="/home/deploy/.nvm"
 # shellcheck source=/dev/null
 . "$NVM_DIR/nvm.sh"
 
-TAG="${SSH_ORIGINAL_COMMAND:-}"
-if ! [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-  echo "ERROR: invalid or missing tag (got: '${TAG}')" >&2
+REF="${SSH_ORIGINAL_COMMAND:-}"
+if ! [[ "$REF" =~ ^[0-9a-f]{40}$ ]]; then
+  echo "ERROR: invalid or missing commit SHA (got: '${REF}')" >&2
   exit 1
 fi
 
@@ -43,8 +43,8 @@ fi
 
 php artisan down
 
-git fetch origin --tags
-git reset --hard "$TAG"
+git fetch origin
+git reset --hard "$REF"
 
 # Re-normalize source-tree perms. `git reset --hard` may write files
 # with mode 644 (ignoring umask in some setups), and any subdir whose
@@ -74,4 +74,4 @@ if [ "$was_down" -eq 0 ]; then
     php artisan up
 fi
 
-echo "Deployed $TAG to production."
+echo "Deployed $REF to production."
