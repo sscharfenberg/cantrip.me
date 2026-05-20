@@ -68,10 +68,10 @@ Both `commanders` and `deck_cards` tables store two card references:
 
 **Deck ↔ collection integration (modes A/B/C):**
 Each deck-owner pair resolves to one of three modes that drive UI gating and data shape on the deck show page:
-- **Mode A — silent.** User has no card stacks, or the user-level `users.collection_integration_enabled` master switch is off. Per-card badges, "Assign physical copy", and the finalize-wizard claim flow are all hidden.
-- **Mode B — implicit tracking.** User has stacks but no per-card claims yet. Coverage is *inferred* from `decks.container_id` (the deck's deckbox): cards in that container count as covered, others as elsewhere/missing. Silent at the badge layer if the deck has no `container_id` set.
-- **Mode C — explicit tracking.** User has claimed specific stacks for this deck via the `deck_card_card_stack` pivot. Per-card "claimed_for_this_deck / available / claimed_by_other_deck / wrong_printing / not_owned" badges render.
-- **Sticky pin.** `decks.collection_mode` is nullable; `'C'` pins a deck to mode C even after every claim is later detached. Implicit C→B regressions (e.g. user deletes the last claimed stack) are forbidden by design — C→B is only ever explicit, via the deck-header modal's "Clear all collection assignments". The pin is set the first time the wizard or per-card picker claims a stack and only ever cleared by `DeckCollectionModeService::clearAssignments`.
+- **Mode A — silent.** Per-card badges, "Assign physical copy", "add all cards to collection", claim flow are all hidden.
+- **Mode B — implicit tracking.** Coverage is *inferred* from `decks.container_id` (the deck's deckbox): cards in that container count as covered, others as elsewhere/missing. Silent at the badge layer if the deck has no `container_id` set.
+- **Mode C — explicit tracking.** Per-card "claimed_for_this_deck / available / claimed_by_other_deck / wrong_printing / not_owned" badges render.
+- Mode is chosen explicitly by the user.
 
 **Service-of-record map:**
 - `DeckCollectionStatusService` — read-side: resolves `effectiveMode`, ships `statusForDeck` (mode C) or `implicitStatusForDeck` (mode B) to the controller.
