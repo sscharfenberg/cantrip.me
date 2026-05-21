@@ -79,7 +79,7 @@ Each deck-owner pair resolves to one of three modes that drive UI gating and dat
 - `DeckCollectionModeService` — write-side: single `setMode($deck, $mode)` method handles every transition. C → B/A cascade-deletes the deck's `deck_card_card_stack` pivot rows in the same transaction as the column write; other transitions are pure column writes. No-op when already in the requested mode.
 - `DeckCardAssignmentService` — single-stack replace on a deck card (per-card "Assign physical copy" picker). Atomic detach + oversize-split via `CardStackService::splitStack` + attach.
 - `CardStackClaimService` — collection-side: `bulkClaimsForStacks` for the "Reserved for [deck]" badges, `unclaimAll` for the row-actions / edit-form unclaim button.
-- `DeckFinalizeService` — wizard at planned→built: persists assignments, auto-splits deck cards on partial coverage, mints stacks for "bought new" rows.
+- `DeckFinalizeService` — persists submissions from the BulkClaim page (`/decks/{deck}/bulk-claim`, mode C, owner-only). Writes pivot rows, swaps `deck_cards.default_card_id` when the user picks an alternate printing, auto-splits deck cards on partial coverage, mints stacks for "bought new" rows, and sets `decks.container_id` when one was picked. Deck state transitions (planned/built/archived) are decoupled and go through `/decks/{deck}/state`, not this service.
 
 **Lifecycle guards:** a claimed stack cannot change container — `UpdateCardStackRequest` and `MoveSelectedCardStacksRequest` 422 with `collection.errors.cannot_move_claimed_stack`. The intended UX is: user lands on the stack edit page from the 422, sees the "Reserved for [deck]" badge, clicks "Unclaim" inline, retries the move. Pivot rows cascade-delete on either deck deletion or stack deletion (DB FKs).
 

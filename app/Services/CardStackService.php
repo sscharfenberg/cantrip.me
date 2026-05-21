@@ -34,12 +34,10 @@ class CardStackService
      * one already exists with the same identifying attributes.
      *
      * A stack is uniquely identified by user_id + default_card_id + language +
-     * condition + finish + container_id (including null matches). The
-     * `proxy` flag is intentionally NOT part of the merge key — when adding
-     * a proxy on top of a real-card stack of otherwise-identical attributes
-     * (or vice versa) the existing stack absorbs the new amount and its
-     * `proxy` flag stays unchanged. The user keeps a single stack per
-     * "physical pile in this container" identity.
+     * condition + finish + container_id (including null matches) + proxy.
+     * Proxies are kept on their own stacks so a real-card pile and a proxy
+     * pile of the same printing never collapse into one — they're different
+     * physical objects with different value semantics.
      *
      * @param  array{default_card_id: string, amount: int, language: string, container_id?: string|null, condition?: string|null, finish: string, proxy?: bool}  $data  finish is a Finish label string.
      * @return array{stack: CardStack, merged: bool}
@@ -53,6 +51,7 @@ class CardStackService
             'condition' => $data['condition'] ?? null,
             'finish' => Finish::fromLabel($data['finish']),
             'container_id' => $data['container_id'] ?? null,
+            'proxy' => (bool) ($data['proxy'] ?? false),
         ];
 
         $existing = CardStack::where($attributes)->first();
@@ -67,7 +66,6 @@ class CardStackService
             'stack' => CardStack::create([
                 ...$attributes,
                 'amount' => $data['amount'],
-                'proxy' => (bool) ($data['proxy'] ?? false),
             ]),
             'merged' => false,
         ];
