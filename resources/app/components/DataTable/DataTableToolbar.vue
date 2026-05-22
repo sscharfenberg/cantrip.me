@@ -18,7 +18,7 @@ watch(query, value => {
     if (debounceTimer) clearTimeout(debounceTimer);
     debounceTimer = setTimeout(() => {
         emit("search", value);
-    }, 350);
+    }, 600);
 });
 /** Sync external search prop back to local input (e.g. on Inertia navigation). */
 watch(
