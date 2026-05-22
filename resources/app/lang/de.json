@@ -171,7 +171,7 @@
                 "title": "Scryfall Daten",
                 "oracle": {
                     "title": "Oracle Karten",
-                    "explanation": "Eine Karte für jede Oracle ID. Die gewählten Sets für die Karten sind ein Versuch die aktuellsten Versionen der Karten auszugeben."
+                    "explanation": "Eine Karte für jede Oracle ID."
                 },
                 "default": {
                     "title": "'Standard' Karten",

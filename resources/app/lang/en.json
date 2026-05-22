@@ -171,7 +171,7 @@
                 "title": "Scryfall data",
                 "oracle": {
                     "title": "Oracle Cards",
-                    "explanation": "One card for each Oracle ID. The chosen sets for the cards are an attempt to return the most up-to-date recognizable version of the card."
+                    "explanation": "One card for each Oracle ID."
                 },
                 "default": {
                     "title": "Default Cards",
