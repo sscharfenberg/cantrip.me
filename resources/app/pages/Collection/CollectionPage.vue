@@ -161,6 +161,21 @@ setBreadcrumbs([{ labelKey: "pages.collection.link" }]);
             <template #value>{{ formatPrice(stats.totalPrice) }}</template>
             <template #explanation>{{ $t("pages.collection.stats.totalPrice.explanation") }}</template>
         </stats-item>
+        <stats-donut
+            v-if="containerTypeSegments.length"
+            :title="$t('pages.collection.stats.containerTypes.title')"
+            :segments="containerTypeSegments"
+        />
+        <stats-donut
+            v-if="raritySegments.length"
+            :title="$t('pages.collection.stats.rarities.title')"
+            :segments="raritySegments"
+        />
+        <stats-item>
+            <template #title>{{ $t("pages.collection.stats.containers.title") }}</template>
+            <template #value>{{ formatDecimals(stats.containers) }}</template>
+            <template #explanation>{{ $t("pages.collection.stats.containers.explanation") }}</template>
+        </stats-item>
         <stats-item>
             <template #title>{{ $t("pages.collection.stats.totalCards.title") }}</template>
             <template #value>{{ formatDecimals(stats.totalCards) }}</template>
@@ -170,11 +185,6 @@ setBreadcrumbs([{ labelKey: "pages.collection.link" }]);
             <template #title>{{ $t("pages.collection.stats.uniqueCards.title") }}</template>
             <template #value>{{ formatDecimals(stats.uniqueCards) }}</template>
             <template #explanation>{{ $t("pages.collection.stats.uniqueCards.explanation") }}</template>
-        </stats-item>
-        <stats-item>
-            <template #title>{{ $t("pages.collection.stats.containers.title") }}</template>
-            <template #value>{{ formatDecimals(stats.containers) }}</template>
-            <template #explanation>{{ $t("pages.collection.stats.containers.explanation") }}</template>
         </stats-item>
         <stats-item v-if="stats.mostValuableCard">
             <template #title>{{ $t("pages.collection.stats.mostValuableCard.title") }}</template>
@@ -206,16 +216,6 @@ setBreadcrumbs([{ labelKey: "pages.collection.link" }]);
             </template>
             <template #explanation>{{ $t("pages.collection.stats.mostOwnedCard.explanation") }}</template>
         </stats-item>
-        <stats-donut
-            v-if="containerTypeSegments.length"
-            :title="$t('pages.collection.stats.containerTypes.title')"
-            :segments="containerTypeSegments"
-        />
-        <stats-donut
-            v-if="raritySegments.length"
-            :title="$t('pages.collection.stats.rarities.title')"
-            :segments="raritySegments"
-        />
         <stats-donut
             v-if="topSetSegments.length"
             :title="$t('pages.collection.stats.topSets.title')"

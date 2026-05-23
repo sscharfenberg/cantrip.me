@@ -83,6 +83,11 @@ const topSetSegments = computed<StatsDonutSegment[]>(() =>
 
 <template>
     <stats>
+        <stats-item v-if="stats.totalPrice > 0">
+            <template #title>{{ $t("pages.welcome.site_stats.worth.title") }}</template>
+            <template #value>{{ formatPrice(stats.totalPrice) }}</template>
+            <template #explanation>{{ $t("pages.welcome.site_stats.worth.explanation") }}</template>
+        </stats-item>
         <stats-donut
             v-if="containerTypeSegments.length"
             :title="$t('pages.welcome.site_stats.containerTypes.title')"
@@ -93,6 +98,11 @@ const topSetSegments = computed<StatsDonutSegment[]>(() =>
             :title="$t('pages.welcome.site_stats.rarities.title')"
             :segments="raritySegments"
         />
+        <stats-item v-if="stats.containers > 0">
+            <template #title>{{ $t("pages.welcome.site_stats.containers.title") }}</template>
+            <template #value>{{ formatDecimals(stats.containers) }}</template>
+            <template #explanation>{{ $t("pages.welcome.site_stats.containers.explanation") }}</template>
+        </stats-item>
         <stats-donut
             v-if="topSetSegments.length"
             :title="$t('pages.welcome.site_stats.topSets.title')"
@@ -103,16 +113,6 @@ const topSetSegments = computed<StatsDonutSegment[]>(() =>
             <template #title>{{ $t("pages.welcome.site_stats.cards.title") }}</template>
             <template #value>{{ formatDecimals(stats.totalCards) }}</template>
             <template #explanation>{{ $t("pages.welcome.site_stats.cards.explanation") }}</template>
-        </stats-item>
-        <stats-item v-if="stats.containers > 0">
-            <template #title>{{ $t("pages.welcome.site_stats.containers.title") }}</template>
-            <template #value>{{ formatDecimals(stats.containers) }}</template>
-            <template #explanation>{{ $t("pages.welcome.site_stats.containers.explanation") }}</template>
-        </stats-item>
-        <stats-item v-if="stats.totalPrice > 0">
-            <template #title>{{ $t("pages.welcome.site_stats.worth.title") }}</template>
-            <template #value>{{ formatPrice(stats.totalPrice) }}</template>
-            <template #explanation>{{ $t("pages.welcome.site_stats.worth.explanation") }}</template>
         </stats-item>
         <stats-item v-if="stats.uniqueCards > 0">
             <template #title>{{ $t("pages.welcome.site_stats.uniqueCards.title") }}</template>
