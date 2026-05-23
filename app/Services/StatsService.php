@@ -230,9 +230,31 @@ class StatsService
 
     /**
      * Stats payload for the welcome-page "cantrip.me collections"
-     * section. The viewer parameter picks the currency for worth-
-     * denominated values; nullable because guests visit the welcome
-     * page.
+     * section (every card_stack + container in the database). The
+     * viewer parameter picks the currency for worth-denominated values;
+     * nullable because guests visit the welcome page.
+     */
+    public static function forSiteCollection(?User $viewer): array
+    {
+        return self::aggregateCollectionStats(null, $viewer);
+    }
+
+    /**
+     * Stats payload for the per-user collection page. Same shape as
+     * {@see self::forSiteCollection}; queries are scoped to this
+     * user's `card_stacks` and `containers` only.
+     */
+    public static function forUserCollection(User $user): array
+    {
+        return self::aggregateCollectionStats($user, $user);
+    }
+
+    /**
+     * Shared collection aggregation. When `$scope` is null, every row
+     * in the database participates (welcome page); otherwise queries
+     * are restricted to that user's stacks/containers (collection
+     * page). The `$viewer` is independent so the welcome page can
+     * resolve a guest's currency from the locale.
      *
      * @return array{
      *     totalCards: int,
@@ -242,21 +264,26 @@ class StatsService
      *     containerTypes: array<string, int>,
      *     rarities: array<string, int>,
      *     topSets: array<int, array{code: string, name: string, count: int}>,
-     *     mostValuableCard: array{name: string, set_code: string, card_image_0: string|null, price: float}|null,
-     *     mostOwnedCard: array{name: string, set_code: string, card_image_0: string|null, owned: int}|null,
+     *     mostValuableCard: array{name: string, price: float, printingsOwned: int}|null,
+     *     mostOwnedCard: array{name: string, owned: int, printingsOwned: int}|null,
      * }
      */
-    public static function forSiteCollection(?User $viewer): array
+    private static function aggregateCollectionStats(?User $scope, ?User $viewer): array
     {
+        $userId = $scope?->id;
         $currency = $viewer?->currency
             ?? Locale::from(app()->getLocale())->defaultCurrency();
         $unitPriceSql = ContainerService::unitPriceSql($currency);
 
         // Single aggregate query for the totals + rarity buckets so
-        // the welcome-page collection tiles can't disagree with each
-        // other if the dataset changes mid-render.
-        $totals = CardStack::query()
-            ->join('default_cards', 'card_stacks.default_card_id', '=', 'default_cards.id')
+        // the consuming tiles can't disagree with each other if the
+        // dataset changes mid-render.
+        $totalsQuery = CardStack::query()
+            ->join('default_cards', 'card_stacks.default_card_id', '=', 'default_cards.id');
+        if ($userId !== null) {
+            $totalsQuery->where('card_stacks.user_id', $userId);
+        }
+        $totals = $totalsQuery
             ->selectRaw('COALESCE(SUM(card_stacks.amount), 0) as total_cards')
             ->selectRaw('COUNT(DISTINCT default_cards.id) as unique_cards')
             ->selectRaw("COALESCE(SUM(card_stacks.amount * ({$unitPriceSql})), 0) as total_price")
@@ -266,7 +293,11 @@ class StatsService
             ->selectRaw('COALESCE(SUM(CASE WHEN default_cards.rarity = ? THEN card_stacks.amount ELSE 0 END), 0) as mythics', [ScryfallRarity::Mythic->value])
             ->first();
 
-        $containerTypes = Container::query()
+        $containerTypesQuery = Container::query();
+        if ($userId !== null) {
+            $containerTypesQuery->where('user_id', $userId);
+        }
+        $containerTypes = $containerTypesQuery
             ->selectRaw('type, COUNT(*) as cnt')
             ->groupBy('type')
             ->pluck('cnt', 'type')
@@ -289,29 +320,38 @@ class StatsService
                 ScryfallRarity::Rare->value => (int) $totals->rares,
                 ScryfallRarity::Mythic->value => (int) $totals->mythics,
             ],
-            'topSets' => self::topSets(),
-            'mostValuableCard' => self::mostValuableCard($currency),
-            'mostOwnedCard' => self::mostOwnedCard(),
+            'topSets' => self::topSets($userId),
+            'mostValuableCard' => self::mostValuableCard($currency, $userId),
+            'mostOwnedCard' => self::mostOwnedCard($userId),
         ];
     }
 
     /**
-     * Top five most-collected sets by total card amount across every
-     * user's stacks. Returned in descending order. Capped at five and
-     * explicitly *not* run through the collapser — this is a "top N
-     * leaderboard" tile, not a distribution, so a bundled "Other"
-     * slice would mislead the reader.
+     * Top five most-collected sets by total card amount. When
+     * `$userId` is null, aggregates across every user's stacks
+     * (welcome page); otherwise scopes to that user's collection.
+     * Returned in descending order, capped at five, and explicitly
+     * *not* run through the collapser — this is a "top N leaderboard"
+     * tile, not a distribution, so a bundled "Other" slice would
+     * mislead the reader.
      *
      * @return array<int, array{code: string, name: string, count: int}>
      */
-    private static function topSets(): array
+    private static function topSets(?string $userId): array
     {
-        return CardStack::query()
+        $query = CardStack::query()
             ->join('default_cards', 'card_stacks.default_card_id', '=', 'default_cards.id')
-            ->join('sets', 'default_cards.set_id', '=', 'sets.id')
+            ->join('sets', 'default_cards.set_id', '=', 'sets.id');
+        if ($userId !== null) {
+            $query->where('card_stacks.user_id', $userId);
+        }
+
+        return $query
             ->groupBy('sets.id', 'sets.code', 'sets.name')
             ->selectRaw('sets.code as code, sets.name as name, COALESCE(SUM(card_stacks.amount), 0) as cnt')
-            ->orderByRaw('cnt desc')
+            // Alphabetical set code tiebreaker so two sets with the
+            // same total don't fight for the same slot on each render.
+            ->orderByRaw('cnt desc, sets.code asc')
             ->limit(5)
             ->get()
             ->map(fn ($row): array => [
@@ -323,70 +363,88 @@ class StatsService
     }
 
     /**
-     * The single most-valuable card *currently owned* by any user, in
-     * the visitor's currency. "Owned" means it appears in any non-
-     * proxy `card_stacks` row; proxies are excluded because their
-     * unit price short-circuits to 0.
+     * The most-valuable card *currently owned*, aggregated at the
+     * oracle level: every printing of the same oracle card collapses
+     * into one entry, with the entry's "price" being the highest
+     * unit price across the owned printings. Without this rollup,
+     * pricing ties on a single oracle (foil + nonfoil of the same
+     * card, multiple Masters-set reprints, etc.) made the displayed
+     * row arbitrary and the welcome / collection pages disagreed.
      *
-     * Returns null when nobody owns a positively-priced card (empty
-     * database, or every owned printing has a null/zero price in the
-     * requested currency).
+     * Proxies are excluded because their unit price short-circuits to
+     * 0. Alphabetical name tiebreaker keeps the result deterministic
+     * when multiple oracles share the same top price.
      *
-     * @return array{name: string, set_code: string, card_image_0: string|null, price: float}|null
+     * Returns null when nobody (in scope) owns a positively-priced
+     * card.
+     *
+     * @return array{name: string, price: float, printingsOwned: int}|null
      */
-    private static function mostValuableCard(Currency $currency): ?array
+    private static function mostValuableCard(Currency $currency, ?string $userId): ?array
     {
         $unitPriceSql = ContainerService::unitPriceSql($currency);
 
-        $row = CardStack::query()
+        $query = CardStack::query()
             ->join('default_cards', 'card_stacks.default_card_id', '=', 'default_cards.id')
-            ->join('sets', 'default_cards.set_id', '=', 'sets.id')
-            ->where('card_stacks.proxy', false)
-            ->selectRaw('default_cards.name as name')
-            ->selectRaw('default_cards.card_image_0 as card_image_0')
-            ->selectRaw('sets.code as set_code')
-            ->selectRaw("({$unitPriceSql}) as unit_price")
-            ->orderByRaw("({$unitPriceSql}) desc")
+            ->join('oracle_cards', 'default_cards.oracle_id', '=', 'oracle_cards.id')
+            ->where('card_stacks.proxy', false);
+        if ($userId !== null) {
+            $query->where('card_stacks.user_id', $userId);
+        }
+
+        $row = $query
+            ->groupBy('oracle_cards.id', 'oracle_cards.name')
+            ->selectRaw('oracle_cards.name as name')
+            ->selectRaw('COUNT(DISTINCT default_cards.id) as printings_owned')
+            ->selectRaw("MAX({$unitPriceSql}) as max_unit_price")
+            ->orderByRaw("MAX({$unitPriceSql}) desc, oracle_cards.name asc")
             ->limit(1)
             ->first();
 
-        if ($row === null || (float) $row->unit_price <= 0) {
+        if ($row === null || (float) $row->max_unit_price <= 0) {
             return null;
         }
 
         return [
             'name' => (string) $row->name,
-            'set_code' => (string) $row->set_code,
-            'card_image_0' => $row->card_image_0 !== null ? (string) $row->card_image_0 : null,
-            'price' => (float) $row->unit_price,
+            'price' => (float) $row->max_unit_price,
+            'printingsOwned' => (int) $row->printings_owned,
         ];
     }
 
     /**
-     * The single most-owned card across every user's stacks. Basic
-     * lands are excluded — without the filter, this tile would
-     * trivially read "Forest, 14000 copies" for any active site.
+     * The single most-owned card, aggregated at the oracle level:
+     * copies are summed across every printing the owner has. Without
+     * this rollup, a collection full of four-of constructed staples
+     * spread across multiple reprints produced a wide tie on
+     * `qty = 4` and the displayed row was arbitrary. Aggregating by
+     * oracle collapses "4 × Crop Rotation 7E + 4 × Crop Rotation
+     * MM4" into one entry of 8.
      *
-     * Basics are identified by `default_cards.name` since basic-land
-     * printings consistently use the bare basic name (no double-faced
-     * shenanigans), so the lookup avoids the oracle_cards join.
+     * Basic lands are excluded — without the filter this tile would
+     * trivially read "Forest, 14000 copies" for any active scope.
+     * Alphabetical name tiebreaker keeps the result deterministic.
      *
-     * Returns null when nobody owns any non-basic card.
+     * Returns null when nobody (in scope) owns any non-basic card.
      *
-     * @return array{name: string, set_code: string, card_image_0: string|null, owned: int}|null
+     * @return array{name: string, owned: int, printingsOwned: int}|null
      */
-    private static function mostOwnedCard(): ?array
+    private static function mostOwnedCard(?string $userId): ?array
     {
-        $row = CardStack::query()
+        $query = CardStack::query()
             ->join('default_cards', 'card_stacks.default_card_id', '=', 'default_cards.id')
-            ->join('sets', 'default_cards.set_id', '=', 'sets.id')
-            ->whereNotIn('default_cards.name', FormatProfile::BASIC_LANDS)
-            ->groupBy('default_cards.id', 'default_cards.name', 'default_cards.card_image_0', 'sets.code')
-            ->selectRaw('default_cards.name as name')
-            ->selectRaw('default_cards.card_image_0 as card_image_0')
-            ->selectRaw('sets.code as set_code')
+            ->join('oracle_cards', 'default_cards.oracle_id', '=', 'oracle_cards.id')
+            ->whereNotIn('oracle_cards.name', FormatProfile::BASIC_LANDS);
+        if ($userId !== null) {
+            $query->where('card_stacks.user_id', $userId);
+        }
+
+        $row = $query
+            ->groupBy('oracle_cards.id', 'oracle_cards.name')
+            ->selectRaw('oracle_cards.name as name')
+            ->selectRaw('COUNT(DISTINCT default_cards.id) as printings_owned')
             ->selectRaw('COALESCE(SUM(card_stacks.amount), 0) as owned')
-            ->orderByRaw('COALESCE(SUM(card_stacks.amount), 0) desc')
+            ->orderByRaw('COALESCE(SUM(card_stacks.amount), 0) desc, oracle_cards.name asc')
             ->limit(1)
             ->first();
 
@@ -396,9 +454,8 @@ class StatsService
 
         return [
             'name' => (string) $row->name,
-            'set_code' => (string) $row->set_code,
-            'card_image_0' => $row->card_image_0 !== null ? (string) $row->card_image_0 : null,
             'owned' => (int) $row->owned,
+            'printingsOwned' => (int) $row->printings_owned,
         ];
     }
 

@@ -2,6 +2,9 @@
 import { computed } from "vue";
 import { annulusPath, arcPath } from "@/utils/donutPath";
 import Headline from "Components/UI/Headline.vue";
+import { useFormatting } from "Composables/useFormatting.ts";
+
+const { formatDecimals } = useFormatting();
 
 export interface StatsDonutSegment {
     /** Stable key for v-for. */
@@ -26,12 +29,25 @@ export interface StatsDonutSegment {
     colorSlot?: number;
 }
 
-const props = defineProps<{
-    /** Tile title (translated). */
-    title: string;
-    /** Donut segments, in display order. Order also picks the color slot. */
-    segments: StatsDonutSegment[];
-}>();
+const props = withDefaults(
+    defineProps<{
+        /** Tile title (translated). */
+        title: string;
+        /** Donut segments, in display order. Order also picks the color slot. */
+        segments: StatsDonutSegment[];
+        /**
+         * Suppress the per-slice percentage text in the legend, the
+         * tooltip aria-label, and the legend bar's percent suffix.
+         * Use this when the donut intentionally covers only a subset
+         * of the universe (e.g. "top 5 sets"), so a local
+         * share-of-shown number wouldn't represent share-of-total.
+         * Bar geometry still reflects local share — kept for visual
+         * comparison within the tile.
+         */
+        hidePercent?: boolean;
+    }>(),
+    { hidePercent: false }
+);
 
 /**
  * Number of distinct color slots the SCSS block defines. Segments past
@@ -125,7 +141,11 @@ const resolved = computed<ResolvedSegment[]>(() => {
                     :class="`stats-donut__segment--${seg.colorIdx}`"
                     :d="seg.path"
                     fill-rule="evenodd"
-                    :aria-label="`${seg.label}: ${seg.count} (${Math.round(seg.percent)}%)`"
+                    :aria-label="
+                        hidePercent
+                            ? `${seg.label}: ${seg.count}`
+                            : `${seg.label}: ${seg.count} (${Math.round(seg.percent)}%)`
+                    "
                 />
             </svg>
             <ul v-if="resolved.length" class="stats-donut__legend">
@@ -139,7 +159,8 @@ const resolved = computed<ResolvedSegment[]>(() => {
                         <div class="stats-donut__legend-text">
                             <span class="stats-donut__legend-label">{{ seg.label }}</span>
                             <span class="stats-donut__legend-count">
-                                {{ seg.count }}&nbsp;({{ Math.round(seg.percent) }}%)
+                                {{ formatDecimals(seg.count)
+                                }}<template v-if="!hidePercent">&nbsp;({{ Math.round(seg.percent) }}%)</template>
                             </span>
                         </div>
                         <div class="stats-donut__legend-bar" aria-hidden="true">
@@ -160,6 +181,7 @@ const resolved = computed<ResolvedSegment[]>(() => {
 @use "sass:color";
 @use "sass:map";
 @use "Abstracts/colors" as c;
+@use "Abstracts/mixins" as m;
 @use "Abstracts/sizes" as s;
 
 // Ten color slots sourced from $components.stats-donut. Slots 1..5 are
@@ -172,10 +194,14 @@ $slot-ids: ("1", "2", "3", "4", "5", "6", "7", "8", "9", "10");
     flex-direction: column;
 
     // Span two grid columns in the parent <Stats> auto-fit grid so the
-    // donut and its legend can sit side-by-side. Falls back to a single
-    // column when the grid only has room for one (auto-fit collapses;
-    // `span 2` then just fills the only column).
-    grid-column: span 2;
+    // donut and its legend can sit side-by-side. Only applied from the
+    // `portrait` breakpoint up — on phone widths the grid auto-fits to
+    // a single column anyway, and `span 2` there would force the
+    // browser to create a second implicit column, halving the
+    // available width for every tile in the section.
+    @include m.mq("portrait") {
+        grid-column: span 2;
+    }
 
     padding: map.get(s.$components, "stats", "padding");
     border: map.get(s.$components, "stats", "border") solid map.get(c.$components, "stats", "border");

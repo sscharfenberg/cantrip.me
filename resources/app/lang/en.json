@@ -231,11 +231,13 @@
                 },
                 "mostValuableCard": {
                     "title": "Most valuable card",
-                    "explanation": "The highest unit-priced single card owned by any cantrip.me user, in the visitor's currency."
+                    "printings": "(across {count} printings)",
+                    "explanation": "The card whose most-valuable owned printing has the highest unit price, across every cantrip.me user."
                 },
                 "mostOwnedCard": {
                     "title": "Most owned card",
-                    "explanation": "The single non-basic card with the highest total copies owned across every cantrip.me user."
+                    "printings": "(across {count} printings)",
+                    "explanation": "The non-basic card with the highest copy count across every cantrip.me user. Copies of different printings of the same card are summed together."
                 },
                 "other": "Other"
             },
@@ -560,10 +562,6 @@
                     "title": "Total Cards",
                     "explanation": "The total number of cards in your collection."
                 },
-                "totalStacks": {
-                    "title": "Unique Stacks",
-                    "explanation": "The number of distinct card stacks in your collection."
-                },
                 "totalPrice": {
                     "title": "Total Value",
                     "explanation": "The estimated total value of your collection based on current market prices."
@@ -572,22 +570,34 @@
                     "title": "Containers",
                     "explanation": "The number of containers you use to organize your collection."
                 },
-                "commons": {
-                    "title": "Commons",
-                    "explanation": "The number of common cards in your collection."
+                "uniqueCards": {
+                    "title": "Unique printings",
+                    "explanation": "The number of distinct card printings in your collection (counts \"Forest LEA\" and \"Forest MOM\" separately)."
                 },
-                "uncommons": {
-                    "title": "Uncommons",
-                    "explanation": "The number of uncommon cards in your collection."
+                "mostValuableCard": {
+                    "title": "Your most valuable card",
+                    "printings": "(across {count} printings)",
+                    "explanation": "The card whose most-valuable owned printing has the highest unit price in your collection (excluding proxies)."
                 },
-                "rares": {
-                    "title": "Rares",
-                    "explanation": "The number of rare cards in your collection."
+                "mostOwnedCard": {
+                    "title": "Your most owned card",
+                    "printings": "(across {count} printings)",
+                    "explanation": "The non-basic card you own the most copies of. Copies of different printings of the same card are summed together."
                 },
-                "mythics": {
-                    "title": "Mythics",
-                    "explanation": "The number of mythic rare cards in your collection."
-                }
+                "containerTypes": {
+                    "title": "Container types"
+                },
+                "rarities": {
+                    "title": "Rarities",
+                    "common": "Common",
+                    "uncommon": "Uncommon",
+                    "rare": "Rare",
+                    "mythic": "Mythic Rare"
+                },
+                "topSets": {
+                    "title": "Top 5 collected sets"
+                },
+                "other": "Other"
             },
             "nav": {
                 "label": "Collection navigation"
@@ -810,6 +820,10 @@
             "state_built": "{count} finished deck | {count} finished decks",
             "state_archived": "{count} archived deck | {count} archived decks",
             "stats": {
+                "totalDecks": {
+                    "title": "Total decks",
+                    "explanation": "The number of decks you've built, including archived ones."
+                },
                 "totalWorth": {
                     "title": "Total worth",
                     "explanation": "Combined value of every deck you own (including archived), based on current market prices."

@@ -29,15 +29,13 @@ const props = defineProps<{
         topSets: Array<{ code: string; name: string; count: number }>;
         mostValuableCard: {
             name: string;
-            set_code: string;
-            card_image_0: string | null;
             price: number;
+            printingsOwned: number;
         } | null;
         mostOwnedCard: {
             name: string;
-            set_code: string;
-            card_image_0: string | null;
             owned: number;
+            printingsOwned: number;
         } | null;
     };
 }>();
@@ -85,6 +83,22 @@ const topSetSegments = computed<StatsDonutSegment[]>(() =>
 
 <template>
     <stats>
+        <stats-donut
+            v-if="containerTypeSegments.length"
+            :title="$t('pages.welcome.site_stats.containerTypes.title')"
+            :segments="containerTypeSegments"
+        />
+        <stats-donut
+            v-if="raritySegments.length"
+            :title="$t('pages.welcome.site_stats.rarities.title')"
+            :segments="raritySegments"
+        />
+        <stats-donut
+            v-if="topSetSegments.length"
+            :title="$t('pages.welcome.site_stats.topSets.title')"
+            :segments="topSetSegments"
+            hide-percent
+        />
         <stats-item v-if="stats.totalCards > 0">
             <template #title>{{ $t("pages.welcome.site_stats.cards.title") }}</template>
             <template #value>{{ formatDecimals(stats.totalCards) }}</template>
@@ -107,42 +121,39 @@ const topSetSegments = computed<StatsDonutSegment[]>(() =>
         </stats-item>
         <stats-item v-if="stats.mostValuableCard">
             <template #title>{{ $t("pages.welcome.site_stats.mostValuableCard.title") }}</template>
-            <template #value>{{ formatPrice(stats.mostValuableCard.price) }}</template>
+            <template #value>{{ stats.mostValuableCard.name }}</template>
             <template #detail>
-                <strong>{{ stats.mostValuableCard.name }}</strong>
-                <span class="welcome-collection-stats__set">({{ stats.mostValuableCard.set_code.toUpperCase() }})</span>
+                {{ formatPrice(stats.mostValuableCard.price) }}
+                <span v-if="stats.mostValuableCard.printingsOwned > 1" class="welcome-collection-stats__printings">
+                    {{
+                        $t("pages.welcome.site_stats.mostValuableCard.printings", {
+                            count: stats.mostValuableCard.printingsOwned
+                        })
+                    }}
+                </span>
             </template>
             <template #explanation>{{ $t("pages.welcome.site_stats.mostValuableCard.explanation") }}</template>
         </stats-item>
         <stats-item v-if="stats.mostOwnedCard">
             <template #title>{{ $t("pages.welcome.site_stats.mostOwnedCard.title") }}</template>
-            <template #value>{{ formatDecimals(stats.mostOwnedCard.owned) }}</template>
+            <template #value>{{ stats.mostOwnedCard.name }}</template>
             <template #detail>
-                <strong>{{ stats.mostOwnedCard.name }}</strong>
-                <span class="welcome-collection-stats__set">({{ stats.mostOwnedCard.set_code.toUpperCase() }})</span>
+                {{ formatDecimals(stats.mostOwnedCard.owned) }}
+                <span v-if="stats.mostOwnedCard.printingsOwned > 1" class="welcome-collection-stats__printings">
+                    {{
+                        $t("pages.welcome.site_stats.mostOwnedCard.printings", {
+                            count: stats.mostOwnedCard.printingsOwned
+                        })
+                    }}
+                </span>
             </template>
             <template #explanation>{{ $t("pages.welcome.site_stats.mostOwnedCard.explanation") }}</template>
         </stats-item>
-        <stats-donut
-            v-if="containerTypeSegments.length"
-            :title="$t('pages.welcome.site_stats.containerTypes.title')"
-            :segments="containerTypeSegments"
-        />
-        <stats-donut
-            v-if="raritySegments.length"
-            :title="$t('pages.welcome.site_stats.rarities.title')"
-            :segments="raritySegments"
-        />
-        <stats-donut
-            v-if="topSetSegments.length"
-            :title="$t('pages.welcome.site_stats.topSets.title')"
-            :segments="topSetSegments"
-        />
     </stats>
 </template>
 
 <style scoped lang="scss">
-.welcome-collection-stats__set {
+.welcome-collection-stats__printings {
     opacity: 0.7;
 }
 </style>

@@ -29,15 +29,13 @@ defineProps<{
         topSets: Array<{ code: string; name: string; count: number }>;
         mostValuableCard: {
             name: string;
-            set_code: string;
-            card_image_0: string | null;
             price: number;
+            printingsOwned: number;
         } | null;
         mostOwnedCard: {
             name: string;
-            set_code: string;
-            card_image_0: string | null;
             owned: number;
+            printingsOwned: number;
         } | null;
     };
     deckStats: {

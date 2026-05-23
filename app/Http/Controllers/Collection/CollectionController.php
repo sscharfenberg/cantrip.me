@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Collection;
 
-use App\Enums\Scryfall\ScryfallRarity;
 use App\Http\Controllers\Controller;
 use App\Models\CardStack;
 use App\Models\Container;
@@ -10,6 +9,7 @@ use App\Services\CardSearchParser;
 use App\Services\CardStackClaimService;
 use App\Services\ContainerService;
 use App\Services\DataTableService;
+use App\Services\StatsService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -29,21 +29,8 @@ class CollectionController extends Controller
         $currency = $user->currency;
         $unitPriceSql = ContainerService::unitPriceSql($currency);
 
-        $statsQuery = CardStack::query()
-            ->join('default_cards', 'card_stacks.default_card_id', '=', 'default_cards.id')
-            ->where('card_stacks.user_id', $user->id);
-
-        $stats = $statsQuery
-            ->selectRaw('COALESCE(SUM(card_stacks.amount), 0) as total_cards')
-            ->selectRaw('COUNT(*) as total_stacks')
-            ->selectRaw("COALESCE(SUM(card_stacks.amount * ({$unitPriceSql})), 0) as total_price")
-            ->selectRaw('COALESCE(SUM(CASE WHEN default_cards.rarity = ? THEN card_stacks.amount ELSE 0 END), 0) as commons', [ScryfallRarity::Common->value])
-            ->selectRaw('COALESCE(SUM(CASE WHEN default_cards.rarity = ? THEN card_stacks.amount ELSE 0 END), 0) as uncommons', [ScryfallRarity::Uncommon->value])
-            ->selectRaw('COALESCE(SUM(CASE WHEN default_cards.rarity = ? THEN card_stacks.amount ELSE 0 END), 0) as rares', [ScryfallRarity::Rare->value])
-            ->selectRaw('COALESCE(SUM(CASE WHEN default_cards.rarity = ? THEN card_stacks.amount ELSE 0 END), 0) as mythics', [ScryfallRarity::Mythic->value])
-            ->first();
-
-        $containerCount = $user->containers()->count();
+        $stats = StatsService::forUserCollection($user);
+        $containerCount = $stats['containers'];
 
         $tableQuery = CardStack::query()
             ->join('default_cards', 'card_stacks.default_card_id', '=', 'default_cards.id')
@@ -150,16 +137,7 @@ class CollectionController extends Controller
         unset($row);
 
         return Inertia::render('Collection/CollectionPage', [
-            'stats' => [
-                'totalCards' => (int) $stats->total_cards,
-                'totalStacks' => (int) $stats->total_stacks,
-                'totalPrice' => (float) $stats->total_price,
-                'containers' => $containerCount,
-                'commons' => (int) $stats->commons,
-                'uncommons' => (int) $stats->uncommons,
-                'rares' => (int) $stats->rares,
-                'mythics' => (int) $stats->mythics,
-            ],
+            'stats' => $stats,
             'table' => $table,
             'canCreateNewContainer' => $containerCount < Container::MAX_CONTAINERS,
         ]);

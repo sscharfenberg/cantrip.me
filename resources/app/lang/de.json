@@ -231,11 +231,13 @@
                 },
                 "mostValuableCard": {
                     "title": "Wertvollste Karte",
-                    "explanation": "Die teuerste einzelne Karte im Besitz eines cantrip.me-Nutzers, in der Währung des Besuchers."
+                    "printings": "(über {count} Drucke)",
+                    "explanation": "Die Karte, deren wertvollster gehaltener Druck den höchsten Einzelpreis hat."
                 },
                 "mostOwnedCard": {
                     "title": "Häufigste Karte",
-                    "explanation": "Die einzelne Nicht-Basisland-Karte mit der höchsten Gesamtanzahl aller cantrip.me-Nutzer."
+                    "printings": "(über {count} Drucke)",
+                    "explanation": "Die Nicht-Basisland-Karte mit der höchsten Gesamtanzahl aller cantrip.me-Nutzer. Kopien unterschiedlicher Drucke derselben Karte werden zusammengezählt."
                 },
                 "other": "Sonstige"
             },
@@ -560,10 +562,6 @@
                     "title": "Karten gesamt",
                     "explanation": "Die Gesamtzahl an Karten in deiner Sammlung."
                 },
-                "totalStacks": {
-                    "title": "Einzigartige Stapel",
-                    "explanation": "Die Anzahl unterschiedlicher Kartenstapel in deiner Sammlung."
-                },
                 "totalPrice": {
                     "title": "Gesamtwert",
                     "explanation": "Der geschätzte Gesamtwert deiner Sammlung basierend auf aktuellen Marktpreisen."
@@ -572,22 +570,34 @@
                     "title": "Container",
                     "explanation": "Die Anzahl der Container, die du zur Organisation deiner Sammlung nutzt."
                 },
-                "commons": {
-                    "title": "Commons",
-                    "explanation": "Anzahl der Commons in deiner Sammlung."
+                "uniqueCards": {
+                    "title": "Einzigartige Drucke",
+                    "explanation": "Die Anzahl unterschiedlicher Kartendrucke in deiner Sammlung (\"Forest LEA\" und \"Forest MOM\" werden getrennt gezählt)."
                 },
-                "uncommons": {
-                    "title": "Uncommons",
-                    "explanation": "Anzahl der Uncommons in deiner Sammlung."
+                "mostValuableCard": {
+                    "title": "Deine wertvollste Karte",
+                    "printings": "(über {count} Drucke)",
+                    "explanation": "Die Karte, deren wertvollster Druck in deiner Sammlung den höchsten Einzelpreis hat (ohne Proxies)."
                 },
-                "rares": {
-                    "title": "Rares",
-                    "explanation": "Anzahl der Rares in deiner Sammlung."
+                "mostOwnedCard": {
+                    "title": "Deine häufigste Karte",
+                    "printings": "(über {count} Drucke)",
+                    "explanation": "Die Nicht-Basisland-Karte, von der du die meisten Kopien besitzt. Kopien unterschiedlicher Drucke derselben Karte werden zusammengezählt."
                 },
-                "mythics": {
-                    "title": "Mythics",
-                    "explanation": "Anzahl der Mythic Rares in deiner Sammlung."
-                }
+                "containerTypes": {
+                    "title": "Container-Arten"
+                },
+                "rarities": {
+                    "title": "Seltenheiten",
+                    "common": "Common",
+                    "uncommon": "Uncommon",
+                    "rare": "Rare",
+                    "mythic": "Mythic Rare"
+                },
+                "topSets": {
+                    "title": "Top 5 gesammelte Sets"
+                },
+                "other": "Sonstige"
             },
             "nav": {
                 "label": "Navigation deiner Sammlung"
@@ -810,6 +820,10 @@
             "state_built": "{count} fertiges Deck | {count} fertige Decks",
             "state_archived": "{count} archiviertes Deck | {count} archivierte Decks",
             "stats": {
+                "totalDecks": {
+                    "title": "Decks gesamt",
+                    "explanation": "Die Anzahl der von dir gebauten Decks, einschließlich archivierter."
+                },
                 "totalWorth": {
                     "title": "Gesamtwert",
                     "explanation": "Summierter Wert aller deiner Decks (auch archivierter) basierend auf aktuellen Marktpreisen."

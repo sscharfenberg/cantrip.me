@@ -48,7 +48,7 @@ const COLOR_SLOT: Record<"W" | "U" | "B" | "R" | "G", number> = {
 const COLOR_ORDER: ReadonlyArray<"W" | "U" | "B" | "R" | "G"> = ["W", "U", "B", "R", "G"];
 
 const { t } = useI18n();
-const { formatPrice } = useFormatting();
+const { formatDecimals, formatPrice } = useFormatting();
 
 /** Sort segments by count desc so the biggest slice anchors 12 o'clock. */
 const sortedEntries = (record: Record<string, number>): Array<[string, number]> =>
@@ -108,6 +108,13 @@ const colorSegments = computed<StatsDonutSegment[]>(() =>
 <template>
     <stats>
         <stats-donut :title="$t('pages.decks.stats.formats.title')" :segments="formatSegments" />
+        <stats-donut :title="$t('pages.decks.stats.colors.title')" :segments="colorSegments" />
+        <stats-donut :title="$t('pages.decks.stats.states.title')" :segments="stateSegments" />
+        <stats-item>
+            <template #title>{{ $t("pages.decks.stats.totalDecks.title") }}</template>
+            <template #value>{{ formatDecimals(stats.totalDecks) }}</template>
+            <template #explanation>{{ $t("pages.decks.stats.totalDecks.explanation") }}</template>
+        </stats-item>
         <stats-item>
             <template #title>{{ $t("pages.decks.stats.totalWorth.title") }}</template>
             <template #value>{{ formatPrice(stats.totalWorth) }}</template>
@@ -121,9 +128,8 @@ const colorSegments = computed<StatsDonutSegment[]>(() =>
             </template>
             <template #explanation>{{ $t("pages.decks.stats.avgWorth.explanation") }}</template>
         </stats-item>
-        <stats-donut :title="$t('pages.decks.stats.states.title')" :segments="stateSegments" />
+
         <stats-donut :title="$t('pages.decks.stats.modes.title')" :segments="modeSegments" />
-        <stats-donut :title="$t('pages.decks.stats.colors.title')" :segments="colorSegments" />
     </stats>
 </template>
 
