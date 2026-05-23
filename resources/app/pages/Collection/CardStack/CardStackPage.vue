@@ -236,12 +236,41 @@ function onGlobalEnter(event: KeyboardEvent): void {
         target.click();
     }
 }
+/**
+ * Global "+"/"-" shortcut for the amount field. Matches both the main
+ * row and the numpad (`event.key` is "+"/"-" for both). Skipped when
+ * focus is inside an input/textarea/select/contenteditable so it
+ * doesn't fight typing in the card-search field; also skipped under
+ * Cmd/Ctrl/Alt so browser zoom (Ctrl++) keeps working.
+ */
+function onGlobalPlusMinus(event: KeyboardEvent): void {
+    if (event.key !== "+" && event.key !== "-") return;
+    if (event.metaKey || event.ctrlKey || event.altKey) return;
+    if (event.defaultPrevented) return;
+    const target = event.target as HTMLElement | null;
+    if (target) {
+        const tag = target.tagName;
+        if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || target.isContentEditable) {
+            return;
+        }
+    }
+    if (event.key === "+") {
+        event.preventDefault();
+        amount.value++;
+    } else {
+        if (amount.value <= 1) return;
+        event.preventDefault();
+        amount.value--;
+    }
+}
 onMounted(() => {
     if (!isEditMode) cardSearch.value?.focus();
     window.addEventListener("keydown", onGlobalEnter);
+    window.addEventListener("keydown", onGlobalPlusMinus);
 });
 onUnmounted(() => {
     window.removeEventListener("keydown", onGlobalEnter);
+    window.removeEventListener("keydown", onGlobalPlusMinus);
 });
 /**
  * "Save and add more" success handler. The Form is keyed on

@@ -112,7 +112,10 @@ export function useCardSearch<T>(endpoint: string, setCode?: Ref<string>) {
     function onClearSelection() {
         selectedCard.value = null;
         refValue.value = "";
-        searchQuery.value = "";
+        // searchQuery is intentionally NOT cleared — the user clicked
+        // "change selection" to refine their previous search, so the
+        // input field repopulates with what they typed last. They can
+        // edit it from there to retrigger a search.
     }
 
     /**
