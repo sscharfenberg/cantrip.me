@@ -81,19 +81,19 @@ const colorSegments = computed<StatsDonutSegment[]>(() =>
 
 <template>
     <stats>
-        <stats-donut :title="$t('pages.welcome.decks_stats.formats.title')" :segments="formatSegments" />
-        <stats-donut :title="$t('pages.welcome.decks_stats.colors.title')" :segments="colorSegments" />
-        <stats-donut :title="$t('pages.welcome.decks_stats.states.title')" :segments="stateSegments" />
         <stats-item>
             <template #title>{{ $t("pages.welcome.decks_stats.totalDecks.title") }}</template>
             <template #value>{{ formatDecimals(stats.totalDecks) }}</template>
             <template #explanation>{{ $t("pages.welcome.decks_stats.totalDecks.explanation") }}</template>
         </stats-item>
+        <stats-donut :title="$t('pages.welcome.decks_stats.formats.title')" :segments="formatSegments" />
+        <stats-donut :title="$t('pages.welcome.decks_stats.colors.title')" :segments="colorSegments" />
         <stats-item>
             <template #title>{{ $t("pages.welcome.decks_stats.totalWorth.title") }}</template>
             <template #value>{{ formatPrice(stats.totalWorth) }}</template>
             <template #explanation>{{ $t("pages.welcome.decks_stats.totalWorth.explanation") }}</template>
         </stats-item>
+        <stats-donut :title="$t('pages.welcome.decks_stats.states.title')" :segments="stateSegments" />
         <stats-item>
             <template #title>{{ $t("pages.welcome.decks_stats.avgWorth.title") }}</template>
             <template #value>{{ formatPrice(stats.avgWorth) }}</template>
