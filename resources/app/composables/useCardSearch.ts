@@ -100,22 +100,27 @@ export function useCardSearch<T>(endpoint: string, setCode?: Ref<string>) {
         processing.value = false;
     }
 
-    /** Called when the user clicks a result. */
+    /**
+     * Called when the user clicks a result.
+     *
+     * Results and searchQuery are intentionally NOT cleared — they stay
+     * in memory so that clicking "Change selection" later can restore
+     * the previous input + result list without re-fetching. The Results
+     * component is hidden visually via `v-if="!selectedCard"` in
+     * CardSearch.vue while a card is selected.
+     */
     function onCardSelected(card: T) {
         selectedCard.value = card;
         refValue.value = (card as Record<string, unknown>).id as string;
-        results.value = [];
-        totalResults.value = 0;
     }
 
     /** Called when the user clicks "Change selection". */
     function onClearSelection() {
         selectedCard.value = null;
         refValue.value = "";
-        // searchQuery is intentionally NOT cleared — the user clicked
-        // "change selection" to refine their previous search, so the
-        // input field repopulates with what they typed last. They can
-        // edit it from there to retrigger a search.
+        // searchQuery and results are preserved from before the
+        // selection, so the input repopulates and the previous result
+        // list reappears without a re-fetch.
     }
 
     /**

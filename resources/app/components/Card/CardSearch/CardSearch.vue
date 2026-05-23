@@ -117,7 +117,12 @@ defineExpose({ focus });
             <search-syntax v-else />
         </template>
     </form-group>
-    <Results v-if="results.length > 0" :results="results as T[]" :total-results="totalResults" @change="onCardSelected">
+    <Results
+        v-if="!selectedCard && results.length > 0"
+        :results="results as T[]"
+        :total-results="totalResults"
+        @change="onCardSelected"
+    >
         <template #result="{ card }">
             <slot name="result" :card="card as T" />
         </template>
