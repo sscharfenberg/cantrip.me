@@ -558,6 +558,7 @@
             "title": "Deine Sammlung",
             "link": "Sammlung",
             "stats": {
+                "title": "Statistiken deiner Sammlung",
                 "totalCards": {
                     "title": "Karten gesamt",
                     "explanation": "Die Gesamtzahl an Karten in deiner Sammlung."
@@ -820,6 +821,7 @@
             "state_built": "{count} fertiges Deck | {count} fertige Decks",
             "state_archived": "{count} archiviertes Deck | {count} archivierte Decks",
             "stats": {
+                "title": "Statistiken deiner Decks",
                 "totalDecks": {
                     "title": "Decks gesamt",
                     "explanation": "Die Anzahl der von dir gebauten Decks, einschließlich archivierter."

@@ -1,10 +1,15 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
+import Accordion from "Components/UI/Accordion.vue";
+import Icon from "Components/UI/Icon.vue";
 import Stats from "Components/UI/Stats/Stats.vue";
 import StatsDonut, { type StatsDonutSegment } from "Components/UI/Stats/StatsDonut.vue";
 import StatsItem from "Components/UI/Stats/StatsItem.vue";
 import { useFormatting } from "Composables/useFormatting.ts";
+import { usePersistedAccordion } from "Composables/usePersistedAccordion.ts";
+
+const { initialOpen, onToggle } = usePersistedAccordion("decks-page-stats-accordion-open");
 
 /**
  * Sentinel slice key used by StatsService when the long tail of a
@@ -106,34 +111,53 @@ const colorSegments = computed<StatsDonutSegment[]>(() =>
 </script>
 
 <template>
-    <stats>
-        <stats-item>
-            <template #title>{{ $t("pages.decks.stats.totalDecks.title") }}</template>
-            <template #value>{{ formatDecimals(stats.totalDecks) }}</template>
-            <template #explanation>{{ $t("pages.decks.stats.totalDecks.explanation") }}</template>
-        </stats-item>
-        <stats-item>
-            <template #title>{{ $t("pages.decks.stats.totalWorth.title") }}</template>
-            <template #value>{{ formatPrice(stats.totalWorth) }}</template>
-            <template #explanation>{{ $t("pages.decks.stats.totalWorth.explanation") }}</template>
-        </stats-item>
-        <stats-donut :title="$t('pages.decks.stats.formats.title')" :segments="formatSegments" />
-        <stats-donut :title="$t('pages.decks.stats.colors.title')" :segments="colorSegments" />
-        <stats-item>
-            <template #title>{{ $t("pages.decks.stats.avgWorth.title") }}</template>
-            <template #value>{{ formatPrice(stats.avgWorth) }}</template>
-            <template #detail>
-                {{ $t("pages.decks.stats.avgWorth.median", { value: formatPrice(stats.medianWorth) }) }}
-            </template>
-            <template #explanation>{{ $t("pages.decks.stats.avgWorth.explanation") }}</template>
-        </stats-item>
-        <stats-donut :title="$t('pages.decks.stats.states.title')" :segments="stateSegments" />
-        <stats-donut :title="$t('pages.decks.stats.modes.title')" :segments="modeSegments" />
-    </stats>
+    <accordion class="decks-page-stats" :initial-open="initialOpen" @toggle="onToggle">
+        <template #head>
+            <span class="decks-page-stats__title">
+                <icon name="chart" />
+                {{ $t("pages.decks.stats.title") }}
+            </span>
+        </template>
+        <template #body>
+            <stats variant="on-accordion">
+                <stats-item>
+                    <template #title>{{ $t("pages.decks.stats.totalDecks.title") }}</template>
+                    <template #value>{{ formatDecimals(stats.totalDecks) }}</template>
+                    <template #explanation>{{ $t("pages.decks.stats.totalDecks.explanation") }}</template>
+                </stats-item>
+                <stats-item>
+                    <template #title>{{ $t("pages.decks.stats.totalWorth.title") }}</template>
+                    <template #value>{{ formatPrice(stats.totalWorth) }}</template>
+                    <template #explanation>{{ $t("pages.decks.stats.totalWorth.explanation") }}</template>
+                </stats-item>
+                <stats-donut :title="$t('pages.decks.stats.formats.title')" :segments="formatSegments" />
+                <stats-donut :title="$t('pages.decks.stats.colors.title')" :segments="colorSegments" />
+                <stats-item>
+                    <template #title>{{ $t("pages.decks.stats.avgWorth.title") }}</template>
+                    <template #value>{{ formatPrice(stats.avgWorth) }}</template>
+                    <template #detail>
+                        {{ $t("pages.decks.stats.avgWorth.median", { value: formatPrice(stats.medianWorth) }) }}
+                    </template>
+                    <template #explanation>{{ $t("pages.decks.stats.avgWorth.explanation") }}</template>
+                </stats-item>
+                <stats-donut :title="$t('pages.decks.stats.states.title')" :segments="stateSegments" />
+                <stats-donut :title="$t('pages.decks.stats.modes.title')" :segments="modeSegments" />
+            </stats>
+        </template>
+    </accordion>
 </template>
 
 <style scoped lang="scss">
-.stats {
+.decks-page-stats {
     margin-bottom: 1lh;
+
+    &__title {
+        display: flex;
+        align-items: center;
+
+        gap: 0.5rem;
+
+        font-weight: 600;
+    }
 }
 </style>

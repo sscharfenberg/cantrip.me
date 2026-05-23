@@ -1,10 +1,29 @@
+<script setup lang="ts">
+import { computed } from "vue";
+
+const props = defineProps<{
+    /**
+     * Optional BEM modifier suffix applied to the `<ul>` root as
+     * `stats--<variant>`. Consumers can use it to style children
+     * uniformly (e.g. `> :nth-child(even/odd)` for striped tile
+     * backgrounds) regardless of whether each child is a `StatsItem`
+     * or a `StatsDonut` — both render as plain `<li>` children of
+     * this list.
+     */
+    variant?: string;
+}>();
+
+const variantClass = computed(() => (props.variant ? `stats--${props.variant}` : null));
+</script>
+
 <template>
-    <ul class="stats">
+    <ul class="stats" :class="variantClass">
         <slot />
     </ul>
 </template>
 
 <style lang="scss" scoped>
+@use "sass:color";
 @use "sass:map";
 @use "Abstracts/colors" as c;
 @use "Abstracts/sizes" as s;
@@ -25,5 +44,9 @@
     gap: 0.75rem;
 
     list-style: none;
+
+    &--on-accordion > :deep(li) {
+        background-color: map.get(c.$components, "stats", "background-accordion");
+    }
 }
 </style>

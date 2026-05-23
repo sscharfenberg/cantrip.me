@@ -73,6 +73,18 @@ const R_INNER = 60;
  * pixels.
  */
 const SEGMENT_GAP = 8;
+/**
+ * Minimum angular share a slice gets in the donut (as a fraction of
+ * the full circle). Without this floor, a tiny slice (e.g. 1.5% of
+ * mythic rares against a wall of commons) would have most of its
+ * angular extent eaten by the SEGMENT_GAP on both sides, collapsing
+ * the visible arc to a sub-pixel sliver. 2.5% leaves a comfortable
+ * post-gap arc at the current 8rem render size. Excess angle for
+ * boosted slices is taken proportionally from segments that are above
+ * the floor — the legend percent stays the *raw* share so the number
+ * never lies; only the geometry is adjusted.
+ */
+const MIN_SHARE = 0.025;
 const TWO_PI = Math.PI * 2;
 const HALF_PI = Math.PI / 2;
 
@@ -96,17 +108,32 @@ const resolved = computed<ResolvedSegment[]>(() => {
         return [{ ...seg, colorIdx, percent: 100, path: annulusPath(R_OUTER, R_INNER) }];
     }
 
+    // Raw shares are used for the legend percent (the user-facing
+    // number must always be truthful). Adjusted shares apply the
+    // MIN_SHARE floor and proportionally shrink the above-floor
+    // slices to compensate — used only for the donut geometry.
+    const rawShares = positive.map(({ seg }) => seg.count / total.value);
+    const belowFloor = rawShares.map(s => s < MIN_SHARE);
+    const aboveSum = rawShares.reduce(
+        (sum, s, i) => (belowFloor[i] ? sum : sum + s),
+        0
+    );
+    const minTotal = belowFloor.filter(Boolean).length * MIN_SHARE;
+    const aboveScale = aboveSum > 0 ? (1 - minTotal) / aboveSum : 1;
+    const adjustedShares = rawShares.map((raw, i) =>
+        belowFloor[i] ? MIN_SHARE : raw * aboveScale
+    );
+
     const halfGapOuter = Math.asin(SEGMENT_GAP / 2 / R_OUTER);
     const halfGapInner = Math.asin(SEGMENT_GAP / 2 / R_INNER);
     let theta0 = -HALF_PI;
     const out: ResolvedSegment[] = [];
-    for (const { seg, colorIdx } of positive) {
-        const share = seg.count / total.value;
-        const theta1 = theta0 + share * TWO_PI;
+    positive.forEach(({ seg, colorIdx }, idx) => {
+        const theta1 = theta0 + adjustedShares[idx] * TWO_PI;
         out.push({
             ...seg,
             colorIdx,
-            percent: share * 100,
+            percent: rawShares[idx] * 100,
             path: arcPath(
                 theta0 + halfGapOuter,
                 theta1 - halfGapOuter,
@@ -117,7 +144,7 @@ const resolved = computed<ResolvedSegment[]>(() => {
             )
         });
         theta0 = theta1;
-    }
+    });
     return out;
 });
 </script>

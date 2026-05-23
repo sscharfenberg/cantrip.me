@@ -13,5 +13,9 @@ $stats: (
         "surface": light-dark(map.get(c.$grey, "white"), map.get(c.$grey, "black")),
         "outline": light-dark(map.get(c.$grey, "abbey"), map.get(c.$grey, "iron"))
     ),
-    "explanation-background": light-dark(color.adjust(#000, $alpha: -0.95), color.adjust(#fff, $alpha: -0.95))
+    "explanation-background": light-dark(color.adjust(#000, $alpha: -0.95), color.adjust(#fff, $alpha: -0.95)),
+    "background-accordion": light-dark(
+            color.adjust(map.get(c.$grey, "fog"), $alpha: -0.9),
+            color.adjust(map.get(c.$grey, "asher"), $alpha: -0.9)
+        )
 );
