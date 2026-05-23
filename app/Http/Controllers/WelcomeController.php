@@ -6,13 +6,10 @@ use App\Enums\Currency;
 use App\Enums\Locale;
 use App\Models\Artist;
 use App\Models\BulkData;
-use App\Models\CardStack;
-use App\Models\Container;
-use App\Models\Deck;
 use App\Models\DefaultCard;
 use App\Models\OracleCard;
 use App\Models\Set;
-use App\Services\ContainerService;
+use App\Services\StatsService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Inertia\Inertia;
@@ -87,9 +84,13 @@ class WelcomeController extends Controller
      *    `rememberForever` — and {@see UpdateEverything::handle()} forgets
      *    the key at the end of each sync so the next visitor warms a fresh
      *    set. Net effect: visitors essentially never pay the cold cost.
-     *  - `siteStats` (collection totals + container/deck counts) changes
+     *  - `siteStats` (collection totals + container counts) changes
      *    with user activity, but a few minutes of staleness on a marketing
      *    page is invisible — cached for 5 minutes.
+     *  - `deckStats` mirrors the decks list page header, aggregated
+     *    site-wide. Cached for 5 minutes alongside `siteStats`, and
+     *    keyed by currency for the same reason (worth tiles are
+     *    currency-specific).
      */
     public function show(Request $request): Response
     {
@@ -102,31 +103,25 @@ class WelcomeController extends Controller
             fn () => self::buildScryfallStats()
         );
 
-        // Per-currency cache key — totalPrice is denominated in the visitor's
-        // currency, so EUR/USD visitors must not see each other's number.
+        // Per-currency cache key — totalPrice and mostValuableCard.price
+        // are denominated in the visitor's currency, so EUR/USD
+        // visitors must not see each other's numbers.
         $siteStats = Cache::remember(
             "welcome.siteStats.{$currency->value}",
             now()->addMinutes(5),
-            function () use ($currency): array {
-                $unitPriceSql = ContainerService::unitPriceSql($currency);
-                $totals = CardStack::query()
-                    ->join('default_cards', 'card_stacks.default_card_id', '=', 'default_cards.id')
-                    ->selectRaw('COALESCE(SUM(card_stacks.amount), 0) as total_cards')
-                    ->selectRaw("COALESCE(SUM(card_stacks.amount * ({$unitPriceSql})), 0) as total_price")
-                    ->first();
+            fn () => StatsService::forSiteCollection($request->user())
+        );
 
-                return [
-                    'totalCards' => (int) $totals->total_cards,
-                    'containers' => Container::count(),
-                    'decks' => Deck::count(),
-                    'totalPrice' => (float) $totals->total_price,
-                ];
-            }
+        $deckStats = Cache::remember(
+            "welcome.deckStats.{$currency->value}",
+            now()->addMinutes(5),
+            fn () => StatsService::forSiteDecks($request->user())
         );
 
         return Inertia::render('Guest/Welcome', [
             'scryfallStats' => $scryfallStats,
             'siteStats' => $siteStats,
+            'deckStats' => $deckStats,
         ]);
     }
 }

@@ -199,7 +199,7 @@
                 }
             },
             "site_stats": {
-                "title": "cantrip.me data",
+                "title": "cantrip.me collections",
                 "cards": {
                     "title": "Total cards",
                     "explanation": "The number of cards in collections."
@@ -208,14 +208,65 @@
                     "title": "Containers",
                     "explanation": "The number of containers organized in cantrip.me."
                 },
-                "decks": {
-                    "title": "Decks",
-                    "explanation": "The number of decks built in cantrip.me."
-                },
                 "worth": {
                     "title": "Collection total worth",
                     "explanation": "The total worth of cards organized in cantrip.me collections."
-                }
+                },
+                "uniqueCards": {
+                    "title": "Unique printings",
+                    "explanation": "The number of distinct card printings owned across every collection on cantrip.me."
+                },
+                "containerTypes": {
+                    "title": "Container types"
+                },
+                "rarities": {
+                    "title": "Rarities",
+                    "common": "Common",
+                    "uncommon": "Uncommon",
+                    "rare": "Rare",
+                    "mythic": "Mythic Rare"
+                },
+                "topSets": {
+                    "title": "Top 5 collected sets"
+                },
+                "mostValuableCard": {
+                    "title": "Most valuable card",
+                    "explanation": "The highest unit-priced single card owned by any cantrip.me user, in the visitor's currency."
+                },
+                "mostOwnedCard": {
+                    "title": "Most owned card",
+                    "explanation": "The single non-basic card with the highest total copies owned across every cantrip.me user."
+                },
+                "other": "Other"
+            },
+            "decks_stats": {
+                "title": "cantrip.me decks",
+                "totalDecks": {
+                    "title": "Total decks",
+                    "explanation": "The number of decks built across every user on cantrip.me."
+                },
+                "totalWorth": {
+                    "title": "Total deck worth",
+                    "explanation": "Combined value of every deck on the site, based on current market prices."
+                },
+                "avgWorth": {
+                    "title": "Average deck worth",
+                    "median": "Median: {value}",
+                    "explanation": "Mean worth across every deck on the site. The median pairs with it to show whether outlier decks are skewing the average."
+                },
+                "formats": {
+                    "title": "Formats"
+                },
+                "states": {
+                    "title": "Deck states"
+                },
+                "modes": {
+                    "title": "Collection tracking"
+                },
+                "colors": {
+                    "title": "Colors played"
+                },
+                "other": "Other"
             }
         },
         "register": {

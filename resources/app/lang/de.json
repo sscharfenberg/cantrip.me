@@ -199,7 +199,7 @@
                 }
             },
             "site_stats": {
-                "title": "cantrip.me Daten",
+                "title": "cantrip.me Sammlungen",
                 "cards": {
                     "title": "Karten gesamt",
                     "explanation": "Die Anzahl von Karten in Sammlungen."
@@ -208,14 +208,65 @@
                     "title": "Container",
                     "explanation": "Die Anzahl von Containern die in cantrip.me erfasst wurden."
                 },
-                "decks": {
-                    "title": "Decks",
-                    "explanation": "Die Anzahl von Decks die in cantrip.me gebaut wurden."
-                },
                 "worth": {
                     "title": "Gesamtwert",
                     "explanation": "Der Gesamtwert der Karten die in cantrip.me Sammlungen erfasst wurden."
-                }
+                },
+                "uniqueCards": {
+                    "title": "Einzigartige Drucke",
+                    "explanation": "Die Anzahl unterschiedlicher Kartendrucke, die in allen Sammlungen auf cantrip.me vorhanden sind."
+                },
+                "containerTypes": {
+                    "title": "Container-Arten"
+                },
+                "rarities": {
+                    "title": "Seltenheiten",
+                    "common": "Common",
+                    "uncommon": "Uncommon",
+                    "rare": "Rare",
+                    "mythic": "Mythic Rare"
+                },
+                "topSets": {
+                    "title": "Top 5 gesammelte Sets"
+                },
+                "mostValuableCard": {
+                    "title": "Wertvollste Karte",
+                    "explanation": "Die teuerste einzelne Karte im Besitz eines cantrip.me-Nutzers, in der Währung des Besuchers."
+                },
+                "mostOwnedCard": {
+                    "title": "Häufigste Karte",
+                    "explanation": "Die einzelne Nicht-Basisland-Karte mit der höchsten Gesamtanzahl aller cantrip.me-Nutzer."
+                },
+                "other": "Sonstige"
+            },
+            "decks_stats": {
+                "title": "cantrip.me Decks",
+                "totalDecks": {
+                    "title": "Decks gesamt",
+                    "explanation": "Die Anzahl aller Decks, die von allen Nutzern auf cantrip.me gebaut wurden."
+                },
+                "totalWorth": {
+                    "title": "Deck-Gesamtwert",
+                    "explanation": "Summierter Wert aller Decks auf cantrip.me, basierend auf aktuellen Marktpreisen."
+                },
+                "avgWorth": {
+                    "title": "Durchschnittlicher Deck-Wert",
+                    "median": "Median: {value}",
+                    "explanation": "Mittelwert über alle Decks auf cantrip.me. Der Median ergänzt ihn und zeigt, ob Ausreißer den Durchschnitt verzerren."
+                },
+                "formats": {
+                    "title": "Formate"
+                },
+                "states": {
+                    "title": "Deck-Status"
+                },
+                "modes": {
+                    "title": "Sammlungs-Tracking"
+                },
+                "colors": {
+                    "title": "Gespielte Farben"
+                },
+                "other": "Sonstige"
             }
         },
         "register": {

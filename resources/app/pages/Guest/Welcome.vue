@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { Head } from "@inertiajs/vue3";
+import WelcomeCollectionStats from "@/pages/Guest/WelcomeCollectionStats.vue";
+import WelcomeDecksStats from "@/pages/Guest/WelcomeDecksStats.vue";
 import Headline from "Components/UI/Headline.vue";
 import Icon from "Components/UI/Icon.vue";
 import Paragraph from "Components/UI/Paragraph.vue";
 import Stats from "Components/UI/Stats/Stats.vue";
 import StatsItem from "Components/UI/Stats/StatsItem.vue";
 import { useFormatting } from "Composables/useFormatting.ts";
-const { formatDecimals, formatBytes, formatPrice } = useFormatting();
+const { formatDecimals, formatBytes } = useFormatting();
 const scryfallLogo = new URL("../../assets/images/scryfall.svg", import.meta.url).href;
 defineProps<{
     scryfallStats: {
@@ -17,7 +19,37 @@ defineProps<{
         artCrops: { num: number; size: number };
         cardImages: { num: number; size: number };
     };
-    siteStats: { totalCards: number; containers: number; decks: number; totalPrice: number };
+    siteStats: {
+        totalCards: number;
+        uniqueCards: number;
+        containers: number;
+        totalPrice: number;
+        containerTypes: Record<string, number>;
+        rarities: Record<"common" | "uncommon" | "rare" | "mythic", number>;
+        topSets: Array<{ code: string; name: string; count: number }>;
+        mostValuableCard: {
+            name: string;
+            set_code: string;
+            card_image_0: string | null;
+            price: number;
+        } | null;
+        mostOwnedCard: {
+            name: string;
+            set_code: string;
+            card_image_0: string | null;
+            owned: number;
+        } | null;
+    };
+    deckStats: {
+        totalDecks: number;
+        totalWorth: number;
+        avgWorth: number;
+        medianWorth: number;
+        formats: Record<string, number>;
+        states: Record<string, number>;
+        modes: Record<string, number>;
+        colors: Record<"W" | "U" | "B" | "R" | "G", number>;
+    };
 }>();
 </script>
 
@@ -97,44 +129,14 @@ defineProps<{
             <template #explanation>{{ $t("pages.welcome.scryfall_stats.scryfall.explanation") }}</template>
         </stats-item>
     </stats>
-    <template
-        v-if="siteStats.totalCards > 0 || siteStats.containers > 0 || siteStats.decks > 0 || siteStats.totalPrice > 0"
-    >
+    <template v-if="siteStats.totalCards > 0 || siteStats.containers > 0 || siteStats.totalPrice > 0">
         <br />
         <headline :size="3">{{ $t("pages.welcome.site_stats.title") }}</headline>
-        <stats>
-            <stats-item v-if="siteStats.totalCards > 0">
-                <template #title>{{ $t("pages.welcome.site_stats.cards.title") }}</template>
-                <template #icon>
-                    <img src="/symbol/2-W.svg" alt="tap symbol" class="icon medium" />
-                </template>
-                <template #value>{{ formatDecimals(siteStats.totalCards) }}</template>
-                <template #explanation>{{ $t("pages.welcome.site_stats.cards.explanation") }}</template>
-            </stats-item>
-            <stats-item v-if="siteStats.containers > 0">
-                <template #title>{{ $t("pages.welcome.site_stats.containers.title") }}</template>
-                <template #icon>
-                    <img src="/symbol/B-G-P.svg" alt="tap symbol" class="icon medium" />
-                </template>
-                <template #value>{{ formatDecimals(siteStats.containers) }}</template>
-                <template #explanation>{{ $t("pages.welcome.site_stats.containers.explanation") }}</template>
-            </stats-item>
-            <stats-item v-if="siteStats.totalPrice > 0">
-                <template #title>{{ $t("pages.welcome.site_stats.worth.title") }}</template>
-                <template #icon>
-                    <img src="/symbol/S.svg" alt="tap symbol" class="icon medium" />
-                </template>
-                <template #value>{{ formatPrice(siteStats.totalPrice) }}</template>
-                <template #explanation>{{ $t("pages.welcome.site_stats.worth.explanation") }}</template>
-            </stats-item>
-            <stats-item v-if="siteStats.decks > 0">
-                <template #title>{{ $t("pages.welcome.site_stats.decks.title") }}</template>
-                <template #icon>
-                    <img src="/symbol/A.svg" alt="tap symbol" class="icon medium" />
-                </template>
-                <template #value>{{ formatDecimals(siteStats.decks) }}</template>
-                <template #explanation>{{ $t("pages.welcome.site_stats.decks.explanation") }}</template>
-            </stats-item>
-        </stats>
+        <welcome-collection-stats :stats="siteStats" />
+    </template>
+    <template v-if="deckStats.totalDecks > 0">
+        <br />
+        <headline :size="3">{{ $t("pages.welcome.decks_stats.title") }}</headline>
+        <welcome-decks-stats :stats="deckStats" />
     </template>
 </template>
