@@ -1,25 +1,17 @@
 <script setup lang="ts">
 import { Head, Link } from "@inertiajs/vue3";
-import { computed, ref, useId } from "vue";
-import { useI18n } from "vue-i18n";
+import { ref, useId } from "vue";
 import CollectionCardStacks from "@/pages/Collection/CollectionCardStacks.vue";
+import CollectionPageStats from "@/pages/Collection/CollectionPageStats.vue";
 import DeleteCollectionModal from "@/pages/Collection/DeleteCollectionModal.vue";
 import Headline from "Components/UI/Headline.vue";
 import Icon from "Components/UI/Icon.vue";
 import PopOver from "Components/UI/PopOver.vue";
-import Stats from "Components/UI/Stats/Stats.vue";
-import StatsDonut, { type StatsDonutSegment } from "Components/UI/Stats/StatsDonut.vue";
-import StatsItem from "Components/UI/Stats/StatsItem.vue";
 import { useBreadcrumbs } from "Composables/useBreadcrumbs.ts";
-import { useFormatting } from "Composables/useFormatting.ts";
-const { formatDecimals, formatPrice } = useFormatting();
 import type { CollectionCardStackRow } from "Types/collectionCardStackRow";
 import type { TableResponse } from "Types/dataTable";
 
-/** Mirrors `StatsService::OTHER_KEY`. */
-const OTHER_KEY = "other";
-
-const props = defineProps<{
+defineProps<{
     stats: {
         totalCards: number;
         uniqueCards: number;
@@ -43,39 +35,6 @@ const props = defineProps<{
     canCreateNewContainer: boolean;
 }>();
 
-const { t } = useI18n();
-
-const sortedEntries = (record: Record<string, number>): Array<[string, number]> =>
-    Object.entries(record)
-        .filter(([, count]) => count > 0)
-        .sort(([, a], [, b]) => b - a);
-
-const containerTypeSegments = computed<StatsDonutSegment[]>(() =>
-    sortedEntries(props.stats.containerTypes).map(([type, count]) => ({
-        key: type,
-        label: type === OTHER_KEY ? t("pages.collection.stats.other") : t(`enums.container_type.${type}`),
-        count
-    }))
-);
-
-const raritySegments = computed<StatsDonutSegment[]>(() =>
-    sortedEntries(props.stats.rarities).map(([rarity, count]) => ({
-        key: rarity,
-        label: t(`pages.collection.stats.rarities.${rarity}`),
-        count
-    }))
-);
-
-const topSetSegments = computed<StatsDonutSegment[]>(() =>
-    props.stats.topSets
-        .filter(set => set.count > 0)
-        .map(set => ({
-            key: set.code,
-            label: set.name,
-            count: set.count,
-            tooltip: `${set.name} (${set.code.toUpperCase()})`
-        }))
-);
 /** Dismiss the container-actions popover. */
 const closePopover = () => {
     const dialog = document.getElementById(refId);
@@ -155,74 +114,7 @@ setBreadcrumbs([{ labelKey: "pages.collection.link" }]);
             </pop-over>
         </template>
     </headline>
-    <stats v-if="stats.totalCards > 0">
-        <stats-item>
-            <template #title>{{ $t("pages.collection.stats.totalPrice.title") }}</template>
-            <template #value>{{ formatPrice(stats.totalPrice) }}</template>
-            <template #explanation>{{ $t("pages.collection.stats.totalPrice.explanation") }}</template>
-        </stats-item>
-        <stats-donut
-            v-if="containerTypeSegments.length"
-            :title="$t('pages.collection.stats.containerTypes.title')"
-            :segments="containerTypeSegments"
-        />
-        <stats-donut
-            v-if="raritySegments.length"
-            :title="$t('pages.collection.stats.rarities.title')"
-            :segments="raritySegments"
-        />
-        <stats-item>
-            <template #title>{{ $t("pages.collection.stats.containers.title") }}</template>
-            <template #value>{{ formatDecimals(stats.containers) }}</template>
-            <template #explanation>{{ $t("pages.collection.stats.containers.explanation") }}</template>
-        </stats-item>
-        <stats-item>
-            <template #title>{{ $t("pages.collection.stats.totalCards.title") }}</template>
-            <template #value>{{ formatDecimals(stats.totalCards) }}</template>
-            <template #explanation>{{ $t("pages.collection.stats.totalCards.explanation") }}</template>
-        </stats-item>
-        <stats-item v-if="stats.uniqueCards > 0">
-            <template #title>{{ $t("pages.collection.stats.uniqueCards.title") }}</template>
-            <template #value>{{ formatDecimals(stats.uniqueCards) }}</template>
-            <template #explanation>{{ $t("pages.collection.stats.uniqueCards.explanation") }}</template>
-        </stats-item>
-        <stats-item v-if="stats.mostValuableCard">
-            <template #title>{{ $t("pages.collection.stats.mostValuableCard.title") }}</template>
-            <template #value>{{ stats.mostValuableCard.name }}</template>
-            <template #detail>
-                {{ formatPrice(stats.mostValuableCard.price) }}
-                <span v-if="stats.mostValuableCard.printingsOwned > 1" class="collection-page__printings">
-                    {{
-                        $t("pages.collection.stats.mostValuableCard.printings", {
-                            count: stats.mostValuableCard.printingsOwned
-                        })
-                    }}
-                </span>
-            </template>
-            <template #explanation>{{ $t("pages.collection.stats.mostValuableCard.explanation") }}</template>
-        </stats-item>
-        <stats-item v-if="stats.mostOwnedCard">
-            <template #title>{{ $t("pages.collection.stats.mostOwnedCard.title") }}</template>
-            <template #value>{{ stats.mostOwnedCard.name }}</template>
-            <template #detail>
-                {{ formatDecimals(stats.mostOwnedCard.owned) }}
-                <span v-if="stats.mostOwnedCard.printingsOwned > 1" class="collection-page__printings">
-                    {{
-                        $t("pages.collection.stats.mostOwnedCard.printings", {
-                            count: stats.mostOwnedCard.printingsOwned
-                        })
-                    }}
-                </span>
-            </template>
-            <template #explanation>{{ $t("pages.collection.stats.mostOwnedCard.explanation") }}</template>
-        </stats-item>
-        <stats-donut
-            v-if="topSetSegments.length"
-            :title="$t('pages.collection.stats.topSets.title')"
-            :segments="topSetSegments"
-            hide-percent
-        />
-    </stats>
+    <collection-page-stats v-if="stats.totalCards > 0" :stats="stats" />
     <nav class="links" :aria-label="$t('pages.collection.nav.label')">
         <Link v-if="stats.containers > 0" href="/containers" class="btn-primary">
             <icon name="storage" />
@@ -254,9 +146,5 @@ setBreadcrumbs([{ labelKey: "pages.collection.link" }]);
 
     margin: 1rem 0;
     gap: 1rem;
-}
-
-.collection-page__printings {
-    opacity: 0.7;
 }
 </style>
