@@ -758,6 +758,30 @@
             "state_planned": "{count} geplantes Deck | {count} geplante Decks",
             "state_built": "{count} fertiges Deck | {count} fertige Decks",
             "state_archived": "{count} archiviertes Deck | {count} archivierte Decks",
+            "stats": {
+                "totalWorth": {
+                    "title": "Gesamtwert",
+                    "explanation": "Summierter Wert aller deiner Decks (auch archivierter) basierend auf aktuellen Marktpreisen."
+                },
+                "avgWorth": {
+                    "title": "Durchschnittlicher Deck-Wert",
+                    "median": "Median: {value}",
+                    "explanation": "Mittelwert über alle deine Decks. Der Median ergänzt ihn und zeigt, ob ein Ausreißer den Durchschnitt verzerrt."
+                },
+                "formats": {
+                    "title": "Formate"
+                },
+                "states": {
+                    "title": "Deck-Status"
+                },
+                "modes": {
+                    "title": "Sammlungs-Tracking"
+                },
+                "colors": {
+                    "title": "Gespielte Farben"
+                },
+                "other": "Sonstige"
+            },
             "actions": {
                 "label": "Deck-Aktionen",
                 "delete": "Deck löschen",

@@ -10,7 +10,6 @@ use App\Enums\DeckCardRole;
 use App\Enums\DeckState;
 use App\Enums\DeckZone;
 use App\Enums\Finish;
-use App\Enums\Locale;
 use App\Enums\Scryfall\ScryfallRelatedComponent;
 use App\Formats\FormatProfile;
 use App\Http\Controllers\Controller;
@@ -43,7 +42,9 @@ use App\Services\DeckCollectionStatusService;
 use App\Services\DeckFinalizeService;
 use App\Services\DeckService;
 use App\Services\DeckValidator;
+use App\Services\DeckWorthService;
 use App\Services\QrCodeService;
+use App\Services\StatsService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -78,6 +79,7 @@ class DecksController extends Controller
                 ->where('user_id', $userId)
                 ->where('state', DeckState::Archived->value)
                 ->exists(),
+            'stats' => StatsService::forUserDecks($request->user()),
         ]);
     }
 
@@ -157,36 +159,13 @@ class DecksController extends Controller
             })
             ->sortByDesc('last_activity');
 
-        // Per-deck total worth in the user's currency. One aggregate query
-        // now that command-zone + companion live in deck_cards too.
-        $deckIds = $decks->pluck('id')->all();
-        $currency = $request->user()->currency
-            ?? Locale::from(app()->getLocale())->defaultCurrency();
-        $priceColumn = 'price_'.$currency->value;
-        // Each deck_card's contribution drops by the count of slots
-        // covered by proxy stacks (clamped at the deck_card's own
-        // quantity so a flag-only / merge-anomaly stack can't push the
-        // contribution below zero). Real-card claims, multi-claim, and
-        // unclaimed slots all keep their full printing-price.
-        $proxyClaims = DB::table('deck_card_card_stack')
-            ->join('card_stacks', 'card_stacks.id', '=', 'deck_card_card_stack.card_stack_id')
-            ->where('card_stacks.proxy', true)
-            ->groupBy('deck_card_card_stack.deck_card_id')
-            ->select('deck_card_card_stack.deck_card_id', DB::raw('SUM(card_stacks.amount) as proxy_amount'));
-
-        $worthByDeck = $deckIds === [] ? collect() : DB::table('deck_cards')
-            ->join('default_cards', 'default_cards.id', '=', 'deck_cards.default_card_id')
-            ->leftJoinSub($proxyClaims, 'proxy_claims', 'proxy_claims.deck_card_id', '=', 'deck_cards.id')
-            ->whereIn('deck_cards.deck_id', $deckIds)
-            ->groupBy('deck_cards.deck_id')
-            ->selectRaw(
-                'deck_cards.deck_id, COALESCE(SUM('
-                .'(CASE WHEN deck_cards.quantity > COALESCE(proxy_claims.proxy_amount, 0) '
-                .'THEN deck_cards.quantity - COALESCE(proxy_claims.proxy_amount, 0) ELSE 0 END) '
-                ."* default_cards.{$priceColumn}"
-                .'), 0) AS total'
-            )
-            ->pluck('total', 'deck_id');
+        // Per-deck total worth in the user's currency. Single aggregate
+        // delegated to DeckWorthService so the proxy-clamp formula stays
+        // in lockstep with the deck-show and stats-header totals.
+        $worthByDeck = DeckWorthService::perDeckTotals(
+            $request->user(),
+            $decks->pluck('id')->all(),
+        );
 
         return $decks
             ->groupBy(fn (Deck $deck) => $deck->format->value)
@@ -442,37 +421,11 @@ class DecksController extends Controller
             $deck->deckCards->max('updated_at')?->toIso8601String(),
         ]));
 
-        // Total deck worth in the request user's currency (or the locale
-        // default for guests viewing a public deck). Aggregated against
-        // `default_cards.price_{eur,usd}` rather than the eager-loaded
-        // page payload so the existing `select(...)` lists stay narrow.
-        $currency = $request->user()?->currency
-            ?? Locale::from(app()->getLocale())->defaultCurrency();
-        $priceColumn = 'price_'.$currency->value;
-        // Single aggregate now that command-zone + companion live in
-        // `deck_cards`. quantity is 1 for those rows so the sum is
-        // identical to the prior `deckCards + commanders + companion`
-        // composition. Proxy-claimed slots drop out of the sum (a
-        // physical proxy isn't worth the printing's market price).
-        $proxyClaims = DB::table('deck_card_card_stack')
-            ->join('card_stacks', 'card_stacks.id', '=', 'deck_card_card_stack.card_stack_id')
-            ->where('card_stacks.proxy', true)
-            ->groupBy('deck_card_card_stack.deck_card_id')
-            ->select('deck_card_card_stack.deck_card_id', DB::raw('SUM(card_stacks.amount) as proxy_amount'));
-
-        $totalWorth = (float) (DB::table('deck_cards')
-            ->join('default_cards', 'default_cards.id', '=', 'deck_cards.default_card_id')
-            ->leftJoinSub($proxyClaims, 'proxy_claims', 'proxy_claims.deck_card_id', '=', 'deck_cards.id')
-            ->where('deck_cards.deck_id', $deck->id)
-            ->selectRaw(
-                'COALESCE(SUM('
-                .'(CASE WHEN deck_cards.quantity > COALESCE(proxy_claims.proxy_amount, 0) '
-                .'THEN deck_cards.quantity - COALESCE(proxy_claims.proxy_amount, 0) ELSE 0 END) '
-                ."* default_cards.{$priceColumn}"
-                .'), 0) AS total'
-            )
-            ->value('total') ?? 0);
-        $totalWorth = round($totalWorth, 2);
+        // Total deck worth in the request user's currency (or the
+        // locale default when a guest views a public deck). Delegated
+        // to DeckWorthService so the proxy-clamp formula stays in
+        // lockstep with the deck-list rows and stats-header totals.
+        $totalWorth = DeckWorthService::totalForDeck($request->user(), $deck);
 
         // Command-zone deck_cards, ordered with the primary commander
         // first and the secondary slot (partner / signature spell)

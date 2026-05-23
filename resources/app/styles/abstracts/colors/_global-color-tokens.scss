@@ -109,3 +109,144 @@ $rainbow: (
         "400": #b0e0e6
     )
 );
+
+// statistics colors ==========================================================
+// 01–05 are the default palette for generic stats donuts — muted enough
+// in dark mode that a tile full of slices doesn't glare. 06–10 carry
+// the WUBRG mana palette (consumed by the deck-view color donut); they
+// sit at the end so a non-mana donut never accidentally renders in
+// mana hues just because it has five slices. Every entry exposes a
+// WCAG 2.1 AA-compliant `surface` color for text/icons drawn on top of
+// the background.
+$stats: (
+    // 01 — amber / muted orange
+    "01": (
+        "dark": (
+            "background": #c97c40,
+            "border": #8a4d1c,
+            "surface": #000
+        ),
+        "light": (
+            "background": #b35f1f,
+            "border": #6a380f,
+            "surface": #fff
+        )
+    ),
+    // 02 — desaturated violet
+    "02": (
+        "dark": (
+            "background": #8b5cb5,
+            "border": #4f2a7a,
+            "surface": #000
+        ),
+        "light": (
+            "background": #6a3996,
+            "border": #3a1c5a,
+            "surface": #fff
+        )
+    ),
+    // 03 — muted teal
+    "03": (
+        "dark": (
+            "background": #3aa896,
+            "border": #136a5d,
+            "surface": #000
+        ),
+        "light": (
+            "background": #137e6d,
+            "border": #0a4a3f,
+            "surface": #fff
+        )
+    ),
+    // 04 — dusty rose
+    "04": (
+        "dark": (
+            "background": #c97096,
+            "border": #8a3a5a,
+            "surface": #000
+        ),
+        "light": (
+            "background": #b04c79,
+            "border": #6a2546,
+            "surface": #fff
+        )
+    ),
+    // 05 — olive / muted lime
+    "05": (
+        "dark": (
+            "background": #9aaf3c,
+            "border": #5e6b1c,
+            "surface": #000
+        ),
+        "light": (
+            "background": #6f8019,
+            "border": #44510f,
+            "surface": #fff
+        )
+    ),
+    // 06 — W (white mana, pale cream)
+    "06": (
+        "dark": (
+            "background": #e6d57a,
+            "border": #c4ad4d,
+            "surface": #000
+        ),
+        "light": (
+            "background": #f1e6a8,
+            "border": #a89446,
+            "surface": #000
+        )
+    ),
+    // 07 — B (black mana, dark brown)
+    "07": (
+        "dark": (
+            "background": #4a413d,
+            "border": #2a2421,
+            "surface": #fff
+        ),
+        "light": (
+            "background": #2b2422,
+            "border": #000,
+            "surface": #fff
+        )
+    ),
+    // 08 — U (blue mana)
+    "08": (
+        "dark": (
+            "background": #4a9be8,
+            "border": #1c5b91,
+            "surface": #000
+        ),
+        "light": (
+            "background": #1e7bcc,
+            "border": #0e3f6b,
+            "surface": #000
+        )
+    ),
+    // 09 — R (red mana)
+    "09": (
+        "dark": (
+            "background": #e85a4f,
+            "border": #962721,
+            "surface": #000
+        ),
+        "light": (
+            "background": #cc3a30,
+            "border": #7a1c15,
+            "surface": #fff
+        )
+    ),
+    // 10 — G (green mana)
+    "10": (
+        "dark": (
+            "background": #1eaa57,
+            "border": #0d6232,
+            "surface": #000
+        ),
+        "light": (
+            "background": #0e7a3e,
+            "border": #054523,
+            "surface": #fff
+        )
+    )
+);

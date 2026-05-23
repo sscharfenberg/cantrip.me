@@ -3,6 +3,7 @@ import { Head, Link } from "@inertiajs/vue3";
 import { computed, ref, useTemplateRef } from "vue";
 import { useI18n } from "vue-i18n";
 import DeckFormatFolder from "@/pages/Decks/DeckFormatFolder.vue";
+import DecksPageStats from "@/pages/Decks/DecksPageStats.vue";
 import Headline from "Components/UI/Headline.vue";
 import Icon from "Components/UI/Icon.vue";
 import Paragraph from "Components/UI/Paragraph.vue";
@@ -33,6 +34,17 @@ const props = defineProps<{
     decksByFormat: Record<string, DeckRow[]>;
     /** True when the user has at least one archived deck — drives the "Archived decks" link visibility. */
     hasArchived: boolean;
+    /** Aggregate stats over every deck the user owns (active + archived). */
+    stats: {
+        totalDecks: number;
+        totalWorth: number;
+        avgWorth: number;
+        medianWorth: number;
+        formats: Record<string, number>;
+        states: Record<string, number>;
+        modes: Record<string, number>;
+        colors: Record<"W" | "U" | "B" | "R" | "G", number>;
+    };
 }>();
 const { t } = useI18n();
 const { setBreadcrumbs } = useBreadcrumbs();
@@ -109,6 +121,7 @@ function onFolderToggle(format: string, isOpen: boolean): void {
         <icon name="deck" :size="3" />
         {{ $t("pages.decks.title") }}
     </headline>
+    <decks-page-stats v-if="stats.totalDecks > 0" :stats="stats" />
     <div class="deck-actions">
         <Link class="btn-primary" href="/decks/add">
             <icon name="add" />

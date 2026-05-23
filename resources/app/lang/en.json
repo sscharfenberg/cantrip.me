@@ -758,6 +758,30 @@
             "state_planned": "{count} planned deck | {count} planned decks",
             "state_built": "{count} finished deck | {count} finished decks",
             "state_archived": "{count} archived deck | {count} archived decks",
+            "stats": {
+                "totalWorth": {
+                    "title": "Total worth",
+                    "explanation": "Combined value of every deck you own (including archived), based on current market prices."
+                },
+                "avgWorth": {
+                    "title": "Average deck worth",
+                    "median": "Median: {value}",
+                    "explanation": "Mean worth across all your decks. The median pairs with it to show whether one outlier deck is skewing the average."
+                },
+                "formats": {
+                    "title": "Formats"
+                },
+                "states": {
+                    "title": "Deck states"
+                },
+                "modes": {
+                    "title": "Collection tracking"
+                },
+                "colors": {
+                    "title": "Colors played"
+                },
+                "other": "Other"
+            },
             "actions": {
                 "label": "Deck actions",
                 "delete": "Delete deck",

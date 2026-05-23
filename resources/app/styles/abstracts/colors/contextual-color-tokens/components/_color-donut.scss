@@ -1,28 +1,62 @@
 @use "sass:map"; // https://sass-lang.com/documentation/modules/map
 @use "../../global-color-tokens" as c;
 
+// Mana fills/strokes resolve to global $stats slots 06..10 (W/B/U/R/G).
+// They sit at the end of the $stats list (not the start) so the
+// generic StatsDonut, which iterates 01..10, doesn't accidentally
+// render its first five slices in mana hues.
 $color-donut: (
     "selected-stroke": light-dark(map.get(c.$grey, "black"), map.get(c.$grey, "white")),
     "mana": (
         "W": (
-            "fill": light-dark(#f1e6a8, #e6d57a),
-            "stroke": light-dark(#a89446, #c4ad4d)
+            "fill": light-dark(
+                    map.get(c.$stats, "06", "light", "background"),
+                    map.get(c.$stats, "06", "dark", "background")
+                ),
+            "stroke": light-dark(
+                    map.get(c.$stats, "06", "light", "border"),
+                    map.get(c.$stats, "06", "dark", "border")
+                )
         ),
         "U": (
-            "fill": light-dark(#1e7bcc, #4a9be8),
-            "stroke": light-dark(#0e3f6b, #1c5b91)
+            "fill": light-dark(
+                    map.get(c.$stats, "08", "light", "background"),
+                    map.get(c.$stats, "08", "dark", "background")
+                ),
+            "stroke": light-dark(
+                    map.get(c.$stats, "08", "light", "border"),
+                    map.get(c.$stats, "08", "dark", "border")
+                )
         ),
         "B": (
-            "fill": light-dark(#2b2422, #4a413d),
-            "stroke": light-dark(#000, #2a2421)
+            "fill": light-dark(
+                    map.get(c.$stats, "07", "light", "background"),
+                    map.get(c.$stats, "07", "dark", "background")
+                ),
+            "stroke": light-dark(
+                    map.get(c.$stats, "07", "light", "border"),
+                    map.get(c.$stats, "07", "dark", "border")
+                )
         ),
         "R": (
-            "fill": light-dark(#cc3a30, #e85a4f),
-            "stroke": light-dark(#7a1c15, #962721)
+            "fill": light-dark(
+                    map.get(c.$stats, "09", "light", "background"),
+                    map.get(c.$stats, "09", "dark", "background")
+                ),
+            "stroke": light-dark(
+                    map.get(c.$stats, "09", "light", "border"),
+                    map.get(c.$stats, "09", "dark", "border")
+                )
         ),
         "G": (
-            "fill": light-dark(#0e7a3e, #1eaa57),
-            "stroke": light-dark(#054523, #0d6232)
+            "fill": light-dark(
+                    map.get(c.$stats, "10", "light", "background"),
+                    map.get(c.$stats, "10", "dark", "background")
+                ),
+            "stroke": light-dark(
+                    map.get(c.$stats, "10", "light", "border"),
+                    map.get(c.$stats, "10", "dark", "border")
+                )
         )
     )
 );
