@@ -37,6 +37,14 @@ php artisan down
 git fetch origin
 git reset --hard origin/main
 
+# Wipe Vite's output dir before the chgrp + rebuild below. Any files
+# left there from outside this script (the screen-attached `npm run dev`
+# session on staging running as sscharfenberg is the usual culprit)
+# would otherwise fail `chgrp` — deploy can't change group on files it
+# doesn't own. `npm run build` recreates the dir fresh as deploy-owned
+# with the right perms (umask 002 + setgid on public/ → www-data group).
+rm -rf public/build
+
 # Re-normalize source-tree perms. `git reset --hard` may write files
 # with mode 644 (ignoring umask in some setups), and any subdir whose
 # setgid bit was lost in the past creates new files in deploy's
