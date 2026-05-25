@@ -105,7 +105,7 @@ function onFolderToggle(format: string, isOpen: boolean): void {
             prev?.close();
         }
         openFormat.value = format;
-        window.location.hash = format;
+        history.replaceState(null, "", `${window.location.pathname}${window.location.search}#${format}`);
     } else {
         openFormat.value = null;
         history.replaceState(null, "", window.location.pathname + window.location.search);
