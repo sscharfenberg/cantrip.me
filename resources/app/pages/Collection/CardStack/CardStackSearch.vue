@@ -22,6 +22,12 @@ const props = defineProps<{
      * to surface the +/- amount and Enter-to-save-and-add-more hints.
      */
     keyboardShortcuts?: boolean;
+    /**
+     * Forwarded to CardSearch. Enables Tab-to-recall on the empty
+     * search input so the user can repeat the last query without
+     * retyping after "save and add more".
+     */
+    recallable?: boolean;
 }>();
 const emit = defineEmits<{
     /** Emitted when the user selects a card from the search results. */
@@ -52,6 +58,7 @@ defineExpose({
         :invalid="invalid"
         :set-code="setCode ?? ''"
         :keyboard-shortcuts="keyboardShortcuts ?? false"
+        :recallable="recallable ?? false"
         @selected="emit('selected', $event)"
         @cleared="emit('cleared')"
     >

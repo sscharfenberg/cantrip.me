@@ -17,6 +17,25 @@ interface CardSearchResponse<T> {
 const SET_TOKEN_RE = /(?:^|\s)(?:set|s|e):\S+/gi;
 
 /**
+ * Module-level "last raw query that triggered an XHR" per endpoint. Keyed
+ * by endpoint string so two CardSearch instances against different APIs
+ * (e.g. /api/card-image vs /api/art-crop) keep their own recall buffers.
+ * Surviving the form remount on "save and add more" is the whole point —
+ * the `useAddCardsDefaults` composable resets the form, but this state
+ * lives outside the component tree and is preserved.
+ */
+const lastFiredQueriesByEndpoint = new Map<string, Ref<string>>();
+
+function getLastFiredQueryRef(endpoint: string): Ref<string> {
+    let r = lastFiredQueriesByEndpoint.get(endpoint);
+    if (!r) {
+        r = ref("");
+        lastFiredQueriesByEndpoint.set(endpoint, r);
+    }
+    return r;
+}
+
+/**
  * Reactive state and helpers for a debounced card search against a JSON API endpoint.
  *
  * @param endpoint  API endpoint to fetch from (e.g. "/api/card-image").
@@ -39,11 +58,19 @@ export function useCardSearch<T>(endpoint: string, setCode?: Ref<string>) {
     const selectedCard = ref<T | null>(null);
     /** The hidden form value (card id). */
     const refValue = ref("");
+    /** Last raw query that hit the wire, per endpoint. Drives Tab-to-recall in CardSearch. */
+    const lastFiredQuery = getLastFiredQueryRef(endpoint);
 
     /** Timer handle for debouncing search input. */
     let debounceTimer: ReturnType<typeof setTimeout> | null = null;
     /** AbortController for the current in-flight request, so a new search cancels stale ones. */
     let abortController: AbortController | null = null;
+    /**
+     * Set by `recallLastQuery` so the watcher (which fires async after we
+     * mutate `searchQuery`) doesn't also schedule a duplicate debounced
+     * XHR on top of the immediate one we just kicked off.
+     */
+    let suppressNextWatcher = false;
 
     /**
      * Build the actual query string sent to the server from the raw
@@ -79,6 +106,7 @@ export function useCardSearch<T>(endpoint: string, setCode?: Ref<string>) {
             totalResults.value = 0;
             return;
         }
+        lastFiredQuery.value = rawQuery.trim();
         if (abortController) abortController.abort();
         abortController = new AbortController();
         processing.value = true;
@@ -98,6 +126,28 @@ export function useCardSearch<T>(endpoint: string, setCode?: Ref<string>) {
             throw e;
         }
         processing.value = false;
+    }
+
+    /**
+     * Schedule (or fire) the next search. Extracted from the watcher so
+     * `recallLastQuery` can bypass debounce when the user explicitly
+     * asked to repeat the previous search.
+     */
+    function scheduleSearch(immediate: boolean): void {
+        if (debounceTimer) clearTimeout(debounceTimer);
+        const query = buildQuery(searchQuery.value);
+        if (!query) {
+            processing.value = false;
+            results.value = [];
+            totalResults.value = 0;
+            return;
+        }
+        processing.value = true;
+        if (immediate) {
+            void searchCards(searchQuery.value);
+        } else {
+            debounceTimer = setTimeout(() => searchCards(searchQuery.value), 500);
+        }
     }
 
     /**
@@ -124,27 +174,37 @@ export function useCardSearch<T>(endpoint: string, setCode?: Ref<string>) {
     }
 
     /**
+     * Repopulate the search input with the last query that triggered an
+     * XHR and fire the search immediately (no debounce). Returns false
+     * when there's nothing to recall yet so the caller can let the Tab
+     * keystroke pass through to default focus-navigation behavior.
+     */
+    function recallLastQuery(): boolean {
+        if (!lastFiredQuery.value) return false;
+        suppressNextWatcher = true;
+        searchQuery.value = lastFiredQuery.value;
+        scheduleSearch(true);
+        return true;
+    }
+
+    /**
      * Debounce search input changes (and setCode changes, when bound)
      * by 500 ms before calling the API. setCode flips re-run the
      * current query so the result list reacts to dropdown changes.
      *
-     * `processing` is flipped on synchronously here (not just inside
-     * `searchCards`) so consumers can distinguish "debounce window is
-     * open, search hasn't happened yet" from "search completed with no
-     * results" — otherwise an empty `results` array reads the same in
-     * both states and a no-results message flickers during the wait.
+     * `processing` is flipped on synchronously inside `scheduleSearch`
+     * (not just inside `searchCards`) so consumers can distinguish
+     * "debounce window is open, search hasn't happened yet" from
+     * "search completed with no results" — otherwise an empty `results`
+     * array reads the same in both states and a no-results message
+     * flickers during the wait.
      */
     watch([searchQuery, () => setCode?.value ?? ""], () => {
-        if (debounceTimer) clearTimeout(debounceTimer);
-        const query = buildQuery(searchQuery.value);
-        if (!query) {
-            processing.value = false;
-            results.value = [];
-            totalResults.value = 0;
+        if (suppressNextWatcher) {
+            suppressNextWatcher = false;
             return;
         }
-        processing.value = true;
-        debounceTimer = setTimeout(() => searchCards(searchQuery.value), 500);
+        scheduleSearch(false);
     });
 
     return {
@@ -154,8 +214,10 @@ export function useCardSearch<T>(endpoint: string, setCode?: Ref<string>) {
         processing,
         selectedCard,
         refValue,
+        lastFiredQuery,
         onCardSelected,
-        onClearSelection
+        onClearSelection,
+        recallLastQuery
     };
 }
 

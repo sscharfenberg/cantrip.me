@@ -23,7 +23,8 @@ const items = computed(() => [
     ...(props.keyboardShortcuts
         ? [
               { slot: "amount", icon: "add" },
-              { slot: "save_add", icon: "save" }
+              { slot: "save_add", icon: "save" },
+              { slot: "recall", icon: "key" }
           ]
         : [])
 ]);
@@ -91,6 +92,13 @@ const items = computed(() => [
             <i18n-t keypath="card.search.tips.save_add" scope="global">
                 <template #enter
                     ><strong>{{ $t("card.search.tips.enter") }}</strong></template
+                >
+            </i18n-t>
+        </template>
+        <template v-if="keyboardShortcuts" #recall>
+            <i18n-t keypath="card.search.tips.recall" scope="global">
+                <template #tab_key
+                    ><strong>{{ $t("card.search.tips.tab_key") }}</strong></template
                 >
             </i18n-t>
         </template>

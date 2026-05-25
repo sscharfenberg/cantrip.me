@@ -465,6 +465,7 @@ const unclaim = () => {
             :locked="isEditMode"
             :set-code="activeSetCode"
             :keyboard-shortcuts="!isEditMode"
+            :recallable="!isEditMode"
             @selected="onCardSelected"
             @cleared="onCardCleared"
         />

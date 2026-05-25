@@ -42,6 +42,14 @@ const props = withDefaults(
          * and add more) so the help text describes them.
          */
         keyboardShortcuts?: boolean;
+        /**
+         * When true, pressing Tab on an empty search input repopulates
+         * it with the last query that triggered an XHR and re-fires the
+         * search immediately. Lets the user add multiple stacks of the
+         * same card (different language/finish/condition) without
+         * retyping the name after each "save and add more".
+         */
+        recallable?: boolean;
     }>(),
     {
         required: false,
@@ -49,7 +57,8 @@ const props = withDefaults(
         invalid: false,
         locked: false,
         setCode: "",
-        keyboardShortcuts: false
+        keyboardShortcuts: false,
+        recallable: false
     }
 );
 const setCodeRef = toRef(props, "setCode") as Ref<string>;
@@ -67,8 +76,23 @@ const {
     selectedCard,
     refValue,
     onCardSelected: selectCard,
-    onClearSelection
+    onClearSelection,
+    recallLastQuery
 } = useCardSearch<T>(props.endpoint, setCodeRef);
+/**
+ * Tab-to-recall: only when opted in via `recallable` and the input is
+ * empty. Shift+Tab is excluded by `.exact` (reverse focus navigation
+ * keeps working). When there's nothing to recall yet, do nothing and
+ * let the keystroke fall through to default focus navigation.
+ */
+function onSearchKeydown(event: KeyboardEvent) {
+    if (!props.recallable) return;
+    if (event.isComposing) return;
+    if (searchQuery.value.length > 0) return;
+    if (recallLastQuery()) {
+        event.preventDefault();
+    }
+}
 /** Wraps composable selection to also emit the event to the parent. */
 function onCardSelected(card: T) {
     selectCard(card);
@@ -114,6 +138,7 @@ defineExpose({ focus });
                 :id="refId"
                 :placeholder="$t(placeholder)"
                 v-model="searchQuery"
+                @keydown.tab.exact="onSearchKeydown"
             />
         </template>
         <input type="hidden" :name="refId" :value="refValue" />
