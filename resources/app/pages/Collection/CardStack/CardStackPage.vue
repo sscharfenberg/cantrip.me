@@ -464,6 +464,7 @@ const unclaim = () => {
             :card="isEditMode ? cardStack!.default_card : null"
             :locked="isEditMode"
             :set-code="activeSetCode"
+            :keyboard-shortcuts="!isEditMode"
             @selected="onCardSelected"
             @cleared="onCardCleared"
         />

@@ -1365,7 +1365,12 @@
                 "cn_result": "all cards with collector number 144",
                 "combined": "You can also combine different methods - {combined_example} finds {combined_result}.",
                 "combined_example": "set:ecl cn:99",
-                "combined_result": "Dawnhand Eulogist - collector number 99 in Lorwyn Eclipsed"
+                "combined_result": "Dawnhand Eulogist - collector number 99 in Lorwyn Eclipsed",
+                "amount": "Use the {plus} and {minus} keys to increase or decrease the amount.",
+                "plus": "+",
+                "minus": "-",
+                "save_add": "Press {enter} to save and add more.",
+                "enter": "Enter"
             },
             "change_selection": "Change selection"
         }

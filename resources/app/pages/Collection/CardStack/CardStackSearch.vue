@@ -17,6 +17,11 @@ const props = defineProps<{
      * Drives the "restrict results to set" dropdown on the parent page.
      */
     setCode?: string;
+    /**
+     * Forwarded to CardSearch → SearchSyntax. Set on the add-cards page
+     * to surface the +/- amount and Enter-to-save-and-add-more hints.
+     */
+    keyboardShortcuts?: boolean;
 }>();
 const emit = defineEmits<{
     /** Emitted when the user selects a card from the search results. */
@@ -46,6 +51,7 @@ defineExpose({
         :error="error"
         :invalid="invalid"
         :set-code="setCode ?? ''"
+        :keyboard-shortcuts="keyboardShortcuts ?? false"
         @selected="emit('selected', $event)"
         @cleared="emit('cleared')"
     >

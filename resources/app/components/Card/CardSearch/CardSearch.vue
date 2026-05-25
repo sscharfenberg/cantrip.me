@@ -36,13 +36,20 @@ const props = withDefaults(
          * the dropdown's choice always wins over typed tokens.
          */
         setCode?: string;
+        /**
+         * Forwarded to `SearchSyntax`. Enable on pages that expose
+         * page-level keyboard shortcuts (+/- for amount, Enter to save
+         * and add more) so the help text describes them.
+         */
+        keyboardShortcuts?: boolean;
     }>(),
     {
         required: false,
         error: "",
         invalid: false,
         locked: false,
-        setCode: ""
+        setCode: "",
+        keyboardShortcuts: false
     }
 );
 const setCodeRef = toRef(props, "setCode") as Ref<string>;
@@ -114,7 +121,7 @@ defineExpose({ focus });
             <div v-if="searchQuery.length > 1 && !processing" class="no-results">
                 {{ $t("card.search.no_results") }}
             </div>
-            <search-syntax v-else />
+            <search-syntax v-else :keyboard-shortcuts="keyboardShortcuts" />
         </template>
     </form-group>
     <Results

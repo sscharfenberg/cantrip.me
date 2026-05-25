@@ -1,16 +1,36 @@
 <script setup lang="ts">
+import { computed } from "vue";
 import FormLegend from "Components/Form/FormLegend.vue";
+const props = withDefaults(
+    defineProps<{
+        /**
+         * When true, render two extra hints describing the page-level
+         * keyboard shortcuts (+/- to change amount, Enter to save and
+         * add more). Only the "Add cards to collection" page enables
+         * this — every other caller leaves it off.
+         */
+        keyboardShortcuts?: boolean;
+    }>(),
+    {
+        keyboardShortcuts: false
+    }
+);
+const items = computed(() => [
+    { slot: "general", icon: "info" },
+    { slot: "set", icon: "collection" },
+    { slot: "number", icon: "star" },
+    { slot: "combined", icon: "deck" },
+    ...(props.keyboardShortcuts
+        ? [
+              { slot: "amount", icon: "add" },
+              { slot: "save_add", icon: "save" }
+          ]
+        : [])
+]);
 </script>
 
 <template>
-    <form-legend
-        :items="[
-            { slot: 'general', icon: 'info' },
-            { slot: 'set', icon: 'collection' },
-            { slot: 'number', icon: 'star' },
-            { slot: 'combined', icon: 'deck' }
-        ]"
-    >
+    <form-legend :items="items">
         <template #general>
             <i18n-t keypath="card.search.tips.general" scope="global">
                 <template #query
@@ -54,6 +74,23 @@ import FormLegend from "Components/Form/FormLegend.vue";
                 >
                 <template #combined_result
                     ><strong>{{ $t("card.search.tips.combined_result") }}</strong></template
+                >
+            </i18n-t>
+        </template>
+        <template v-if="keyboardShortcuts" #amount>
+            <i18n-t keypath="card.search.tips.amount" scope="global">
+                <template #plus
+                    ><strong>{{ $t("card.search.tips.plus") }}</strong></template
+                >
+                <template #minus
+                    ><strong>{{ $t("card.search.tips.minus") }}</strong></template
+                >
+            </i18n-t>
+        </template>
+        <template v-if="keyboardShortcuts" #save_add>
+            <i18n-t keypath="card.search.tips.save_add" scope="global">
+                <template #enter
+                    ><strong>{{ $t("card.search.tips.enter") }}</strong></template
                 >
             </i18n-t>
         </template>

@@ -1365,7 +1365,12 @@
                 "cn_result": "Alle Karten mit Sammlernummer 144",
                 "combined": "Du kannst auch beliebige Punkte kombinieren - {combined_example} findet {combined_result}.",
                 "combined_example": "set:ecl cn:99",
-                "combined_result": "Dawnhand Eulogist - Sammlernummer 99 in Lorwyn Eclipsed"
+                "combined_result": "Dawnhand Eulogist - Sammlernummer 99 in Lorwyn Eclipsed",
+                "amount": "Mit den Tasten {plus} und {minus} erhöhst oder verringerst du die Anzahl.",
+                "plus": "+",
+                "minus": "-",
+                "save_add": "Drücke {enter}, um zu speichern und weitere Karten hinzuzufügen.",
+                "enter": "Enter"
             },
             "change_selection": "Auswahl ändern"
         }
