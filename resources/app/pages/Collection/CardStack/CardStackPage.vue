@@ -636,3 +636,13 @@ const unclaim = () => {
     font-size: 0.875rem;
 }
 </style>
+
+<style lang="scss">
+// make the set image in the dropdown work in dark and light mode.
+// dark mode needs the (black filled svg) image reverted so it is visible.
+@use "Abstracts/mixins" as m;
+
+@include m.theme-dark(".form-select__option img") {
+    filter: invert(1);
+}
+</style>
