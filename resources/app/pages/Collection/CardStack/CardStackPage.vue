@@ -642,7 +642,7 @@ const unclaim = () => {
 // dark mode needs the (black filled svg) image reverted so it is visible.
 @use "Abstracts/mixins" as m;
 
-@include m.theme-dark(".form-select__option img") {
+@include m.theme-dark(".form-select__option-image") {
     filter: invert(1);
 }
 </style>
