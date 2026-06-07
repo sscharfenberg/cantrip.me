@@ -36,7 +36,17 @@ gc-images dry scan      → reports orphan files; warns with the --prune command
 end-of-run summary      → row counts per table, oracle-tag classifications, FK preservation, image-orphan totals, runtime
 ```
 
-The summary block is emitted at the very end of the run as a single formatted block so the totals are visible at a glance without scrolling back through 232k+ image-resolution log lines.
+The summary block is emitted at the very end of the run as a single formatted block (dividers + grouped sections) so the totals are visible at a glance without scrolling back through 232k+ image-resolution log lines. It's written **both** to the console (terminal runs) and to the `scryfall` daily logfile as one multi-line entry — so cron runs, which discard stdout, still record it. The **Images** sections break down card faces and art crops separately into processed / downloaded / skipped / failed (sourced from `ScryfallRunStats`, populated by `ImageDownloadService`).
+
+**Scheduling.** Runs **daily at 02:00** in production via the web-server user's OS crontab — *not* the Laravel scheduler in `routes/console.php`:
+
+```cron
+0 2 * * * /usr/bin/flock -n /tmp/scryfall-update.lock php /var/www/mbop/artisan scryfall:update > /dev/null 2>&1
+```
+
+Daily is the useful maximum: Scryfall regenerates its bulk files (and card prices) roughly every 24 h, so a faster cadence has nothing new to fetch. Bandwidth is a non-issue — ~3 GB/day ingress ≈ 90 GB/month against the 20 TB cap, and image downloads are incremental (only genuinely new printings are fetched; anything already cached is skipped). A full run is ~40 min with zero user-facing downtime thanks to the shadow swap.
+
+`flock -n` is the overlap guard. The run *starts* by dropping any leftover `*__shadow` / `*__retired` tables (crash recovery) — so if a hung run (e.g. a stalled stream of the 2.5 GB `all_cards` download) were still holding tables when the next day's cron fired, it would have its in-progress shadow build dropped out from under it. `-n` makes the second invocation exit immediately instead of overlapping. Live data is safe either way (untouched until the atomic RENAME), but the colliding run would fail. stdout is sent to `/dev/null` because the end-of-run summary already lands in the `scryfall` logfile. Staging does not run this job — it shares most Scryfall assets with prod.
 
 ### `php artisan scryfall:sets`
 
@@ -211,3 +221,5 @@ Runs `schedule:run` every minute; Laravel determines internally which scheduled 
 |---|---|---|
 | `CleanupTempUploads` job | daily at 00:00 | all |
 | `db:backup` command | daily at 00:15 | production only |
+
+`scryfall:update` is **not** in this scheduler — it's a standalone, `flock`-guarded crontab entry (daily at 02:00, production only). See [its Scheduling note](#php-artisan-scryfallupdate) for why it runs outside `routes/console.php`.
