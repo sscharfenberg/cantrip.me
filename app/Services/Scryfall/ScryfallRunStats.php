@@ -22,10 +22,28 @@ class ScryfallRunStats
 
     public static int $relationsSkippedOrphan = 0;
 
+    public static int $cardImagesDownloaded = 0;
+
+    public static int $cardImagesSkipped = 0;
+
+    public static int $cardImagesFailed = 0;
+
+    public static int $artCropsDownloaded = 0;
+
+    public static int $artCropsSkipped = 0;
+
+    public static int $artCropsFailed = 0;
+
     public static function reset(): void
     {
         self::$relationsRetargeted = 0;
         self::$relationsSkippedComponent = 0;
         self::$relationsSkippedOrphan = 0;
+        self::$cardImagesDownloaded = 0;
+        self::$cardImagesSkipped = 0;
+        self::$cardImagesFailed = 0;
+        self::$artCropsDownloaded = 0;
+        self::$artCropsSkipped = 0;
+        self::$artCropsFailed = 0;
     }
 }

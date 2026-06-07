@@ -77,6 +77,10 @@ class ImageDownloadService extends ScryfallService
                 }
             }, 'dc.id', 'id');
 
+        ScryfallRunStats::$artCropsDownloaded = $downloaded;
+        ScryfallRunStats::$artCropsSkipped = $skipped;
+        ScryfallRunStats::$artCropsFailed = $failed;
+
         $ms = $start->diffInMilliseconds(now());
         $total = $downloaded + $skipped + $failed;
         Log::channel('scryfall')->notice(
@@ -193,6 +197,10 @@ class ImageDownloadService extends ScryfallService
                     $failed += $results['failed'];
                 }
             }, 'dc.id', 'id');
+
+        ScryfallRunStats::$cardImagesDownloaded = $downloaded;
+        ScryfallRunStats::$cardImagesSkipped = $skipped;
+        ScryfallRunStats::$cardImagesFailed = $failed;
 
         $ms = $start->diffInMilliseconds(now());
         $total = $downloaded + $skipped + $failed;

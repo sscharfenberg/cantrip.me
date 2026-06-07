@@ -76,6 +76,11 @@ class UpdateEverything extends Command
 
     /**
      * Emit the accumulated summary as a formatted block. No-op if empty.
+     *
+     * The same block is written to the console (for terminal runs) and to
+     * the scryfall log channel as a single multi-line entry (for cron runs,
+     * where console output is discarded) — logging it in one call keeps the
+     * dividers intact instead of prefixing every line with a timestamp.
      */
     private function emitSummary(): void
     {
@@ -83,18 +88,23 @@ class UpdateEverything extends Command
             return;
         }
         $bar = str_repeat('═', 64);
-        $this->newLine();
-        $this->info($bar);
-        $this->info(' scryfall:update summary');
-        $this->info($bar);
+        $lines = [$bar, ' scryfall:update summary', $bar];
         foreach ($this->summary as $section => $rows) {
-            $this->newLine();
-            $this->info($section);
+            $lines[] = '';
+            $lines[] = $section;
             foreach ($rows as [$label, $value]) {
-                $this->line(sprintf('  %-34s %s', $label, $value));
+                $lines[] = sprintf('  %-34s %s', $label, $value);
             }
         }
+        $lines[] = $bar;
+
         $this->newLine();
+        foreach ($lines as $line) {
+            $this->line($line);
+        }
+        $this->newLine();
+
+        Log::channel('scryfall')->info(implode("\n", $lines));
     }
 
     /**
@@ -402,6 +412,18 @@ class UpdateEverything extends Command
         $fetch = (int) DB::table('oracle_cards')->whereNotNull('fetch_pattern')->count();
         $this->pushSummary('Oracle tags', 'mass-land-denial (mld)', $this->fmtCount($mld).' cards');
         $this->pushSummary('Oracle tags', 'fetch_pattern', $this->fmtCount($fetch).' cards');
+
+        // Image download (cross-step counters from ImageDownloadService).
+        $cardImagesProcessed = ScryfallRunStats::$cardImagesDownloaded + ScryfallRunStats::$cardImagesSkipped + ScryfallRunStats::$cardImagesFailed;
+        $artCropsProcessed = ScryfallRunStats::$artCropsDownloaded + ScryfallRunStats::$artCropsSkipped + ScryfallRunStats::$artCropsFailed;
+        $this->pushSummary('Images downloaded — card faces', 'processed', $this->fmtCount($cardImagesProcessed));
+        $this->pushSummary('Images downloaded — card faces', 'downloaded', $this->fmtCount(ScryfallRunStats::$cardImagesDownloaded));
+        $this->pushSummary('Images downloaded — card faces', 'skipped (already cached)', $this->fmtCount(ScryfallRunStats::$cardImagesSkipped));
+        $this->pushSummary('Images downloaded — card faces', 'failed', $this->fmtCount(ScryfallRunStats::$cardImagesFailed));
+        $this->pushSummary('Images downloaded — art crops', 'processed', $this->fmtCount($artCropsProcessed));
+        $this->pushSummary('Images downloaded — art crops', 'downloaded', $this->fmtCount(ScryfallRunStats::$artCropsDownloaded));
+        $this->pushSummary('Images downloaded — art crops', 'skipped (already cached)', $this->fmtCount(ScryfallRunStats::$artCropsSkipped));
+        $this->pushSummary('Images downloaded — art crops', 'failed', $this->fmtCount(ScryfallRunStats::$artCropsFailed));
 
         // Image path resolution.
         $artLocal = (int) DB::table('default_cards')->whereNotNull('art_crop')->where('art_crop', 'not like', 'https://%')->count();
