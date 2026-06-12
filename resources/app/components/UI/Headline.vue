@@ -78,4 +78,8 @@ h4 {
 .right {
     margin-left: auto;
 }
+
+.right :slotted(img) {
+    vertical-align: -0.1em;
+}
 </style>
