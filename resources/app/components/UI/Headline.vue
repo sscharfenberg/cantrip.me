@@ -80,6 +80,6 @@ h4 {
 }
 
 .right :slotted(img) {
-    vertical-align: -0.1em;
+    vertical-align: -0.15em;
 }
 </style>
