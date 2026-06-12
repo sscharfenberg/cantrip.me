@@ -58,7 +58,7 @@
         "npm-run-all2": "^9.0.1",
         "prettier": "3.8.3",
         "sass-embedded": "^1.100.0",
-        "semver": "^7.8.2",
+        "semver": "^7.8.3",
         "sharp": "^0.34.5",
         "start-server-and-test": "^3.0.8",
         "stylelint": "^17.13.0",
