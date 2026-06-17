@@ -6,10 +6,10 @@ use App\Models\Deck;
 use App\Models\DeckCategory;
 use Illuminate\Foundation\Http\FormRequest;
 
-class DestroyDeckCategoryRequest extends FormRequest
+class UpdateDeckCategoryRequest extends FormRequest
 {
     /**
-     * The user may delete a category only on their own deck, and only
+     * The user may rename a category only on their own deck, and only
      * for a category that belongs to that deck.
      */
     public function authorize(): bool
@@ -28,6 +28,8 @@ class DestroyDeckCategoryRequest extends FormRequest
      */
     public function rules(): array
     {
-        return [];
+        return [
+            'name' => ['required', 'string', 'max:'.DeckCategory::NAME_MAX],
+        ];
     }
 }

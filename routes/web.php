@@ -205,6 +205,8 @@ Route::middleware(array_filter(['auth', Features::enabled(Features::emailVerific
         ->name('api.decks.cards.move-zone');
     Route::delete('/api/decks/{deck}/cards/{deckCard}', [DeckCardController::class, 'destroy'])
         ->name('api.decks.cards.destroy');
+    Route::patch('/api/decks/{deck}/categories/{deckCategory}', [DeckCategoryController::class, 'update'])
+        ->name('api.decks.categories.update');
     Route::delete('/api/decks/{deck}/categories/{deckCategory}', [DeckCategoryController::class, 'destroy'])
         ->name('api.decks.categories.destroy');
     Route::patch('/api/decks/{deck}/companion', [DeckCompanionController::class, 'store'])

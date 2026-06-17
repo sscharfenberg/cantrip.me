@@ -1120,8 +1120,14 @@
                 "link": "Manage groups",
                 "delete": {
                     "link": "Delete",
+                    "aria": "Delete custom group",
                     "explanation": "Deleting a group that has cards assigned moves these cards back to the default 'card type' group. There is no confirmation before deleting.",
                     "success": "Category deleted."
+                },
+                "edit": {
+                    "aria": "Edit custom group",
+                    "save": "Save group name",
+                    "abort": "Cancel renaming"
                 }
             },
             "card_quantity": {

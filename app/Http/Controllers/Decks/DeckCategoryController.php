@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Decks;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Decks\DestroyDeckCategoryRequest;
 use App\Http\Requests\Decks\StoreDeckCategoryRequest;
+use App\Http\Requests\Decks\UpdateDeckCategoryRequest;
 use App\Models\Deck;
 use App\Models\DeckCard;
 use App\Models\DeckCategory;
@@ -41,6 +42,18 @@ class DeckCategoryController extends Controller
         $request->session()->flash('type', 'success');
 
         return redirect()->back();
+    }
+
+    /**
+     * Rename a custom category.
+     */
+    public function update(UpdateDeckCategoryRequest $request, Deck $deck, DeckCategory $deckCategory): JsonResponse
+    {
+        $deckCategory->update([
+            'name' => $request->validated()['name'],
+        ]);
+
+        return response()->json(['name' => $deckCategory->name], 200);
     }
 
     /**
