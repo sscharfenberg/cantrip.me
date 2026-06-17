@@ -8275,16 +8275,16 @@
         },
         {
             "name": "laravel/boost",
-            "version": "v2.4.9",
+            "version": "v2.4.10",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/boost.git",
-                "reference": "f0359e55f6c3782023a35baf1d3df817053d69e8"
+                "reference": "080189f51c8d27c0792a03483a70adc7770f6eeb"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/boost/zipball/f0359e55f6c3782023a35baf1d3df817053d69e8",
-                "reference": "f0359e55f6c3782023a35baf1d3df817053d69e8",
+                "url": "https://api.github.com/repos/laravel/boost/zipball/080189f51c8d27c0792a03483a70adc7770f6eeb",
+                "reference": "080189f51c8d27c0792a03483a70adc7770f6eeb",
                 "shasum": ""
             },
             "require": {
@@ -8293,7 +8293,7 @@
                 "illuminate/contracts": "^11.45.3|^12.41.1|^13.0",
                 "illuminate/routing": "^11.45.3|^12.41.1|^13.0",
                 "illuminate/support": "^11.45.3|^12.41.1|^13.0",
-                "laravel/mcp": "^0.7.1",
+                "laravel/mcp": "^0.7.1|^0.8.0",
                 "laravel/prompts": "^0.3.10",
                 "laravel/roster": "^0.5.0",
                 "php": "^8.2"
@@ -8337,20 +8337,20 @@
                 "issues": "https://github.com/laravel/boost/issues",
                 "source": "https://github.com/laravel/boost"
             },
-            "time": "2026-06-04T10:33:57+00:00"
+            "time": "2026-06-09T10:21:08+00:00"
         },
         {
             "name": "laravel/mcp",
-            "version": "v0.7.2",
+            "version": "v0.8.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/mcp.git",
-                "reference": "08962a276357f89164f78b38407c08187ab26cfe"
+                "reference": "fdc39c9e21048801508765cb4d72bd9e8501b51f"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/mcp/zipball/08962a276357f89164f78b38407c08187ab26cfe",
-                "reference": "08962a276357f89164f78b38407c08187ab26cfe",
+                "url": "https://api.github.com/repos/laravel/mcp/zipball/fdc39c9e21048801508765cb4d72bd9e8501b51f",
+                "reference": "fdc39c9e21048801508765cb4d72bd9e8501b51f",
                 "shasum": ""
             },
             "require": {
@@ -8378,7 +8378,7 @@
             "extra": {
                 "laravel": {
                     "aliases": {
-                        "Mcp": "Laravel\\Mcp\\Server\\Facades\\Mcp"
+                        "Mcp": "Laravel\\Mcp\\Facades\\Mcp"
                     },
                     "providers": [
                         "Laravel\\Mcp\\Server\\McpServiceProvider"
@@ -8411,7 +8411,7 @@
                 "issues": "https://github.com/laravel/mcp/issues",
                 "source": "https://github.com/laravel/mcp"
             },
-            "time": "2026-05-22T11:45:29+00:00"
+            "time": "2026-06-11T13:59:49+00:00"
         },
         {
             "name": "laravel/pail",
