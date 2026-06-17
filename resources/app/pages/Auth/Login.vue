@@ -64,7 +64,14 @@ const onCodeTypeChange = (event: Event) => {
             :required="true"
             :invalid="!!errors?.name"
         >
-            <input v-model="name" type="text" name="name" id="name" class="form-input" />
+            <input
+                v-model="name"
+                type="text"
+                name="name"
+                id="name"
+                class="form-input"
+                autocomplete="username"
+            />
         </form-group>
         <form-group
             v-if="!requiresTwoFactor"
@@ -81,6 +88,7 @@ const onCodeTypeChange = (event: Event) => {
                 name="password"
                 id="password"
                 class="form-input"
+                autocomplete="current-password"
             />
             <template #button>
                 <button
