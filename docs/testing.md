@@ -4,10 +4,10 @@
 
 The PHPUnit configuration in `phpunit.xml` defines two physically separate testsuites that split along DB-engine lines. Each composer script targets exactly one suite, so running the wrong command on the wrong host can't ever drop a `RefreshDatabase` test onto the live MariaDB.
 
-| Suite      | Directories                                                | DB driver            | Composer script        | Tests (2026-05-19) |
-|------------|------------------------------------------------------------|----------------------|------------------------|--------------------|
-| `Local`    | `tests/Unit` + `tests/Feature` *(excl. `Feature/Services`)*| SQLite in-memory     | `composer test`        | 239 (745 asserts)  |
-| `Staging`  | `tests/Feature/Services` only                              | MariaDB (`mbos`)     | `composer test:mysql`  | 51                 |
+| Suite      | Directories                                                | DB driver            | Composer script        |
+|------------|------------------------------------------------------------|----------------------|------------------------|
+| `Local`    | `tests/Unit` + `tests/Feature` *(excl. `Feature/Services`)*| SQLite in-memory     | `composer test`        |
+| `Staging`  | `tests/Feature/Services` only                              | MariaDB (`mbos`)     | `composer test:mysql`  |
 
 ## `composer test`
 
