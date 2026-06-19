@@ -67,9 +67,20 @@ class ShadowTableRegistry
         ['oracle_card_face_translations', 'oracle_card_id', 'oracle_cards', 'shadow'],
         // User-data FKs (live → shadow). A non-zero count here means a
         // Scryfall card has gone missing under user data; the swap aborts.
+        //
+        // This list must cover EVERY FK that references a swap table from a
+        // non-swap (user-data) table. Any such FK is captured and re-added
+        // around the swap, so an unvalidated orphan would slip past this gate
+        // and instead make addForeignKeys() throw (errno 1452) AFTER the swap
+        // and dropRetired — a far worse partial-state failure than a clean
+        // pre-swap abort. `decks.default_card_id` and `containers.default_card_id`
+        // are the deck/container display-card printings (nullable; the
+        // validator skips NULLs via whereNotNull).
         ['deck_cards', 'oracle_card_id', 'oracle_cards', 'live'],
         ['deck_cards', 'default_card_id', 'default_cards', 'live'],
         ['card_stacks', 'default_card_id', 'default_cards', 'live'],
+        ['decks', 'default_card_id', 'default_cards', 'live'],
+        ['containers', 'default_card_id', 'default_cards', 'live'],
     ];
 
     public static function shadow(string $table): string

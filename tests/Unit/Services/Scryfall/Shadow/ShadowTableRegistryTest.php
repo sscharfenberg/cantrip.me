@@ -90,11 +90,16 @@ class ShadowTableRegistryTest extends TestCase
                 $userDataSources[$source] = true;
             }
         }
-        // Sanity: PR 1's stated user-data FK set is deck_cards + card_stacks.
-        // If anyone adds a new live source, they must intentionally update
-        // this assertion — flags drift between the registry and the plan.
+        // The user-data FK set: deck_cards + card_stacks carry card refs
+        // directly; decks + containers carry a nullable display-card printing.
+        // All four must be validated pre-swap, since every FK referencing a
+        // swap table is captured and re-added around the RENAME — an
+        // unvalidated orphan would surface as an addForeignKeys() failure
+        // AFTER the swap instead of a clean abort. If anyone adds a new live
+        // source, they must intentionally update this assertion — it flags
+        // drift between the registry and the real schema.
         $this->assertSame(
-            ['deck_cards' => true, 'card_stacks' => true],
+            ['deck_cards' => true, 'card_stacks' => true, 'decks' => true, 'containers' => true],
             $userDataSources,
         );
     }
