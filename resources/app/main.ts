@@ -3,12 +3,8 @@
  *****************************************************************************/
 import "@/styles/app.scss";
 import { createInertiaApp, router } from "@inertiajs/vue3";
-import {
-    doesProgressBarExist,
-    finishProgress,
-    setProgress,
-    startProgress
-} from "@sscharfenberg/progressbar/progressbar.js";
+import type { ProgressBarOptions } from "@sscharfenberg/progressbar";
+import { doesProgressBarExist, finishProgress, setProgress, startProgress } from "@sscharfenberg/progressbar";
 import FloatingVue from "floating-vue";
 import type { DefineComponent } from "vue";
 import { createApp, h } from "vue";
@@ -18,7 +14,7 @@ import { useNavigation } from "@/composables/useNavigation.ts";
 import { useToast } from "@/composables/useToast.ts";
 import { setupI18n, loadLocaleMessages, getI18n } from "@/i18n.ts";
 import FullLayout from "./components/Layout/FullLayout.vue";
-const progressBarSettings = { ariaLabel: "Ladefortschritt", parent: "#app" };
+const progressBarSettings: ProgressBarOptions = { ariaLabel: "Ladefortschritt", parent: "#app" };
 let timeout: ReturnType<typeof setTimeout>;
 
 /******************************************************************************

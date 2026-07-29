@@ -1,1 +1,0 @@
-declare module "@sscharfenberg/progressbar/progressbar.js";
