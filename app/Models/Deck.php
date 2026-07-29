@@ -163,11 +163,27 @@ class Deck extends Model
     }
 
     /**
+     * Is `$defaultCardId` attached to this deck in any role?
+     *
+     * Single source of truth post-consolidation: every card in the deck
+     * (mainboard, sideboard, maybeboard, command zone, companion) lives in
+     * `deck_cards`, so one existence check answers for all of them.
+     *
+     * Shared with the deck-update hero-image validator so the two can't
+     * drift — they did once, when the consolidation left the validator
+     * probing the since-dropped `commanders` table.
+     */
+    public function carriesPrinting(string $defaultCardId): bool
+    {
+        return DeckCard::query()
+            ->where('deck_id', $this->id)
+            ->where('default_card_id', $defaultCardId)
+            ->exists();
+    }
+
+    /**
      * Clear the hero image when its printing is no longer attached to
-     * the deck in any role. Single source of truth post-consolidation:
-     * every card in the deck (mainboard, sideboard, command zone,
-     * companion) lives in `deck_cards`, so a single existence check
-     * suffices.
+     * the deck in any role.
      *
      * The deck-update form validator requires the submitted hero to
      * match an attached printing, so any mutation that can detach the
@@ -179,12 +195,7 @@ class Deck extends Model
             return;
         }
 
-        $isAttached = DeckCard::query()
-            ->where('deck_id', $this->id)
-            ->where('default_card_id', $this->default_card_id)
-            ->exists();
-
-        if (! $isAttached) {
+        if (! $this->carriesPrinting($this->default_card_id)) {
             $this->update(['default_card_id' => null]);
         }
     }

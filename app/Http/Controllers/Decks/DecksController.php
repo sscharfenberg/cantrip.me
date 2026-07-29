@@ -1113,24 +1113,15 @@ class DecksController extends Controller
                     Rule::exists(OracleCard::class, 'id'),
                 ],
                 // Hero image: must be a default_card_id attached to this
-                // deck in any role — main + sideboard, command zone, or
-                // companion — so users can't point the banner at a
+                // deck in any role, so users can't point the banner at a
                 // printing the deck doesn't actually carry.
+                // {@see Deck::carriesPrinting()} covers every role in one
+                // lookup and is shared with Deck::syncHeroImage().
                 'default_card_id' => [
                     'nullable',
                     'string',
                     function (string $attribute, mixed $value, \Closure $fail) use ($deck): void {
-                        $valid = DeckCard::query()
-                            ->where('deck_id', $deck->id)
-                            ->where('default_card_id', $value)
-                            ->exists()
-                            || DB::table('commanders')
-                                ->where('deck_id', $deck->id)
-                                ->where('default_card_id', $value)
-                                ->exists()
-                            || $deck->companion_default_card_id === $value;
-
-                        if (! $valid) {
+                        if (! is_string($value) || ! $deck->carriesPrinting($value)) {
                             $fail("The selected {$attribute} is invalid.");
                         }
                     },

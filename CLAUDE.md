@@ -60,10 +60,11 @@ Requires Node 26.1+ and npm 11.13+.
 **Database:** MariaDB. Session, queue, and cache all use the `database` driver.
 
 **Deck card references (dual-ID pattern):**
-Both `commanders` and `deck_cards` tables store two card references:
+Every `deck_cards` row stores two card references:
 - `oracle_card_id` — logical card identity for rules enforcement (singleton, color identity, legality)
 - `default_card_id` — specific printing for display (card image), auto-picked as newest printing at creation
-- `commanders` PK is `[deck_id, oracle_card_id]` so printing changes are a simple UPDATE
+- **There is no `commanders` table** — it was removed, along with the `decks.companion_*` columns. Commanders, partners, signature spells and companions are ordinary `deck_cards` rows: `zone` (`App\Enums\DeckZone` — main/side/maybe/command/companion) places the row, and the nullable `role` (`App\Enums\DeckCardRole` — commander/partner/signature_spell/companion) tags the special slot. `unique(deck_id, role)` makes a second commander (or partner, signature spell, companion) impossible at the schema level; MySQL UNIQUE permits multiple NULLs, so ordinary mainboard rows are unaffected.
+- Because the printing lives in the same row, changing a commander's printing is a plain `default_card_id` UPDATE.
 - `CommandZoneService` (not `CommanderService`) owns all command zone search and validation logic
 
 **Deck ↔ collection integration (modes A/B/C):**
