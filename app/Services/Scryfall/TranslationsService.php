@@ -6,7 +6,6 @@ use App\Models\OracleCardFaceTranslation;
 use App\Models\OracleCardTranslation;
 use App\Services\CardNameNormalizer;
 use App\Services\FormatService;
-use Cerbero\JsonParser\JsonParser;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -20,11 +19,10 @@ use Illuminate\Support\Facades\Log;
  *
  * Streaming strategy
  * ------------------
- * `JsonParser::parse($downloadUri)` engages cerbero's `Endpoint`
- * source which uses Guzzle's PSR-7 streaming response — the JSON
- * arrives chunk-by-chunk and is decoded incrementally without ever
- * materializing the full bulk in memory. Critical for `all_cards`
- * at ~2.5 GB; the sibling services ({@see OracleCardsService},
+ * {@see ScryfallService::streamJsonl()} inflates and reads the gzipped
+ * JSON Lines bulk one line at a time, so the full bulk is never
+ * materialized in memory. Critical for `all_cards` at ~372 MB gzipped;
+ * the sibling services ({@see OracleCardsService},
  * {@see DefaultCardsService}, {@see RulingsService}) use the same
  * pattern. Tradeoff: a mid-stream abort means the next run re-fetches
  * from Scryfall.
@@ -138,8 +136,8 @@ class TranslationsService extends ScryfallService
      * Run a full translations import from Scryfall.
      *
      * Reads the `all_cards` download URI off the bulk_data(__shadow)
-     * row, streams the JSON directly from Scryfall via cerbero's
-     * `Endpoint` source, and bulk-inserts the deduped translation
+     * row, streams the gzipped JSONL bulk directly from Scryfall, and
+     * bulk-inserts the deduped translation
      * rows into oracle_card_translations(__shadow) and
      * oracle_card_face_translations(__shadow).
      *
@@ -252,19 +250,16 @@ class TranslationsService extends ScryfallService
     }
 
     /**
-     * Stream-parse the all_cards bulk JSON directly from Scryfall
-     * via cerbero's `Endpoint` source. The HTTP response is read
-     * chunk-by-chunk through a PSR-7 stream wrapper — no on-disk
-     * file, no full-response materialization in PHP memory.
+     * Stream the all_cards gzipped JSONL bulk directly from Scryfall,
+     * inflating and decoding one line at a time — no on-disk file, no
+     * full-response materialization in PHP memory.
      */
     private function traverseJson(string $downloadUri): void
     {
         $start = now();
-        $count = 0;
         Log::channel('scryfall')->notice("begin streaming all_cards bulk from '$downloadUri'.");
-        JsonParser::parse($downloadUri)->traverse(function (mixed $value, string|int $key) use (&$count): void {
-            $this->bufferPrinting($value);
-            $count++;
+        $count = $this->streamJsonl($downloadUri, function (array $printing): void {
+            $this->bufferPrinting($printing);
         });
         $ms = $start->diffInMilliseconds(now());
         $numPrintings = number_format($count, 0, ',', '.');

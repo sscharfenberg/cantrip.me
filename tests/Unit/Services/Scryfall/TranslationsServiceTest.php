@@ -16,10 +16,10 @@ use Tests\TestCase;
  *
  * Hits a real (in-memory SQLite) DB via {@see RefreshDatabase} so the
  * service's `DB::table()` writes and FK-lookup pre-loads execute
- * against actual schema. The bulk JSON is sourced from a tempfile
- * written per test — `JsonParser::parse()`'s `Filename` source
- * matches when `is_file($source)` is true, so the streaming path is
- * exercised end-to-end without any HTTP I/O.
+ * against actual schema. The bulk is sourced from a gzipped JSONL
+ * tempfile written per test — same `.gz` + one-object-per-line shape
+ * Scryfall serves, so {@see ScryfallService::streamJsonl()} exercises
+ * its real inflate-and-decode path without any HTTP I/O.
  *
  * The Local PHPUnit suite uses SQLite. The defensive `mysql` skip
  * keeps the test out of a misconfigured `composer test:mysql`
@@ -62,8 +62,6 @@ class TranslationsServiceTest extends TestCase
             'description' => 'fixture bulk for tests',
             'size' => filesize($fixturePath) ?: 0,
             'download_uri' => $fixturePath,
-            'content_type' => 'application/json',
-            'content_encoding' => '',
         ]);
 
         foreach ($oracles as $oracle) {
@@ -92,11 +90,13 @@ class TranslationsServiceTest extends TestCase
     }
 
     /**
-     * Write the fixture printings to a tempfile and return its path.
-     * The tempfile is removed on test tear-down via PHP's normal
-     * tempfile semantics — `tempnam()` files persist until manually
-     * unlinked, but the test process owns them and they sit under
-     * `sys_get_temp_dir()`.
+     * Write the fixture printings to a gzipped JSONL tempfile — one JSON
+     * object per line, gzip-compressed, mirroring the `.jsonl.gz` bulks
+     * Scryfall serves. The `.gz` suffix is what makes the service pick
+     * its `compress.zlib://` read path.
+     *
+     * `tempnam()` files persist until manually unlinked, but the test
+     * process owns them and they sit under `sys_get_temp_dir()`.
      *
      * @param  array<int, array<string, mixed>>  $printings
      */
@@ -106,9 +106,15 @@ class TranslationsServiceTest extends TestCase
         if ($path === false) {
             $this->fail('failed to create tempfile for fixture');
         }
-        file_put_contents($path, json_encode($printings));
+        $jsonl = '';
+        foreach ($printings as $printing) {
+            $jsonl .= json_encode($printing)."\n";
+        }
+        $gzPath = $path.'.jsonl.gz';
+        file_put_contents($gzPath, gzencode($jsonl));
+        unlink($path);
 
-        return $path;
+        return $gzPath;
     }
 
     #[Test]

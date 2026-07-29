@@ -296,9 +296,9 @@ class UpdateEverything extends Command
         // is enforced inside the service.
         $this->runStep('scryfall:oracle-tags', shadow: true);
         $waitTime += $this->sleep();
-        // translations: streams the ~2.5 GB all_cards bulk straight
-        // from Scryfall via cerbero's Endpoint source (no on-disk
-        // file). Depends on oracle_cards__shadow + oracle_card_faces__shadow
+        // translations: streams the ~372 MB gzipped all_cards bulk
+        // straight from Scryfall (no on-disk file). Depends on
+        // oracle_cards__shadow + oracle_card_faces__shadow
         // being populated for FK validation, hence ordered after
         // oracle. Independent of default_cards / rulings / images so
         // it can run before or after them; placed here for cleanly

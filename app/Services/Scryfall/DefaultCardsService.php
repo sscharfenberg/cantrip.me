@@ -9,7 +9,6 @@ use App\Models\DefaultCard;
 use App\Models\DefaultCardRelation;
 use App\Services\CardNameNormalizer;
 use App\Services\FormatService;
-use Cerbero\JsonParser\JsonParser;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -32,10 +31,9 @@ use Illuminate\Support\Facades\Log;
  *
  * Streaming strategy
  * ------------------
- * `JsonParser::parse($downloadUri)` engages cerbero's `Endpoint` source
- * which uses Guzzle's PSR-7 streaming response — the JSON arrives
- * chunk-by-chunk and is decoded incrementally without ever materializing
- * the full bulk in memory. No on-disk caching; every run re-fetches from
+ * {@see ScryfallService::streamJsonl()} inflates and reads the gzipped
+ * JSON Lines bulk one line at a time, so the full bulk is never
+ * materialized in memory. No on-disk caching; every run re-fetches from
  * Scryfall. Tradeoff: a mid-stream abort means the next run re-fetches.
  */
 class DefaultCardsService extends ScryfallService
@@ -302,19 +300,16 @@ class DefaultCardsService extends ScryfallService
      * during the walk and flushed once at the end so FK constraints hold
      * without a dependency-ordered traversal.
      *
-     * Uses cerbero's `Endpoint` source so the JSON is read via a PSR-7
-     * stream wrapper — no on-disk file, no full-response materialization
-     * in PHP memory.
+     * The gzipped JSONL bulk is read one line at a time — no on-disk file,
+     * no full-response materialization in PHP memory.
      */
     private function traverseJson(string $downloadUri): void
     {
         $start = now();
-        $count = 0;
         Log::channel('scryfall')->notice("begin streaming default_cards bulk from '$downloadUri'.");
-        JsonParser::parse($downloadUri)->traverse(function (mixed $value, string|int $key, JsonParser $parser) use (&$count) {
-            $this->insertCard($value);
-            $this->bufferRelations($value);
-            $count++;
+        $count = $this->streamJsonl($downloadUri, function (array $card): void {
+            $this->insertCard($card);
+            $this->bufferRelations($card);
         });
         $this->flushRelationsBuffer();
         $ms = $start->diffInMilliseconds(now());

@@ -58,8 +58,6 @@ class BulkData extends Model
         'description',
         'size',
         'download_uri',
-        'content_type',
-        'content_encoding',
     ];
 
     /**

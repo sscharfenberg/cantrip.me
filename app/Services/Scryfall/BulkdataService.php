@@ -51,14 +51,46 @@ class BulkdataService extends ScryfallService
     }
 
     /**
+     * Fields every /bulk-data entry must carry for the import to work.
+     *
+     * Checked up-front so a future Scryfall schema change surfaces as a
+     * named failure through the `scryfall:update` alert path instead of an
+     * `Undefined array key` fatal from inside the insert — which is exactly
+     * how the `size` → `compressed_size` rename first showed up.
+     */
+    private const REQUIRED_FIELDS = [
+        'id',
+        'type',
+        'updated_at',
+        'uri',
+        'name',
+        'description',
+        'compressed_size',
+        'jsonl_download_uri',
+    ];
+
+    /**
      * Persist a single bulk-data catalog entry to the database.
      *
-     * Maps the Scryfall API response fields to the BulkData model.
+     * Maps the Scryfall API response fields to the BulkData model. Note the
+     * two column/field mismatches, both from Scryfall's move to gzipped
+     * JSON Lines: `size` holds `compressed_size` (the uncompressed size is
+     * no longer published at all) and `download_uri` holds
+     * `jsonl_download_uri` (the plain `.json` bulks now 404).
      *
      * @param  array  $bulk  A single item from the Scryfall /bulk-data response.
      */
     private function insertBulkData(array $bulk): void
     {
+        $missing = array_diff(self::REQUIRED_FIELDS, array_keys($bulk));
+        if ($missing !== []) {
+            $type = is_string($bulk['type'] ?? null) ? $bulk['type'] : 'unknown';
+            throw new \RuntimeException(
+                "scryfall /bulk-data entry '$type' is missing expected field(s): ".implode(', ', $missing)
+                .'. The Scryfall bulk-data schema has changed.'
+            );
+        }
+
         $arr = [
             'id' => $bulk['id'],
             'type' => $bulk['type'],
@@ -70,10 +102,8 @@ class BulkdataService extends ScryfallService
             'uri' => $bulk['uri'],
             'name' => $bulk['name'],
             'description' => $bulk['description'],
-            'size' => $bulk['size'],
-            'download_uri' => $bulk['download_uri'],
-            'content_type' => $bulk['content_type'],
-            'content_encoding' => $bulk['content_encoding'],
+            'size' => $bulk['compressed_size'],
+            'download_uri' => $bulk['jsonl_download_uri'],
         ];
         DB::table($this->bulkDataTable)->insert($arr);
         Log::channel('scryfall')->debug("created bulkdata entry '{$arr['name']}' last updated @ {$arr['updated_at']}.");

@@ -20,8 +20,8 @@ use Illuminate\Support\Facades\Log;
  * (`--target=shadow`) → writes to `__shadow` tables built by the
  * orchestrator and skips truncate.
  *
- * The bulk is ~2.5 GB and streams directly from Scryfall via
- * cerbero's `Endpoint` source — no on-disk file is created. The
+ * The bulk is ~372 MB gzipped and streams directly from Scryfall —
+ * inflated and decoded line by line, no on-disk file is created. The
  * sibling bulk imports (`scryfall:oracle`, `scryfall:default_cards`,
  * `scryfall:rulings`) use the same streaming pattern.
  */

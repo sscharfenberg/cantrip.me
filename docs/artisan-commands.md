@@ -8,7 +8,7 @@ Project-specific commands for Scryfall data sync and image management. Standard 
 
 Orchestrates the full Scryfall sync via the **shadow-table swap flow**: builds every truncate-rebuild table in `*__shadow` siblings, validates FK integrity, captures+drops FKs around an atomic multi-table RENAME, then re-adds FKs to the new live tables. The site stays fully usable throughout — DB churn is invisible to users, the swap itself is sub-second, and a mid-flight failure leaves the live tables byte-for-byte untouched. **No maintenance mode** (`down`/`up`).
 
-Warning: streams ~3.2 GB of bulk JSON data from Scryfall per run (~170 MB `oracle_cards` + ~537 MB `default_cards` + ~25 MB `rulings` + ~2.5 GB `all_cards`). Every run re-fetches from Scryfall — no on-disk caching of bulk JSONs in any environment. Cerbero's `Endpoint` source decodes the HTTP response chunk-by-chunk via a PSR-7 stream wrapper, so peak memory stays in the tens of MB regardless of bulk size.
+Warning: streams ~475 MB of gzipped bulk data from Scryfall per run (~23 MB `oracle_cards` + ~73 MB `default_cards` + ~5 MB `rulings` + ~372 MB `all_cards`). Every run re-fetches from Scryfall — no on-disk caching of bulk data in any environment. Scryfall serves the bulks as gzipped JSON Lines (`.jsonl.gz`); `ScryfallService::streamJsonl()` inflates and decodes them one line at a time, so peak memory stays in the tens of MB regardless of bulk size.
 
 Execution order:
 
@@ -62,7 +62,7 @@ Fetches bulk-data metadata from Scryfall (download URLs, expected filesizes) and
 
 ### `php artisan scryfall:oracle`
 
-Streams the `oracle_cards` bulk JSON (~170 MB) directly from Scryfall via cerbero's `Endpoint` source — no on-disk file. Truncates `oracle_cards` / `oracle_card_faces` / `legalities` (or skips truncate in shadow mode — orchestrator pre-created the empty shadows), and stream-parses every card. Card-level fields including `produced_mana` live on `oracle_cards`; per-face data on `oracle_card_faces`. Image columns are stored as Scryfall URLs; local path resolution happens later via `scryfall:resolve-paths`. Supports `--target=live|shadow`.
+Streams the gzipped `oracle_cards` bulk (~23 MB) directly from Scryfall — no on-disk file. Truncates `oracle_cards` / `oracle_card_faces` / `legalities` (or skips truncate in shadow mode — orchestrator pre-created the empty shadows), and stream-parses every card. Card-level fields including `produced_mana` live on `oracle_cards`; per-face data on `oracle_card_faces`. Image columns are stored as Scryfall URLs; local path resolution happens later via `scryfall:resolve-paths`. Supports `--target=live|shadow`.
 
 ### `php artisan scryfall:oracle-tags`
 
@@ -83,9 +83,9 @@ Runs in `scryfall:update` immediately after `scryfall:oracle` so the freshly ins
 
 ### `php artisan scryfall:translations`
 
-Imports foreign-language card-name translations from Scryfall's `all_cards` bulk (~2.5 GB) into `oracle_card_translations` (one row per `(oracle_card_id, lang)`) and `oracle_card_face_translations` (one row per `(oracle_card_id, face_index, lang)`). Drives the deck card-add / collection-add / commander search services so a German user can find "Blitzschlag" → Lightning Bolt.
+Imports foreign-language card-name translations from Scryfall's `all_cards` bulk (~372 MB gzipped) into `oracle_card_translations` (one row per `(oracle_card_id, lang)`) and `oracle_card_face_translations` (one row per `(oracle_card_id, face_index, lang)`). Drives the deck card-add / collection-add / commander search services so a German user can find "Blitzschlag" → Lightning Bolt.
 
-Streams the `all_cards` bulk JSON (~2.5 GB) directly from Scryfall via cerbero's `Endpoint` source — same pattern as the other three bulk imports, just with a much larger payload that makes streaming non-negotiable rather than merely preferable.
+Streams the gzipped `all_cards` bulk (~372 MB, ~2.5 GB inflated) directly from Scryfall — same pattern as the other three bulk imports, just with a much larger payload that makes streaming non-negotiable rather than merely preferable.
 
 Skips English printings (already in `oracle_cards.name`), printings whose `oracle_id` is unknown (defensive — tokens, etc.), and reprints with a duplicate `(oracle, lang)` or `(oracle, face_index, lang)` key (first occurrence wins). Bulk-inserts deduped rows in 1 000-row chunks at end of walk.
 
@@ -95,7 +95,7 @@ Supports `--target=live|shadow`. The orchestrator invokes this with `--target=sh
 
 ### `php artisan scryfall:default_cards`
 
-Streams the `default_cards` bulk JSON (~537 MB) directly from Scryfall via cerbero's `Endpoint` source — no on-disk file. Truncates `default_cards` / `default_card_relations` / `artists` (or skips in shadow mode), and stream-parses every card. Image columns are stored as Scryfall URLs; resolution happens later via `scryfall:resolve-paths`.
+Streams the gzipped `default_cards` bulk (~73 MB) directly from Scryfall — no on-disk file. Truncates `default_cards` / `default_card_relations` / `artists` (or skips in shadow mode), and stream-parses every card. Image columns are stored as Scryfall URLs; resolution happens later via `scryfall:resolve-paths`.
 
 `all_parts` (Scryfall's printing-level edges to related cards — tokens, meld parts, meld results, combo pieces) is captured during the same file walk into `default_card_relations`. Edges are buffered in memory and bulk-inserted (in 5 000-row chunks to stay under MySQL's 65 535-placeholder per-statement cap) once at end-of-walk.
 
@@ -105,7 +105,7 @@ Supports `--target=live|shadow`.
 
 ### `php artisan scryfall:rulings`
 
-Streams the `rulings` bulk JSON (~25 MB) directly from Scryfall via cerbero's `Endpoint` source — no on-disk file. Truncates `rulings` and stream-parses every ruling. Pre-loads existing `oracle_cards.id` values into an in-memory hash so rulings whose `oracle_id` doesn't reference a card we have (tokens, etc.) are silently skipped without per-row FK lookups. Inserts in 500-row batches. Supports `--target=live|shadow`.
+Streams the gzipped `rulings` bulk (~5 MB) directly from Scryfall — no on-disk file. Truncates `rulings` and stream-parses every ruling. Pre-loads existing `oracle_cards.id` values into an in-memory hash so rulings whose `oracle_id` doesn't reference a card we have (tokens, etc.) are silently skipped without per-row FK lookups. Inserts in 500-row batches. Supports `--target=live|shadow`.
 
 ### `php artisan scryfall:images`
 

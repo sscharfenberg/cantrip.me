@@ -8,7 +8,6 @@ use App\Models\OracleCardFace;
 use App\Models\OracleCardLegality;
 use App\Services\CardNameNormalizer;
 use App\Services\FormatService;
-use Cerbero\JsonParser\JsonParser;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -16,10 +15,9 @@ use Illuminate\Support\Str;
 /**
  * Streaming strategy
  * ------------------
- * `JsonParser::parse($downloadUri)` engages cerbero's `Endpoint` source
- * which uses Guzzle's PSR-7 streaming response — the JSON arrives
- * chunk-by-chunk and is decoded incrementally without ever materializing
- * the full bulk in memory. No on-disk caching; every run re-fetches from
+ * {@see ScryfallService::streamJsonl()} inflates and reads the gzipped
+ * JSON Lines bulk one line at a time, so the full bulk is never
+ * materialized in memory. No on-disk caching; every run re-fetches from
  * Scryfall. Tradeoff: a mid-stream abort means the next run re-fetches.
  *
  * Eloquent is unsuitable for the inserts here — the `$table` property is
@@ -236,19 +234,16 @@ class OracleCardsService extends ScryfallService
     }
 
     /**
-     * Stream-parse the bulk JSON directly from Scryfall and insert each
-     * card. Uses cerbero's `Endpoint` source so the JSON is read via a
-     * PSR-7 stream wrapper — no on-disk file, no full-response
-     * materialization in PHP memory.
+     * Stream the gzipped JSONL bulk directly from Scryfall and insert each
+     * card — no on-disk file, no full-response materialization in PHP
+     * memory.
      */
     private function traverseJson(string $downloadUri): void
     {
         $start = now();
-        $count = 0;
         Log::channel('scryfall')->notice("begin streaming oracle_cards bulk from '$downloadUri'.");
-        JsonParser::parse($downloadUri)->traverse(function (mixed $value, string|int $key, JsonParser $parser) use (&$count) {
-            $this->insertCard($value);
-            $count++;
+        $count = $this->streamJsonl($downloadUri, function (array $card): void {
+            $this->insertCard($card);
         });
         $this->flushFaceBuffer();
         $this->flushLegalityBuffer();
