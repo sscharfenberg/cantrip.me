@@ -43,9 +43,7 @@ const selectedId = ref(props.selected?.id ?? "");
 const qrSvg = ref("");
 const loading = ref(false);
 
-const dropdownOptions = computed(() =>
-    props.options.map(o => ({ value: o.id, label: o.name }))
-);
+const dropdownOptions = computed(() => props.options.map(o => ({ value: o.id, label: o.name })));
 
 /**
  * Navigate to the QR page for the picked entity. Inertia replaces the

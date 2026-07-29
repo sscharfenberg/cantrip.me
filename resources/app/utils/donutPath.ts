@@ -48,12 +48,7 @@ export const arcPath = (
 ): string => {
     const sweepOuter = theta1Outer - theta0Outer;
     const sweepInner = theta1Inner - theta0Inner;
-    const cr = Math.min(
-        cornerRadius,
-        (sweepOuter * rOuter) / 2,
-        (sweepInner * rInner) / 2,
-        (rOuter - rInner) / 2
-    );
+    const cr = Math.min(cornerRadius, (sweepOuter * rOuter) / 2, (sweepInner * rInner) / 2, (rOuter - rInner) / 2);
 
     if (cr < 0.5) {
         const x1 = rOuter * Math.cos(theta0Outer);

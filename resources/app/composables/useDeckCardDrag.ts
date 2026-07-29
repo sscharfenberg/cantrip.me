@@ -19,7 +19,11 @@ export type UseDeckCardDragReturn = {
     /** Returns true when this section is NOT a valid drop target for the current drag. */
     isUnavailable: (section: CardSection) => boolean;
     /** Returns the SortableJS group config for a card group section. */
-    groupFor: (section: CardSection) => { name: string; pull: "clone"; put: boolean | ((to: unknown, from: unknown, dragEl: HTMLElement) => boolean) };
+    groupFor: (section: CardSection) => {
+        name: string;
+        pull: "clone";
+        put: boolean | ((to: unknown, from: unknown, dragEl: HTMLElement) => boolean);
+    };
     /** Items dropped on the "create new group" target. */
     dropTargetList: Ref<DeckCardRow[]>;
     /** SortableJS group config for the "create new group" drop target. */
@@ -53,10 +57,7 @@ export type UseDeckCardDragReturn = {
  * @param cards - Getter for all deck cards — needed to look up card data
  *   from the DOM element that SortableJS provides on drop events.
  */
-export function useDeckCardDrag(
-    deckId: string,
-    cards: () => DeckCardRow[]
-): UseDeckCardDragReturn {
+export function useDeckCardDrag(deckId: string, cards: () => DeckCardRow[]): UseDeckCardDragReturn {
     const dragging = ref(false);
     const draggedTypeGroup = ref<DeckCardGroup | null>(null);
 
@@ -114,12 +115,13 @@ export function useDeckCardDrag(
         return {
             name: "deck-cards",
             pull: "clone" as const,
-            put: section.zone === "side" || section.categoryId
-                ? true
-                : (_to: unknown, _from: unknown, dragEl: HTMLElement) => {
-                      const card = findCard(dragEl);
-                      return card ? resolveGroup(card.type_line) === section.key : false;
-                  },
+            put:
+                section.zone === "side" || section.categoryId
+                    ? true
+                    : (_to: unknown, _from: unknown, dragEl: HTMLElement) => {
+                          const card = findCard(dragEl);
+                          return card ? resolveGroup(card.type_line) === section.key : false;
+                      }
         };
     }
 
@@ -164,7 +166,7 @@ export function useDeckCardDrag(
         router.patch(
             `/api/decks/${deckId}/cards/${cardId}/category`,
             { category_id: categoryId, zone },
-            { preserveScroll: true },
+            { preserveScroll: true }
         );
     }
 
@@ -180,6 +182,6 @@ export function useDeckCardDrag(
         showCreateGroupModal,
         droppedCard,
         onDropToCreateGroup,
-        onDropToGroup,
+        onDropToGroup
     };
 }

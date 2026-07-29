@@ -191,12 +191,7 @@ onUnmounted(() => {
             @click.prevent="toggleMenu"
         >
             <span v-if="selectedValue" class="form-select__selected">
-                <img
-                    v-if="selectedImageUrl"
-                    :src="selectedImageUrl"
-                    class="form-select__option-image"
-                    alt=""
-                />
+                <img v-if="selectedImageUrl" :src="selectedImageUrl" class="form-select__option-image" alt="" />
                 {{ selectedLabel }}
             </span>
             <span v-else>{{ effectivePlaceholder }}</span>
@@ -237,12 +232,7 @@ onUnmounted(() => {
                         class="form-select__option"
                         @click.prevent="select(option.value)"
                     >
-                        <img
-                            v-if="option.imageUrl"
-                            :src="option.imageUrl"
-                            class="form-select__option-image"
-                            alt=""
-                        />
+                        <img v-if="option.imageUrl" :src="option.imageUrl" class="form-select__option-image" alt="" />
                         <span class="form-select__option-label">{{ option.label }}</span>
                         <span v-if="option.meta" class="form-select__option-meta">{{ option.meta }}</span>
                     </button>

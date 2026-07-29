@@ -21,7 +21,5 @@ export interface DeleteDeckTarget {
  * fire the DELETE directly.
  */
 export function hasDeletableContent(target: DeleteDeckTarget): boolean {
-    return (
-        target.cardCount > 0 || target.hasCompanion || target.hasDescription || target.hasImage
-    );
+    return target.cardCount > 0 || target.hasCompanion || target.hasDescription || target.hasImage;
 }

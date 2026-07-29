@@ -16,7 +16,7 @@ export const COMPANION_NAMES = [
     "Obosh, the Preypiercer",
     "Umori, the Collector",
     "Yorion, Sky Nomad",
-    "Zirda, the Dawnwaker",
+    "Zirda, the Dawnwaker"
 ] as const;
 
 /** True when the given oracle name is one of the ten Companion cards. */

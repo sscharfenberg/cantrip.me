@@ -208,9 +208,7 @@ const processing = computed(() => loading.value || companionLoading.value);
  * Used to surface a helper note clarifying that using one as commander does
  * NOT make it your companion — a separate companion may still be attached.
  */
-const commanderIsCompanionCard = computed(
-    () => selected.value !== null && isCompanionCard(selected.value.name)
-);
+const commanderIsCompanionCard = computed(() => selected.value !== null && isCompanionCard(selected.value.name));
 /** True when a commander has been selected. Partner/background/partner-with are all optional. */
 const canSubmit = computed(() => !!selected.value);
 /** Emit the confirmed command zone and close the modal. */

@@ -110,12 +110,7 @@ function typeLabelFor(c: Container): string {
         </ul>
 
         <ul class="clist clist--selectable">
-            <li
-                v-for="container in containers"
-                :key="container.id"
-                class="clist__item"
-                @click="toggle(container.id)"
-            >
+            <li v-for="container in containers" :key="container.id" class="clist__item" @click="toggle(container.id)">
                 <!-- Col 1 is a checkbox here (drag handle in the
                      sortable variant). @click.stop on the cell so the
                      Checkbox's own change event drives the toggle
@@ -140,9 +135,7 @@ function typeLabelFor(c: Container): string {
                     <span v-else class="clist__image" />
                     <span class="clist__name">
                         {{ container.name }}
-                        <span v-if="container.description" class="clist__description">{{
-                            container.description
-                        }}</span>
+                        <span v-if="container.description" class="clist__description">{{ container.description }}</span>
                     </span>
                     <span class="clist__type">
                         <icon name="storage" />

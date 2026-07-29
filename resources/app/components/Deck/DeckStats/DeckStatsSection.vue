@@ -27,7 +27,7 @@ const {
     karstenCombined,
     typeCounts,
     subtypeBreakdowns,
-    categoryCounts,
+    categoryCounts
 } = useDeckStats(
     () => props.cards,
     () => props.commanders,

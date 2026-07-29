@@ -108,9 +108,7 @@ const emptyHighlight = (): DeckHighlight => ({
  * getter, fetchlands fall back to their (empty) raw `produced_mana`
  * and stay un-highlighted — same as the pre-fetchland behavior.
  */
-export const provideDeckHighlight = (
-    getDeckCards?: () => HighlightableCard[]
-): DeckHighlightApi => {
+export const provideDeckHighlight = (getDeckCards?: () => HighlightableCard[]): DeckHighlightApi => {
     const highlight = reactive<DeckHighlight>(emptyHighlight());
 
     /**

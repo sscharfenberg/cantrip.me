@@ -45,12 +45,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-    <li
-        ref="rootEl"
-        class="face-image"
-        :class="{ 'face-image--flipped': flipped }"
-        @transitionend="animating = false"
-    >
+    <li ref="rootEl" class="face-image" :class="{ 'face-image--flipped': flipped }" @transitionend="animating = false">
         <img
             v-if="loaded && cardImage0"
             :src="cardImage0"

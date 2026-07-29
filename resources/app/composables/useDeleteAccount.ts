@@ -66,8 +66,7 @@ export const useDeleteAccount = (): UseDeleteAccountReturn => {
 
             const data = (await response.json().catch(() => ({}))) as { redirect?: string };
             router.visit(data.redirect ?? "/");
-        }
-        finally {
+        } finally {
             processing.value = false;
         }
     };

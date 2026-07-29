@@ -80,18 +80,15 @@ function openAssignStack(): void {
  * C even after a clear, by design.
  */
 async function assignStack(stackId: string | null): Promise<void> {
-    const response = await fetch(
-        `/api/decks/${props.deckId}/cards/${props.card.id}/assigned-stacks`,
-        {
-            method: "PATCH",
-            headers: {
-                "Content-Type": "application/json",
-                "X-CSRF-TOKEN": page.props.csrfToken as string,
-                Accept: "application/json"
-            },
-            body: JSON.stringify({ card_stack_id: stackId })
-        }
-    );
+    const response = await fetch(`/api/decks/${props.deckId}/cards/${props.card.id}/assigned-stacks`, {
+        method: "PATCH",
+        headers: {
+            "Content-Type": "application/json",
+            "X-CSRF-TOKEN": page.props.csrfToken as string,
+            Accept: "application/json"
+        },
+        body: JSON.stringify({ card_stack_id: stackId })
+    });
     if (!response.ok) return;
     router.reload({ only: ["cards"] });
 }
@@ -102,9 +99,7 @@ async function assignStack(stackId: string | null): Promise<void> {
  * target the modal would only show "Create new group", which is reachable
  * via drag-and-drop instead.
  */
-const canMoveToGroup = computed(
-    () => props.card.category_id !== null || props.categories.length > 0
-);
+const canMoveToGroup = computed(() => props.card.category_id !== null || props.categories.length > 0);
 const { canIncrement, increment, decrement, destroy, moveZone, switchPrinting } = useDeckCardActions(
     {
         deckId: props.deckId,

@@ -53,11 +53,7 @@ onUnmounted(() => observer?.disconnect());
 
 <template>
     <div class="results-wrapper">
-        <num-visible
-            v-if="totalResults > PAGE_SIZE"
-            :visible-count="visibleCount"
-            :num-total-results="totalResults"
-        />
+        <num-visible v-if="totalResults > PAGE_SIZE" :visible-count="visibleCount" :num-total-results="totalResults" />
         <ul class="results">
             <li
                 v-for="card in visibleResults"

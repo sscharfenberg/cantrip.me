@@ -62,11 +62,7 @@ export interface DeckCompanion {
  * outside mode C — see the field-level doc.
  */
 export type CollectionStatus =
-    | "claimed_for_this_deck"
-    | "available"
-    | "claimed_by_other_deck"
-    | "wrong_printing"
-    | "not_owned";
+    "claimed_for_this_deck" | "available" | "claimed_by_other_deck" | "wrong_printing" | "not_owned";
 
 /**
  * Mode-B "implicit deckbox" counts. Computed by
@@ -210,15 +206,7 @@ export interface DeckToken extends DefaultCardImage {
  * always maps to the `yorion` message.
  */
 export type PerCardCompanionKey =
-    | "gyruda"
-    | "jegantha"
-    | "kaheera"
-    | "keruga"
-    | "lurrus"
-    | "lutri"
-    | "obosh"
-    | "umori"
-    | "zirda";
+    "gyruda" | "jegantha" | "kaheera" | "keruga" | "lurrus" | "lutri" | "obosh" | "umori" | "zirda";
 
 /**
  * A single legality violation on the deck.

@@ -51,18 +51,15 @@ function openAssignStack(): void {
  * are deck_cards too post-consolidation.
  */
 async function assignStack(stackId: string | null): Promise<void> {
-    const response = await fetch(
-        `/api/decks/${props.deckId}/cards/${props.deckCardId}/assigned-stacks`,
-        {
-            method: "PATCH",
-            headers: {
-                "Content-Type": "application/json",
-                "X-CSRF-TOKEN": page.props.csrfToken as string,
-                Accept: "application/json"
-            },
-            body: JSON.stringify({ card_stack_id: stackId })
-        }
-    );
+    const response = await fetch(`/api/decks/${props.deckId}/cards/${props.deckCardId}/assigned-stacks`, {
+        method: "PATCH",
+        headers: {
+            "Content-Type": "application/json",
+            "X-CSRF-TOKEN": page.props.csrfToken as string,
+            Accept: "application/json"
+        },
+        body: JSON.stringify({ card_stack_id: stackId })
+    });
     if (!response.ok) return;
     router.reload({ only: ["companion"] });
 }

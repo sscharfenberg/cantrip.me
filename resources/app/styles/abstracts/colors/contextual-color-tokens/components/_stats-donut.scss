@@ -12,139 +12,79 @@ $stats-donut: (
                 map.get(c.$stats, "01", "light", "background"),
                 map.get(c.$stats, "01", "dark", "background")
             ),
-        "border": light-dark(
-                map.get(c.$stats, "01", "light", "border"),
-                map.get(c.$stats, "01", "dark", "border")
-            ),
-        "surface": light-dark(
-                map.get(c.$stats, "01", "light", "surface"),
-                map.get(c.$stats, "01", "dark", "surface")
-            )
+        "border": light-dark(map.get(c.$stats, "01", "light", "border"), map.get(c.$stats, "01", "dark", "border")),
+        "surface": light-dark(map.get(c.$stats, "01", "light", "surface"), map.get(c.$stats, "01", "dark", "surface"))
     ),
     "2": (
         "background": light-dark(
                 map.get(c.$stats, "02", "light", "background"),
                 map.get(c.$stats, "02", "dark", "background")
             ),
-        "border": light-dark(
-                map.get(c.$stats, "02", "light", "border"),
-                map.get(c.$stats, "02", "dark", "border")
-            ),
-        "surface": light-dark(
-                map.get(c.$stats, "02", "light", "surface"),
-                map.get(c.$stats, "02", "dark", "surface")
-            )
+        "border": light-dark(map.get(c.$stats, "02", "light", "border"), map.get(c.$stats, "02", "dark", "border")),
+        "surface": light-dark(map.get(c.$stats, "02", "light", "surface"), map.get(c.$stats, "02", "dark", "surface"))
     ),
     "3": (
         "background": light-dark(
                 map.get(c.$stats, "03", "light", "background"),
                 map.get(c.$stats, "03", "dark", "background")
             ),
-        "border": light-dark(
-                map.get(c.$stats, "03", "light", "border"),
-                map.get(c.$stats, "03", "dark", "border")
-            ),
-        "surface": light-dark(
-                map.get(c.$stats, "03", "light", "surface"),
-                map.get(c.$stats, "03", "dark", "surface")
-            )
+        "border": light-dark(map.get(c.$stats, "03", "light", "border"), map.get(c.$stats, "03", "dark", "border")),
+        "surface": light-dark(map.get(c.$stats, "03", "light", "surface"), map.get(c.$stats, "03", "dark", "surface"))
     ),
     "4": (
         "background": light-dark(
                 map.get(c.$stats, "04", "light", "background"),
                 map.get(c.$stats, "04", "dark", "background")
             ),
-        "border": light-dark(
-                map.get(c.$stats, "04", "light", "border"),
-                map.get(c.$stats, "04", "dark", "border")
-            ),
-        "surface": light-dark(
-                map.get(c.$stats, "04", "light", "surface"),
-                map.get(c.$stats, "04", "dark", "surface")
-            )
+        "border": light-dark(map.get(c.$stats, "04", "light", "border"), map.get(c.$stats, "04", "dark", "border")),
+        "surface": light-dark(map.get(c.$stats, "04", "light", "surface"), map.get(c.$stats, "04", "dark", "surface"))
     ),
     "5": (
         "background": light-dark(
                 map.get(c.$stats, "05", "light", "background"),
                 map.get(c.$stats, "05", "dark", "background")
             ),
-        "border": light-dark(
-                map.get(c.$stats, "05", "light", "border"),
-                map.get(c.$stats, "05", "dark", "border")
-            ),
-        "surface": light-dark(
-                map.get(c.$stats, "05", "light", "surface"),
-                map.get(c.$stats, "05", "dark", "surface")
-            )
+        "border": light-dark(map.get(c.$stats, "05", "light", "border"), map.get(c.$stats, "05", "dark", "border")),
+        "surface": light-dark(map.get(c.$stats, "05", "light", "surface"), map.get(c.$stats, "05", "dark", "surface"))
     ),
     "6": (
         "background": light-dark(
                 map.get(c.$stats, "06", "light", "background"),
                 map.get(c.$stats, "06", "dark", "background")
             ),
-        "border": light-dark(
-                map.get(c.$stats, "06", "light", "border"),
-                map.get(c.$stats, "06", "dark", "border")
-            ),
-        "surface": light-dark(
-                map.get(c.$stats, "06", "light", "surface"),
-                map.get(c.$stats, "06", "dark", "surface")
-            )
+        "border": light-dark(map.get(c.$stats, "06", "light", "border"), map.get(c.$stats, "06", "dark", "border")),
+        "surface": light-dark(map.get(c.$stats, "06", "light", "surface"), map.get(c.$stats, "06", "dark", "surface"))
     ),
     "7": (
         "background": light-dark(
                 map.get(c.$stats, "07", "light", "background"),
                 map.get(c.$stats, "07", "dark", "background")
             ),
-        "border": light-dark(
-                map.get(c.$stats, "07", "light", "border"),
-                map.get(c.$stats, "07", "dark", "border")
-            ),
-        "surface": light-dark(
-                map.get(c.$stats, "07", "light", "surface"),
-                map.get(c.$stats, "07", "dark", "surface")
-            )
+        "border": light-dark(map.get(c.$stats, "07", "light", "border"), map.get(c.$stats, "07", "dark", "border")),
+        "surface": light-dark(map.get(c.$stats, "07", "light", "surface"), map.get(c.$stats, "07", "dark", "surface"))
     ),
     "8": (
         "background": light-dark(
                 map.get(c.$stats, "08", "light", "background"),
                 map.get(c.$stats, "08", "dark", "background")
             ),
-        "border": light-dark(
-                map.get(c.$stats, "08", "light", "border"),
-                map.get(c.$stats, "08", "dark", "border")
-            ),
-        "surface": light-dark(
-                map.get(c.$stats, "08", "light", "surface"),
-                map.get(c.$stats, "08", "dark", "surface")
-            )
+        "border": light-dark(map.get(c.$stats, "08", "light", "border"), map.get(c.$stats, "08", "dark", "border")),
+        "surface": light-dark(map.get(c.$stats, "08", "light", "surface"), map.get(c.$stats, "08", "dark", "surface"))
     ),
     "9": (
         "background": light-dark(
                 map.get(c.$stats, "09", "light", "background"),
                 map.get(c.$stats, "09", "dark", "background")
             ),
-        "border": light-dark(
-                map.get(c.$stats, "09", "light", "border"),
-                map.get(c.$stats, "09", "dark", "border")
-            ),
-        "surface": light-dark(
-                map.get(c.$stats, "09", "light", "surface"),
-                map.get(c.$stats, "09", "dark", "surface")
-            )
+        "border": light-dark(map.get(c.$stats, "09", "light", "border"), map.get(c.$stats, "09", "dark", "border")),
+        "surface": light-dark(map.get(c.$stats, "09", "light", "surface"), map.get(c.$stats, "09", "dark", "surface"))
     ),
     "10": (
         "background": light-dark(
                 map.get(c.$stats, "10", "light", "background"),
                 map.get(c.$stats, "10", "dark", "background")
             ),
-        "border": light-dark(
-                map.get(c.$stats, "10", "light", "border"),
-                map.get(c.$stats, "10", "dark", "border")
-            ),
-        "surface": light-dark(
-                map.get(c.$stats, "10", "light", "surface"),
-                map.get(c.$stats, "10", "dark", "surface")
-            )
+        "border": light-dark(map.get(c.$stats, "10", "light", "border"), map.get(c.$stats, "10", "dark", "border")),
+        "surface": light-dark(map.get(c.$stats, "10", "light", "surface"), map.get(c.$stats, "10", "dark", "surface"))
     )
 );

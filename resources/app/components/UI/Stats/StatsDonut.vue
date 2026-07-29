@@ -114,15 +114,10 @@ const resolved = computed<ResolvedSegment[]>(() => {
     // slices to compensate — used only for the donut geometry.
     const rawShares = positive.map(({ seg }) => seg.count / total.value);
     const belowFloor = rawShares.map(s => s < MIN_SHARE);
-    const aboveSum = rawShares.reduce(
-        (sum, s, i) => (belowFloor[i] ? sum : sum + s),
-        0
-    );
+    const aboveSum = rawShares.reduce((sum, s, i) => (belowFloor[i] ? sum : sum + s), 0);
     const minTotal = belowFloor.filter(Boolean).length * MIN_SHARE;
     const aboveScale = aboveSum > 0 ? (1 - minTotal) / aboveSum : 1;
-    const adjustedShares = rawShares.map((raw, i) =>
-        belowFloor[i] ? MIN_SHARE : raw * aboveScale
-    );
+    const adjustedShares = rawShares.map((raw, i) => (belowFloor[i] ? MIN_SHARE : raw * aboveScale));
 
     const halfGapOuter = Math.asin(SEGMENT_GAP / 2 / R_OUTER);
     const halfGapInner = Math.asin(SEGMENT_GAP / 2 / R_INNER);

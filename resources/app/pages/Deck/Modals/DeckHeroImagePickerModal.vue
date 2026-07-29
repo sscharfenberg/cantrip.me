@@ -38,7 +38,7 @@ onMounted(async () => {
     loading.value = true;
     try {
         const response = await fetch(`/api/decks/${props.deckId}/hero-image-options`, {
-            headers: { Accept: "application/json" },
+            headers: { Accept: "application/json" }
         });
         if (response.ok) {
             cards.value = (await response.json()) as DeckHeroCardOption[];

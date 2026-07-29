@@ -13,50 +13,35 @@ $color-donut: (
                     map.get(c.$stats, "06", "light", "background"),
                     map.get(c.$stats, "06", "dark", "background")
                 ),
-            "stroke": light-dark(
-                    map.get(c.$stats, "06", "light", "border"),
-                    map.get(c.$stats, "06", "dark", "border")
-                )
+            "stroke": light-dark(map.get(c.$stats, "06", "light", "border"), map.get(c.$stats, "06", "dark", "border"))
         ),
         "U": (
             "fill": light-dark(
                     map.get(c.$stats, "08", "light", "background"),
                     map.get(c.$stats, "08", "dark", "background")
                 ),
-            "stroke": light-dark(
-                    map.get(c.$stats, "08", "light", "border"),
-                    map.get(c.$stats, "08", "dark", "border")
-                )
+            "stroke": light-dark(map.get(c.$stats, "08", "light", "border"), map.get(c.$stats, "08", "dark", "border"))
         ),
         "B": (
             "fill": light-dark(
                     map.get(c.$stats, "07", "light", "background"),
                     map.get(c.$stats, "07", "dark", "background")
                 ),
-            "stroke": light-dark(
-                    map.get(c.$stats, "07", "light", "border"),
-                    map.get(c.$stats, "07", "dark", "border")
-                )
+            "stroke": light-dark(map.get(c.$stats, "07", "light", "border"), map.get(c.$stats, "07", "dark", "border"))
         ),
         "R": (
             "fill": light-dark(
                     map.get(c.$stats, "09", "light", "background"),
                     map.get(c.$stats, "09", "dark", "background")
                 ),
-            "stroke": light-dark(
-                    map.get(c.$stats, "09", "light", "border"),
-                    map.get(c.$stats, "09", "dark", "border")
-                )
+            "stroke": light-dark(map.get(c.$stats, "09", "light", "border"), map.get(c.$stats, "09", "dark", "border"))
         ),
         "G": (
             "fill": light-dark(
                     map.get(c.$stats, "10", "light", "background"),
                     map.get(c.$stats, "10", "dark", "background")
                 ),
-            "stroke": light-dark(
-                    map.get(c.$stats, "10", "light", "border"),
-                    map.get(c.$stats, "10", "dark", "border")
-                )
+            "stroke": light-dark(map.get(c.$stats, "10", "light", "border"), map.get(c.$stats, "10", "dark", "border"))
         )
     )
 );

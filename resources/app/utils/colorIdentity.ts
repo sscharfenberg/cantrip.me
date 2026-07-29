@@ -6,7 +6,7 @@ const WUBRG = ["W", "U", "B", "R", "G"] as const;
  */
 export function isSubsetCI(cardCI: string | null, commanderCI: string): boolean {
     if (!cardCI) return true;
-    return cardCI.split("").every((letter) => commanderCI.includes(letter));
+    return cardCI.split("").every(letter => commanderCI.includes(letter));
 }
 
 /**
@@ -19,5 +19,5 @@ export function combineCI(parts: (string | null)[]): string {
         if (!part) continue;
         for (const letter of part) letters.add(letter);
     }
-    return WUBRG.filter((letter) => letters.has(letter)).join("");
+    return WUBRG.filter(letter => letters.has(letter)).join("");
 }

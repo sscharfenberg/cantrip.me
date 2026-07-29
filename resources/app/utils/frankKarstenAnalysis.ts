@@ -31,7 +31,7 @@ const TABLE_60: Record<number, Record<number, number | null>> = {
     1: { 1: 14, 2: 13, 3: 12, 4: 10, 5: 9, 6: 9, 7: null },
     2: { 1: null, 2: 21, 3: 18, 4: 16, 5: 15, 6: 13, 7: 12 },
     3: { 1: null, 2: null, 3: 23, 4: 21, 5: 19, 6: 17, 7: 16 },
-    4: { 1: null, 2: null, 3: null, 4: 24, 5: 22, 6: null, 7: null },
+    4: { 1: null, 2: null, 3: null, 4: 24, 5: 22, 6: null, 7: null }
 };
 
 /**
@@ -43,7 +43,7 @@ const TABLE_100: Record<number, Record<number, number | null>> = {
     1: { 1: 19, 2: 19, 3: 18, 4: 16, 5: 15, 6: 14, 7: null },
     2: { 1: null, 2: 30, 3: 28, 4: 26, 5: 23, 6: 22, 7: 20 },
     3: { 1: null, 2: null, 3: 36, 4: 33, 5: 30, 6: 28, 7: 26 },
-    4: { 1: null, 2: null, 3: null, 4: 39, 5: 36, 6: null, 7: null },
+    4: { 1: null, 2: null, 3: null, 4: 39, 5: 36, 6: null, 7: null }
 };
 
 /**
@@ -157,9 +157,7 @@ export const breakdownCard = (faces: (string | null)[], cmc: number): CardPipBre
         if (!face) continue;
         for (const match of face.matchAll(SYMBOL_REGEX)) {
             const parts = match[1].split("/");
-            const colorParts = parts.filter((p): p is HighlightColor =>
-                (COLORS as readonly string[]).includes(p)
-            );
+            const colorParts = parts.filter((p): p is HighlightColor => (COLORS as readonly string[]).includes(p));
             if (colorParts.length === 0) continue;
             // True hybrid: every part of the symbol is a color (e.g.
             // `{W/U}`, `{W/U/G}`). Phyrexian (`{W/P}`) and twobrid

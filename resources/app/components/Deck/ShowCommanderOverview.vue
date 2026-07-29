@@ -15,13 +15,7 @@ export type CommanderResult = {
     name: string;
     color_identity: string | null;
     companion_type:
-        | "partner"
-        | "partner_with"
-        | "partner_type"
-        | "friends_forever"
-        | "doctors_companion"
-        | "background"
-        | null;
+        "partner" | "partner_with" | "partner_type" | "friends_forever" | "doctors_companion" | "background" | null;
     partner_with_name: string | null;
     faces: CommanderFace[];
 };

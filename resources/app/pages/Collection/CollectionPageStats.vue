@@ -127,10 +127,7 @@ const topSetSegments = computed<StatsDonutSegment[]>(() =>
                     <template #value>{{ stats.mostOwnedCard.name }}</template>
                     <template #detail>
                         {{ formatDecimals(stats.mostOwnedCard.owned) }}
-                        <span
-                            v-if="stats.mostOwnedCard.printingsOwned > 1"
-                            class="collection-page-stats__printings"
-                        >
+                        <span v-if="stats.mostOwnedCard.printingsOwned > 1" class="collection-page-stats__printings">
                             {{
                                 $t("pages.collection.stats.mostOwnedCard.printings", {
                                     count: stats.mostOwnedCard.printingsOwned
@@ -145,10 +142,7 @@ const topSetSegments = computed<StatsDonutSegment[]>(() =>
                     <template #value>{{ stats.mostValuableCard.name }}</template>
                     <template #detail>
                         {{ formatPrice(stats.mostValuableCard.price) }}
-                        <span
-                            v-if="stats.mostValuableCard.printingsOwned > 1"
-                            class="collection-page-stats__printings"
-                        >
+                        <span v-if="stats.mostValuableCard.printingsOwned > 1" class="collection-page-stats__printings">
                             {{
                                 $t("pages.collection.stats.mostValuableCard.printings", {
                                     count: stats.mostValuableCard.printingsOwned

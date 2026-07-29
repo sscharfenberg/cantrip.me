@@ -72,10 +72,7 @@ const DEBOUNCE_MS = 500;
  * @param params — card identity, format rules, and a reactive quantity getter.
  * @param closePopover — callback to dismiss the host popover after destructive actions.
  */
-export function useDeckCardActions(
-    params: DeckCardActionParams,
-    closePopover: () => void,
-): UseDeckCardActionsReturn {
+export function useDeckCardActions(params: DeckCardActionParams, closePopover: () => void): UseDeckCardActionsReturn {
     const page = usePage();
 
     /**
@@ -84,7 +81,7 @@ export function useDeckCardActions(
      * Reset whenever Inertia delivers fresh server data.
      */
     const effectiveQty = ref(params.quantity());
-    watch(params.quantity, (q) => {
+    watch(params.quantity, q => {
         effectiveQty.value = q;
     });
 
@@ -99,8 +96,9 @@ export function useDeckCardActions(
         if (params.isBasicLand) return true;
         if (params.isUnlimited) return true;
         if (params.isSingleton) return false;
-        const siblingSum = params.cards()
-            .filter((c) => c.oracle_card_id === params.oracleCardId && c.id !== params.cardId)
+        const siblingSum = params
+            .cards()
+            .filter(c => c.oracle_card_id === params.oracleCardId && c.id !== params.cardId)
             .reduce((sum, c) => sum + c.quantity, 0);
         return siblingSum + effectiveQty.value < params.maxCopies;
     });
@@ -121,7 +119,7 @@ export function useDeckCardActions(
      */
     function spliceCard(): void {
         const cards = page.props.cards as DeckCardRow[];
-        const idx = cards.findIndex((c) => c.id === params.cardId);
+        const idx = cards.findIndex(c => c.id === params.cardId);
         if (idx !== -1) cards.splice(idx, 1);
     }
 
@@ -140,9 +138,9 @@ export function useDeckCardActions(
             headers: {
                 "Content-Type": "application/json",
                 "X-CSRF-TOKEN": page.props.csrfToken as string,
-                Accept: "application/json",
+                Accept: "application/json"
             },
-            body: JSON.stringify({ delta }),
+            body: JSON.stringify({ delta })
         });
 
         if (!response.ok) {
@@ -156,7 +154,7 @@ export function useDeckCardActions(
             spliceCard();
         } else if (data.quantity !== undefined) {
             const cards = page.props.cards as DeckCardRow[];
-            const card = cards.find((c) => c.id === params.cardId);
+            const card = cards.find(c => c.id === params.cardId);
             if (card) card.quantity = data.quantity;
         }
 
@@ -194,8 +192,8 @@ export function useDeckCardActions(
             method: "DELETE",
             headers: {
                 "X-CSRF-TOKEN": page.props.csrfToken as string,
-                Accept: "application/json",
-            },
+                Accept: "application/json"
+            }
         });
 
         if (response.ok) {
@@ -227,18 +225,15 @@ export function useDeckCardActions(
         }
         closePopover();
 
-        const response = await fetch(
-            `/api/decks/${params.deckId}/cards/${params.cardId}/move-zone`,
-            {
-                method: "PATCH",
-                headers: {
-                    "Content-Type": "application/json",
-                    "X-CSRF-TOKEN": page.props.csrfToken as string,
-                    Accept: "application/json",
-                },
-                body: JSON.stringify({ zone: targetZone }),
+        const response = await fetch(`/api/decks/${params.deckId}/cards/${params.cardId}/move-zone`, {
+            method: "PATCH",
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRF-TOKEN": page.props.csrfToken as string,
+                Accept: "application/json"
             },
-        );
+            body: JSON.stringify({ zone: targetZone })
+        });
         if (!response.ok) return;
 
         const data = (await response.json()) as {
@@ -248,12 +243,12 @@ export function useDeckCardActions(
         };
 
         const cards = page.props.cards as DeckCardRow[];
-        const source = cards.find((c) => c.id === params.cardId);
+        const source = cards.find(c => c.id === params.cardId);
         if (source === undefined) return;
 
         // Apply target updates first — synthesis needs the source's data,
         // and we may about to splice the source row off the list below.
-        const survivor = cards.find((c) => c.id === data.target_id);
+        const survivor = cards.find(c => c.id === data.target_id);
         if (survivor !== undefined) {
             // Server merged the moved copy into `data.target_id` and
             // potentially absorbed other matching rows in the target zone.
@@ -264,11 +259,11 @@ export function useDeckCardActions(
             for (let i = cards.length - 1; i >= 0; i--) {
                 const c = cards[i];
                 if (
-                    c.id !== data.target_id
-                    && c.zone === targetZone
-                    && c.oracle_card_id === source.oracle_card_id
-                    && c.default_card.id === source.default_card.id
-                    && c.category_id === null
+                    c.id !== data.target_id &&
+                    c.zone === targetZone &&
+                    c.oracle_card_id === source.oracle_card_id &&
+                    c.default_card.id === source.default_card.id &&
+                    c.category_id === null
                 ) {
                     cards.splice(i, 1);
                 }
@@ -280,7 +275,7 @@ export function useDeckCardActions(
                 id: data.target_id,
                 zone: targetZone,
                 quantity: data.target_quantity,
-                category_id: null,
+                category_id: null
             });
         }
 
@@ -301,7 +296,7 @@ export function useDeckCardActions(
      */
     async function switchPrinting(printing: DeckPrinting): Promise<void> {
         const cards = page.props.cards as DeckCardRow[];
-        const card = cards.find((c) => c.id === params.cardId);
+        const card = cards.find(c => c.id === params.cardId);
         if (card === undefined) return;
         const previous: DeckCardDefaultCard = { ...card.default_card };
         card.default_card = {
@@ -309,22 +304,19 @@ export function useDeckCardActions(
             name: printing.name,
             card_image_0: printing.card_image_0,
             card_image_1: printing.card_image_1,
-            set: printing.set ? { name: printing.set.name, code: printing.set.code } : null,
+            set: printing.set ? { name: printing.set.name, code: printing.set.code } : null
         };
-        const response = await fetch(
-            `/api/decks/${params.deckId}/cards/${params.cardId}/printing`,
-            {
-                method: "PATCH",
-                headers: {
-                    "Content-Type": "application/json",
-                    "X-CSRF-TOKEN": page.props.csrfToken as string,
-                    Accept: "application/json",
-                },
-                body: JSON.stringify({ default_card_id: printing.id }),
+        const response = await fetch(`/api/decks/${params.deckId}/cards/${params.cardId}/printing`, {
+            method: "PATCH",
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRF-TOKEN": page.props.csrfToken as string,
+                Accept: "application/json"
             },
-        );
+            body: JSON.stringify({ default_card_id: printing.id })
+        });
         if (!response.ok) {
-            const target = cards.find((c) => c.id === params.cardId);
+            const target = cards.find(c => c.id === params.cardId);
             if (target !== undefined) target.default_card = previous;
         }
     }

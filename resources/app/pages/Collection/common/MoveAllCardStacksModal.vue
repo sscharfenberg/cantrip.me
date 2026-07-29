@@ -100,12 +100,7 @@ const onSubmit = () => {
             </form-group>
         </form>
         <template #footer>
-            <button
-                type="submit"
-                form="move-all-cardstacks-form"
-                class="btn-primary"
-                :disabled="processing"
-            >
+            <button type="submit" form="move-all-cardstacks-form" class="btn-primary" :disabled="processing">
                 <icon name="move" />
                 {{ $t("pages.container_page.mass_move.submit", { number: formatDecimals(container.totalCards) }) }}
                 <loading-spinner v-if="processing" :size="2" />

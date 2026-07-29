@@ -45,9 +45,9 @@ const props = withDefaults(
  */
 defineSlots<{
     actions(props: { row: T; close: () => void }): unknown;
-    'toolbar-actions'(props: { selectedIds: string[] }): unknown;
+    "toolbar-actions"(props: { selectedIds: string[] }): unknown;
     empty(): unknown;
-     
+
     [name: string]: (props?: any) => unknown;
 }>();
 const { t } = useI18n();

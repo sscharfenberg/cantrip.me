@@ -3,15 +3,7 @@ import type { DeckCardRow } from "Types/deckPage";
 
 /** Supported deck card type groups, in display order. */
 export type DeckCardGroup =
-    | "creature"
-    | "planeswalker"
-    | "battle"
-    | "artifact"
-    | "enchantment"
-    | "instant"
-    | "sorcery"
-    | "land"
-    | "other";
+    "creature" | "planeswalker" | "battle" | "artifact" | "enchantment" | "instant" | "sorcery" | "land" | "other";
 
 /**
  * Canonical display order and precedence for primary card types. A card is
@@ -29,7 +21,7 @@ export const GROUP_ORDER: readonly DeckCardGroup[] = [
     "sorcery",
     "artifact",
     "enchantment",
-    "other",
+    "other"
 ] as const;
 
 /** Match tokens (case-insensitive) used to bucket a type line into a group. */
@@ -41,7 +33,7 @@ const GROUP_MATCHERS: Record<Exclude<DeckCardGroup, "other">, string> = {
     instant: "Instant",
     sorcery: "Sorcery",
     artifact: "Artifact",
-    enchantment: "Enchantment",
+    enchantment: "Enchantment"
 };
 
 /**

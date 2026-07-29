@@ -116,7 +116,7 @@ const fetchSpells = async (q: string) => {
             q,
             format: props.format,
             type: "spell",
-            ci: selectedPW.value.color_identity ?? "",
+            ci: selectedPW.value.color_identity ?? ""
         });
         if (rule0.value) params.set("rule0", "1");
         params.set("exclude", selectedPW.value.id);

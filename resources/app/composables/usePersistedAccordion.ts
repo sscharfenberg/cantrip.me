@@ -18,10 +18,7 @@ export interface UsePersistedAccordionReturn {
     onToggle: (isOpen: boolean) => void;
 }
 
-export const usePersistedAccordion = (
-    storageKey: string,
-    defaultOpen = true
-): UsePersistedAccordionReturn => {
+export const usePersistedAccordion = (storageKey: string, defaultOpen = true): UsePersistedAccordionReturn => {
     const stored = safeGetItem(storageKey);
     const initialOpen = stored === null ? defaultOpen : stored === "true";
 

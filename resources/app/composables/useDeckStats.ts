@@ -72,7 +72,16 @@ type Color = (typeof COLORS)[number];
  * Archidekt / Moxfield. Tribal isn't included — supertype only, no card
  * has just "Tribal" as its main category. Add if needed.
  */
-const TYPE_LABELS = ["Creature", "Planeswalker", "Battle", "Artifact", "Enchantment", "Instant", "Sorcery", "Land"] as const;
+const TYPE_LABELS = [
+    "Creature",
+    "Planeswalker",
+    "Battle",
+    "Artifact",
+    "Enchantment",
+    "Instant",
+    "Sorcery",
+    "Land"
+] as const;
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -109,7 +118,7 @@ function tallyProducedManaInto(
     tally: ColorPipTally,
     produced: string[] | null,
     quantity: number,
-    allowed: Set<Color> | null = null,
+    allowed: Set<Color> | null = null
 ): void {
     if (!produced) return;
     for (const color of produced) {
@@ -201,7 +210,7 @@ export function useDeckStats(
     commanders: () => DeckCommander[],
     companion: () => DeckCompanion | null,
     categories: () => DeckCategoryRow[],
-    format: () => string,
+    format: () => string
 ): {
     manaCurve: ComputedRef<ManaCurveBucket[]>;
     /**
@@ -243,9 +252,7 @@ export function useDeckStats(
     /** Sum of `quantity` across the 99 (excludes commanders + companion). Drives percent computations. */
     totalNonCommanderCards: ComputedRef<number>;
 } {
-    const totalNonCommanderCards = computed(() =>
-        cards().reduce((sum, card) => sum + card.quantity, 0)
-    );
+    const totalNonCommanderCards = computed(() => cards().reduce((sum, card) => sum + card.quantity, 0));
 
     /**
      * Combined color identity of all commanders, as a Set. Returns null
@@ -271,7 +278,7 @@ export function useDeckStats(
             cmc,
             permanents: 0,
             spells: 0,
-            total: 0,
+            total: 0
         }));
         const addToBucket = (cmc: number, typeLine: string, quantity: number) => {
             const bucket = buckets[Math.min(Math.floor(cmc), 8)];
@@ -321,7 +328,7 @@ export function useDeckStats(
             .map(c => ({
                 type_line: c.type_line,
                 is_basic_land: c.is_basic_land,
-                produced_mana: c.produced_mana,
+                produced_mana: c.produced_mana
             }));
         return makeFetchResolver(all, lands);
     });
@@ -482,7 +489,7 @@ export function useDeckStats(
             color,
             have: have[color],
             need: need[color],
-            short: Math.max(0, need[color] - have[color]),
+            short: Math.max(0, need[color] - have[color])
         }));
     });
 
@@ -625,7 +632,7 @@ export function useDeckStats(
             key: label,
             label,
             count: counts[label],
-            percent: (counts[label] / total) * 100,
+            percent: (counts[label] / total) * 100
         }))
             .filter(b => b.count > 0)
             .sort((a, b) => b.count - a.count);
@@ -666,14 +673,14 @@ export function useDeckStats(
                 key: label,
                 label,
                 count,
-                percent: (count / acc.typeTotal) * 100,
+                percent: (count / acc.typeTotal) * 100
             }));
             if (acc.noSubtype > 0) {
                 buckets.push({
                     key: "__no_subtype",
                     label: "__no_subtype",
                     count: acc.noSubtype,
-                    percent: (acc.noSubtype / acc.typeTotal) * 100,
+                    percent: (acc.noSubtype / acc.typeTotal) * 100
                 });
             }
             buckets.sort((a, b) => b.count - a.count);
@@ -694,7 +701,7 @@ export function useDeckStats(
                 key: cat.id,
                 label: cat.name,
                 count: byId.get(cat.id) ?? 0,
-                percent: ((byId.get(cat.id) ?? 0) / total) * 100,
+                percent: ((byId.get(cat.id) ?? 0) / total) * 100
             }))
             .filter(b => b.count > 0)
             .sort((a, b) => a.label.localeCompare(b.label));
@@ -704,7 +711,7 @@ export function useDeckStats(
                 key: "__uncategorized",
                 label: "Uncategorized",
                 count: uncategorized,
-                percent: (uncategorized / total) * 100,
+                percent: (uncategorized / total) * 100
             });
         }
         return named;
@@ -735,6 +742,6 @@ export function useDeckStats(
         typeCounts,
         subtypeBreakdowns,
         categoryCounts,
-        totalNonCommanderCards,
+        totalNonCommanderCards
     };
 }

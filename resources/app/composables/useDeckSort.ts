@@ -40,8 +40,7 @@ function readOverride(deckId: string): DeckSort | null {
         const raw = window.localStorage.getItem(`${STORAGE_PREFIX}${deckId}`);
         if (raw === null) return null;
         return VALID_MODES.has(raw as DeckSort) ? (raw as DeckSort) : null;
-    }
-    catch {
+    } catch {
         return null;
     }
 }
@@ -55,8 +54,7 @@ function readOverride(deckId: string): DeckSort | null {
 function writeOverride(deckId: string, mode: DeckSort): void {
     try {
         window.localStorage.setItem(`${STORAGE_PREFIX}${deckId}`, mode);
-    }
-    catch {
+    } catch {
         // Storage is unavailable or quota exceeded — sort still works, just not persisted.
     }
 }
@@ -81,8 +79,7 @@ export function clearAllDeckSortOverrides(): void {
         for (const key of keysToRemove) {
             window.localStorage.removeItem(key);
         }
-    }
-    catch {
+    } catch {
         // Nothing to do — if storage is unreachable there's nothing to clear.
     }
     // Drop any cached refs so the next `useDeckSort(deckId)` call re-reads

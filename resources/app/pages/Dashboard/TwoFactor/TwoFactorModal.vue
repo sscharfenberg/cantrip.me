@@ -137,12 +137,7 @@ const submitVerification = () => {
                 </button>
             </template>
             <template v-else>
-                <button
-                    type="button"
-                    class="btn-default"
-                    :disabled="processing"
-                    @click="showVerificationStep = false"
-                >
+                <button type="button" class="btn-default" :disabled="processing" @click="showVerificationStep = false">
                     {{ $t("pages.dashboard.two_factor.verification.back") }}
                 </button>
                 <button

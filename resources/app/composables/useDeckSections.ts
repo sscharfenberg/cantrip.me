@@ -126,7 +126,7 @@ export function useDeckSections(
                 cards: g.cards,
                 count: g.count,
                 categoryId: null,
-                zone: "main",
+                zone: "main"
             });
         }
 
@@ -141,7 +141,7 @@ export function useDeckSections(
                 cards: [],
                 count: 0,
                 categoryId: cat.id,
-                zone: "main",
+                zone: "main"
             });
         }
         for (const card of allCards) {
@@ -187,7 +187,7 @@ export function useDeckSections(
                     cards: sideCards,
                     count: sideCards.reduce((sum, c) => sum + c.quantity, 0),
                     categoryId: null,
-                    zone: "side",
+                    zone: "side"
                 });
             }
         }
@@ -237,7 +237,14 @@ export function useDeckSections(
         // Placeholder default type group when all cards of that type are
         // in custom categories (so the group doesn't appear in allGroups).
         if (!presentKeys.has(dtg)) {
-            targets.push({ key: dtg, label: translate(`pages.deck.groups.${dtg}`), cards: [], count: 0, categoryId: null, zone: "main" });
+            targets.push({
+                key: dtg,
+                label: translate(`pages.deck.groups.${dtg}`),
+                cards: [],
+                count: 0,
+                categoryId: null,
+                zone: "main"
+            });
         }
 
         targets.sort((a, b) => a.label.localeCompare(b.label));
@@ -262,7 +269,7 @@ export function useDeckSections(
                 cards: [],
                 count: 0,
                 categoryId: null,
-                zone: "side",
+                zone: "side"
             });
         }
 

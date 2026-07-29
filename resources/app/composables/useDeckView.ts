@@ -40,8 +40,7 @@ function readOverride(deckId: string): DeckView | null {
         const raw = window.localStorage.getItem(`${STORAGE_PREFIX}${deckId}`);
         if (raw === null) return null;
         return VALID_MODES.has(raw as DeckView) ? (raw as DeckView) : null;
-    }
-    catch {
+    } catch {
         return null;
     }
 }
@@ -55,8 +54,7 @@ function readOverride(deckId: string): DeckView | null {
 function writeOverride(deckId: string, mode: DeckView): void {
     try {
         window.localStorage.setItem(`${STORAGE_PREFIX}${deckId}`, mode);
-    }
-    catch {
+    } catch {
         // Storage is unavailable or quota exceeded — view still works, just not persisted.
     }
 }
@@ -81,8 +79,7 @@ export function clearAllDeckViewOverrides(): void {
         for (const key of keysToRemove) {
             window.localStorage.removeItem(key);
         }
-    }
-    catch {
+    } catch {
         // Nothing to do — if storage is unreachable there's nothing to clear.
     }
     // Drop any cached refs so the next `useDeckView(deckId)` call re-reads

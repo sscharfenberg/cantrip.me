@@ -96,12 +96,7 @@ const onSubmit = () => {
             </form-group>
         </form>
         <template #footer>
-            <button
-                type="submit"
-                form="move-selected-cardstacks-form"
-                class="btn-primary"
-                :disabled="processing"
-            >
+            <button type="submit" form="move-selected-cardstacks-form" class="btn-primary" :disabled="processing">
                 <icon name="move" />
                 {{ $t("pages.container_page.move.submit", { number: selectedIds.length }) }}
                 <loading-spinner v-if="processing" :size="2" />
