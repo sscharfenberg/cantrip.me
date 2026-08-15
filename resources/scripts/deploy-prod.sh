@@ -63,10 +63,31 @@ rm -rf public/build
 # documented `664` convention. Scoped to source dirs so we don't
 # touch vendor/, node_modules/, storage/, public/build/, or .git/
 # (each managed by its own tooling with its own perm needs).
-SOURCE_DIRS=(app database docs tests routes resources lang bootstrap config public)
+SOURCE_DIRS=(app database docs tests routes resources lang config public)
 chgrp -R www-data "${SOURCE_DIRS[@]}"
 find "${SOURCE_DIRS[@]}" -type d -exec chmod 2775 {} +
 find "${SOURCE_DIRS[@]}" -type f ! -perm -g+w -exec chmod g+w {} +
+
+# bootstrap/ is swept by hand rather than via SOURCE_DIRS, so that
+# bootstrap/cache can be left out of it. Laravel rewrites the compiled
+# manifests in there (packages.php, services.php) from whichever process
+# boots the framework first while they are missing — and `schedule:run`
+# runs from cron every minute as sscharfenberg, so deploy routinely does
+# not own them. `chgrp` needs ownership even when the group is already
+# correct, so including them here aborts the whole deploy with EPERM,
+# and does so *after* `php artisan down`, which is how a failed deploy
+# leaves the site stuck in maintenance mode.
+#
+# Skipping them costs nothing: bootstrap/cache carries setgid (2775), so
+# anything created inside inherits the www-data group whoever writes it —
+# which is why these files always show the right group and only ever the
+# wrong owner. The chmod below keeps that setgid bit in place, so the
+# guarantee is maintained rather than assumed. The caches themselves are
+# rewritten further down by composer install (package:discover) and the
+# config/route/view/event cache commands.
+chgrp www-data bootstrap bootstrap/*.php bootstrap/cache
+chmod 2775 bootstrap bootstrap/cache
+chmod g+w bootstrap/*.php
 
 composer install --no-dev --optimize-autoloader --no-interaction
 npm ci
