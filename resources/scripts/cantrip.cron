@@ -1,0 +1,45 @@
+# cantrip.me scheduled tasks — installed on the server at /etc/cron.d/cantrip.
+# The destination has no extension on purpose: cron.d silently ignores any
+# filename containing a dot, so this is `cantrip.cron` here and `cantrip`
+# there. Install with:
+#
+#   sudo install -o root -g root -m 644 cantrip.cron /etc/cron.d/cantrip
+#
+# Runs as `deploy` — the same account the deploy scripts run as. These jobs boot
+# the framework every minute, and Laravel rewrites bootstrap/cache/packages.php
+# and services.php through Filesystem::replace(), which renames a freshly
+# written temp file into place. That is a NEW inode, owned by whoever wrote it.
+# So running the scheduler as a human account silently takes ownership of those
+# manifests, and `chgrp` in the deploy scripts then fails on them with EPERM —
+# after `php artisan down` has already run. That is what stranded both sites in
+# maintenance mode on 2026-08-15.
+#
+# Moved here from sscharfenberg's user crontab so the account is an explicit
+# column in this file rather than implied by which user owns the crontab.
+# Original preserved at ~sscharfenberg/crontab.bak-2026-08-15.
+#
+# Absolute paths throughout: cron's PATH is minimal and does not include what a
+# login shell would add.
+#
+# This file is committed for history/review only; the live copy is on the
+# server and edits must be replicated there.
+
+SHELL=/bin/sh
+PATH=/usr/local/bin:/usr/bin:/bin
+
+# ==========
+# STAGING
+# ==========
+
+# schedule:run
+* * * * * deploy /usr/bin/php /var/www/mbos/artisan schedule:run >> /dev/null 2>&1
+
+# ==========
+# PRODUCTION
+# ==========
+
+# daily scryfall update
+0 2 * * * deploy /usr/bin/flock -n /tmp/scryfall-update.lock /usr/bin/php /var/www/mbop/artisan scryfall:update > /dev/null 2>&1
+
+# schedule:run
+* * * * * deploy /usr/bin/php /var/www/mbop/artisan schedule:run >> /dev/null 2>&1
