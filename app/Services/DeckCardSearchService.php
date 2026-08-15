@@ -529,15 +529,38 @@ final class DeckCardSearchService
      */
     private static function applyNameRanking(Builder $query, string $searchableColumn, string $nameColumn, array $segments): void
     {
-        $first = $segments[0] ?? null;
-        if ($first !== null) {
+        if ($segments !== []) {
+            // Ranked against the WHOLE normalized query, not just the first
+            // segment. For a one-word query the two are identical; for
+            // "lightning bolt" only the whole string can ever be an exact
+            // match, so the old first-segment form could never fire on a
+            // multi-word name.
+            $full = implode(' ', $segments);
+
+            // Translations rank alongside the English name, because a card
+            // matched ONLY through a translation otherwise scores nothing and
+            // falls through to the length tiebreaker — i.e. gets ordered by
+            // how long its ENGLISH name happens to be, which is unrelated to
+            // the query. Searching "稲妻" (→ "dao qi", a unique translation
+            // belonging to exactly one card) returned twenty other cards and
+            // not Lightning Bolt, purely because "Lightning Bolt" is 14
+            // characters and "Seeker" is 6.
+            //
+            // Both branches are index seeks on `(lang, searchable_name)`, so
+            // this asks only the two questions that index can answer: equality
+            // and prefix. A leading-wildcard rank would be a scan per row.
+            $exactTranslation = OracleNameSearch::translationMatchesSql('=');
+            $prefixTranslation = OracleNameSearch::translationMatchesSql('LIKE');
+
             $query->orderByRaw(
                 "CASE
                     WHEN {$searchableColumn} = ? THEN 0
+                    WHEN {$exactTranslation} THEN 0
                     WHEN {$searchableColumn} LIKE ? THEN 1
+                    WHEN {$prefixTranslation} THEN 1
                     ELSE 2
                 END",
-                [$first, $first.'%']
+                [$full, $full, $full.'%', $full.'%']
             );
         }
 

@@ -48,12 +48,20 @@ use Illuminate\Support\Facades\DB;
  * complex no-op. Promote to a `lang IN (user.locale, 'en')` slice if/
  * when the user base diversifies.
  *
- * **Why ranking is unchanged:** the existing `applyNameRanking`
- * helpers on each service rank by `oracle_cards.searchable_name`
- * only. A foreign-only match has nothing to rank against and falls
- * through to the alphabetical tiebreaker. Acceptable for distinctive
- * names ("Blitzschlag" is uniquely Lightning Bolt) but degrades on
- * short ambiguous tokens.
+ * **Ranking is translation-aware** (it was not originally). Ranking by
+ * `oracle_cards.searchable_name` alone left a foreign-only match with
+ * nothing to score against, so it fell through to the length/alphabetical
+ * tiebreaker — ordered by how long its ENGLISH name happens to be. That
+ * was recorded as acceptable for distinctive names, on the reasoning that
+ * "Blitzschlag" is uniquely Lightning Bolt. The failure mode is subtler
+ * than that: distinctiveness of the CARD is not distinctiveness of the
+ * normalized QUERY. "稲妻" is a translation belonging to exactly one card,
+ * but it folds to "dao qi" — two short tokens that many cards match — so
+ * Lightning Bolt placed 21st of 20 behind six-letter names.
+ *
+ * {@see translationMatchesSql} now lets the rank CASE score an exact or
+ * prefix translation match in the same tier as the English equivalent,
+ * using the `(lang, searchable_name)` index so it stays two seeks.
  */
 final class OracleNameSearch
 {
@@ -238,6 +246,29 @@ final class OracleNameSearch
         }
 
         return $result;
+    }
+
+    /**
+     * A correlated EXISTS testing whether any searchable translation of the
+     * oracle card matches `$value` with the given LIKE/equality operator.
+     *
+     * Emitted as raw SQL rather than a builder callback because its consumer
+     * is an ORDER BY CASE, which takes a string. Bindings stay out of the
+     * fragment and are returned to the caller to pass positionally.
+     *
+     * Uses `(lang, searchable_name)` — the composite index on that table — so
+     * both the `=` and the `LIKE 'x%'` form are index seeks rather than scans.
+     * A leading-wildcard match would not be, which is why ranking only ever
+     * asks these two questions.
+     */
+    public static function translationMatchesSql(string $operator): string
+    {
+        $langs = "'".implode("','", self::SEARCHABLE_LANGS)."'";
+
+        return 'EXISTS (SELECT 1 FROM '.self::ORACLE_TRANSLATION_TABLE.' AS rank_oct'
+            .' WHERE rank_oct.oracle_card_id = oracle_cards.id'
+            ." AND rank_oct.lang IN ($langs)"
+            ." AND rank_oct.searchable_name $operator ?)";
     }
 
     /**
