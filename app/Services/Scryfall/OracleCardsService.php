@@ -10,6 +10,7 @@ use App\Services\CardNameNormalizer;
 use App\Services\FormatService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
 /**
@@ -30,6 +31,16 @@ class OracleCardsService extends ScryfallService
     private const LEGALITY_BUFFER_SIZE = 500;
 
     private const FACE_BUFFER_SIZE = 500;
+
+    /** Width of `oracle_cards.type_line`; see {@see combinedTypeLine()}. */
+    private const TYPE_LINE_MAX = 160;
+
+    /**
+     * Columns this importer writes that arrived after the table's original
+     * migration, and so can be absent on a host that has not migrated yet.
+     * Checked once per run — see {@see updateOracleCards()}.
+     */
+    private const REQUIRED_COLUMNS = ['type_line'];
 
     private FormatService $formatService;
 
@@ -107,6 +118,10 @@ class OracleCardsService extends ScryfallService
         if (array_key_exists('color_identity', $card) && count($card['color_identity']) > 0) {
             $arr['color_identity'] = implode('', $card['color_identity']);
         }
+        $typeLine = self::combinedTypeLine($card);
+        if ($typeLine !== '') {
+            $arr['type_line'] = $typeLine;
+        }
         if (array_key_exists('produced_mana', $card) && is_array($card['produced_mana']) && count($card['produced_mana']) > 0) {
             $arr['produced_mana'] = implode('', $card['produced_mana']);
         }
@@ -120,6 +135,60 @@ class OracleCardsService extends ScryfallService
             Log::channel('scryfall')->error('error inserting card '.$card['name'].': '.$e->getMessage());
             Log::channel('scryfall')->error($e->getTraceAsString());
         }
+    }
+
+    /**
+     * The card's full type line, every face included.
+     *
+     * Denormalised onto oracle_cards so the deck-card search filter can exempt
+     * cards by type in a single predicate — see the migration that adds the
+     * column for the measurement behind that.
+     *
+     * Scryfall already joins both halves at the root of a multi-faced card
+     * ("Instant // Sorcery"), so the root value is preferred verbatim and the
+     * separator matches it. Layouts that carry no root type_line (reversible
+     * cards) fall back to joining the faces the same way.
+     *
+     * Truncated to the column width rather than risking a failed insert: this
+     * method's caller catches and logs, so an over-long value would drop the
+     * whole card from the dataset. Widest real value is 91 of 160 characters,
+     * so the guard is not expected to fire.
+     *
+     * Public and static because it is a pure mapping from bulk JSON to one
+     * string, and the rest of this class cannot be exercised on SQLite —
+     * `preRunCleanup()` emits `SET FOREIGN_KEY_CHECKS`, which only MariaDB
+     * understands. Keeping this reachable lets the layout handling be tested
+     * directly instead of not at all.
+     *
+     * @param  array  $card  A single card object from the oracle_cards bulk JSON.
+     */
+    public static function combinedTypeLine(array $card): string
+    {
+        $line = trim((string) ($card['type_line'] ?? ''));
+
+        if ($line === '' && array_key_exists('card_faces', $card) && is_array($card['card_faces'])) {
+            $faceLines = [];
+            foreach ($card['card_faces'] as $face) {
+                $faceLine = trim((string) ($face['type_line'] ?? ''));
+                if ($faceLine !== '') {
+                    $faceLines[] = $faceLine;
+                }
+            }
+            $line = implode(' // ', $faceLines);
+        }
+
+        if (mb_strlen($line) > self::TYPE_LINE_MAX) {
+            // Logged rather than truncated silently: the consumer of this
+            // column is a type-matching predicate, so a dropped tail would
+            // mis-classify that card indefinitely with nothing to point at.
+            Log::channel('scryfall')->warning(
+                'type_line for "'.($card['name'] ?? 'unknown').'" exceeded '.self::TYPE_LINE_MAX.' chars ('.mb_strlen($line).') and was truncated.'
+            );
+
+            return mb_substr($line, 0, self::TYPE_LINE_MAX);
+        }
+
+        return $line;
     }
 
     /**
@@ -270,6 +339,24 @@ class OracleCardsService extends ScryfallService
         $this->oracleCardsTable = $this->tableName('oracle_cards', $shadow);
         $this->oracleCardFacesTable = $this->tableName('oracle_card_faces', $shadow);
         $this->legalitiesTable = $this->tableName('legalities', $shadow);
+
+        // Fail before the download, not during it. Every insert below is
+        // wrapped in a per-card catch, so a target table missing a column this
+        // importer writes does not surface as an error — it surfaces as ~38k
+        // logged failures and a run that still reports completion, after a
+        // ~475 MB bulk has been pulled. The shadow flow's orphan validator
+        // would abort the swap afterwards, but on the actual cause it is
+        // silent. Checking here turns deploy-order drift (code live, migration
+        // not yet run) into one line naming the fix.
+        foreach (self::REQUIRED_COLUMNS as $column) {
+            if (! Schema::hasColumn($this->oracleCardsTable, $column)) {
+                Log::channel('scryfall')->error(
+                    "$this->oracleCardsTable is missing the `$column` column — run `php artisan migrate` before importing. Aborting before the bulk download."
+                );
+
+                return;
+            }
+        }
 
         $downloadUri = $this->bulkdataService->resolveDownloadUri('oracle_cards', $shadow);
         if ($downloadUri === null) {

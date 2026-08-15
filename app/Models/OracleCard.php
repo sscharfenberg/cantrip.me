@@ -66,6 +66,7 @@ class OracleCard extends Model
         'lang',
         'cmc',
         'color_identity',
+        'type_line',
         'produced_mana',
         'reserved',
         'game_changer',
