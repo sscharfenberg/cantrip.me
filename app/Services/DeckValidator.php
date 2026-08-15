@@ -9,6 +9,7 @@ use App\Formats\FormatProfile;
 use App\Models\Deck;
 use App\Models\DeckCard;
 use App\Models\OracleCard;
+use App\Rulebreakers\RulebreakerRegistry;
 
 /**
  * Runs whole-deck legality checks and reports violations.
@@ -35,7 +36,8 @@ use App\Models\OracleCard;
  *
  *  - deckCards.oracleCard.legalities (scoped to the deck's format)
  *  - deckCards.oracleCard.faces (for hasUnlimitedCopiesRule)
- *  - commanders (for combined color identity)
+ *  - commanders.oracleCard (for combined color identity, and to resolve a
+ *    Rulebreaker commander — see {@see RulebreakerRegistry})
  *
  * @phpstan-type Violation array{type: string, card_ids?: array<int, string>, current?: int, min?: int, max?: int}
  */
@@ -212,6 +214,13 @@ final class DeckValidator
     private static function colorIdentityViolations(Deck $deck): array
     {
         $commanderIdentity = self::combinedColorIdentity($deck->commanders);
+        // A Rulebreaker commander relaxes this check for some class of card —
+        // "Angel cards of any color identity", or for Tolabow instants and
+        // sorceries widened by one nominated colour. It reports the identity a
+        // given card should be judged against, so the comparison below stays
+        // the single place identities are compared. Null for an ordinary deck,
+        // and null per-card for anything the rule does not speak to.
+        $rulebreaker = RulebreakerRegistry::forDeck($deck);
         $ids = [];
         foreach ($deck->deckCards as $deckCard) {
             // Command-zone rows ARE the source of the deck's color
@@ -221,7 +230,9 @@ final class DeckValidator
             if ($deckCard->zone === DeckZone::Command || $deckCard->zone === DeckZone::Companion) {
                 continue;
             }
-            if (! self::respectsColorIdentity($deckCard->oracleCard->color_identity, $commanderIdentity)) {
+            $oracle = $deckCard->oracleCard;
+            $identity = $rulebreaker?->allowedIdentityFor($oracle, $deck, $commanderIdentity) ?? $commanderIdentity;
+            if (! self::respectsColorIdentity($oracle->color_identity, $identity)) {
                 $ids[$deckCard->id] = $deckCard->id;
             }
         }

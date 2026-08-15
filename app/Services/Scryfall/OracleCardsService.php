@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
+use RuntimeException;
 
 /**
  * Streaming strategy
@@ -350,11 +351,17 @@ class OracleCardsService extends ScryfallService
         // not yet run) into one line naming the fix.
         foreach (self::REQUIRED_COLUMNS as $column) {
             if (! Schema::hasColumn($this->oracleCardsTable, $column)) {
-                Log::channel('scryfall')->error(
-                    "$this->oracleCardsTable is missing the `$column` column — run `php artisan migrate` before importing. Aborting before the bulk download."
-                );
+                $message = "$this->oracleCardsTable is missing the `$column` column — run `php artisan migrate` before importing.";
+                Log::channel('scryfall')->error("$message Aborting before the bulk download.");
 
-                return;
+                // Thrown rather than returned, unlike the missing-bulk path
+                // below. UpdateEverything::runStep() catches, raises the mail +
+                // Discord alert and rethrows, so this stops the orchestrator
+                // here instead of letting it walk default_cards, rulings and
+                // images against an empty table for several minutes and then
+                // fail at the orphan validator — which reports an orphan count,
+                // not the schema drift that caused it.
+                throw new RuntimeException($message);
             }
         }
 

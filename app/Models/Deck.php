@@ -39,6 +39,7 @@ class Deck extends Model
         'visibility',
         'state',
         'colors',
+        'rulebreaker_color',
         'bracket',
         'default_card_id',
         'container_id',
