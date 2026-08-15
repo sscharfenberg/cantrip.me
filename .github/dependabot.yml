@@ -17,6 +17,20 @@ updates:
           - "eslint"
           - "eslint-*"
           - "@*/eslint-*"
+    ignore:
+      # TypeScript is held below 6.1 by one peer range — the `typescript-eslint` packages
+      # (parser and eslint-plugin, both reached through `@vue/eslint-config-typescript`)
+      # declare `typescript: ">=4.8.4 <6.1.0"`, and 8.67.0, their latest, still does. So
+      # `~6.0.x` in package.json is a ceiling, not a preference, and a bump past it fails
+      # `npm ci` on the peer conflict before a single file compiles.
+      #
+      # A version range rather than `update-types: semver-major`, because the major is not
+      # what breaks: 6.1 violates that peer exactly as 7.x does, so ignoring only majors
+      # would keep proposing a minor that cannot install. Delete this entry outright when
+      # the parser widens its range — nothing else here constrains TypeScript, `vue-tsc`
+      # asks only for `>=5.0.0`.
+      - dependency-name: typescript
+        versions: [">=6.1.0"]
 
   - package-ecosystem: github-actions
     directory: "/"
