@@ -1,0 +1,5490 @@
+{
+    "sets": [
+        {
+            "id": "288bd996-960e-448b-a187-9504c1930c2c",
+            "code": "lea",
+            "name": "Limited Edition Alpha",
+            "block_code": "lea",
+            "block": "Core Set",
+            "parent_set_code": null,
+            "card_count": 295,
+            "printed_size": 0,
+            "set_type": "core",
+            "digital": 0,
+            "scryfall_uri": "https://scryfall.com/sets/lea",
+            "path": "/set/lea--1786334400.svg",
+            "released_at": "1993-08-05"
+        },
+        {
+            "id": "5307bd88-637c-4a5c-9801-a0d887715302",
+            "code": "leb",
+            "name": "Limited Edition Beta",
+            "block_code": "lea",
+            "block": "Core Set",
+            "parent_set_code": null,
+            "card_count": 302,
+            "printed_size": 0,
+            "set_type": "core",
+            "digital": 0,
+            "scryfall_uri": "https://scryfall.com/sets/leb",
+            "path": "/set/leb--1786334400.svg",
+            "released_at": "1993-10-04"
+        },
+        {
+            "id": "cd7694b9-339c-405d-a991-14413d4f6d5c",
+            "code": "2ed",
+            "name": "Unlimited Edition",
+            "block_code": "lea",
+            "block": "Core Set",
+            "parent_set_code": null,
+            "card_count": 302,
+            "printed_size": 0,
+            "set_type": "core",
+            "digital": 0,
+            "scryfall_uri": "https://scryfall.com/sets/2ed",
+            "path": "/set/2ed--1786334400.svg",
+            "released_at": "1993-12-01"
+        },
+        {
+            "id": "80b77354-aa37-420c-a9a2-8a0c66989f23",
+            "code": "pmei",
+            "name": "Media and Collaboration Promos",
+            "block_code": null,
+            "block": null,
+            "parent_set_code": null,
+            "card_count": 103,
+            "printed_size": 0,
+            "set_type": "promo",
+            "digital": 0,
+            "scryfall_uri": "https://scryfall.com/sets/pmei",
+            "path": "/set/pmei--1786334400.svg",
+            "released_at": "1995-01-01"
+        },
+        {
+            "id": "c233bd36-57c0-4aa2-ae6c-7aeabfb4e3ce",
+            "code": "pcy",
+            "name": "Prophecy",
+            "block_code": "mmq",
+            "block": "Masques",
+            "parent_set_code": null,
+            "card_count": 144,
+            "printed_size": 143,
+            "set_type": "expansion",
+            "digital": 0,
+            "scryfall_uri": "https://scryfall.com/sets/pcy",
+            "path": "/set/pcy--1786334400.svg",
+            "released_at": "2000-06-05"
+        },
+        {
+            "id": "eadb8a82-ec56-4623-b50e-42e7e60cb535",
+            "code": "roe",
+            "name": "Rise of the Eldrazi",
+            "block_code": "zen",
+            "block": "Zendikar",
+            "parent_set_code": null,
+            "card_count": 248,
+            "printed_size": 248,
+            "set_type": "expansion",
+            "digital": 0,
+            "scryfall_uri": "https://scryfall.com/sets/roe",
+            "path": "/set/roe--1786334400.svg",
+            "released_at": "2010-04-23"
+        },
+        {
+            "id": "485d2468-18c8-42a4-9482-ca1c51e0470e",
+            "code": "m11",
+            "name": "Magic 2011",
+            "block_code": "lea",
+            "block": "Core Set",
+            "parent_set_code": null,
+            "card_count": 249,
+            "printed_size": 249,
+            "set_type": "core",
+            "digital": 0,
+            "scryfall_uri": "https://scryfall.com/sets/m11",
+            "path": "/set/m11--1786334400.svg",
+            "released_at": "2010-07-16"
+        },
+        {
+            "id": "d1026945-2969-42b9-be53-f941405a58cb",
+            "code": "isd",
+            "name": "Innistrad",
+            "block_code": "isd",
+            "block": "Innistrad",
+            "parent_set_code": null,
+            "card_count": 264,
+            "printed_size": 264,
+            "set_type": "expansion",
+            "digital": 0,
+            "scryfall_uri": "https://scryfall.com/sets/isd",
+            "path": "/set/isd--1786334400.svg",
+            "released_at": "2011-09-30"
+        },
+        {
+            "id": "f9b0c6f4-8a4f-4f36-ad3c-e1e16fb8535d",
+            "code": "m13",
+            "name": "Magic 2013",
+            "block_code": "lea",
+            "block": "Core Set",
+            "parent_set_code": null,
+            "card_count": 249,
+            "printed_size": 249,
+            "set_type": "core",
+            "digital": 0,
+            "scryfall_uri": "https://scryfall.com/sets/m13",
+            "path": "/set/m13--1786334400.svg",
+            "released_at": "2012-07-13"
+        },
+        {
+            "id": "3e0d713a-b5cb-4287-81b9-a57d4dcaf415",
+            "code": "c16",
+            "name": "Commander 2016",
+            "block_code": "cmd",
+            "block": "Commander",
+            "parent_set_code": null,
+            "card_count": 351,
+            "printed_size": 0,
+            "set_type": "commander",
+            "digital": 0,
+            "scryfall_uri": "https://scryfall.com/sets/c16",
+            "path": "/set/c16--1786334400.svg",
+            "released_at": "2016-11-11"
+        },
+        {
+            "id": "a90a7b2f-9dd8-4fc7-9f7d-8ea2797ec782",
+            "code": "eld",
+            "name": "Throne of Eldraine",
+            "block_code": null,
+            "block": null,
+            "parent_set_code": null,
+            "card_count": 398,
+            "printed_size": 0,
+            "set_type": "expansion",
+            "digital": 0,
+            "scryfall_uri": "https://scryfall.com/sets/eld",
+            "path": "/set/eld--1786334400.svg",
+            "released_at": "2019-10-04"
+        },
+        {
+            "id": "4d92a8a7-ccb0-437d-abdc-9d70fc5ed672",
+            "code": "sld",
+            "name": "Secret Lair Drop",
+            "block_code": null,
+            "block": null,
+            "parent_set_code": null,
+            "card_count": 2676,
+            "printed_size": 0,
+            "set_type": "box",
+            "digital": 0,
+            "scryfall_uri": "https://scryfall.com/sets/sld",
+            "path": "/set/sld--1786334400.svg",
+            "released_at": "2019-12-02"
+        }
+    ],
+    "artists": [
+        {
+            "id": "a6362aa7-693c-488e-8d8d-ac3b46f06ae3",
+            "name": "Andrew Mar"
+        },
+        {
+            "id": "adc96c42-f59a-472a-8595-44b9b695411b",
+            "name": "Anson Maddocks"
+        },
+        {
+            "id": "f04d4df8-8bf6-43a6-be20-cc02fb62e75b",
+            "name": "Anthony Palumbo"
+        },
+        {
+            "id": "94edbd04-eaa6-44ee-9546-d405bdf95532",
+            "name": "Christopher Rush"
+        },
+        {
+            "id": "854bc2ca-f7d7-49bc-838a-3e700b4c4dec",
+            "name": "Constantin Marin"
+        },
+        {
+            "id": "74ddb4cf-1d62-4791-b029-0f5acbab382b",
+            "name": "Dan Frazier"
+        },
+        {
+            "id": "3e6cad34-f765-4565-9d29-a7a732cd8078",
+            "name": "Dan Murayama Scott"
+        },
+        {
+            "id": "dcb02cfb-457f-4895-9afb-f3cfde643d24",
+            "name": "Douglas Shuler"
+        },
+        {
+            "id": "69dafabb-010d-4c62-b288-96174fe7eec5",
+            "name": "Fiona Hsieh"
+        },
+        {
+            "id": "97324df5-d75e-4a60-854e-d90b634678c5",
+            "name": "Jeff A. Menges"
+        },
+        {
+            "id": "4f654ffe-cdba-4549-be57-b85a28d84f2d",
+            "name": "Jesper Myrfors"
+        },
+        {
+            "id": "8139edcf-b9e9-4678-b5dc-41699a8073d1",
+            "name": "Karl Kopinski"
+        },
+        {
+            "id": "b6cdefcb-b0cb-4621-95b1-03e07ff36493",
+            "name": "Mark Poole"
+        },
+        {
+            "id": "d34162e3-f485-4e28-acdd-ce4038a1c01d",
+            "name": "Mark Tedin"
+        },
+        {
+            "id": "525a244e-99f9-4c8c-a021-4d01f5291386",
+            "name": "Nils Hamm"
+        },
+        {
+            "id": "15009484-8706-4cf6-8a32-1d094250a10d",
+            "name": "Sandra Everingham"
+        },
+        {
+            "id": "f937f7cf-f9e1-4d32-923b-6a27dcf04ab9",
+            "name": "Steven Belledin"
+        },
+        {
+            "id": "a1ae274b-8d54-4cc3-97c9-7af1613565dc",
+            "name": "Terese Nielsen"
+        },
+        {
+            "id": "f46872e6-dbb9-49c9-8eb6-0da003855dea",
+            "name": "Victor Adame Minguez"
+        }
+    ],
+    "symbols": [
+        {
+            "id": "3f7ab65e-b88e-4eb3-8cb9-4a7eece4fcbe",
+            "symbol": "{∞}",
+            "svg_uri": "https://svgs.scryfall.io/card-symbols/INFINITY.svg",
+            "loose_variant": "∞",
+            "english": "infinite generic mana",
+            "represents_mana": 1,
+            "appears_in_mana_costs": 0,
+            "transposable": 0,
+            "hybrid": 0,
+            "phyrexian": 0,
+            "funny": 1,
+            "cmc": null,
+            "colors": "",
+            "path": "/symbol/∞.svg"
+        },
+        {
+            "id": "000af1a7-ecdd-47ca-b846-58a2941cffcf",
+            "symbol": "{0}",
+            "svg_uri": "https://svgs.scryfall.io/card-symbols/0.svg",
+            "loose_variant": "0",
+            "english": "zero mana",
+            "represents_mana": 1,
+            "appears_in_mana_costs": 1,
+            "transposable": 0,
+            "hybrid": 0,
+            "phyrexian": 0,
+            "funny": 0,
+            "cmc": 0,
+            "colors": "",
+            "path": "/symbol/0.svg"
+        },
+        {
+            "id": "fa00d77f-799d-4cc1-8c4d-02cec506c952",
+            "symbol": "{1}",
+            "svg_uri": "https://svgs.scryfall.io/card-symbols/1.svg",
+            "loose_variant": "1",
+            "english": "one generic mana",
+            "represents_mana": 1,
+            "appears_in_mana_costs": 1,
+            "transposable": 0,
+            "hybrid": 0,
+            "phyrexian": 0,
+            "funny": 0,
+            "cmc": 1,
+            "colors": "",
+            "path": "/symbol/1.svg"
+        },
+        {
+            "id": "6d054c5e-9ed9-4e7c-9c1c-b0bfa162fd14",
+            "symbol": "{½}",
+            "svg_uri": "https://svgs.scryfall.io/card-symbols/HALF.svg",
+            "loose_variant": "½",
+            "english": "one-half generic mana",
+            "represents_mana": 1,
+            "appears_in_mana_costs": 0,
+            "transposable": 0,
+            "hybrid": 0,
+            "phyrexian": 0,
+            "funny": 1,
+            "cmc": 1,
+            "colors": "",
+            "path": "/symbol/½.svg"
+        },
+        {
+            "id": "e6b76913-9107-4109-8455-5b6a3e2ea2f5",
+            "symbol": "{10}",
+            "svg_uri": "https://svgs.scryfall.io/card-symbols/10.svg",
+            "loose_variant": "10",
+            "english": "ten generic mana",
+            "represents_mana": 1,
+            "appears_in_mana_costs": 1,
+            "transposable": 0,
+            "hybrid": 0,
+            "phyrexian": 0,
+            "funny": 0,
+            "cmc": 10,
+            "colors": "",
+            "path": "/symbol/10.svg"
+        },
+        {
+            "id": "c393797e-daab-4892-b1be-fe6e90de9d27",
+            "symbol": "{100}",
+            "svg_uri": "https://svgs.scryfall.io/card-symbols/100.svg",
+            "loose_variant": "100",
+            "english": "one hundred generic mana",
+            "represents_mana": 1,
+            "appears_in_mana_costs": 0,
+            "transposable": 0,
+            "hybrid": 0,
+            "phyrexian": 0,
+            "funny": 1,
+            "cmc": 100,
+            "colors": "",
+            "path": "/symbol/100.svg"
+        },
+        {
+            "id": "866559a1-a0ba-4efa-a2a7-24724fc88c6a",
+            "symbol": "{1000000}",
+            "svg_uri": "https://svgs.scryfall.io/card-symbols/1000000.svg",
+            "loose_variant": "1000000",
+            "english": "one million generic mana",
+            "represents_mana": 1,
+            "appears_in_mana_costs": 1,
+            "transposable": 0,
+            "hybrid": 0,
+            "phyrexian": 0,
+            "funny": 1,
+            "cmc": 1000000,
+            "colors": "",
+            "path": "/symbol/1000000.svg"
+        },
+        {
+            "id": "a679dbea-c9dc-4356-946e-99c216aa8622",
+            "symbol": "{11}",
+            "svg_uri": "https://svgs.scryfall.io/card-symbols/11.svg",
+            "loose_variant": "11",
+            "english": "eleven generic mana",
+            "represents_mana": 1,
+            "appears_in_mana_costs": 1,
+            "transposable": 0,
+            "hybrid": 0,
+            "phyrexian": 0,
+            "funny": 0,
+            "cmc": 11,
+            "colors": "",
+            "path": "/symbol/11.svg"
+        },
+        {
+            "id": "2f47515b-c8ad-4d66-9804-6ef2e3afc9f4",
+            "symbol": "{12}",
+            "svg_uri": "https://svgs.scryfall.io/card-symbols/12.svg",
+            "loose_variant": "12",
+            "english": "twelve generic mana",
+            "represents_mana": 1,
+            "appears_in_mana_costs": 1,
+            "transposable": 0,
+            "hybrid": 0,
+            "phyrexian": 0,
+            "funny": 0,
+            "cmc": 12,
+            "colors": "",
+            "path": "/symbol/12.svg"
+        },
+        {
+            "id": "99503256-beb3-46f6-bbe5-e0a02733a71e",
+            "symbol": "{13}",
+            "svg_uri": "https://svgs.scryfall.io/card-symbols/13.svg",
+            "loose_variant": "13",
+            "english": "thirteen generic mana",
+            "represents_mana": 1,
+            "appears_in_mana_costs": 1,
+            "transposable": 0,
+            "hybrid": 0,
+            "phyrexian": 0,
+            "funny": 0,
+            "cmc": 13,
+            "colors": "",
+            "path": "/symbol/13.svg"
+        },
+        {
+            "id": "d2e623bd-ba10-430d-a774-df5f93c9e396",
+            "symbol": "{14}",
+            "svg_uri": "https://svgs.scryfall.io/card-symbols/14.svg",
+            "loose_variant": "14",
+            "english": "fourteen generic mana",
+            "represents_mana": 1,
+            "appears_in_mana_costs": 1,
+            "transposable": 0,
+            "hybrid": 0,
+            "phyrexian": 0,
+            "funny": 0,
+            "cmc": 14,
+            "colors": "",
+            "path": "/symbol/14.svg"
+        },
+        {
+            "id": "2cbe3cc0-b8ad-4faa-8c4c-89a9e927b293",
+            "symbol": "{15}",
+            "svg_uri": "https://svgs.scryfall.io/card-symbols/15.svg",
+            "loose_variant": "15",
+            "english": "fifteen generic mana",
+            "represents_mana": 1,
+            "appears_in_mana_costs": 1,
+            "transposable": 0,
+            "hybrid": 0,
+            "phyrexian": 0,
+            "funny": 0,
+            "cmc": 15,
+            "colors": "",
+            "path": "/symbol/15.svg"
+        },
+        {
+            "id": "6fa4945a-8b11-4ba1-b125-e252a316c02b",
+            "symbol": "{16}",
+            "svg_uri": "https://svgs.scryfall.io/card-symbols/16.svg",
+            "loose_variant": "16",
+            "english": "sixteen generic mana",
+            "represents_mana": 1,
+            "appears_in_mana_costs": 1,
+            "transposable": 0,
+            "hybrid": 0,
+            "phyrexian": 0,
+            "funny": 0,
+            "cmc": 16,
+            "colors": "",
+            "path": "/symbol/16.svg"
+        },
+        {
+            "id": "c19b161c-ffdf-4c4d-bb27-ec938d1abd0c",
+            "symbol": "{17}",
+            "svg_uri": "https://svgs.scryfall.io/card-symbols/17.svg",
+            "loose_variant": "17",
+            "english": "seventeen generic mana",
+            "represents_mana": 1,
+            "appears_in_mana_costs": 0,
+            "transposable": 0,
+            "hybrid": 0,
+            "phyrexian": 0,
+            "funny": 0,
+            "cmc": 17,
+            "colors": "",
+            "path": "/symbol/17.svg"
+        },
+        {
+            "id": "fef200c5-2087-4b1b-ba89-645a544cb0a0",
+            "symbol": "{18}",
+            "svg_uri": "https://svgs.scryfall.io/card-symbols/18.svg",
+            "loose_variant": "18",
+            "english": "eighteen generic mana",
+            "represents_mana": 1,
+            "appears_in_mana_costs": 0,
+            "transposable": 0,
+            "hybrid": 0,
+            "phyrexian": 0,
+            "funny": 0,
+            "cmc": 18,
+            "colors": "",
+            "path": "/symbol/18.svg"
+        },
+        {
+            "id": "5d162e32-0c5a-47e5-ab27-09ac21840f75",
+            "symbol": "{19}",
+            "svg_uri": "https://svgs.scryfall.io/card-symbols/19.svg",
+            "loose_variant": "19",
+            "english": "nineteen generic mana",
+            "represents_mana": 1,
+            "appears_in_mana_costs": 0,
+            "transposable": 0,
+            "hybrid": 0,
+            "phyrexian": 0,
+            "funny": 0,
+            "cmc": 19,
+            "colors": "",
+            "path": "/symbol/19.svg"
+        },
+        {
+            "id": "dc23f99e-e48c-4d93-86e8-89d8e61af4c0",
+            "symbol": "{2}",
+            "svg_uri": "https://svgs.scryfall.io/card-symbols/2.svg",
+            "loose_variant": "2",
+            "english": "two generic mana",
+            "represents_mana": 1,
+            "appears_in_mana_costs": 1,
+            "transposable": 0,
+            "hybrid": 0,
+            "phyrexian": 0,
+            "funny": 0,
+            "cmc": 2,
+            "colors": "",
+            "path": "/symbol/2.svg"
+        },
+        {
+            "id": "0f75bd15-57db-437f-bdfb-5262833c3c02",
+            "symbol": "{2/B}",
+            "svg_uri": "https://svgs.scryfall.io/card-symbols/2B.svg",
+            "loose_variant": null,
+            "english": "two generic mana or one black mana",
+            "represents_mana": 1,
+            "appears_in_mana_costs": 1,
+            "transposable": 1,
+            "hybrid": 1,
+            "phyrexian": 0,
+            "funny": 0,
+            "cmc": 2,
+            "colors": "B",
+            "path": "/symbol/2-B.svg"
+        },
+        {
+            "id": "78dfd9b3-e733-4caf-a9d4-e220d21f29ba",
+            "symbol": "{2/G}",
+            "svg_uri": "https://svgs.scryfall.io/card-symbols/2G.svg",
+            "loose_variant": null,
+            "english": "two generic mana or one green mana",
+            "represents_mana": 1,
+            "appears_in_mana_costs": 1,
+            "transposable": 1,
+            "hybrid": 1,
+            "phyrexian": 0,
+            "funny": 0,
+            "cmc": 2,
+            "colors": "G",
+            "path": "/symbol/2-G.svg"
+        },
+        {
+            "id": "48eb75cc-234c-40eb-a450-829c67584d4f",
+            "symbol": "{2/R}",
+            "svg_uri": "https://svgs.scryfall.io/card-symbols/2R.svg",
+            "loose_variant": null,
+            "english": "two generic mana or one red mana",
+            "represents_mana": 1,
+            "appears_in_mana_costs": 1,
+            "transposable": 1,
+            "hybrid": 1,
+            "phyrexian": 0,
+            "funny": 0,
+            "cmc": 2,
+            "colors": "R",
+            "path": "/symbol/2-R.svg"
+        },
+        {
+            "id": "ab053c88-86e5-4a52-9646-ef230d7891e1",
+            "symbol": "{2/U}",
+            "svg_uri": "https://svgs.scryfall.io/card-symbols/2U.svg",
+            "loose_variant": null,
+            "english": "two generic mana or one blue mana",
+            "represents_mana": 1,
+            "appears_in_mana_costs": 1,
+            "transposable": 1,
+            "hybrid": 1,
+            "phyrexian": 0,
+            "funny": 0,
+            "cmc": 2,
+            "colors": "U",
+            "path": "/symbol/2-U.svg"
+        },
+        {
+            "id": "80ef7e13-d3db-46e3-82f1-e6581f00bd09",
+            "symbol": "{2/W}",
+            "svg_uri": "https://svgs.scryfall.io/card-symbols/2W.svg",
+            "loose_variant": null,
+            "english": "two generic mana or one white mana",
+            "represents_mana": 1,
+            "appears_in_mana_costs": 1,
+            "transposable": 1,
+            "hybrid": 1,
+            "phyrexian": 0,
+            "funny": 0,
+            "cmc": 2,
+            "colors": "W",
+            "path": "/symbol/2-W.svg"
+        },
+        {
+            "id": "934ecf23-941f-45ed-ab2d-e120a9163223",
+            "symbol": "{20}",
+            "svg_uri": "https://svgs.scryfall.io/card-symbols/20.svg",
+            "loose_variant": "20",
+            "english": "twenty generic mana",
+            "represents_mana": 1,
+            "appears_in_mana_costs": 0,
+            "transposable": 0,
+            "hybrid": 0,
+            "phyrexian": 0,
+            "funny": 0,
+            "cmc": 20,
+            "colors": "",
+            "path": "/symbol/20.svg"
+        },
+        {
+            "id": "e58a1f6a-3e7c-476d-be8f-5929b778dc50",
+            "symbol": "{3}",
+            "svg_uri": "https://svgs.scryfall.io/card-symbols/3.svg",
+            "loose_variant": "3",
+            "english": "three generic mana",
+            "represents_mana": 1,
+            "appears_in_mana_costs": 1,
+            "transposable": 0,
+            "hybrid": 0,
+            "phyrexian": 0,
+            "funny": 0,
+            "cmc": 3,
+            "colors": "",
+            "path": "/symbol/3.svg"
+        },
+        {
+            "id": "0564c437-ce26-4374-a1d3-d76673e22aa6",
+            "symbol": "{4}",
+            "svg_uri": "https://svgs.scryfall.io/card-symbols/4.svg",
+            "loose_variant": "4",
+            "english": "four generic mana",
+            "represents_mana": 1,
+            "appears_in_mana_costs": 1,
+            "transposable": 0,
+            "hybrid": 0,
+            "phyrexian": 0,
+            "funny": 0,
+            "cmc": 4,
+            "colors": "",
+            "path": "/symbol/4.svg"
+        },
+        {
+            "id": "87f442a3-81d6-4e96-8a38-c4762069d335",
+            "symbol": "{5}",
+            "svg_uri": "https://svgs.scryfall.io/card-symbols/5.svg",
+            "loose_variant": "5",
+            "english": "five generic mana",
+            "represents_mana": 1,
+            "appears_in_mana_costs": 1,
+            "transposable": 0,
+            "hybrid": 0,
+            "phyrexian": 0,
+            "funny": 0,
+            "cmc": 5,
+            "colors": "",
+            "path": "/symbol/5.svg"
+        },
+        {
+            "id": "d862785e-bcb1-4109-a65f-1052a1fcce95",
+            "symbol": "{6}",
+            "svg_uri": "https://svgs.scryfall.io/card-symbols/6.svg",
+            "loose_variant": "6",
+            "english": "six generic mana",
+            "represents_mana": 1,
+            "appears_in_mana_costs": 1,
+            "transposable": 0,
+            "hybrid": 0,
+            "phyrexian": 0,
+            "funny": 0,
+            "cmc": 6,
+            "colors": "",
+            "path": "/symbol/6.svg"
+        },
+        {
+            "id": "a388c7f3-0448-4a7a-b11a-26969ce38740",
+            "symbol": "{7}",
+            "svg_uri": "https://svgs.scryfall.io/card-symbols/7.svg",
+            "loose_variant": "7",
+            "english": "seven generic mana",
+            "represents_mana": 1,
+            "appears_in_mana_costs": 1,
+            "transposable": 0,
+            "hybrid": 0,
+            "phyrexian": 0,
+            "funny": 0,
+            "cmc": 7,
+            "colors": "",
+            "path": "/symbol/7.svg"
+        },
+        {
+            "id": "01b44a04-ac0c-4f6d-ba8f-320ce42d8527",
+            "symbol": "{8}",
+            "svg_uri": "https://svgs.scryfall.io/card-symbols/8.svg",
+            "loose_variant": "8",
+            "english": "eight generic mana",
+            "represents_mana": 1,
+            "appears_in_mana_costs": 1,
+            "transposable": 0,
+            "hybrid": 0,
+            "phyrexian": 0,
+            "funny": 0,
+            "cmc": 8,
+            "colors": "",
+            "path": "/symbol/8.svg"
+        },
+        {
+            "id": "9f8cd3b2-2eba-4363-8387-3b42cf31ae8d",
+            "symbol": "{9}",
+            "svg_uri": "https://svgs.scryfall.io/card-symbols/9.svg",
+            "loose_variant": "9",
+            "english": "nine generic mana",
+            "represents_mana": 1,
+            "appears_in_mana_costs": 1,
+            "transposable": 0,
+            "hybrid": 0,
+            "phyrexian": 0,
+            "funny": 0,
+            "cmc": 9,
+            "colors": "",
+            "path": "/symbol/9.svg"
+        },
+        {
+            "id": "2bb1a4e6-04f7-425b-8ae7-cb135ea6c40a",
+            "symbol": "{A}",
+            "svg_uri": "https://svgs.scryfall.io/card-symbols/A.svg",
+            "loose_variant": null,
+            "english": "an acorn counter",
+            "represents_mana": 0,
+            "appears_in_mana_costs": 0,
+            "transposable": 0,
+            "hybrid": 0,
+            "phyrexian": 0,
+            "funny": 1,
+            "cmc": 0,
+            "colors": "",
+            "path": "/symbol/A.svg"
+        },
+        {
+            "id": "4b56c4bd-9178-42ac-bd6b-178b05e2289a",
+            "symbol": "{B}",
+            "svg_uri": "https://svgs.scryfall.io/card-symbols/B.svg",
+            "loose_variant": "B",
+            "english": "one black mana",
+            "represents_mana": 1,
+            "appears_in_mana_costs": 1,
+            "transposable": 0,
+            "hybrid": 0,
+            "phyrexian": 0,
+            "funny": 0,
+            "cmc": 1,
+            "colors": "B",
+            "path": "/symbol/B.svg"
+        },
+        {
+            "id": "962a005a-36bf-4e7c-a487-2cff04613bb5",
+            "symbol": "{B/G}",
+            "svg_uri": "https://svgs.scryfall.io/card-symbols/BG.svg",
+            "loose_variant": null,
+            "english": "one black or green mana",
+            "represents_mana": 1,
+            "appears_in_mana_costs": 1,
+            "transposable": 1,
+            "hybrid": 1,
+            "phyrexian": 0,
+            "funny": 0,
+            "cmc": 1,
+            "colors": "BG",
+            "path": "/symbol/B-G.svg"
+        },
+        {
+            "id": "3c82988d-4163-43a4-89ea-c8199d65c377",
+            "symbol": "{B/G/P}",
+            "svg_uri": "https://svgs.scryfall.io/card-symbols/BGP.svg",
+            "loose_variant": null,
+            "english": "one black mana, one green mana, or 2 life",
+            "represents_mana": 1,
+            "appears_in_mana_costs": 0,
+            "transposable": 1,
+            "hybrid": 1,
+            "phyrexian": 1,
+            "funny": 0,
+            "cmc": 1,
+            "colors": "BG",
+            "path": "/symbol/B-G-P.svg"
+        },
+        {
+            "id": "c383364f-aa11-47a1-ae38-d6cb659029a6",
+            "symbol": "{B/P}",
+            "svg_uri": "https://svgs.scryfall.io/card-symbols/BP.svg",
+            "loose_variant": null,
+            "english": "one black mana or two life",
+            "represents_mana": 1,
+            "appears_in_mana_costs": 1,
+            "transposable": 1,
+            "hybrid": 0,
+            "phyrexian": 1,
+            "funny": 0,
+            "cmc": 1,
+            "colors": "B",
+            "path": "/symbol/B-P.svg"
+        },
+        {
+            "id": "b9bd9a2f-14fd-4912-9b01-8cc4e007462b",
+            "symbol": "{B/R}",
+            "svg_uri": "https://svgs.scryfall.io/card-symbols/BR.svg",
+            "loose_variant": null,
+            "english": "one black or red mana",
+            "represents_mana": 1,
+            "appears_in_mana_costs": 1,
+            "transposable": 1,
+            "hybrid": 1,
+            "phyrexian": 0,
+            "funny": 0,
+            "cmc": 1,
+            "colors": "BR",
+            "path": "/symbol/B-R.svg"
+        },
+        {
+            "id": "ab6065ef-a3f8-4083-9381-0ec6b2e0db32",
+            "symbol": "{B/R/P}",
+            "svg_uri": "https://svgs.scryfall.io/card-symbols/BRP.svg",
+            "loose_variant": null,
+            "english": "one black mana, one red mana, or 2 life",
+            "represents_mana": 1,
+            "appears_in_mana_costs": 0,
+            "transposable": 1,
+            "hybrid": 1,
+            "phyrexian": 1,
+            "funny": 0,
+            "cmc": 1,
+            "colors": "BR",
+            "path": "/symbol/B-R-P.svg"
+        },
+        {
+            "id": "89a3baf7-a8dc-40a8-b375-ed882481e3e0",
+            "symbol": "{C}",
+            "svg_uri": "https://svgs.scryfall.io/card-symbols/C.svg",
+            "loose_variant": "C",
+            "english": "one colorless mana",
+            "represents_mana": 1,
+            "appears_in_mana_costs": 1,
+            "transposable": 0,
+            "hybrid": 0,
+            "phyrexian": 0,
+            "funny": 0,
+            "cmc": 1,
+            "colors": "",
+            "path": "/symbol/C.svg"
+        },
+        {
+            "id": "a4b80bd4-8da3-4aa5-b780-e3a30daa6fb7",
+            "symbol": "{C/B}",
+            "svg_uri": "https://svgs.scryfall.io/card-symbols/CB.svg",
+            "loose_variant": null,
+            "english": "one colorless mana or one black mana",
+            "represents_mana": 1,
+            "appears_in_mana_costs": 1,
+            "transposable": 1,
+            "hybrid": 1,
+            "phyrexian": 0,
+            "funny": 0,
+            "cmc": 1,
+            "colors": "B",
+            "path": "/symbol/C-B.svg"
+        },
+        {
+            "id": "89ef69cd-0502-4391-8ebe-e4d88af1a724",
+            "symbol": "{C/G}",
+            "svg_uri": "https://svgs.scryfall.io/card-symbols/CG.svg",
+            "loose_variant": null,
+            "english": "one colorless mana or one green mana",
+            "represents_mana": 1,
+            "appears_in_mana_costs": 1,
+            "transposable": 1,
+            "hybrid": 1,
+            "phyrexian": 0,
+            "funny": 0,
+            "cmc": 1,
+            "colors": "G",
+            "path": "/symbol/C-G.svg"
+        },
+        {
+            "id": "675da0ef-d51e-4460-8d41-0ed03d38474a",
+            "symbol": "{C/P}",
+            "svg_uri": "https://svgs.scryfall.io/card-symbols/CP.svg",
+            "loose_variant": null,
+            "english": "one colorless mana or two life",
+            "represents_mana": 1,
+            "appears_in_mana_costs": 1,
+            "transposable": 1,
+            "hybrid": 0,
+            "phyrexian": 1,
+            "funny": 1,
+            "cmc": 1,
+            "colors": "",
+            "path": "/symbol/C-P.svg"
+        },
+        {
+            "id": "dcb11cd5-ff76-40a2-860e-d89e1ad06dca",
+            "symbol": "{C/R}",
+            "svg_uri": "https://svgs.scryfall.io/card-symbols/CR.svg",
+            "loose_variant": null,
+            "english": "one colorless mana or one red mana",
+            "represents_mana": 1,
+            "appears_in_mana_costs": 1,
+            "transposable": 1,
+            "hybrid": 1,
+            "phyrexian": 0,
+            "funny": 0,
+            "cmc": 1,
+            "colors": "R",
+            "path": "/symbol/C-R.svg"
+        },
+        {
+            "id": "47877761-8dfd-4df5-855e-4803bd3bf79d",
+            "symbol": "{C/U}",
+            "svg_uri": "https://svgs.scryfall.io/card-symbols/CU.svg",
+            "loose_variant": null,
+            "english": "one colorless mana or one blue mana",
+            "represents_mana": 1,
+            "appears_in_mana_costs": 1,
+            "transposable": 1,
+            "hybrid": 1,
+            "phyrexian": 0,
+            "funny": 0,
+            "cmc": 1,
+            "colors": "U",
+            "path": "/symbol/C-U.svg"
+        },
+        {
+            "id": "e444c64e-beb1-41d9-82f1-31d93d43c9d1",
+            "symbol": "{C/W}",
+            "svg_uri": "https://svgs.scryfall.io/card-symbols/CW.svg",
+            "loose_variant": null,
+            "english": "one colorless mana or one white mana",
+            "represents_mana": 1,
+            "appears_in_mana_costs": 1,
+            "transposable": 1,
+            "hybrid": 1,
+            "phyrexian": 0,
+            "funny": 0,
+            "cmc": 1,
+            "colors": "W",
+            "path": "/symbol/C-W.svg"
+        },
+        {
+            "id": "67a5be7c-f5c7-402e-b533-24d93c55e201",
+            "symbol": "{CHAOS}",
+            "svg_uri": "https://svgs.scryfall.io/card-symbols/CHAOS.svg",
+            "loose_variant": null,
+            "english": "chaos",
+            "represents_mana": 0,
+            "appears_in_mana_costs": 0,
+            "transposable": 0,
+            "hybrid": 0,
+            "phyrexian": 0,
+            "funny": 0,
+            "cmc": 0,
+            "colors": "",
+            "path": "/symbol/CHAOS.svg"
+        },
+        {
+            "id": "e92320fc-ad27-4fba-a112-91c9b1678c4f",
+            "symbol": "{D}",
+            "svg_uri": "https://svgs.scryfall.io/card-symbols/D.svg",
+            "loose_variant": "D",
+            "english": "one potential land drop",
+            "represents_mana": 0,
+            "appears_in_mana_costs": 1,
+            "transposable": 0,
+            "hybrid": 0,
+            "phyrexian": 0,
+            "funny": 1,
+            "cmc": 0,
+            "colors": "",
+            "path": "/symbol/D.svg"
+        },
+        {
+            "id": "8b3193b8-7b60-44c7-a95b-0ed95971fc5c",
+            "symbol": "{E}",
+            "svg_uri": "https://svgs.scryfall.io/card-symbols/E.svg",
+            "loose_variant": null,
+            "english": "an energy counter",
+            "represents_mana": 0,
+            "appears_in_mana_costs": 0,
+            "transposable": 0,
+            "hybrid": 0,
+            "phyrexian": 0,
+            "funny": 0,
+            "cmc": 0,
+            "colors": "",
+            "path": "/symbol/E.svg"
+        },
+        {
+            "id": "90773ef6-f493-44cb-b060-64ce9a337fad",
+            "symbol": "{G}",
+            "svg_uri": "https://svgs.scryfall.io/card-symbols/G.svg",
+            "loose_variant": "G",
+            "english": "one green mana",
+            "represents_mana": 1,
+            "appears_in_mana_costs": 1,
+            "transposable": 0,
+            "hybrid": 0,
+            "phyrexian": 0,
+            "funny": 0,
+            "cmc": 1,
+            "colors": "G",
+            "path": "/symbol/G.svg"
+        },
+        {
+            "id": "d4ff9ebf-863b-44ae-9d96-549609e1e24d",
+            "symbol": "{G/P}",
+            "svg_uri": "https://svgs.scryfall.io/card-symbols/GP.svg",
+            "loose_variant": null,
+            "english": "one green mana or two life",
+            "represents_mana": 1,
+            "appears_in_mana_costs": 1,
+            "transposable": 1,
+            "hybrid": 0,
+            "phyrexian": 1,
+            "funny": 0,
+            "cmc": 1,
+            "colors": "G",
+            "path": "/symbol/G-P.svg"
+        },
+        {
+            "id": "81535831-6b4c-44c1-b481-912937b739bc",
+            "symbol": "{G/U}",
+            "svg_uri": "https://svgs.scryfall.io/card-symbols/GU.svg",
+            "loose_variant": null,
+            "english": "one green or blue mana",
+            "represents_mana": 1,
+            "appears_in_mana_costs": 1,
+            "transposable": 1,
+            "hybrid": 1,
+            "phyrexian": 0,
+            "funny": 0,
+            "cmc": 1,
+            "colors": "UG",
+            "path": "/symbol/G-U.svg"
+        },
+        {
+            "id": "971187dd-b90f-4180-aaea-80b2ed5b70f1",
+            "symbol": "{G/U/P}",
+            "svg_uri": "https://svgs.scryfall.io/card-symbols/GUP.svg",
+            "loose_variant": null,
+            "english": "one green mana, one blue mana, or 2 life",
+            "represents_mana": 1,
+            "appears_in_mana_costs": 1,
+            "transposable": 1,
+            "hybrid": 1,
+            "phyrexian": 1,
+            "funny": 0,
+            "cmc": 1,
+            "colors": "UG",
+            "path": "/symbol/G-U-P.svg"
+        },
+        {
+            "id": "24c75170-7dce-4699-a63c-f0e9b7907408",
+            "symbol": "{G/W}",
+            "svg_uri": "https://svgs.scryfall.io/card-symbols/GW.svg",
+            "loose_variant": null,
+            "english": "one green or white mana",
+            "represents_mana": 1,
+            "appears_in_mana_costs": 1,
+            "transposable": 1,
+            "hybrid": 1,
+            "phyrexian": 0,
+            "funny": 0,
+            "cmc": 1,
+            "colors": "WG",
+            "path": "/symbol/G-W.svg"
+        },
+        {
+            "id": "ab19ee3f-3ea9-47ea-8838-eb5b1714b406",
+            "symbol": "{G/W/P}",
+            "svg_uri": "https://svgs.scryfall.io/card-symbols/GWP.svg",
+            "loose_variant": null,
+            "english": "one green mana, one white mana, or 2 life",
+            "represents_mana": 1,
+            "appears_in_mana_costs": 1,
+            "transposable": 1,
+            "hybrid": 1,
+            "phyrexian": 1,
+            "funny": 0,
+            "cmc": 1,
+            "colors": "WG",
+            "path": "/symbol/G-W-P.svg"
+        },
+        {
+            "id": "fbef0028-d08e-437c-8f09-6e028ad06539",
+            "symbol": "{H}",
+            "svg_uri": "https://svgs.scryfall.io/card-symbols/H.svg",
+            "loose_variant": null,
+            "english": "one colored mana or two life",
+            "represents_mana": 1,
+            "appears_in_mana_costs": 0,
+            "transposable": 0,
+            "hybrid": 0,
+            "phyrexian": 1,
+            "funny": 0,
+            "cmc": 1,
+            "colors": "",
+            "path": "/symbol/H.svg"
+        },
+        {
+            "id": "a9fefd77-73fb-435d-9010-0b0b02b238ff",
+            "symbol": "{HR}",
+            "svg_uri": "https://svgs.scryfall.io/card-symbols/HR.svg",
+            "loose_variant": null,
+            "english": "one-half red mana",
+            "represents_mana": 1,
+            "appears_in_mana_costs": 0,
+            "transposable": 1,
+            "hybrid": 0,
+            "phyrexian": 0,
+            "funny": 1,
+            "cmc": 1,
+            "colors": "R",
+            "path": "/symbol/HR.svg"
+        },
+        {
+            "id": "bed34a3a-e6fa-4056-aea7-6f61442959e6",
+            "symbol": "{HW}",
+            "svg_uri": "https://svgs.scryfall.io/card-symbols/HW.svg",
+            "loose_variant": null,
+            "english": "one-half white mana",
+            "represents_mana": 1,
+            "appears_in_mana_costs": 1,
+            "transposable": 1,
+            "hybrid": 0,
+            "phyrexian": 0,
+            "funny": 1,
+            "cmc": 1,
+            "colors": "W",
+            "path": "/symbol/HW.svg"
+        },
+        {
+            "id": "a6d31eb8-ff5e-4684-bcba-e7657825fc59",
+            "symbol": "{L}",
+            "svg_uri": "https://svgs.scryfall.io/card-symbols/L.svg",
+            "loose_variant": "L",
+            "english": "one mana from a legendary source",
+            "represents_mana": 1,
+            "appears_in_mana_costs": 1,
+            "transposable": 0,
+            "hybrid": 0,
+            "phyrexian": 0,
+            "funny": 1,
+            "cmc": 1,
+            "colors": "",
+            "path": "/symbol/L.svg"
+        },
+        {
+            "id": "bd7b277c-00bf-4565-a8c4-ca502474a210",
+            "symbol": "{P}",
+            "svg_uri": "https://svgs.scryfall.io/card-symbols/P.svg",
+            "loose_variant": null,
+            "english": "modal budget pawprint",
+            "represents_mana": 0,
+            "appears_in_mana_costs": 0,
+            "transposable": 0,
+            "hybrid": 0,
+            "phyrexian": 0,
+            "funny": 0,
+            "cmc": 0,
+            "colors": "",
+            "path": "/symbol/P.svg"
+        },
+        {
+            "id": "f29f5307-c26b-4277-8a0e-905683a6b425",
+            "symbol": "{PW}",
+            "svg_uri": "https://svgs.scryfall.io/card-symbols/PW.svg",
+            "loose_variant": null,
+            "english": "planeswalker",
+            "represents_mana": 0,
+            "appears_in_mana_costs": 0,
+            "transposable": 0,
+            "hybrid": 0,
+            "phyrexian": 0,
+            "funny": 0,
+            "cmc": 0,
+            "colors": "",
+            "path": "/symbol/PW.svg"
+        },
+        {
+            "id": "d403f8a9-0398-4900-9d5a-3658e2f762a6",
+            "symbol": "{Q}",
+            "svg_uri": "https://svgs.scryfall.io/card-symbols/Q.svg",
+            "loose_variant": null,
+            "english": "untap this permanent",
+            "represents_mana": 0,
+            "appears_in_mana_costs": 0,
+            "transposable": 0,
+            "hybrid": 0,
+            "phyrexian": 0,
+            "funny": 0,
+            "cmc": 0,
+            "colors": "",
+            "path": "/symbol/Q.svg"
+        },
+        {
+            "id": "58a6b875-b086-4ec9-acd7-77b0a5579d26",
+            "symbol": "{R}",
+            "svg_uri": "https://svgs.scryfall.io/card-symbols/R.svg",
+            "loose_variant": "R",
+            "english": "one red mana",
+            "represents_mana": 1,
+            "appears_in_mana_costs": 1,
+            "transposable": 0,
+            "hybrid": 0,
+            "phyrexian": 0,
+            "funny": 0,
+            "cmc": 1,
+            "colors": "R",
+            "path": "/symbol/R.svg"
+        },
+        {
+            "id": "c7f486df-9a49-4d91-bcd3-58e64251820e",
+            "symbol": "{R/G}",
+            "svg_uri": "https://svgs.scryfall.io/card-symbols/RG.svg",
+            "loose_variant": null,
+            "english": "one red or green mana",
+            "represents_mana": 1,
+            "appears_in_mana_costs": 1,
+            "transposable": 1,
+            "hybrid": 1,
+            "phyrexian": 0,
+            "funny": 0,
+            "cmc": 1,
+            "colors": "RG",
+            "path": "/symbol/R-G.svg"
+        },
+        {
+            "id": "c1ffb1bd-35b7-4822-a62c-bd5a2d2e416d",
+            "symbol": "{R/G/P}",
+            "svg_uri": "https://svgs.scryfall.io/card-symbols/RGP.svg",
+            "loose_variant": null,
+            "english": "one red mana, one green mana, or 2 life",
+            "represents_mana": 1,
+            "appears_in_mana_costs": 0,
+            "transposable": 1,
+            "hybrid": 1,
+            "phyrexian": 1,
+            "funny": 0,
+            "cmc": 1,
+            "colors": "RG",
+            "path": "/symbol/R-G-P.svg"
+        },
+        {
+            "id": "309c4904-6a3e-441e-b123-7ca941a728da",
+            "symbol": "{R/P}",
+            "svg_uri": "https://svgs.scryfall.io/card-symbols/RP.svg",
+            "loose_variant": null,
+            "english": "one red mana or two life",
+            "represents_mana": 1,
+            "appears_in_mana_costs": 1,
+            "transposable": 1,
+            "hybrid": 0,
+            "phyrexian": 1,
+            "funny": 0,
+            "cmc": 1,
+            "colors": "R",
+            "path": "/symbol/R-P.svg"
+        },
+        {
+            "id": "b9458958-a7e7-482b-9771-dd904e3cb8a3",
+            "symbol": "{R/W}",
+            "svg_uri": "https://svgs.scryfall.io/card-symbols/RW.svg",
+            "loose_variant": null,
+            "english": "one red or white mana",
+            "represents_mana": 1,
+            "appears_in_mana_costs": 1,
+            "transposable": 1,
+            "hybrid": 1,
+            "phyrexian": 0,
+            "funny": 0,
+            "cmc": 1,
+            "colors": "WR",
+            "path": "/symbol/R-W.svg"
+        },
+        {
+            "id": "da97c1cd-abbc-46f6-8035-b3ba60db4177",
+            "symbol": "{R/W/P}",
+            "svg_uri": "https://svgs.scryfall.io/card-symbols/RWP.svg",
+            "loose_variant": null,
+            "english": "one red mana, one white mana, or 2 life",
+            "represents_mana": 1,
+            "appears_in_mana_costs": 0,
+            "transposable": 1,
+            "hybrid": 1,
+            "phyrexian": 1,
+            "funny": 0,
+            "cmc": 1,
+            "colors": "WR",
+            "path": "/symbol/R-W-P.svg"
+        },
+        {
+            "id": "39555d7c-22ae-4b06-b65a-827c7adbbb41",
+            "symbol": "{S}",
+            "svg_uri": "https://svgs.scryfall.io/card-symbols/S.svg",
+            "loose_variant": "S",
+            "english": "one snow mana",
+            "represents_mana": 1,
+            "appears_in_mana_costs": 1,
+            "transposable": 0,
+            "hybrid": 0,
+            "phyrexian": 0,
+            "funny": 0,
+            "cmc": 1,
+            "colors": "",
+            "path": "/symbol/S.svg"
+        },
+        {
+            "id": "4a2aa6f3-2184-48bf-9a18-f95740ba379d",
+            "symbol": "{T}",
+            "svg_uri": "https://svgs.scryfall.io/card-symbols/T.svg",
+            "loose_variant": null,
+            "english": "tap this permanent",
+            "represents_mana": 0,
+            "appears_in_mana_costs": 0,
+            "transposable": 0,
+            "hybrid": 0,
+            "phyrexian": 0,
+            "funny": 0,
+            "cmc": 0,
+            "colors": "",
+            "path": "/symbol/T.svg"
+        },
+        {
+            "id": "38d0d61f-fe9c-4f3a-94de-b2013dd52bb1",
+            "symbol": "{TK}",
+            "svg_uri": "https://svgs.scryfall.io/card-symbols/TK.svg",
+            "loose_variant": null,
+            "english": "a ticket counter",
+            "represents_mana": 0,
+            "appears_in_mana_costs": 0,
+            "transposable": 0,
+            "hybrid": 0,
+            "phyrexian": 0,
+            "funny": 0,
+            "cmc": 0,
+            "colors": "",
+            "path": "/symbol/TK.svg"
+        },
+        {
+            "id": "d61f4627-07c2-482f-a55b-20733b664e97",
+            "symbol": "{U}",
+            "svg_uri": "https://svgs.scryfall.io/card-symbols/U.svg",
+            "loose_variant": "U",
+            "english": "one blue mana",
+            "represents_mana": 1,
+            "appears_in_mana_costs": 1,
+            "transposable": 0,
+            "hybrid": 0,
+            "phyrexian": 0,
+            "funny": 0,
+            "cmc": 1,
+            "colors": "U",
+            "path": "/symbol/U.svg"
+        },
+        {
+            "id": "63e706e2-e84a-43c8-ac87-4143507353b4",
+            "symbol": "{U/B}",
+            "svg_uri": "https://svgs.scryfall.io/card-symbols/UB.svg",
+            "loose_variant": null,
+            "english": "one blue or black mana",
+            "represents_mana": 1,
+            "appears_in_mana_costs": 1,
+            "transposable": 1,
+            "hybrid": 1,
+            "phyrexian": 0,
+            "funny": 0,
+            "cmc": 1,
+            "colors": "UB",
+            "path": "/symbol/U-B.svg"
+        },
+        {
+            "id": "3a12a392-67f6-454c-970c-711cca413078",
+            "symbol": "{U/B/P}",
+            "svg_uri": "https://svgs.scryfall.io/card-symbols/UBP.svg",
+            "loose_variant": null,
+            "english": "one blue mana, one black mana, or 2 life",
+            "represents_mana": 1,
+            "appears_in_mana_costs": 0,
+            "transposable": 1,
+            "hybrid": 1,
+            "phyrexian": 1,
+            "funny": 0,
+            "cmc": 1,
+            "colors": "UB",
+            "path": "/symbol/U-B-P.svg"
+        },
+        {
+            "id": "306fac69-4baa-49a2-9d9e-13a7567a48eb",
+            "symbol": "{U/P}",
+            "svg_uri": "https://svgs.scryfall.io/card-symbols/UP.svg",
+            "loose_variant": null,
+            "english": "one blue mana or two life",
+            "represents_mana": 1,
+            "appears_in_mana_costs": 1,
+            "transposable": 1,
+            "hybrid": 0,
+            "phyrexian": 1,
+            "funny": 0,
+            "cmc": 1,
+            "colors": "U",
+            "path": "/symbol/U-P.svg"
+        },
+        {
+            "id": "bd6439b7-d4d4-4998-9ad0-b19f15e07d36",
+            "symbol": "{U/R}",
+            "svg_uri": "https://svgs.scryfall.io/card-symbols/UR.svg",
+            "loose_variant": null,
+            "english": "one blue or red mana",
+            "represents_mana": 1,
+            "appears_in_mana_costs": 1,
+            "transposable": 1,
+            "hybrid": 1,
+            "phyrexian": 0,
+            "funny": 0,
+            "cmc": 1,
+            "colors": "UR",
+            "path": "/symbol/U-R.svg"
+        },
+        {
+            "id": "f254dc9a-f299-4256-98c8-7ca5cae72089",
+            "symbol": "{U/R/P}",
+            "svg_uri": "https://svgs.scryfall.io/card-symbols/URP.svg",
+            "loose_variant": null,
+            "english": "one blue mana, one red mana, or 2 life",
+            "represents_mana": 1,
+            "appears_in_mana_costs": 0,
+            "transposable": 1,
+            "hybrid": 1,
+            "phyrexian": 1,
+            "funny": 0,
+            "cmc": 1,
+            "colors": "UR",
+            "path": "/symbol/U-R-P.svg"
+        },
+        {
+            "id": "2d99a2ab-28a5-4030-acff-b1e54b8399fd",
+            "symbol": "{W}",
+            "svg_uri": "https://svgs.scryfall.io/card-symbols/W.svg",
+            "loose_variant": "W",
+            "english": "one white mana",
+            "represents_mana": 1,
+            "appears_in_mana_costs": 1,
+            "transposable": 0,
+            "hybrid": 0,
+            "phyrexian": 0,
+            "funny": 0,
+            "cmc": 1,
+            "colors": "W",
+            "path": "/symbol/W.svg"
+        },
+        {
+            "id": "be0aa3b1-3af5-4cfb-b781-4819e978d4a2",
+            "symbol": "{W/B}",
+            "svg_uri": "https://svgs.scryfall.io/card-symbols/WB.svg",
+            "loose_variant": null,
+            "english": "one white or black mana",
+            "represents_mana": 1,
+            "appears_in_mana_costs": 1,
+            "transposable": 1,
+            "hybrid": 1,
+            "phyrexian": 0,
+            "funny": 0,
+            "cmc": 1,
+            "colors": "WB",
+            "path": "/symbol/W-B.svg"
+        },
+        {
+            "id": "52657df7-3dd7-48f3-9313-e6d17e32b196",
+            "symbol": "{W/B/P}",
+            "svg_uri": "https://svgs.scryfall.io/card-symbols/WBP.svg",
+            "loose_variant": null,
+            "english": "one white mana, one black mana, or 2 life",
+            "represents_mana": 1,
+            "appears_in_mana_costs": 0,
+            "transposable": 1,
+            "hybrid": 1,
+            "phyrexian": 1,
+            "funny": 0,
+            "cmc": 1,
+            "colors": "WB",
+            "path": "/symbol/W-B-P.svg"
+        },
+        {
+            "id": "8643655c-1076-4131-95b6-c144137bb984",
+            "symbol": "{W/P}",
+            "svg_uri": "https://svgs.scryfall.io/card-symbols/WP.svg",
+            "loose_variant": null,
+            "english": "one white mana or two life",
+            "represents_mana": 1,
+            "appears_in_mana_costs": 1,
+            "transposable": 1,
+            "hybrid": 0,
+            "phyrexian": 1,
+            "funny": 0,
+            "cmc": 1,
+            "colors": "W",
+            "path": "/symbol/W-P.svg"
+        },
+        {
+            "id": "eff5889f-9bd8-4c88-b535-6e15d46a917a",
+            "symbol": "{W/U}",
+            "svg_uri": "https://svgs.scryfall.io/card-symbols/WU.svg",
+            "loose_variant": null,
+            "english": "one white or blue mana",
+            "represents_mana": 1,
+            "appears_in_mana_costs": 1,
+            "transposable": 1,
+            "hybrid": 1,
+            "phyrexian": 0,
+            "funny": 0,
+            "cmc": 1,
+            "colors": "WU",
+            "path": "/symbol/W-U.svg"
+        },
+        {
+            "id": "7428fb57-d819-4e38-86a6-4fdf47e6342b",
+            "symbol": "{W/U/P}",
+            "svg_uri": "https://svgs.scryfall.io/card-symbols/WUP.svg",
+            "loose_variant": null,
+            "english": "one white mana, one blue mana, or 2 life",
+            "represents_mana": 1,
+            "appears_in_mana_costs": 0,
+            "transposable": 1,
+            "hybrid": 1,
+            "phyrexian": 1,
+            "funny": 0,
+            "cmc": 1,
+            "colors": "WU",
+            "path": "/symbol/W-U-P.svg"
+        },
+        {
+            "id": "fbe8f5a0-4d50-4f5d-91bc-68f7bb7e9575",
+            "symbol": "{X}",
+            "svg_uri": "https://svgs.scryfall.io/card-symbols/X.svg",
+            "loose_variant": "X",
+            "english": "X generic mana",
+            "represents_mana": 1,
+            "appears_in_mana_costs": 1,
+            "transposable": 0,
+            "hybrid": 0,
+            "phyrexian": 0,
+            "funny": 0,
+            "cmc": 0,
+            "colors": "",
+            "path": "/symbol/X.svg"
+        },
+        {
+            "id": "e1b9ca76-f3bf-4e36-b856-d8dc542ceecb",
+            "symbol": "{Y}",
+            "svg_uri": "https://svgs.scryfall.io/card-symbols/Y.svg",
+            "loose_variant": "Y",
+            "english": "Y generic mana",
+            "represents_mana": 1,
+            "appears_in_mana_costs": 1,
+            "transposable": 0,
+            "hybrid": 0,
+            "phyrexian": 0,
+            "funny": 1,
+            "cmc": 0,
+            "colors": "",
+            "path": "/symbol/Y.svg"
+        },
+        {
+            "id": "c551c06e-d5a4-46de-b76e-702dcce42eea",
+            "symbol": "{Z}",
+            "svg_uri": "https://svgs.scryfall.io/card-symbols/Z.svg",
+            "loose_variant": "Z",
+            "english": "Z generic mana",
+            "represents_mana": 1,
+            "appears_in_mana_costs": 1,
+            "transposable": 0,
+            "hybrid": 0,
+            "phyrexian": 0,
+            "funny": 1,
+            "cmc": 0,
+            "colors": "",
+            "path": "/symbol/Z.svg"
+        }
+    ],
+    "oracle_cards": [
+        {
+            "id": "0bc7f093-bef0-4f1a-852c-4b75ebf54838",
+            "name": "Arcane Signet",
+            "searchable_name": "arcane signet",
+            "collector_number": "191",
+            "layout": "normal",
+            "lang": "en",
+            "cmc": "2.0",
+            "color_identity": null,
+            "type_line": "Artifact",
+            "produced_mana": "BGRUW",
+            "reserved": 0,
+            "game_changer": 0,
+            "mld": 0,
+            "fetch_pattern": null,
+            "scryfall_uri": "https://scryfall.com/card/msc/191/arcane-signet?utm_source=api"
+        },
+        {
+            "id": "c9ed8b01-959a-47d6-891e-0abbdccf6e4f",
+            "name": "Armageddon",
+            "searchable_name": "armageddon",
+            "collector_number": "5",
+            "layout": "normal",
+            "lang": "en",
+            "cmc": "4.0",
+            "color_identity": "W",
+            "type_line": "Sorcery",
+            "produced_mana": null,
+            "reserved": 0,
+            "game_changer": 0,
+            "mld": 1,
+            "fetch_pattern": null,
+            "scryfall_uri": "https://scryfall.com/card/a25/5/armageddon?utm_source=api"
+        },
+        {
+            "id": "7e6b9b59-cd68-4e3c-827b-38833c92d6eb",
+            "name": "Atraxa, Praetors' Voice",
+            "searchable_name": "atraxa praetors voice",
+            "collector_number": "190",
+            "layout": "normal",
+            "lang": "en",
+            "cmc": "4.0",
+            "color_identity": "BGUW",
+            "type_line": "Legendary Creature — Phyrexian Angel Horror",
+            "produced_mana": null,
+            "reserved": 0,
+            "game_changer": 0,
+            "mld": 0,
+            "fetch_pattern": null,
+            "scryfall_uri": "https://scryfall.com/card/2xm/190/atraxa-praetors-voice?utm_source=api"
+        },
+        {
+            "id": "0895c9b7-ae7d-4bb3-af17-3b75deb50a25",
+            "name": "Command Tower",
+            "searchable_name": "command tower",
+            "collector_number": "233",
+            "layout": "normal",
+            "lang": "en",
+            "cmc": "0.0",
+            "color_identity": null,
+            "type_line": "Land",
+            "produced_mana": "BGRUW",
+            "reserved": 0,
+            "game_changer": 0,
+            "mld": 0,
+            "fetch_pattern": null,
+            "scryfall_uri": "https://scryfall.com/card/msc/233/command-tower?utm_source=api"
+        },
+        {
+            "id": "cc187110-1148-4090-bbb8-e205694a39f5",
+            "name": "Counterspell",
+            "searchable_name": "counterspell",
+            "collector_number": "114",
+            "layout": "normal",
+            "lang": "en",
+            "cmc": "2.0",
+            "color_identity": "U",
+            "type_line": "Instant",
+            "produced_mana": null,
+            "reserved": 0,
+            "game_changer": 0,
+            "mld": 0,
+            "fetch_pattern": null,
+            "scryfall_uri": "https://scryfall.com/card/dsc/114/counterspell?utm_source=api"
+        },
+        {
+            "id": "8b755881-a72d-4e21-a369-d2924eb4585a",
+            "name": "Cultivate",
+            "searchable_name": "cultivate",
+            "collector_number": "172",
+            "layout": "normal",
+            "lang": "en",
+            "cmc": "3.0",
+            "color_identity": "G",
+            "type_line": "Sorcery",
+            "produced_mana": null,
+            "reserved": 0,
+            "game_changer": 0,
+            "mld": 0,
+            "fetch_pattern": null,
+            "scryfall_uri": "https://scryfall.com/card/msc/172/cultivate?utm_source=api"
+        },
+        {
+            "id": "53f7c868-b03e-4fc2-8dcf-a75bbfa3272b",
+            "name": "Dark Ritual",
+            "searchable_name": "dark ritual",
+            "collector_number": "793",
+            "layout": "normal",
+            "lang": "en",
+            "cmc": "1.0",
+            "color_identity": "B",
+            "type_line": "Instant",
+            "produced_mana": "B",
+            "reserved": 0,
+            "game_changer": 0,
+            "mld": 0,
+            "fetch_pattern": null,
+            "scryfall_uri": "https://scryfall.com/card/msc/793/dark-ritual?utm_source=api"
+        },
+        {
+            "id": "edd531b9-f615-4399-8c8c-1c5e18c4acbf",
+            "name": "Delver of Secrets // Insectile Aberration",
+            "searchable_name": "delver of secrets insectile aberration",
+            "collector_number": "60",
+            "layout": "transform",
+            "lang": "en",
+            "cmc": "1.0",
+            "color_identity": "U",
+            "type_line": "Creature — Human Wizard // Creature — Human Insect",
+            "produced_mana": null,
+            "reserved": 0,
+            "game_changer": 0,
+            "mld": 0,
+            "fetch_pattern": null,
+            "scryfall_uri": "https://scryfall.com/card/inr/60/delver-of-secrets-insectile-aberration?utm_source=api"
+        },
+        {
+            "id": "a75445d3-1303-4bb5-89ad-26ea93fecd48",
+            "name": "Evolving Wilds",
+            "searchable_name": "evolving wilds",
+            "collector_number": "240",
+            "layout": "normal",
+            "lang": "en",
+            "cmc": "0.0",
+            "color_identity": null,
+            "type_line": "Land",
+            "produced_mana": null,
+            "reserved": 0,
+            "game_changer": 0,
+            "mld": 0,
+            "fetch_pattern": "basic",
+            "scryfall_uri": "https://scryfall.com/card/msc/240/evolving-wilds?utm_source=api"
+        },
+        {
+            "id": "b34bb2dc-c1af-4d77-b0b3-a0fb342a5fc6",
+            "name": "Forest",
+            "searchable_name": "forest",
+            "collector_number": "325",
+            "layout": "normal",
+            "lang": "en",
+            "cmc": "0.0",
+            "color_identity": "G",
+            "type_line": "Basic Land — Forest",
+            "produced_mana": "G",
+            "reserved": 0,
+            "game_changer": 0,
+            "mld": 0,
+            "fetch_pattern": null,
+            "scryfall_uri": "https://scryfall.com/card/trk/325/forest?utm_source=api"
+        },
+        {
+            "id": "b2c6aa39-2d2a-459c-a555-fb48ba993373",
+            "name": "Island",
+            "searchable_name": "island",
+            "collector_number": "319",
+            "layout": "normal",
+            "lang": "en",
+            "cmc": "0.0",
+            "color_identity": "U",
+            "type_line": "Basic Land — Island",
+            "produced_mana": "U",
+            "reserved": 0,
+            "game_changer": 0,
+            "mld": 0,
+            "fetch_pattern": null,
+            "scryfall_uri": "https://scryfall.com/card/trk/319/island?utm_source=api"
+        },
+        {
+            "id": "68418069-f615-40ef-ae0d-764192acae00",
+            "name": "Krenko, Mob Boss",
+            "searchable_name": "krenko mob boss",
+            "collector_number": "204",
+            "layout": "normal",
+            "lang": "en",
+            "cmc": "4.0",
+            "color_identity": "R",
+            "type_line": "Legendary Creature — Goblin Warrior",
+            "produced_mana": null,
+            "reserved": 0,
+            "game_changer": 0,
+            "mld": 0,
+            "fetch_pattern": null,
+            "scryfall_uri": "https://scryfall.com/card/fdn/204/krenko-mob-boss?utm_source=api"
+        },
+        {
+            "id": "4457ed35-7c10-48c8-9776-456485fdf070",
+            "name": "Lightning Bolt",
+            "searchable_name": "lightning bolt",
+            "collector_number": "806",
+            "layout": "normal",
+            "lang": "en",
+            "cmc": "1.0",
+            "color_identity": "R",
+            "type_line": "Instant",
+            "produced_mana": null,
+            "reserved": 0,
+            "game_changer": 0,
+            "mld": 0,
+            "fetch_pattern": null,
+            "scryfall_uri": "https://scryfall.com/card/msc/806/lightning-bolt?utm_source=api"
+        },
+        {
+            "id": "68954295-54e3-4303-a6bc-fc4547a4e3a3",
+            "name": "Llanowar Elves",
+            "searchable_name": "llanowar elves",
+            "collector_number": "227",
+            "layout": "normal",
+            "lang": "en",
+            "cmc": "1.0",
+            "color_identity": "G",
+            "type_line": "Creature — Elf Druid",
+            "produced_mana": "G",
+            "reserved": 0,
+            "game_changer": 0,
+            "mld": 0,
+            "fetch_pattern": null,
+            "scryfall_uri": "https://scryfall.com/card/fdn/227/llanowar-elves?utm_source=api"
+        },
+        {
+            "id": "a3fb7228-e76b-4e96-a40e-20b5fed75685",
+            "name": "Mountain",
+            "searchable_name": "mountain",
+            "collector_number": "323",
+            "layout": "normal",
+            "lang": "en",
+            "cmc": "0.0",
+            "color_identity": "R",
+            "type_line": "Basic Land — Mountain",
+            "produced_mana": "R",
+            "reserved": 0,
+            "game_changer": 0,
+            "mld": 0,
+            "fetch_pattern": null,
+            "scryfall_uri": "https://scryfall.com/card/trk/323/mountain?utm_source=api"
+        },
+        {
+            "id": "bc71ebf6-2056-41f7-be35-b2e5c34afa99",
+            "name": "Plains",
+            "searchable_name": "plains",
+            "collector_number": "317",
+            "layout": "normal",
+            "lang": "en",
+            "cmc": "0.0",
+            "color_identity": "W",
+            "type_line": "Basic Land — Plains",
+            "produced_mana": "W",
+            "reserved": 0,
+            "game_changer": 0,
+            "mld": 0,
+            "fetch_pattern": null,
+            "scryfall_uri": "https://scryfall.com/card/trk/317/plains?utm_source=api"
+        },
+        {
+            "id": "53236dd7-845a-444c-96d5-f41ed7325d8f",
+            "name": "Rhystic Study",
+            "searchable_name": "rhystic study",
+            "collector_number": "114",
+            "layout": "normal",
+            "lang": "en",
+            "cmc": "3.0",
+            "color_identity": "U",
+            "type_line": "Enchantment",
+            "produced_mana": null,
+            "reserved": 0,
+            "game_changer": 1,
+            "mld": 0,
+            "fetch_pattern": null,
+            "scryfall_uri": "https://scryfall.com/card/j22/114/rhystic-study?utm_source=api"
+        },
+        {
+            "id": "584cee10-f18c-4633-95cc-f2e7a11841ac",
+            "name": "Rograkh, Son of Rohgahh",
+            "searchable_name": "rograkh son of rohgahh",
+            "collector_number": "197",
+            "layout": "normal",
+            "lang": "en",
+            "cmc": "0.0",
+            "color_identity": "R",
+            "type_line": "Legendary Creature — Kobold Warrior",
+            "produced_mana": null,
+            "reserved": 0,
+            "game_changer": 0,
+            "mld": 0,
+            "fetch_pattern": null,
+            "scryfall_uri": "https://scryfall.com/card/cmr/197/rograkh-son-of-rohgahh?utm_source=api"
+        },
+        {
+            "id": "6ad8011d-3471-4369-9d68-b264cc027487",
+            "name": "Sol Ring",
+            "searchable_name": "sol ring",
+            "collector_number": "211",
+            "layout": "normal",
+            "lang": "en",
+            "cmc": "1.0",
+            "color_identity": null,
+            "type_line": "Artifact",
+            "produced_mana": "C",
+            "reserved": 0,
+            "game_changer": 0,
+            "mld": 0,
+            "fetch_pattern": null,
+            "scryfall_uri": "https://scryfall.com/card/msc/211/sol-ring?utm_source=api"
+        },
+        {
+            "id": "56719f6a-1a6c-4c0a-8d21-18f7d7350b68",
+            "name": "Swamp",
+            "searchable_name": "swamp",
+            "collector_number": "321",
+            "layout": "normal",
+            "lang": "en",
+            "cmc": "0.0",
+            "color_identity": "B",
+            "type_line": "Basic Land — Swamp",
+            "produced_mana": "B",
+            "reserved": 0,
+            "game_changer": 0,
+            "mld": 0,
+            "fetch_pattern": null,
+            "scryfall_uri": "https://scryfall.com/card/trk/321/swamp?utm_source=api"
+        },
+        {
+            "id": "b1544f21-7e98-461b-aed5-e748b0168c52",
+            "name": "Swords to Plowshares",
+            "searchable_name": "swords to plowshares",
+            "collector_number": "143",
+            "layout": "normal",
+            "lang": "en",
+            "cmc": "1.0",
+            "color_identity": "W",
+            "type_line": "Instant",
+            "produced_mana": null,
+            "reserved": 0,
+            "game_changer": 0,
+            "mld": 0,
+            "fetch_pattern": null,
+            "scryfall_uri": "https://scryfall.com/card/msc/143/swords-to-plowshares?utm_source=api"
+        },
+        {
+            "id": "963834c8-42df-4ee6-9b45-b9de88ce2eac",
+            "name": "Yoshimaru, Ever Faithful",
+            "searchable_name": "yoshimaru ever faithful",
+            "collector_number": "32",
+            "layout": "normal",
+            "lang": "en",
+            "cmc": "1.0",
+            "color_identity": "W",
+            "type_line": "Legendary Creature — Dog",
+            "produced_mana": null,
+            "reserved": 0,
+            "game_changer": 0,
+            "mld": 0,
+            "fetch_pattern": null,
+            "scryfall_uri": "https://scryfall.com/card/nec/32/yoshimaru-ever-faithful?utm_source=api"
+        }
+    ],
+    "oracle_card_faces": [
+        {
+            "id": "9baeaf8a-1662-4388-94c9-89862e1a8c54",
+            "oracle_card_id": "c9ed8b01-959a-47d6-891e-0abbdccf6e4f",
+            "face_index": 0,
+            "name": "Armageddon",
+            "mana_cost": "{3}{W}",
+            "type_line": "Sorcery",
+            "oracle_text": "Destroy all lands.",
+            "colors": "W",
+            "power": null,
+            "toughness": null,
+            "loyalty": null,
+            "defense": null
+        },
+        {
+            "id": "4e32aceb-5af6-4837-aff3-af02fe019110",
+            "oracle_card_id": "56719f6a-1a6c-4c0a-8d21-18f7d7350b68",
+            "face_index": 0,
+            "name": "Swamp",
+            "mana_cost": "",
+            "type_line": "Basic Land — Swamp",
+            "oracle_text": "({T}: Add {B}.)",
+            "colors": null,
+            "power": null,
+            "toughness": null,
+            "loyalty": null,
+            "defense": null
+        },
+        {
+            "id": "580c2c4c-139a-4e99-b084-a454e96a773e",
+            "oracle_card_id": "edd531b9-f615-4399-8c8c-1c5e18c4acbf",
+            "face_index": 0,
+            "name": "Delver of Secrets",
+            "mana_cost": "{U}",
+            "type_line": "Creature — Human Wizard",
+            "oracle_text": "At the beginning of your upkeep, look at the top card of your library. You may reveal that card. If an instant or sorcery card is revealed this way, transform this creature.",
+            "colors": "U",
+            "power": "1",
+            "toughness": "1",
+            "loyalty": null,
+            "defense": null
+        },
+        {
+            "id": "87131a87-2206-43b4-9467-5ffb33b9e54b",
+            "oracle_card_id": "edd531b9-f615-4399-8c8c-1c5e18c4acbf",
+            "face_index": 1,
+            "name": "Insectile Aberration",
+            "mana_cost": "",
+            "type_line": "Creature — Human Insect",
+            "oracle_text": "Flying",
+            "colors": "U",
+            "power": "3",
+            "toughness": "2",
+            "loyalty": null,
+            "defense": null
+        },
+        {
+            "id": "abe3b7cf-5510-44ac-bf88-3c7adcc5a381",
+            "oracle_card_id": "a3fb7228-e76b-4e96-a40e-20b5fed75685",
+            "face_index": 0,
+            "name": "Mountain",
+            "mana_cost": "",
+            "type_line": "Basic Land — Mountain",
+            "oracle_text": "({T}: Add {R}.)",
+            "colors": null,
+            "power": null,
+            "toughness": null,
+            "loyalty": null,
+            "defense": null
+        },
+        {
+            "id": "6cefcdfc-9a04-4eec-9c86-06feec4b5d74",
+            "oracle_card_id": "a75445d3-1303-4bb5-89ad-26ea93fecd48",
+            "face_index": 0,
+            "name": "Evolving Wilds",
+            "mana_cost": "",
+            "type_line": "Land",
+            "oracle_text": "{T}, Sacrifice this land: Search your library for a basic land card, put it onto the battlefield tapped, then shuffle.",
+            "colors": null,
+            "power": null,
+            "toughness": null,
+            "loyalty": null,
+            "defense": null
+        },
+        {
+            "id": "12ffc432-7ed9-4e68-a2fc-47b060eb0d4c",
+            "oracle_card_id": "7e6b9b59-cd68-4e3c-827b-38833c92d6eb",
+            "face_index": 0,
+            "name": "Atraxa, Praetors' Voice",
+            "mana_cost": "{G}{W}{U}{B}",
+            "type_line": "Legendary Creature — Phyrexian Angel Horror",
+            "oracle_text": "Flying, vigilance, deathtouch, lifelink\nAt the beginning of your end step, proliferate. (Choose any number of permanents and/or players, then give each another counter of each kind already there.)",
+            "colors": "BGUW",
+            "power": "4",
+            "toughness": "4",
+            "loyalty": null,
+            "defense": null
+        },
+        {
+            "id": "5c92d819-60ab-437b-905b-f004b587d9bb",
+            "oracle_card_id": "0895c9b7-ae7d-4bb3-af17-3b75deb50a25",
+            "face_index": 0,
+            "name": "Command Tower",
+            "mana_cost": "",
+            "type_line": "Land",
+            "oracle_text": "{T}: Add one mana of any color in your commander's color identity.",
+            "colors": null,
+            "power": null,
+            "toughness": null,
+            "loyalty": null,
+            "defense": null
+        },
+        {
+            "id": "089ab560-6c2d-42ce-bd11-096bfd42adfa",
+            "oracle_card_id": "4457ed35-7c10-48c8-9776-456485fdf070",
+            "face_index": 0,
+            "name": "Lightning Bolt",
+            "mana_cost": "{R}",
+            "type_line": "Instant",
+            "oracle_text": "Lightning Bolt deals 3 damage to any target.",
+            "colors": "R",
+            "power": null,
+            "toughness": null,
+            "loyalty": null,
+            "defense": null
+        },
+        {
+            "id": "7dccb288-b518-4d19-8e5f-91d182819b35",
+            "oracle_card_id": "0bc7f093-bef0-4f1a-852c-4b75ebf54838",
+            "face_index": 0,
+            "name": "Arcane Signet",
+            "mana_cost": "{2}",
+            "type_line": "Artifact",
+            "oracle_text": "{T}: Add one mana of any color in your commander's color identity.",
+            "colors": null,
+            "power": null,
+            "toughness": null,
+            "loyalty": null,
+            "defense": null
+        },
+        {
+            "id": "e5991f09-41a9-41c3-981d-ca01af27450f",
+            "oracle_card_id": "68418069-f615-40ef-ae0d-764192acae00",
+            "face_index": 0,
+            "name": "Krenko, Mob Boss",
+            "mana_cost": "{2}{R}{R}",
+            "type_line": "Legendary Creature — Goblin Warrior",
+            "oracle_text": "{T}: Create X 1/1 red Goblin creature tokens, where X is the number of Goblins you control.",
+            "colors": "R",
+            "power": "3",
+            "toughness": "3",
+            "loyalty": null,
+            "defense": null
+        },
+        {
+            "id": "e96b798b-8057-41cc-9a17-731150a8b5a2",
+            "oracle_card_id": "b34bb2dc-c1af-4d77-b0b3-a0fb342a5fc6",
+            "face_index": 0,
+            "name": "Forest",
+            "mana_cost": "",
+            "type_line": "Basic Land — Forest",
+            "oracle_text": "({T}: Add {G}.)",
+            "colors": null,
+            "power": null,
+            "toughness": null,
+            "loyalty": null,
+            "defense": null
+        },
+        {
+            "id": "4f084199-b79d-4ffe-8044-dd72ad2101ba",
+            "oracle_card_id": "53f7c868-b03e-4fc2-8dcf-a75bbfa3272b",
+            "face_index": 0,
+            "name": "Dark Ritual",
+            "mana_cost": "{B}",
+            "type_line": "Instant",
+            "oracle_text": "Add {B}{B}{B}.",
+            "colors": "B",
+            "power": null,
+            "toughness": null,
+            "loyalty": null,
+            "defense": null
+        },
+        {
+            "id": "df4f9d92-97b6-446f-8525-03a3fb687c8b",
+            "oracle_card_id": "6ad8011d-3471-4369-9d68-b264cc027487",
+            "face_index": 0,
+            "name": "Sol Ring",
+            "mana_cost": "{1}",
+            "type_line": "Artifact",
+            "oracle_text": "{T}: Add {C}{C}.",
+            "colors": null,
+            "power": null,
+            "toughness": null,
+            "loyalty": null,
+            "defense": null
+        },
+        {
+            "id": "f9370afb-3fe2-4156-a8a8-9e312636e3d5",
+            "oracle_card_id": "bc71ebf6-2056-41f7-be35-b2e5c34afa99",
+            "face_index": 0,
+            "name": "Plains",
+            "mana_cost": "",
+            "type_line": "Basic Land — Plains",
+            "oracle_text": "({T}: Add {W}.)",
+            "colors": null,
+            "power": null,
+            "toughness": null,
+            "loyalty": null,
+            "defense": null
+        },
+        {
+            "id": "a576df41-c878-4abd-80a2-9eb5302e1ca5",
+            "oracle_card_id": "963834c8-42df-4ee6-9b45-b9de88ce2eac",
+            "face_index": 0,
+            "name": "Yoshimaru, Ever Faithful",
+            "mana_cost": "{W}",
+            "type_line": "Legendary Creature — Dog",
+            "oracle_text": "Whenever another legendary permanent you control enters, put a +1/+1 counter on Yoshimaru.\nPartner (You can have two commanders if both have partner.)",
+            "colors": "W",
+            "power": "1",
+            "toughness": "1",
+            "loyalty": null,
+            "defense": null
+        },
+        {
+            "id": "f42fb648-f4ad-4b5a-9703-45fde5183e4e",
+            "oracle_card_id": "8b755881-a72d-4e21-a369-d2924eb4585a",
+            "face_index": 0,
+            "name": "Cultivate",
+            "mana_cost": "{2}{G}",
+            "type_line": "Sorcery",
+            "oracle_text": "Search your library for up to two basic land cards, reveal those cards, put one onto the battlefield tapped and the other into your hand, then shuffle.",
+            "colors": "G",
+            "power": null,
+            "toughness": null,
+            "loyalty": null,
+            "defense": null
+        },
+        {
+            "id": "2b42b79f-2573-4465-9efc-bcc032c6078c",
+            "oracle_card_id": "cc187110-1148-4090-bbb8-e205694a39f5",
+            "face_index": 0,
+            "name": "Counterspell",
+            "mana_cost": "{U}{U}",
+            "type_line": "Instant",
+            "oracle_text": "Counter target spell.",
+            "colors": "U",
+            "power": null,
+            "toughness": null,
+            "loyalty": null,
+            "defense": null
+        },
+        {
+            "id": "e5a6c167-a7ec-4dc8-a47b-a7eb11eb111c",
+            "oracle_card_id": "b1544f21-7e98-461b-aed5-e748b0168c52",
+            "face_index": 0,
+            "name": "Swords to Plowshares",
+            "mana_cost": "{W}",
+            "type_line": "Instant",
+            "oracle_text": "Exile target creature. Its controller gains life equal to its power.",
+            "colors": "W",
+            "power": null,
+            "toughness": null,
+            "loyalty": null,
+            "defense": null
+        },
+        {
+            "id": "6d0571b1-c35e-4de3-9bb4-3301c1b12851",
+            "oracle_card_id": "584cee10-f18c-4633-95cc-f2e7a11841ac",
+            "face_index": 0,
+            "name": "Rograkh, Son of Rohgahh",
+            "mana_cost": "{0}",
+            "type_line": "Legendary Creature — Kobold Warrior",
+            "oracle_text": "First strike, menace, trample\nPartner (You can have two commanders if both have partner.)",
+            "colors": "R",
+            "power": "0",
+            "toughness": "1",
+            "loyalty": null,
+            "defense": null
+        },
+        {
+            "id": "772b7c70-d068-4cc0-87d3-ab33701a59cc",
+            "oracle_card_id": "53236dd7-845a-444c-96d5-f41ed7325d8f",
+            "face_index": 0,
+            "name": "Rhystic Study",
+            "mana_cost": "{2}{U}",
+            "type_line": "Enchantment",
+            "oracle_text": "Whenever an opponent casts a spell, you may draw a card unless that player pays {1}.",
+            "colors": "U",
+            "power": null,
+            "toughness": null,
+            "loyalty": null,
+            "defense": null
+        },
+        {
+            "id": "fded9f66-f4d6-42dc-807b-d9d539fdab9b",
+            "oracle_card_id": "b2c6aa39-2d2a-459c-a555-fb48ba993373",
+            "face_index": 0,
+            "name": "Island",
+            "mana_cost": "",
+            "type_line": "Basic Land — Island",
+            "oracle_text": "({T}: Add {U}.)",
+            "colors": null,
+            "power": null,
+            "toughness": null,
+            "loyalty": null,
+            "defense": null
+        },
+        {
+            "id": "38d3d166-ee74-417e-953d-ca5679e8dece",
+            "oracle_card_id": "68954295-54e3-4303-a6bc-fc4547a4e3a3",
+            "face_index": 0,
+            "name": "Llanowar Elves",
+            "mana_cost": "{G}",
+            "type_line": "Creature — Elf Druid",
+            "oracle_text": "{T}: Add {G}.",
+            "colors": "G",
+            "power": "1",
+            "toughness": "1",
+            "loyalty": null,
+            "defense": null
+        }
+    ],
+    "legalities": [
+        {
+            "oracle_card_id": "c9ed8b01-959a-47d6-891e-0abbdccf6e4f",
+            "format": "alchemy",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "c9ed8b01-959a-47d6-891e-0abbdccf6e4f",
+            "format": "brawl",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "c9ed8b01-959a-47d6-891e-0abbdccf6e4f",
+            "format": "commander",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "c9ed8b01-959a-47d6-891e-0abbdccf6e4f",
+            "format": "competitivebrawl",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "c9ed8b01-959a-47d6-891e-0abbdccf6e4f",
+            "format": "duel",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "c9ed8b01-959a-47d6-891e-0abbdccf6e4f",
+            "format": "future",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "c9ed8b01-959a-47d6-891e-0abbdccf6e4f",
+            "format": "gladiator",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "c9ed8b01-959a-47d6-891e-0abbdccf6e4f",
+            "format": "historic",
+            "legality": "banned"
+        },
+        {
+            "oracle_card_id": "c9ed8b01-959a-47d6-891e-0abbdccf6e4f",
+            "format": "legacy",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "c9ed8b01-959a-47d6-891e-0abbdccf6e4f",
+            "format": "modern",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "c9ed8b01-959a-47d6-891e-0abbdccf6e4f",
+            "format": "oathbreaker",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "c9ed8b01-959a-47d6-891e-0abbdccf6e4f",
+            "format": "oldschool",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "c9ed8b01-959a-47d6-891e-0abbdccf6e4f",
+            "format": "pauper",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "c9ed8b01-959a-47d6-891e-0abbdccf6e4f",
+            "format": "paupercommander",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "c9ed8b01-959a-47d6-891e-0abbdccf6e4f",
+            "format": "penny",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "c9ed8b01-959a-47d6-891e-0abbdccf6e4f",
+            "format": "pioneer",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "c9ed8b01-959a-47d6-891e-0abbdccf6e4f",
+            "format": "predh",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "c9ed8b01-959a-47d6-891e-0abbdccf6e4f",
+            "format": "premodern",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "c9ed8b01-959a-47d6-891e-0abbdccf6e4f",
+            "format": "standard",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "c9ed8b01-959a-47d6-891e-0abbdccf6e4f",
+            "format": "standardbrawl",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "c9ed8b01-959a-47d6-891e-0abbdccf6e4f",
+            "format": "timeless",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "c9ed8b01-959a-47d6-891e-0abbdccf6e4f",
+            "format": "tlr",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "c9ed8b01-959a-47d6-891e-0abbdccf6e4f",
+            "format": "vintage",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "56719f6a-1a6c-4c0a-8d21-18f7d7350b68",
+            "format": "alchemy",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "56719f6a-1a6c-4c0a-8d21-18f7d7350b68",
+            "format": "brawl",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "56719f6a-1a6c-4c0a-8d21-18f7d7350b68",
+            "format": "commander",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "56719f6a-1a6c-4c0a-8d21-18f7d7350b68",
+            "format": "competitivebrawl",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "56719f6a-1a6c-4c0a-8d21-18f7d7350b68",
+            "format": "duel",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "56719f6a-1a6c-4c0a-8d21-18f7d7350b68",
+            "format": "future",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "56719f6a-1a6c-4c0a-8d21-18f7d7350b68",
+            "format": "gladiator",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "56719f6a-1a6c-4c0a-8d21-18f7d7350b68",
+            "format": "historic",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "56719f6a-1a6c-4c0a-8d21-18f7d7350b68",
+            "format": "legacy",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "56719f6a-1a6c-4c0a-8d21-18f7d7350b68",
+            "format": "modern",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "56719f6a-1a6c-4c0a-8d21-18f7d7350b68",
+            "format": "oathbreaker",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "56719f6a-1a6c-4c0a-8d21-18f7d7350b68",
+            "format": "oldschool",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "56719f6a-1a6c-4c0a-8d21-18f7d7350b68",
+            "format": "pauper",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "56719f6a-1a6c-4c0a-8d21-18f7d7350b68",
+            "format": "paupercommander",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "56719f6a-1a6c-4c0a-8d21-18f7d7350b68",
+            "format": "penny",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "56719f6a-1a6c-4c0a-8d21-18f7d7350b68",
+            "format": "pioneer",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "56719f6a-1a6c-4c0a-8d21-18f7d7350b68",
+            "format": "predh",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "56719f6a-1a6c-4c0a-8d21-18f7d7350b68",
+            "format": "premodern",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "56719f6a-1a6c-4c0a-8d21-18f7d7350b68",
+            "format": "standard",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "56719f6a-1a6c-4c0a-8d21-18f7d7350b68",
+            "format": "standardbrawl",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "56719f6a-1a6c-4c0a-8d21-18f7d7350b68",
+            "format": "timeless",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "56719f6a-1a6c-4c0a-8d21-18f7d7350b68",
+            "format": "tlr",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "56719f6a-1a6c-4c0a-8d21-18f7d7350b68",
+            "format": "vintage",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "edd531b9-f615-4399-8c8c-1c5e18c4acbf",
+            "format": "alchemy",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "edd531b9-f615-4399-8c8c-1c5e18c4acbf",
+            "format": "brawl",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "edd531b9-f615-4399-8c8c-1c5e18c4acbf",
+            "format": "commander",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "edd531b9-f615-4399-8c8c-1c5e18c4acbf",
+            "format": "competitivebrawl",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "edd531b9-f615-4399-8c8c-1c5e18c4acbf",
+            "format": "duel",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "edd531b9-f615-4399-8c8c-1c5e18c4acbf",
+            "format": "future",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "edd531b9-f615-4399-8c8c-1c5e18c4acbf",
+            "format": "gladiator",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "edd531b9-f615-4399-8c8c-1c5e18c4acbf",
+            "format": "historic",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "edd531b9-f615-4399-8c8c-1c5e18c4acbf",
+            "format": "legacy",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "edd531b9-f615-4399-8c8c-1c5e18c4acbf",
+            "format": "modern",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "edd531b9-f615-4399-8c8c-1c5e18c4acbf",
+            "format": "oathbreaker",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "edd531b9-f615-4399-8c8c-1c5e18c4acbf",
+            "format": "oldschool",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "edd531b9-f615-4399-8c8c-1c5e18c4acbf",
+            "format": "pauper",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "edd531b9-f615-4399-8c8c-1c5e18c4acbf",
+            "format": "paupercommander",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "edd531b9-f615-4399-8c8c-1c5e18c4acbf",
+            "format": "penny",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "edd531b9-f615-4399-8c8c-1c5e18c4acbf",
+            "format": "pioneer",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "edd531b9-f615-4399-8c8c-1c5e18c4acbf",
+            "format": "predh",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "edd531b9-f615-4399-8c8c-1c5e18c4acbf",
+            "format": "premodern",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "edd531b9-f615-4399-8c8c-1c5e18c4acbf",
+            "format": "standard",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "edd531b9-f615-4399-8c8c-1c5e18c4acbf",
+            "format": "standardbrawl",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "edd531b9-f615-4399-8c8c-1c5e18c4acbf",
+            "format": "timeless",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "edd531b9-f615-4399-8c8c-1c5e18c4acbf",
+            "format": "tlr",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "edd531b9-f615-4399-8c8c-1c5e18c4acbf",
+            "format": "vintage",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "a3fb7228-e76b-4e96-a40e-20b5fed75685",
+            "format": "alchemy",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "a3fb7228-e76b-4e96-a40e-20b5fed75685",
+            "format": "brawl",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "a3fb7228-e76b-4e96-a40e-20b5fed75685",
+            "format": "commander",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "a3fb7228-e76b-4e96-a40e-20b5fed75685",
+            "format": "competitivebrawl",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "a3fb7228-e76b-4e96-a40e-20b5fed75685",
+            "format": "duel",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "a3fb7228-e76b-4e96-a40e-20b5fed75685",
+            "format": "future",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "a3fb7228-e76b-4e96-a40e-20b5fed75685",
+            "format": "gladiator",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "a3fb7228-e76b-4e96-a40e-20b5fed75685",
+            "format": "historic",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "a3fb7228-e76b-4e96-a40e-20b5fed75685",
+            "format": "legacy",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "a3fb7228-e76b-4e96-a40e-20b5fed75685",
+            "format": "modern",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "a3fb7228-e76b-4e96-a40e-20b5fed75685",
+            "format": "oathbreaker",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "a3fb7228-e76b-4e96-a40e-20b5fed75685",
+            "format": "oldschool",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "a3fb7228-e76b-4e96-a40e-20b5fed75685",
+            "format": "pauper",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "a3fb7228-e76b-4e96-a40e-20b5fed75685",
+            "format": "paupercommander",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "a3fb7228-e76b-4e96-a40e-20b5fed75685",
+            "format": "penny",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "a3fb7228-e76b-4e96-a40e-20b5fed75685",
+            "format": "pioneer",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "a3fb7228-e76b-4e96-a40e-20b5fed75685",
+            "format": "predh",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "a3fb7228-e76b-4e96-a40e-20b5fed75685",
+            "format": "premodern",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "a3fb7228-e76b-4e96-a40e-20b5fed75685",
+            "format": "standard",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "a3fb7228-e76b-4e96-a40e-20b5fed75685",
+            "format": "standardbrawl",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "a3fb7228-e76b-4e96-a40e-20b5fed75685",
+            "format": "timeless",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "a3fb7228-e76b-4e96-a40e-20b5fed75685",
+            "format": "tlr",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "a3fb7228-e76b-4e96-a40e-20b5fed75685",
+            "format": "vintage",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "a75445d3-1303-4bb5-89ad-26ea93fecd48",
+            "format": "alchemy",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "a75445d3-1303-4bb5-89ad-26ea93fecd48",
+            "format": "brawl",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "a75445d3-1303-4bb5-89ad-26ea93fecd48",
+            "format": "commander",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "a75445d3-1303-4bb5-89ad-26ea93fecd48",
+            "format": "competitivebrawl",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "a75445d3-1303-4bb5-89ad-26ea93fecd48",
+            "format": "duel",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "a75445d3-1303-4bb5-89ad-26ea93fecd48",
+            "format": "future",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "a75445d3-1303-4bb5-89ad-26ea93fecd48",
+            "format": "gladiator",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "a75445d3-1303-4bb5-89ad-26ea93fecd48",
+            "format": "historic",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "a75445d3-1303-4bb5-89ad-26ea93fecd48",
+            "format": "legacy",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "a75445d3-1303-4bb5-89ad-26ea93fecd48",
+            "format": "modern",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "a75445d3-1303-4bb5-89ad-26ea93fecd48",
+            "format": "oathbreaker",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "a75445d3-1303-4bb5-89ad-26ea93fecd48",
+            "format": "oldschool",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "a75445d3-1303-4bb5-89ad-26ea93fecd48",
+            "format": "pauper",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "a75445d3-1303-4bb5-89ad-26ea93fecd48",
+            "format": "paupercommander",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "a75445d3-1303-4bb5-89ad-26ea93fecd48",
+            "format": "penny",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "a75445d3-1303-4bb5-89ad-26ea93fecd48",
+            "format": "pioneer",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "a75445d3-1303-4bb5-89ad-26ea93fecd48",
+            "format": "predh",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "a75445d3-1303-4bb5-89ad-26ea93fecd48",
+            "format": "premodern",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "a75445d3-1303-4bb5-89ad-26ea93fecd48",
+            "format": "standard",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "a75445d3-1303-4bb5-89ad-26ea93fecd48",
+            "format": "standardbrawl",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "a75445d3-1303-4bb5-89ad-26ea93fecd48",
+            "format": "timeless",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "a75445d3-1303-4bb5-89ad-26ea93fecd48",
+            "format": "tlr",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "a75445d3-1303-4bb5-89ad-26ea93fecd48",
+            "format": "vintage",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "7e6b9b59-cd68-4e3c-827b-38833c92d6eb",
+            "format": "alchemy",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "7e6b9b59-cd68-4e3c-827b-38833c92d6eb",
+            "format": "brawl",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "7e6b9b59-cd68-4e3c-827b-38833c92d6eb",
+            "format": "commander",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "7e6b9b59-cd68-4e3c-827b-38833c92d6eb",
+            "format": "competitivebrawl",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "7e6b9b59-cd68-4e3c-827b-38833c92d6eb",
+            "format": "duel",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "7e6b9b59-cd68-4e3c-827b-38833c92d6eb",
+            "format": "future",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "7e6b9b59-cd68-4e3c-827b-38833c92d6eb",
+            "format": "gladiator",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "7e6b9b59-cd68-4e3c-827b-38833c92d6eb",
+            "format": "historic",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "7e6b9b59-cd68-4e3c-827b-38833c92d6eb",
+            "format": "legacy",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "7e6b9b59-cd68-4e3c-827b-38833c92d6eb",
+            "format": "modern",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "7e6b9b59-cd68-4e3c-827b-38833c92d6eb",
+            "format": "oathbreaker",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "7e6b9b59-cd68-4e3c-827b-38833c92d6eb",
+            "format": "oldschool",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "7e6b9b59-cd68-4e3c-827b-38833c92d6eb",
+            "format": "pauper",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "7e6b9b59-cd68-4e3c-827b-38833c92d6eb",
+            "format": "paupercommander",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "7e6b9b59-cd68-4e3c-827b-38833c92d6eb",
+            "format": "penny",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "7e6b9b59-cd68-4e3c-827b-38833c92d6eb",
+            "format": "pioneer",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "7e6b9b59-cd68-4e3c-827b-38833c92d6eb",
+            "format": "predh",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "7e6b9b59-cd68-4e3c-827b-38833c92d6eb",
+            "format": "premodern",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "7e6b9b59-cd68-4e3c-827b-38833c92d6eb",
+            "format": "standard",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "7e6b9b59-cd68-4e3c-827b-38833c92d6eb",
+            "format": "standardbrawl",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "7e6b9b59-cd68-4e3c-827b-38833c92d6eb",
+            "format": "timeless",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "7e6b9b59-cd68-4e3c-827b-38833c92d6eb",
+            "format": "tlr",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "7e6b9b59-cd68-4e3c-827b-38833c92d6eb",
+            "format": "vintage",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "0895c9b7-ae7d-4bb3-af17-3b75deb50a25",
+            "format": "alchemy",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "0895c9b7-ae7d-4bb3-af17-3b75deb50a25",
+            "format": "brawl",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "0895c9b7-ae7d-4bb3-af17-3b75deb50a25",
+            "format": "commander",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "0895c9b7-ae7d-4bb3-af17-3b75deb50a25",
+            "format": "competitivebrawl",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "0895c9b7-ae7d-4bb3-af17-3b75deb50a25",
+            "format": "duel",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "0895c9b7-ae7d-4bb3-af17-3b75deb50a25",
+            "format": "future",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "0895c9b7-ae7d-4bb3-af17-3b75deb50a25",
+            "format": "gladiator",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "0895c9b7-ae7d-4bb3-af17-3b75deb50a25",
+            "format": "historic",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "0895c9b7-ae7d-4bb3-af17-3b75deb50a25",
+            "format": "legacy",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "0895c9b7-ae7d-4bb3-af17-3b75deb50a25",
+            "format": "modern",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "0895c9b7-ae7d-4bb3-af17-3b75deb50a25",
+            "format": "oathbreaker",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "0895c9b7-ae7d-4bb3-af17-3b75deb50a25",
+            "format": "oldschool",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "0895c9b7-ae7d-4bb3-af17-3b75deb50a25",
+            "format": "pauper",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "0895c9b7-ae7d-4bb3-af17-3b75deb50a25",
+            "format": "paupercommander",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "0895c9b7-ae7d-4bb3-af17-3b75deb50a25",
+            "format": "penny",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "0895c9b7-ae7d-4bb3-af17-3b75deb50a25",
+            "format": "pioneer",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "0895c9b7-ae7d-4bb3-af17-3b75deb50a25",
+            "format": "predh",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "0895c9b7-ae7d-4bb3-af17-3b75deb50a25",
+            "format": "premodern",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "0895c9b7-ae7d-4bb3-af17-3b75deb50a25",
+            "format": "standard",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "0895c9b7-ae7d-4bb3-af17-3b75deb50a25",
+            "format": "standardbrawl",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "0895c9b7-ae7d-4bb3-af17-3b75deb50a25",
+            "format": "timeless",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "0895c9b7-ae7d-4bb3-af17-3b75deb50a25",
+            "format": "tlr",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "0895c9b7-ae7d-4bb3-af17-3b75deb50a25",
+            "format": "vintage",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "4457ed35-7c10-48c8-9776-456485fdf070",
+            "format": "alchemy",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "4457ed35-7c10-48c8-9776-456485fdf070",
+            "format": "brawl",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "4457ed35-7c10-48c8-9776-456485fdf070",
+            "format": "commander",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "4457ed35-7c10-48c8-9776-456485fdf070",
+            "format": "competitivebrawl",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "4457ed35-7c10-48c8-9776-456485fdf070",
+            "format": "duel",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "4457ed35-7c10-48c8-9776-456485fdf070",
+            "format": "future",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "4457ed35-7c10-48c8-9776-456485fdf070",
+            "format": "gladiator",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "4457ed35-7c10-48c8-9776-456485fdf070",
+            "format": "historic",
+            "legality": "banned"
+        },
+        {
+            "oracle_card_id": "4457ed35-7c10-48c8-9776-456485fdf070",
+            "format": "legacy",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "4457ed35-7c10-48c8-9776-456485fdf070",
+            "format": "modern",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "4457ed35-7c10-48c8-9776-456485fdf070",
+            "format": "oathbreaker",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "4457ed35-7c10-48c8-9776-456485fdf070",
+            "format": "oldschool",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "4457ed35-7c10-48c8-9776-456485fdf070",
+            "format": "pauper",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "4457ed35-7c10-48c8-9776-456485fdf070",
+            "format": "paupercommander",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "4457ed35-7c10-48c8-9776-456485fdf070",
+            "format": "penny",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "4457ed35-7c10-48c8-9776-456485fdf070",
+            "format": "pioneer",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "4457ed35-7c10-48c8-9776-456485fdf070",
+            "format": "predh",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "4457ed35-7c10-48c8-9776-456485fdf070",
+            "format": "premodern",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "4457ed35-7c10-48c8-9776-456485fdf070",
+            "format": "standard",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "4457ed35-7c10-48c8-9776-456485fdf070",
+            "format": "standardbrawl",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "4457ed35-7c10-48c8-9776-456485fdf070",
+            "format": "timeless",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "4457ed35-7c10-48c8-9776-456485fdf070",
+            "format": "tlr",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "4457ed35-7c10-48c8-9776-456485fdf070",
+            "format": "vintage",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "0bc7f093-bef0-4f1a-852c-4b75ebf54838",
+            "format": "alchemy",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "0bc7f093-bef0-4f1a-852c-4b75ebf54838",
+            "format": "brawl",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "0bc7f093-bef0-4f1a-852c-4b75ebf54838",
+            "format": "commander",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "0bc7f093-bef0-4f1a-852c-4b75ebf54838",
+            "format": "competitivebrawl",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "0bc7f093-bef0-4f1a-852c-4b75ebf54838",
+            "format": "duel",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "0bc7f093-bef0-4f1a-852c-4b75ebf54838",
+            "format": "future",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "0bc7f093-bef0-4f1a-852c-4b75ebf54838",
+            "format": "gladiator",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "0bc7f093-bef0-4f1a-852c-4b75ebf54838",
+            "format": "historic",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "0bc7f093-bef0-4f1a-852c-4b75ebf54838",
+            "format": "legacy",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "0bc7f093-bef0-4f1a-852c-4b75ebf54838",
+            "format": "modern",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "0bc7f093-bef0-4f1a-852c-4b75ebf54838",
+            "format": "oathbreaker",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "0bc7f093-bef0-4f1a-852c-4b75ebf54838",
+            "format": "oldschool",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "0bc7f093-bef0-4f1a-852c-4b75ebf54838",
+            "format": "pauper",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "0bc7f093-bef0-4f1a-852c-4b75ebf54838",
+            "format": "paupercommander",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "0bc7f093-bef0-4f1a-852c-4b75ebf54838",
+            "format": "penny",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "0bc7f093-bef0-4f1a-852c-4b75ebf54838",
+            "format": "pioneer",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "0bc7f093-bef0-4f1a-852c-4b75ebf54838",
+            "format": "predh",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "0bc7f093-bef0-4f1a-852c-4b75ebf54838",
+            "format": "premodern",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "0bc7f093-bef0-4f1a-852c-4b75ebf54838",
+            "format": "standard",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "0bc7f093-bef0-4f1a-852c-4b75ebf54838",
+            "format": "standardbrawl",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "0bc7f093-bef0-4f1a-852c-4b75ebf54838",
+            "format": "timeless",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "0bc7f093-bef0-4f1a-852c-4b75ebf54838",
+            "format": "tlr",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "0bc7f093-bef0-4f1a-852c-4b75ebf54838",
+            "format": "vintage",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "68418069-f615-40ef-ae0d-764192acae00",
+            "format": "alchemy",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "68418069-f615-40ef-ae0d-764192acae00",
+            "format": "brawl",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "68418069-f615-40ef-ae0d-764192acae00",
+            "format": "commander",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "68418069-f615-40ef-ae0d-764192acae00",
+            "format": "competitivebrawl",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "68418069-f615-40ef-ae0d-764192acae00",
+            "format": "duel",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "68418069-f615-40ef-ae0d-764192acae00",
+            "format": "future",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "68418069-f615-40ef-ae0d-764192acae00",
+            "format": "gladiator",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "68418069-f615-40ef-ae0d-764192acae00",
+            "format": "historic",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "68418069-f615-40ef-ae0d-764192acae00",
+            "format": "legacy",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "68418069-f615-40ef-ae0d-764192acae00",
+            "format": "modern",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "68418069-f615-40ef-ae0d-764192acae00",
+            "format": "oathbreaker",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "68418069-f615-40ef-ae0d-764192acae00",
+            "format": "oldschool",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "68418069-f615-40ef-ae0d-764192acae00",
+            "format": "pauper",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "68418069-f615-40ef-ae0d-764192acae00",
+            "format": "paupercommander",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "68418069-f615-40ef-ae0d-764192acae00",
+            "format": "penny",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "68418069-f615-40ef-ae0d-764192acae00",
+            "format": "pioneer",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "68418069-f615-40ef-ae0d-764192acae00",
+            "format": "predh",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "68418069-f615-40ef-ae0d-764192acae00",
+            "format": "premodern",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "68418069-f615-40ef-ae0d-764192acae00",
+            "format": "standard",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "68418069-f615-40ef-ae0d-764192acae00",
+            "format": "standardbrawl",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "68418069-f615-40ef-ae0d-764192acae00",
+            "format": "timeless",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "68418069-f615-40ef-ae0d-764192acae00",
+            "format": "tlr",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "68418069-f615-40ef-ae0d-764192acae00",
+            "format": "vintage",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "b34bb2dc-c1af-4d77-b0b3-a0fb342a5fc6",
+            "format": "alchemy",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "b34bb2dc-c1af-4d77-b0b3-a0fb342a5fc6",
+            "format": "brawl",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "b34bb2dc-c1af-4d77-b0b3-a0fb342a5fc6",
+            "format": "commander",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "b34bb2dc-c1af-4d77-b0b3-a0fb342a5fc6",
+            "format": "competitivebrawl",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "b34bb2dc-c1af-4d77-b0b3-a0fb342a5fc6",
+            "format": "duel",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "b34bb2dc-c1af-4d77-b0b3-a0fb342a5fc6",
+            "format": "future",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "b34bb2dc-c1af-4d77-b0b3-a0fb342a5fc6",
+            "format": "gladiator",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "b34bb2dc-c1af-4d77-b0b3-a0fb342a5fc6",
+            "format": "historic",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "b34bb2dc-c1af-4d77-b0b3-a0fb342a5fc6",
+            "format": "legacy",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "b34bb2dc-c1af-4d77-b0b3-a0fb342a5fc6",
+            "format": "modern",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "b34bb2dc-c1af-4d77-b0b3-a0fb342a5fc6",
+            "format": "oathbreaker",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "b34bb2dc-c1af-4d77-b0b3-a0fb342a5fc6",
+            "format": "oldschool",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "b34bb2dc-c1af-4d77-b0b3-a0fb342a5fc6",
+            "format": "pauper",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "b34bb2dc-c1af-4d77-b0b3-a0fb342a5fc6",
+            "format": "paupercommander",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "b34bb2dc-c1af-4d77-b0b3-a0fb342a5fc6",
+            "format": "penny",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "b34bb2dc-c1af-4d77-b0b3-a0fb342a5fc6",
+            "format": "pioneer",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "b34bb2dc-c1af-4d77-b0b3-a0fb342a5fc6",
+            "format": "predh",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "b34bb2dc-c1af-4d77-b0b3-a0fb342a5fc6",
+            "format": "premodern",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "b34bb2dc-c1af-4d77-b0b3-a0fb342a5fc6",
+            "format": "standard",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "b34bb2dc-c1af-4d77-b0b3-a0fb342a5fc6",
+            "format": "standardbrawl",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "b34bb2dc-c1af-4d77-b0b3-a0fb342a5fc6",
+            "format": "timeless",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "b34bb2dc-c1af-4d77-b0b3-a0fb342a5fc6",
+            "format": "tlr",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "b34bb2dc-c1af-4d77-b0b3-a0fb342a5fc6",
+            "format": "vintage",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "53f7c868-b03e-4fc2-8dcf-a75bbfa3272b",
+            "format": "alchemy",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "53f7c868-b03e-4fc2-8dcf-a75bbfa3272b",
+            "format": "brawl",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "53f7c868-b03e-4fc2-8dcf-a75bbfa3272b",
+            "format": "commander",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "53f7c868-b03e-4fc2-8dcf-a75bbfa3272b",
+            "format": "competitivebrawl",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "53f7c868-b03e-4fc2-8dcf-a75bbfa3272b",
+            "format": "duel",
+            "legality": "banned"
+        },
+        {
+            "oracle_card_id": "53f7c868-b03e-4fc2-8dcf-a75bbfa3272b",
+            "format": "future",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "53f7c868-b03e-4fc2-8dcf-a75bbfa3272b",
+            "format": "gladiator",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "53f7c868-b03e-4fc2-8dcf-a75bbfa3272b",
+            "format": "historic",
+            "legality": "banned"
+        },
+        {
+            "oracle_card_id": "53f7c868-b03e-4fc2-8dcf-a75bbfa3272b",
+            "format": "legacy",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "53f7c868-b03e-4fc2-8dcf-a75bbfa3272b",
+            "format": "modern",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "53f7c868-b03e-4fc2-8dcf-a75bbfa3272b",
+            "format": "oathbreaker",
+            "legality": "banned"
+        },
+        {
+            "oracle_card_id": "53f7c868-b03e-4fc2-8dcf-a75bbfa3272b",
+            "format": "oldschool",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "53f7c868-b03e-4fc2-8dcf-a75bbfa3272b",
+            "format": "pauper",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "53f7c868-b03e-4fc2-8dcf-a75bbfa3272b",
+            "format": "paupercommander",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "53f7c868-b03e-4fc2-8dcf-a75bbfa3272b",
+            "format": "penny",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "53f7c868-b03e-4fc2-8dcf-a75bbfa3272b",
+            "format": "pioneer",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "53f7c868-b03e-4fc2-8dcf-a75bbfa3272b",
+            "format": "predh",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "53f7c868-b03e-4fc2-8dcf-a75bbfa3272b",
+            "format": "premodern",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "53f7c868-b03e-4fc2-8dcf-a75bbfa3272b",
+            "format": "standard",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "53f7c868-b03e-4fc2-8dcf-a75bbfa3272b",
+            "format": "standardbrawl",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "53f7c868-b03e-4fc2-8dcf-a75bbfa3272b",
+            "format": "timeless",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "53f7c868-b03e-4fc2-8dcf-a75bbfa3272b",
+            "format": "tlr",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "53f7c868-b03e-4fc2-8dcf-a75bbfa3272b",
+            "format": "vintage",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "6ad8011d-3471-4369-9d68-b264cc027487",
+            "format": "alchemy",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "6ad8011d-3471-4369-9d68-b264cc027487",
+            "format": "brawl",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "6ad8011d-3471-4369-9d68-b264cc027487",
+            "format": "commander",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "6ad8011d-3471-4369-9d68-b264cc027487",
+            "format": "competitivebrawl",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "6ad8011d-3471-4369-9d68-b264cc027487",
+            "format": "duel",
+            "legality": "banned"
+        },
+        {
+            "oracle_card_id": "6ad8011d-3471-4369-9d68-b264cc027487",
+            "format": "future",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "6ad8011d-3471-4369-9d68-b264cc027487",
+            "format": "gladiator",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "6ad8011d-3471-4369-9d68-b264cc027487",
+            "format": "historic",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "6ad8011d-3471-4369-9d68-b264cc027487",
+            "format": "legacy",
+            "legality": "banned"
+        },
+        {
+            "oracle_card_id": "6ad8011d-3471-4369-9d68-b264cc027487",
+            "format": "modern",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "6ad8011d-3471-4369-9d68-b264cc027487",
+            "format": "oathbreaker",
+            "legality": "banned"
+        },
+        {
+            "oracle_card_id": "6ad8011d-3471-4369-9d68-b264cc027487",
+            "format": "oldschool",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "6ad8011d-3471-4369-9d68-b264cc027487",
+            "format": "pauper",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "6ad8011d-3471-4369-9d68-b264cc027487",
+            "format": "paupercommander",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "6ad8011d-3471-4369-9d68-b264cc027487",
+            "format": "penny",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "6ad8011d-3471-4369-9d68-b264cc027487",
+            "format": "pioneer",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "6ad8011d-3471-4369-9d68-b264cc027487",
+            "format": "predh",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "6ad8011d-3471-4369-9d68-b264cc027487",
+            "format": "premodern",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "6ad8011d-3471-4369-9d68-b264cc027487",
+            "format": "standard",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "6ad8011d-3471-4369-9d68-b264cc027487",
+            "format": "standardbrawl",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "6ad8011d-3471-4369-9d68-b264cc027487",
+            "format": "timeless",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "6ad8011d-3471-4369-9d68-b264cc027487",
+            "format": "tlr",
+            "legality": "banned"
+        },
+        {
+            "oracle_card_id": "6ad8011d-3471-4369-9d68-b264cc027487",
+            "format": "vintage",
+            "legality": "restricted"
+        },
+        {
+            "oracle_card_id": "bc71ebf6-2056-41f7-be35-b2e5c34afa99",
+            "format": "alchemy",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "bc71ebf6-2056-41f7-be35-b2e5c34afa99",
+            "format": "brawl",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "bc71ebf6-2056-41f7-be35-b2e5c34afa99",
+            "format": "commander",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "bc71ebf6-2056-41f7-be35-b2e5c34afa99",
+            "format": "competitivebrawl",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "bc71ebf6-2056-41f7-be35-b2e5c34afa99",
+            "format": "duel",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "bc71ebf6-2056-41f7-be35-b2e5c34afa99",
+            "format": "future",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "bc71ebf6-2056-41f7-be35-b2e5c34afa99",
+            "format": "gladiator",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "bc71ebf6-2056-41f7-be35-b2e5c34afa99",
+            "format": "historic",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "bc71ebf6-2056-41f7-be35-b2e5c34afa99",
+            "format": "legacy",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "bc71ebf6-2056-41f7-be35-b2e5c34afa99",
+            "format": "modern",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "bc71ebf6-2056-41f7-be35-b2e5c34afa99",
+            "format": "oathbreaker",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "bc71ebf6-2056-41f7-be35-b2e5c34afa99",
+            "format": "oldschool",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "bc71ebf6-2056-41f7-be35-b2e5c34afa99",
+            "format": "pauper",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "bc71ebf6-2056-41f7-be35-b2e5c34afa99",
+            "format": "paupercommander",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "bc71ebf6-2056-41f7-be35-b2e5c34afa99",
+            "format": "penny",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "bc71ebf6-2056-41f7-be35-b2e5c34afa99",
+            "format": "pioneer",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "bc71ebf6-2056-41f7-be35-b2e5c34afa99",
+            "format": "predh",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "bc71ebf6-2056-41f7-be35-b2e5c34afa99",
+            "format": "premodern",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "bc71ebf6-2056-41f7-be35-b2e5c34afa99",
+            "format": "standard",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "bc71ebf6-2056-41f7-be35-b2e5c34afa99",
+            "format": "standardbrawl",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "bc71ebf6-2056-41f7-be35-b2e5c34afa99",
+            "format": "timeless",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "bc71ebf6-2056-41f7-be35-b2e5c34afa99",
+            "format": "tlr",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "bc71ebf6-2056-41f7-be35-b2e5c34afa99",
+            "format": "vintage",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "963834c8-42df-4ee6-9b45-b9de88ce2eac",
+            "format": "alchemy",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "963834c8-42df-4ee6-9b45-b9de88ce2eac",
+            "format": "brawl",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "963834c8-42df-4ee6-9b45-b9de88ce2eac",
+            "format": "commander",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "963834c8-42df-4ee6-9b45-b9de88ce2eac",
+            "format": "competitivebrawl",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "963834c8-42df-4ee6-9b45-b9de88ce2eac",
+            "format": "duel",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "963834c8-42df-4ee6-9b45-b9de88ce2eac",
+            "format": "future",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "963834c8-42df-4ee6-9b45-b9de88ce2eac",
+            "format": "gladiator",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "963834c8-42df-4ee6-9b45-b9de88ce2eac",
+            "format": "historic",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "963834c8-42df-4ee6-9b45-b9de88ce2eac",
+            "format": "legacy",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "963834c8-42df-4ee6-9b45-b9de88ce2eac",
+            "format": "modern",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "963834c8-42df-4ee6-9b45-b9de88ce2eac",
+            "format": "oathbreaker",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "963834c8-42df-4ee6-9b45-b9de88ce2eac",
+            "format": "oldschool",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "963834c8-42df-4ee6-9b45-b9de88ce2eac",
+            "format": "pauper",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "963834c8-42df-4ee6-9b45-b9de88ce2eac",
+            "format": "paupercommander",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "963834c8-42df-4ee6-9b45-b9de88ce2eac",
+            "format": "penny",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "963834c8-42df-4ee6-9b45-b9de88ce2eac",
+            "format": "pioneer",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "963834c8-42df-4ee6-9b45-b9de88ce2eac",
+            "format": "predh",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "963834c8-42df-4ee6-9b45-b9de88ce2eac",
+            "format": "premodern",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "963834c8-42df-4ee6-9b45-b9de88ce2eac",
+            "format": "standard",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "963834c8-42df-4ee6-9b45-b9de88ce2eac",
+            "format": "standardbrawl",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "963834c8-42df-4ee6-9b45-b9de88ce2eac",
+            "format": "timeless",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "963834c8-42df-4ee6-9b45-b9de88ce2eac",
+            "format": "tlr",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "963834c8-42df-4ee6-9b45-b9de88ce2eac",
+            "format": "vintage",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "8b755881-a72d-4e21-a369-d2924eb4585a",
+            "format": "alchemy",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "8b755881-a72d-4e21-a369-d2924eb4585a",
+            "format": "brawl",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "8b755881-a72d-4e21-a369-d2924eb4585a",
+            "format": "commander",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "8b755881-a72d-4e21-a369-d2924eb4585a",
+            "format": "competitivebrawl",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "8b755881-a72d-4e21-a369-d2924eb4585a",
+            "format": "duel",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "8b755881-a72d-4e21-a369-d2924eb4585a",
+            "format": "future",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "8b755881-a72d-4e21-a369-d2924eb4585a",
+            "format": "gladiator",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "8b755881-a72d-4e21-a369-d2924eb4585a",
+            "format": "historic",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "8b755881-a72d-4e21-a369-d2924eb4585a",
+            "format": "legacy",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "8b755881-a72d-4e21-a369-d2924eb4585a",
+            "format": "modern",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "8b755881-a72d-4e21-a369-d2924eb4585a",
+            "format": "oathbreaker",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "8b755881-a72d-4e21-a369-d2924eb4585a",
+            "format": "oldschool",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "8b755881-a72d-4e21-a369-d2924eb4585a",
+            "format": "pauper",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "8b755881-a72d-4e21-a369-d2924eb4585a",
+            "format": "paupercommander",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "8b755881-a72d-4e21-a369-d2924eb4585a",
+            "format": "penny",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "8b755881-a72d-4e21-a369-d2924eb4585a",
+            "format": "pioneer",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "8b755881-a72d-4e21-a369-d2924eb4585a",
+            "format": "predh",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "8b755881-a72d-4e21-a369-d2924eb4585a",
+            "format": "premodern",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "8b755881-a72d-4e21-a369-d2924eb4585a",
+            "format": "standard",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "8b755881-a72d-4e21-a369-d2924eb4585a",
+            "format": "standardbrawl",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "8b755881-a72d-4e21-a369-d2924eb4585a",
+            "format": "timeless",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "8b755881-a72d-4e21-a369-d2924eb4585a",
+            "format": "tlr",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "8b755881-a72d-4e21-a369-d2924eb4585a",
+            "format": "vintage",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "cc187110-1148-4090-bbb8-e205694a39f5",
+            "format": "alchemy",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "cc187110-1148-4090-bbb8-e205694a39f5",
+            "format": "brawl",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "cc187110-1148-4090-bbb8-e205694a39f5",
+            "format": "commander",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "cc187110-1148-4090-bbb8-e205694a39f5",
+            "format": "competitivebrawl",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "cc187110-1148-4090-bbb8-e205694a39f5",
+            "format": "duel",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "cc187110-1148-4090-bbb8-e205694a39f5",
+            "format": "future",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "cc187110-1148-4090-bbb8-e205694a39f5",
+            "format": "gladiator",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "cc187110-1148-4090-bbb8-e205694a39f5",
+            "format": "historic",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "cc187110-1148-4090-bbb8-e205694a39f5",
+            "format": "legacy",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "cc187110-1148-4090-bbb8-e205694a39f5",
+            "format": "modern",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "cc187110-1148-4090-bbb8-e205694a39f5",
+            "format": "oathbreaker",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "cc187110-1148-4090-bbb8-e205694a39f5",
+            "format": "oldschool",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "cc187110-1148-4090-bbb8-e205694a39f5",
+            "format": "pauper",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "cc187110-1148-4090-bbb8-e205694a39f5",
+            "format": "paupercommander",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "cc187110-1148-4090-bbb8-e205694a39f5",
+            "format": "penny",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "cc187110-1148-4090-bbb8-e205694a39f5",
+            "format": "pioneer",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "cc187110-1148-4090-bbb8-e205694a39f5",
+            "format": "predh",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "cc187110-1148-4090-bbb8-e205694a39f5",
+            "format": "premodern",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "cc187110-1148-4090-bbb8-e205694a39f5",
+            "format": "standard",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "cc187110-1148-4090-bbb8-e205694a39f5",
+            "format": "standardbrawl",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "cc187110-1148-4090-bbb8-e205694a39f5",
+            "format": "timeless",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "cc187110-1148-4090-bbb8-e205694a39f5",
+            "format": "tlr",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "cc187110-1148-4090-bbb8-e205694a39f5",
+            "format": "vintage",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "b1544f21-7e98-461b-aed5-e748b0168c52",
+            "format": "alchemy",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "b1544f21-7e98-461b-aed5-e748b0168c52",
+            "format": "brawl",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "b1544f21-7e98-461b-aed5-e748b0168c52",
+            "format": "commander",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "b1544f21-7e98-461b-aed5-e748b0168c52",
+            "format": "competitivebrawl",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "b1544f21-7e98-461b-aed5-e748b0168c52",
+            "format": "duel",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "b1544f21-7e98-461b-aed5-e748b0168c52",
+            "format": "future",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "b1544f21-7e98-461b-aed5-e748b0168c52",
+            "format": "gladiator",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "b1544f21-7e98-461b-aed5-e748b0168c52",
+            "format": "historic",
+            "legality": "banned"
+        },
+        {
+            "oracle_card_id": "b1544f21-7e98-461b-aed5-e748b0168c52",
+            "format": "legacy",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "b1544f21-7e98-461b-aed5-e748b0168c52",
+            "format": "modern",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "b1544f21-7e98-461b-aed5-e748b0168c52",
+            "format": "oathbreaker",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "b1544f21-7e98-461b-aed5-e748b0168c52",
+            "format": "oldschool",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "b1544f21-7e98-461b-aed5-e748b0168c52",
+            "format": "pauper",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "b1544f21-7e98-461b-aed5-e748b0168c52",
+            "format": "paupercommander",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "b1544f21-7e98-461b-aed5-e748b0168c52",
+            "format": "penny",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "b1544f21-7e98-461b-aed5-e748b0168c52",
+            "format": "pioneer",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "b1544f21-7e98-461b-aed5-e748b0168c52",
+            "format": "predh",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "b1544f21-7e98-461b-aed5-e748b0168c52",
+            "format": "premodern",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "b1544f21-7e98-461b-aed5-e748b0168c52",
+            "format": "standard",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "b1544f21-7e98-461b-aed5-e748b0168c52",
+            "format": "standardbrawl",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "b1544f21-7e98-461b-aed5-e748b0168c52",
+            "format": "timeless",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "b1544f21-7e98-461b-aed5-e748b0168c52",
+            "format": "tlr",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "b1544f21-7e98-461b-aed5-e748b0168c52",
+            "format": "vintage",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "584cee10-f18c-4633-95cc-f2e7a11841ac",
+            "format": "alchemy",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "584cee10-f18c-4633-95cc-f2e7a11841ac",
+            "format": "brawl",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "584cee10-f18c-4633-95cc-f2e7a11841ac",
+            "format": "commander",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "584cee10-f18c-4633-95cc-f2e7a11841ac",
+            "format": "competitivebrawl",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "584cee10-f18c-4633-95cc-f2e7a11841ac",
+            "format": "duel",
+            "legality": "restricted"
+        },
+        {
+            "oracle_card_id": "584cee10-f18c-4633-95cc-f2e7a11841ac",
+            "format": "future",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "584cee10-f18c-4633-95cc-f2e7a11841ac",
+            "format": "gladiator",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "584cee10-f18c-4633-95cc-f2e7a11841ac",
+            "format": "historic",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "584cee10-f18c-4633-95cc-f2e7a11841ac",
+            "format": "legacy",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "584cee10-f18c-4633-95cc-f2e7a11841ac",
+            "format": "modern",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "584cee10-f18c-4633-95cc-f2e7a11841ac",
+            "format": "oathbreaker",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "584cee10-f18c-4633-95cc-f2e7a11841ac",
+            "format": "oldschool",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "584cee10-f18c-4633-95cc-f2e7a11841ac",
+            "format": "pauper",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "584cee10-f18c-4633-95cc-f2e7a11841ac",
+            "format": "paupercommander",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "584cee10-f18c-4633-95cc-f2e7a11841ac",
+            "format": "penny",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "584cee10-f18c-4633-95cc-f2e7a11841ac",
+            "format": "pioneer",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "584cee10-f18c-4633-95cc-f2e7a11841ac",
+            "format": "predh",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "584cee10-f18c-4633-95cc-f2e7a11841ac",
+            "format": "premodern",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "584cee10-f18c-4633-95cc-f2e7a11841ac",
+            "format": "standard",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "584cee10-f18c-4633-95cc-f2e7a11841ac",
+            "format": "standardbrawl",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "584cee10-f18c-4633-95cc-f2e7a11841ac",
+            "format": "timeless",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "584cee10-f18c-4633-95cc-f2e7a11841ac",
+            "format": "tlr",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "584cee10-f18c-4633-95cc-f2e7a11841ac",
+            "format": "vintage",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "53236dd7-845a-444c-96d5-f41ed7325d8f",
+            "format": "alchemy",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "53236dd7-845a-444c-96d5-f41ed7325d8f",
+            "format": "brawl",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "53236dd7-845a-444c-96d5-f41ed7325d8f",
+            "format": "commander",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "53236dd7-845a-444c-96d5-f41ed7325d8f",
+            "format": "competitivebrawl",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "53236dd7-845a-444c-96d5-f41ed7325d8f",
+            "format": "duel",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "53236dd7-845a-444c-96d5-f41ed7325d8f",
+            "format": "future",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "53236dd7-845a-444c-96d5-f41ed7325d8f",
+            "format": "gladiator",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "53236dd7-845a-444c-96d5-f41ed7325d8f",
+            "format": "historic",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "53236dd7-845a-444c-96d5-f41ed7325d8f",
+            "format": "legacy",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "53236dd7-845a-444c-96d5-f41ed7325d8f",
+            "format": "modern",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "53236dd7-845a-444c-96d5-f41ed7325d8f",
+            "format": "oathbreaker",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "53236dd7-845a-444c-96d5-f41ed7325d8f",
+            "format": "oldschool",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "53236dd7-845a-444c-96d5-f41ed7325d8f",
+            "format": "pauper",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "53236dd7-845a-444c-96d5-f41ed7325d8f",
+            "format": "paupercommander",
+            "legality": "banned"
+        },
+        {
+            "oracle_card_id": "53236dd7-845a-444c-96d5-f41ed7325d8f",
+            "format": "penny",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "53236dd7-845a-444c-96d5-f41ed7325d8f",
+            "format": "pioneer",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "53236dd7-845a-444c-96d5-f41ed7325d8f",
+            "format": "predh",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "53236dd7-845a-444c-96d5-f41ed7325d8f",
+            "format": "premodern",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "53236dd7-845a-444c-96d5-f41ed7325d8f",
+            "format": "standard",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "53236dd7-845a-444c-96d5-f41ed7325d8f",
+            "format": "standardbrawl",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "53236dd7-845a-444c-96d5-f41ed7325d8f",
+            "format": "timeless",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "53236dd7-845a-444c-96d5-f41ed7325d8f",
+            "format": "tlr",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "53236dd7-845a-444c-96d5-f41ed7325d8f",
+            "format": "vintage",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "b2c6aa39-2d2a-459c-a555-fb48ba993373",
+            "format": "alchemy",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "b2c6aa39-2d2a-459c-a555-fb48ba993373",
+            "format": "brawl",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "b2c6aa39-2d2a-459c-a555-fb48ba993373",
+            "format": "commander",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "b2c6aa39-2d2a-459c-a555-fb48ba993373",
+            "format": "competitivebrawl",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "b2c6aa39-2d2a-459c-a555-fb48ba993373",
+            "format": "duel",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "b2c6aa39-2d2a-459c-a555-fb48ba993373",
+            "format": "future",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "b2c6aa39-2d2a-459c-a555-fb48ba993373",
+            "format": "gladiator",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "b2c6aa39-2d2a-459c-a555-fb48ba993373",
+            "format": "historic",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "b2c6aa39-2d2a-459c-a555-fb48ba993373",
+            "format": "legacy",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "b2c6aa39-2d2a-459c-a555-fb48ba993373",
+            "format": "modern",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "b2c6aa39-2d2a-459c-a555-fb48ba993373",
+            "format": "oathbreaker",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "b2c6aa39-2d2a-459c-a555-fb48ba993373",
+            "format": "oldschool",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "b2c6aa39-2d2a-459c-a555-fb48ba993373",
+            "format": "pauper",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "b2c6aa39-2d2a-459c-a555-fb48ba993373",
+            "format": "paupercommander",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "b2c6aa39-2d2a-459c-a555-fb48ba993373",
+            "format": "penny",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "b2c6aa39-2d2a-459c-a555-fb48ba993373",
+            "format": "pioneer",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "b2c6aa39-2d2a-459c-a555-fb48ba993373",
+            "format": "predh",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "b2c6aa39-2d2a-459c-a555-fb48ba993373",
+            "format": "premodern",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "b2c6aa39-2d2a-459c-a555-fb48ba993373",
+            "format": "standard",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "b2c6aa39-2d2a-459c-a555-fb48ba993373",
+            "format": "standardbrawl",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "b2c6aa39-2d2a-459c-a555-fb48ba993373",
+            "format": "timeless",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "b2c6aa39-2d2a-459c-a555-fb48ba993373",
+            "format": "tlr",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "b2c6aa39-2d2a-459c-a555-fb48ba993373",
+            "format": "vintage",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "68954295-54e3-4303-a6bc-fc4547a4e3a3",
+            "format": "alchemy",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "68954295-54e3-4303-a6bc-fc4547a4e3a3",
+            "format": "brawl",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "68954295-54e3-4303-a6bc-fc4547a4e3a3",
+            "format": "commander",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "68954295-54e3-4303-a6bc-fc4547a4e3a3",
+            "format": "competitivebrawl",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "68954295-54e3-4303-a6bc-fc4547a4e3a3",
+            "format": "duel",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "68954295-54e3-4303-a6bc-fc4547a4e3a3",
+            "format": "future",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "68954295-54e3-4303-a6bc-fc4547a4e3a3",
+            "format": "gladiator",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "68954295-54e3-4303-a6bc-fc4547a4e3a3",
+            "format": "historic",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "68954295-54e3-4303-a6bc-fc4547a4e3a3",
+            "format": "legacy",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "68954295-54e3-4303-a6bc-fc4547a4e3a3",
+            "format": "modern",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "68954295-54e3-4303-a6bc-fc4547a4e3a3",
+            "format": "oathbreaker",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "68954295-54e3-4303-a6bc-fc4547a4e3a3",
+            "format": "oldschool",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "68954295-54e3-4303-a6bc-fc4547a4e3a3",
+            "format": "pauper",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "68954295-54e3-4303-a6bc-fc4547a4e3a3",
+            "format": "paupercommander",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "68954295-54e3-4303-a6bc-fc4547a4e3a3",
+            "format": "penny",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "68954295-54e3-4303-a6bc-fc4547a4e3a3",
+            "format": "pioneer",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "68954295-54e3-4303-a6bc-fc4547a4e3a3",
+            "format": "predh",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "68954295-54e3-4303-a6bc-fc4547a4e3a3",
+            "format": "premodern",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "68954295-54e3-4303-a6bc-fc4547a4e3a3",
+            "format": "standard",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "68954295-54e3-4303-a6bc-fc4547a4e3a3",
+            "format": "standardbrawl",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "68954295-54e3-4303-a6bc-fc4547a4e3a3",
+            "format": "timeless",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "68954295-54e3-4303-a6bc-fc4547a4e3a3",
+            "format": "tlr",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "68954295-54e3-4303-a6bc-fc4547a4e3a3",
+            "format": "vintage",
+            "legality": "legal"
+        }
+    ],
+    "default_cards": [
+        {
+            "id": "84128e98-87d6-4c2f-909b-9435a7833e63",
+            "name": "Arcane Signet",
+            "searchable_name": "arcane signet",
+            "collector_number": "331",
+            "layout": "normal",
+            "lang": "en",
+            "card_image_0": "/card-images/eld/84128e98-87d6-4c2f-909b-9435a7833e63--1783932545--0.jpg",
+            "card_image_1": null,
+            "art_crop": "/art-crops/eld/84128e98-87d6-4c2f-909b-9435a7833e63--1783932545.jpg",
+            "finishes": 1,
+            "games": 7,
+            "price_usd": "0.57",
+            "price_usd_foil": null,
+            "price_usd_etched": null,
+            "price_eur": "0.90",
+            "price_eur_foil": null,
+            "price_eur_etched": null,
+            "digital": 0,
+            "rarity": "common",
+            "artist_id": "3e6cad34-f765-4565-9d29-a7a732cd8078",
+            "set_id": "a90a7b2f-9dd8-4fc7-9f7d-8ea2797ec782",
+            "oracle_id": "0bc7f093-bef0-4f1a-852c-4b75ebf54838"
+        },
+        {
+            "id": "5b6ddce7-b9c5-431d-a0b0-46d4aa93cbcb",
+            "name": "Armageddon",
+            "searchable_name": "armageddon",
+            "collector_number": "2",
+            "layout": "normal",
+            "lang": "en",
+            "card_image_0": "/card-images/lea/5b6ddce7-b9c5-431d-a0b0-46d4aa93cbcb--1783948717--0.jpg",
+            "card_image_1": null,
+            "art_crop": "/art-crops/lea/5b6ddce7-b9c5-431d-a0b0-46d4aa93cbcb--1783948717.jpg",
+            "finishes": 1,
+            "games": 1,
+            "price_usd": null,
+            "price_usd_foil": null,
+            "price_usd_etched": null,
+            "price_eur": "1144.37",
+            "price_eur_foil": null,
+            "price_eur_etched": null,
+            "digital": 0,
+            "rarity": "rare",
+            "artist_id": "4f654ffe-cdba-4549-be57-b85a28d84f2d",
+            "set_id": "288bd996-960e-448b-a187-9504c1930c2c",
+            "oracle_id": "c9ed8b01-959a-47d6-891e-0abbdccf6e4f"
+        },
+        {
+            "id": "c34ae834-775e-447a-a330-0270c227c667",
+            "name": "Atraxa, Praetors' Voice",
+            "searchable_name": "atraxa praetors voice",
+            "collector_number": "28",
+            "layout": "normal",
+            "lang": "en",
+            "card_image_0": "/card-images/c16/c34ae834-775e-447a-a330-0270c227c667--1783937085--0.jpg",
+            "card_image_1": null,
+            "art_crop": "/art-crops/c16/c34ae834-775e-447a-a330-0270c227c667--1783937085.jpg",
+            "finishes": 2,
+            "games": 1,
+            "price_usd": null,
+            "price_usd_foil": "33.19",
+            "price_usd_etched": null,
+            "price_eur": null,
+            "price_eur_foil": "18.40",
+            "price_eur_etched": null,
+            "digital": 0,
+            "rarity": "mythic",
+            "artist_id": "f46872e6-dbb9-49c9-8eb6-0da003855dea",
+            "set_id": "3e0d713a-b5cb-4287-81b9-a57d4dcaf415",
+            "oracle_id": "7e6b9b59-cd68-4e3c-827b-38833c92d6eb"
+        },
+        {
+            "id": "946d0f6d-9ecd-4b26-88c7-12528021d20f",
+            "name": "Command Tower",
+            "searchable_name": "command tower",
+            "collector_number": "2026-1",
+            "layout": "normal",
+            "lang": "en",
+            "card_image_0": "/card-images/pmei/946d0f6d-9ecd-4b26-88c7-12528021d20f--1783903991--0.jpg",
+            "card_image_1": null,
+            "art_crop": "/art-crops/pmei/946d0f6d-9ecd-4b26-88c7-12528021d20f--1783903991.jpg",
+            "finishes": 2,
+            "games": 1,
+            "price_usd": null,
+            "price_usd_foil": "35.42",
+            "price_usd_etched": null,
+            "price_eur": null,
+            "price_eur_foil": "25.19",
+            "price_eur_etched": null,
+            "digital": 0,
+            "rarity": "rare",
+            "artist_id": "854bc2ca-f7d7-49bc-838a-3e700b4c4dec",
+            "set_id": "80b77354-aa37-420c-a9a2-8a0c66989f23",
+            "oracle_id": "0895c9b7-ae7d-4bb3-af17-3b75deb50a25"
+        },
+        {
+            "id": "0df55e3f-14de-46ef-b6b1-616618724d9e",
+            "name": "Counterspell",
+            "searchable_name": "counterspell",
+            "collector_number": "54",
+            "layout": "normal",
+            "lang": "en",
+            "card_image_0": "/card-images/lea/0df55e3f-14de-46ef-b6b1-616618724d9e--1783948707--0.jpg",
+            "card_image_1": null,
+            "art_crop": "/art-crops/lea/0df55e3f-14de-46ef-b6b1-616618724d9e--1783948707.jpg",
+            "finishes": 1,
+            "games": 1,
+            "price_usd": "548.98",
+            "price_usd_foil": null,
+            "price_usd_etched": null,
+            "price_eur": "756.92",
+            "price_eur_foil": null,
+            "price_eur_etched": null,
+            "digital": 0,
+            "rarity": "uncommon",
+            "artist_id": "b6cdefcb-b0cb-4621-95b1-03e07ff36493",
+            "set_id": "288bd996-960e-448b-a187-9504c1930c2c",
+            "oracle_id": "cc187110-1148-4090-bbb8-e205694a39f5"
+        },
+        {
+            "id": "9e11bf7c-f439-4529-b29a-d711359807ef",
+            "name": "Counterspell",
+            "searchable_name": "counterspell",
+            "collector_number": "55",
+            "layout": "normal",
+            "lang": "en",
+            "card_image_0": "/card-images/leb/9e11bf7c-f439-4529-b29a-d711359807ef--1783948644--0.jpg",
+            "card_image_1": null,
+            "art_crop": "/art-crops/leb/9e11bf7c-f439-4529-b29a-d711359807ef--1783948644.jpg",
+            "finishes": 1,
+            "games": 1,
+            "price_usd": "919.92",
+            "price_usd_foil": null,
+            "price_usd_etched": null,
+            "price_eur": "416.34",
+            "price_eur_foil": null,
+            "price_eur_etched": null,
+            "digital": 0,
+            "rarity": "uncommon",
+            "artist_id": "b6cdefcb-b0cb-4621-95b1-03e07ff36493",
+            "set_id": "5307bd88-637c-4a5c-9801-a0d887715302",
+            "oracle_id": "cc187110-1148-4090-bbb8-e205694a39f5"
+        },
+        {
+            "id": "2ef3dbe4-5c03-4be4-ab48-45b6689b6712",
+            "name": "Cultivate",
+            "searchable_name": "cultivate",
+            "collector_number": "168",
+            "layout": "normal",
+            "lang": "en",
+            "card_image_0": "/card-images/m11/2ef3dbe4-5c03-4be4-ab48-45b6689b6712--1783941799--0.jpg",
+            "card_image_1": null,
+            "art_crop": "/art-crops/m11/2ef3dbe4-5c03-4be4-ab48-45b6689b6712--1783941799.jpg",
+            "finishes": 3,
+            "games": 5,
+            "price_usd": "0.54",
+            "price_usd_foil": "5.04",
+            "price_usd_etched": null,
+            "price_eur": "0.49",
+            "price_eur_foil": "2.43",
+            "price_eur_etched": null,
+            "digital": 0,
+            "rarity": "common",
+            "artist_id": "f04d4df8-8bf6-43a6-be20-cc02fb62e75b",
+            "set_id": "485d2468-18c8-42a4-9482-ca1c51e0470e",
+            "oracle_id": "8b755881-a72d-4e21-a369-d2924eb4585a"
+        },
+        {
+            "id": "ebb6664d-23ca-456e-9916-afcd6f26aa7f",
+            "name": "Dark Ritual",
+            "searchable_name": "dark ritual",
+            "collector_number": "98",
+            "layout": "normal",
+            "lang": "en",
+            "card_image_0": "/card-images/lea/ebb6664d-23ca-456e-9916-afcd6f26aa7f--1783948697--0.jpg",
+            "card_image_1": null,
+            "art_crop": "/art-crops/lea/ebb6664d-23ca-456e-9916-afcd6f26aa7f--1783948697.jpg",
+            "finishes": 1,
+            "games": 1,
+            "price_usd": "247.31",
+            "price_usd_foil": null,
+            "price_usd_etched": null,
+            "price_eur": "235.22",
+            "price_eur_foil": null,
+            "price_eur_etched": null,
+            "digital": 0,
+            "rarity": "common",
+            "artist_id": "15009484-8706-4cf6-8a32-1d094250a10d",
+            "set_id": "288bd996-960e-448b-a187-9504c1930c2c",
+            "oracle_id": "53f7c868-b03e-4fc2-8dcf-a75bbfa3272b"
+        },
+        {
+            "id": "11bf83bb-c95b-4b4f-9a56-ce7a1816307a",
+            "name": "Delver of Secrets // Insectile Aberration",
+            "searchable_name": "delver of secrets insectile aberration",
+            "collector_number": "51",
+            "layout": "transform",
+            "lang": "en",
+            "card_image_0": "/card-images/isd/11bf83bb-c95b-4b4f-9a56-ce7a1816307a--1783940984--0.jpg",
+            "card_image_1": "/card-images/isd/11bf83bb-c95b-4b4f-9a56-ce7a1816307a--1783940984--1.jpg",
+            "art_crop": "/art-crops/isd/11bf83bb-c95b-4b4f-9a56-ce7a1816307a--1783940984.jpg",
+            "finishes": 3,
+            "games": 5,
+            "price_usd": "0.35",
+            "price_usd_foil": "2.08",
+            "price_usd_etched": null,
+            "price_eur": "0.60",
+            "price_eur_foil": "2.76",
+            "price_eur_etched": null,
+            "digital": 0,
+            "rarity": "common",
+            "artist_id": "525a244e-99f9-4c8c-a021-4d01f5291386",
+            "set_id": "d1026945-2969-42b9-be53-f941405a58cb",
+            "oracle_id": "edd531b9-f615-4399-8c8c-1c5e18c4acbf"
+        },
+        {
+            "id": "bc7e0407-fea1-43ef-8580-82271e440bb3",
+            "name": "Evolving Wilds",
+            "searchable_name": "evolving wilds",
+            "collector_number": "228",
+            "layout": "normal",
+            "lang": "en",
+            "card_image_0": "/card-images/roe/bc7e0407-fea1-43ef-8580-82271e440bb3--1783941954--0.jpg",
+            "card_image_1": null,
+            "art_crop": "/art-crops/roe/bc7e0407-fea1-43ef-8580-82271e440bb3--1783941954.jpg",
+            "finishes": 3,
+            "games": 5,
+            "price_usd": "0.10",
+            "price_usd_foil": "0.77",
+            "price_usd_etched": null,
+            "price_eur": "0.18",
+            "price_eur_foil": "1.01",
+            "price_eur_etched": null,
+            "digital": 0,
+            "rarity": "common",
+            "artist_id": "f937f7cf-f9e1-4d32-923b-6a27dcf04ab9",
+            "set_id": "eadb8a82-ec56-4623-b50e-42e7e60cb535",
+            "oracle_id": "a75445d3-1303-4bb5-89ad-26ea93fecd48"
+        },
+        {
+            "id": "6f1c8cb0-38eb-408b-94e8-16db83999b3b",
+            "name": "Forest",
+            "searchable_name": "forest",
+            "collector_number": "294",
+            "layout": "normal",
+            "lang": "en",
+            "card_image_0": "/card-images/lea/6f1c8cb0-38eb-408b-94e8-16db83999b3b--1783948656--0.jpg",
+            "card_image_1": null,
+            "art_crop": "/art-crops/lea/6f1c8cb0-38eb-408b-94e8-16db83999b3b--1783948656.jpg",
+            "finishes": 1,
+            "games": 1,
+            "price_usd": "32.44",
+            "price_usd_foil": null,
+            "price_usd_etched": null,
+            "price_eur": "33.85",
+            "price_eur_foil": null,
+            "price_eur_etched": null,
+            "digital": 0,
+            "rarity": "common",
+            "artist_id": "94edbd04-eaa6-44ee-9546-d405bdf95532",
+            "set_id": "288bd996-960e-448b-a187-9504c1930c2c",
+            "oracle_id": "b34bb2dc-c1af-4d77-b0b3-a0fb342a5fc6"
+        },
+        {
+            "id": "90a57c0e-fa61-45ef-955d-d296403967d5",
+            "name": "Island",
+            "searchable_name": "island",
+            "collector_number": "288",
+            "layout": "normal",
+            "lang": "en",
+            "card_image_0": "/card-images/lea/90a57c0e-fa61-45ef-955d-d296403967d5--1783948658--0.jpg",
+            "card_image_1": null,
+            "art_crop": "/art-crops/lea/90a57c0e-fa61-45ef-955d-d296403967d5--1783948658.jpg",
+            "finishes": 1,
+            "games": 1,
+            "price_usd": "73.96",
+            "price_usd_foil": null,
+            "price_usd_etched": null,
+            "price_eur": "53.19",
+            "price_eur_foil": null,
+            "price_eur_etched": null,
+            "digital": 0,
+            "rarity": "common",
+            "artist_id": "b6cdefcb-b0cb-4621-95b1-03e07ff36493",
+            "set_id": "288bd996-960e-448b-a187-9504c1930c2c",
+            "oracle_id": "b2c6aa39-2d2a-459c-a555-fb48ba993373"
+        },
+        {
+            "id": "aa078518-0ce2-4c6f-9061-aa7e22ed7493",
+            "name": "Krenko, Mob Boss",
+            "searchable_name": "krenko mob boss",
+            "collector_number": "138",
+            "layout": "normal",
+            "lang": "en",
+            "card_image_0": "/card-images/m13/aa078518-0ce2-4c6f-9061-aa7e22ed7493--1783940482--0.jpg",
+            "card_image_1": null,
+            "art_crop": "/art-crops/m13/aa078518-0ce2-4c6f-9061-aa7e22ed7493--1783940482.jpg",
+            "finishes": 3,
+            "games": 5,
+            "price_usd": "2.50",
+            "price_usd_foil": "3.39",
+            "price_usd_etched": null,
+            "price_eur": "1.43",
+            "price_eur_foil": "3.09",
+            "price_eur_etched": null,
+            "digital": 0,
+            "rarity": "rare",
+            "artist_id": "8139edcf-b9e9-4678-b5dc-41699a8073d1",
+            "set_id": "f9b0c6f4-8a4f-4f36-ad3c-e1e16fb8535d",
+            "oracle_id": "68418069-f615-40ef-ae0d-764192acae00"
+        },
+        {
+            "id": "d573ef03-4730-45aa-93dd-e45ac1dbaf4a",
+            "name": "Lightning Bolt",
+            "searchable_name": "lightning bolt",
+            "collector_number": "161",
+            "layout": "normal",
+            "lang": "en",
+            "card_image_0": "/card-images/lea/d573ef03-4730-45aa-93dd-e45ac1dbaf4a--1783948684--0.jpg",
+            "card_image_1": null,
+            "art_crop": "/art-crops/lea/d573ef03-4730-45aa-93dd-e45ac1dbaf4a--1783948684.jpg",
+            "finishes": 1,
+            "games": 1,
+            "price_usd": "620.00",
+            "price_usd_foil": null,
+            "price_usd_etched": null,
+            "price_eur": "409.41",
+            "price_eur_foil": null,
+            "price_eur_etched": null,
+            "digital": 0,
+            "rarity": "common",
+            "artist_id": "94edbd04-eaa6-44ee-9546-d405bdf95532",
+            "set_id": "288bd996-960e-448b-a187-9504c1930c2c",
+            "oracle_id": "4457ed35-7c10-48c8-9776-456485fdf070"
+        },
+        {
+            "id": "b5d3dcab-2260-479d-9ef6-dfb92d4f6061",
+            "name": "Lightning Bolt",
+            "searchable_name": "lightning bolt",
+            "collector_number": "162",
+            "layout": "normal",
+            "lang": "en",
+            "card_image_0": "/card-images/leb/b5d3dcab-2260-479d-9ef6-dfb92d4f6061--1783948623--0.jpg",
+            "card_image_1": null,
+            "art_crop": "/art-crops/leb/b5d3dcab-2260-479d-9ef6-dfb92d4f6061--1783948623.jpg",
+            "finishes": 1,
+            "games": 1,
+            "price_usd": "349.64",
+            "price_usd_foil": null,
+            "price_usd_etched": null,
+            "price_eur": "281.90",
+            "price_eur_foil": null,
+            "price_eur_etched": null,
+            "digital": 0,
+            "rarity": "common",
+            "artist_id": "94edbd04-eaa6-44ee-9546-d405bdf95532",
+            "set_id": "5307bd88-637c-4a5c-9801-a0d887715302",
+            "oracle_id": "4457ed35-7c10-48c8-9776-456485fdf070"
+        },
+        {
+            "id": "ff1b8fc5-604a-4449-a73d-861e53642a70",
+            "name": "Lightning Bolt",
+            "searchable_name": "lightning bolt",
+            "collector_number": "162",
+            "layout": "normal",
+            "lang": "en",
+            "card_image_0": "/card-images/2ed/ff1b8fc5-604a-4449-a73d-861e53642a70--1783948555--0.jpg",
+            "card_image_1": null,
+            "art_crop": "/art-crops/2ed/ff1b8fc5-604a-4449-a73d-861e53642a70--1783948555.jpg",
+            "finishes": 1,
+            "games": 1,
+            "price_usd": "24.17",
+            "price_usd_foil": null,
+            "price_usd_etched": null,
+            "price_eur": "18.21",
+            "price_eur_foil": null,
+            "price_eur_etched": null,
+            "digital": 0,
+            "rarity": "common",
+            "artist_id": "94edbd04-eaa6-44ee-9546-d405bdf95532",
+            "set_id": "cd7694b9-339c-405d-a991-14413d4f6d5c",
+            "oracle_id": "4457ed35-7c10-48c8-9776-456485fdf070"
+        },
+        {
+            "id": "d4f1cc9e-4f99-4c26-ac1b-8ef069fa8ceb",
+            "name": "Llanowar Elves",
+            "searchable_name": "llanowar elves",
+            "collector_number": "210",
+            "layout": "normal",
+            "lang": "en",
+            "card_image_0": "/card-images/lea/d4f1cc9e-4f99-4c26-ac1b-8ef069fa8ceb--1783948674--0.jpg",
+            "card_image_1": null,
+            "art_crop": "/art-crops/lea/d4f1cc9e-4f99-4c26-ac1b-8ef069fa8ceb--1783948674.jpg",
+            "finishes": 1,
+            "games": 1,
+            "price_usd": "121.48",
+            "price_usd_foil": null,
+            "price_usd_etched": null,
+            "price_eur": "241.23",
+            "price_eur_foil": null,
+            "price_eur_etched": null,
+            "digital": 0,
+            "rarity": "common",
+            "artist_id": "adc96c42-f59a-472a-8595-44b9b695411b",
+            "set_id": "288bd996-960e-448b-a187-9504c1930c2c",
+            "oracle_id": "68954295-54e3-4303-a6bc-fc4547a4e3a3"
+        },
+        {
+            "id": "eace2c85-976c-425e-9800-5a6ccbd91b56",
+            "name": "Mountain",
+            "searchable_name": "mountain",
+            "collector_number": "292",
+            "layout": "normal",
+            "lang": "en",
+            "card_image_0": "/card-images/lea/eace2c85-976c-425e-9800-5a6ccbd91b56--1783948657--0.jpg",
+            "card_image_1": null,
+            "art_crop": "/art-crops/lea/eace2c85-976c-425e-9800-5a6ccbd91b56--1783948657.jpg",
+            "finishes": 1,
+            "games": 1,
+            "price_usd": "45.83",
+            "price_usd_foil": null,
+            "price_usd_etched": null,
+            "price_eur": "40.03",
+            "price_eur_foil": null,
+            "price_eur_etched": null,
+            "digital": 0,
+            "rarity": "common",
+            "artist_id": "dcb02cfb-457f-4895-9afb-f3cfde643d24",
+            "set_id": "288bd996-960e-448b-a187-9504c1930c2c",
+            "oracle_id": "a3fb7228-e76b-4e96-a40e-20b5fed75685"
+        },
+        {
+            "id": "b1623d57-4729-4796-b3f7-f1837a05c6ed",
+            "name": "Plains",
+            "searchable_name": "plains",
+            "collector_number": "286",
+            "layout": "normal",
+            "lang": "en",
+            "card_image_0": "/card-images/lea/b1623d57-4729-4796-b3f7-f1837a05c6ed--1783948658--0.jpg",
+            "card_image_1": null,
+            "art_crop": "/art-crops/lea/b1623d57-4729-4796-b3f7-f1837a05c6ed--1783948658.jpg",
+            "finishes": 1,
+            "games": 1,
+            "price_usd": "41.82",
+            "price_usd_foil": null,
+            "price_usd_etched": null,
+            "price_eur": "33.22",
+            "price_eur_foil": null,
+            "price_eur_etched": null,
+            "digital": 0,
+            "rarity": "common",
+            "artist_id": "4f654ffe-cdba-4549-be57-b85a28d84f2d",
+            "set_id": "288bd996-960e-448b-a187-9504c1930c2c",
+            "oracle_id": "bc71ebf6-2056-41f7-be35-b2e5c34afa99"
+        },
+        {
+            "id": "3394cefd-a3c6-4917-8f46-234e441ecfb6",
+            "name": "Rhystic Study",
+            "searchable_name": "rhystic study",
+            "collector_number": "45",
+            "layout": "normal",
+            "lang": "en",
+            "card_image_0": "/card-images/pcy/3394cefd-a3c6-4917-8f46-234e441ecfb6--1783945789--0.jpg",
+            "card_image_1": null,
+            "art_crop": "/art-crops/pcy/3394cefd-a3c6-4917-8f46-234e441ecfb6--1783945789.jpg",
+            "finishes": 3,
+            "games": 5,
+            "price_usd": "62.04",
+            "price_usd_foil": "389.99",
+            "price_usd_etched": null,
+            "price_eur": "34.06",
+            "price_eur_foil": "204.71",
+            "price_eur_etched": null,
+            "digital": 0,
+            "rarity": "common",
+            "artist_id": "a1ae274b-8d54-4cc3-97c9-7af1613565dc",
+            "set_id": "c233bd36-57c0-4aa2-ae6c-7aeabfb4e3ce",
+            "oracle_id": "53236dd7-845a-444c-96d5-f41ed7325d8f"
+        },
+        {
+            "id": "bb16341a-f793-4b0e-b4ef-3fc56aae3807",
+            "name": "Rograkh, Son of Rohgahh",
+            "searchable_name": "rograkh son of rohgahh",
+            "collector_number": "9996",
+            "layout": "normal",
+            "lang": "en",
+            "card_image_0": "/card-images/sld/bb16341a-f793-4b0e-b4ef-3fc56aae3807--1783923536--0.jpg",
+            "card_image_1": null,
+            "art_crop": "/art-crops/sld/bb16341a-f793-4b0e-b4ef-3fc56aae3807--1783923536.jpg",
+            "finishes": 3,
+            "games": 1,
+            "price_usd": "29.47",
+            "price_usd_foil": "47.16",
+            "price_usd_etched": null,
+            "price_eur": "26.02",
+            "price_eur_foil": "46.75",
+            "price_eur_etched": null,
+            "digital": 0,
+            "rarity": "rare",
+            "artist_id": "a6362aa7-693c-488e-8d8d-ac3b46f06ae3",
+            "set_id": "4d92a8a7-ccb0-437d-abdc-9d70fc5ed672",
+            "oracle_id": "584cee10-f18c-4633-95cc-f2e7a11841ac"
+        },
+        {
+            "id": "c4300d24-1cae-4dd5-be7e-38cc677cf5bd",
+            "name": "Sol Ring",
+            "searchable_name": "sol ring",
+            "collector_number": "269",
+            "layout": "normal",
+            "lang": "en",
+            "card_image_0": "/card-images/lea/c4300d24-1cae-4dd5-be7e-38cc677cf5bd--1783948661--0.jpg",
+            "card_image_1": null,
+            "art_crop": "/art-crops/lea/c4300d24-1cae-4dd5-be7e-38cc677cf5bd--1783948661.jpg",
+            "finishes": 1,
+            "games": 1,
+            "price_usd": null,
+            "price_usd_foil": null,
+            "price_usd_etched": null,
+            "price_eur": "1126.22",
+            "price_eur_foil": null,
+            "price_eur_etched": null,
+            "digital": 0,
+            "rarity": "uncommon",
+            "artist_id": "d34162e3-f485-4e28-acdd-ce4038a1c01d",
+            "set_id": "288bd996-960e-448b-a187-9504c1930c2c",
+            "oracle_id": "6ad8011d-3471-4369-9d68-b264cc027487"
+        },
+        {
+            "id": "c0fb91ec-20a8-4c13-9469-18885b1ecca3",
+            "name": "Sol Ring",
+            "searchable_name": "sol ring",
+            "collector_number": "270",
+            "layout": "normal",
+            "lang": "en",
+            "card_image_0": "/card-images/leb/c0fb91ec-20a8-4c13-9469-18885b1ecca3--1783948600--0.jpg",
+            "card_image_1": null,
+            "art_crop": "/art-crops/leb/c0fb91ec-20a8-4c13-9469-18885b1ecca3--1783948600.jpg",
+            "finishes": 1,
+            "games": 1,
+            "price_usd": "869.99",
+            "price_usd_foil": null,
+            "price_usd_etched": null,
+            "price_eur": "576.03",
+            "price_eur_foil": null,
+            "price_eur_etched": null,
+            "digital": 0,
+            "rarity": "uncommon",
+            "artist_id": "d34162e3-f485-4e28-acdd-ce4038a1c01d",
+            "set_id": "5307bd88-637c-4a5c-9801-a0d887715302",
+            "oracle_id": "6ad8011d-3471-4369-9d68-b264cc027487"
+        },
+        {
+            "id": "e07f656c-97b5-4147-821a-edbb49f34e19",
+            "name": "Sol Ring",
+            "searchable_name": "sol ring",
+            "collector_number": "270",
+            "layout": "normal",
+            "lang": "en",
+            "card_image_0": "/card-images/2ed/e07f656c-97b5-4147-821a-edbb49f34e19--1783948530--0.jpg",
+            "card_image_1": null,
+            "art_crop": "/art-crops/2ed/e07f656c-97b5-4147-821a-edbb49f34e19--1783948530.jpg",
+            "finishes": 1,
+            "games": 1,
+            "price_usd": "123.00",
+            "price_usd_foil": null,
+            "price_usd_etched": null,
+            "price_eur": "77.39",
+            "price_eur_foil": null,
+            "price_eur_etched": null,
+            "digital": 0,
+            "rarity": "uncommon",
+            "artist_id": "d34162e3-f485-4e28-acdd-ce4038a1c01d",
+            "set_id": "cd7694b9-339c-405d-a991-14413d4f6d5c",
+            "oracle_id": "6ad8011d-3471-4369-9d68-b264cc027487"
+        },
+        {
+            "id": "6176936d-72e2-4205-8871-4c5a4f1cb2d8",
+            "name": "Swamp",
+            "searchable_name": "swamp",
+            "collector_number": "290",
+            "layout": "normal",
+            "lang": "en",
+            "card_image_0": "/card-images/lea/6176936d-72e2-4205-8871-4c5a4f1cb2d8--1783948657--0.jpg",
+            "card_image_1": null,
+            "art_crop": "/art-crops/lea/6176936d-72e2-4205-8871-4c5a4f1cb2d8--1783948657.jpg",
+            "finishes": 1,
+            "games": 1,
+            "price_usd": "54.00",
+            "price_usd_foil": null,
+            "price_usd_etched": null,
+            "price_eur": "50.78",
+            "price_eur_foil": null,
+            "price_eur_etched": null,
+            "digital": 0,
+            "rarity": "common",
+            "artist_id": "74ddb4cf-1d62-4791-b029-0f5acbab382b",
+            "set_id": "288bd996-960e-448b-a187-9504c1930c2c",
+            "oracle_id": "56719f6a-1a6c-4c0a-8d21-18f7d7350b68"
+        },
+        {
+            "id": "386ea9eb-abc1-4862-aa2d-8fb808d79490",
+            "name": "Swords to Plowshares",
+            "searchable_name": "swords to plowshares",
+            "collector_number": "40",
+            "layout": "normal",
+            "lang": "en",
+            "card_image_0": "/card-images/lea/386ea9eb-abc1-4862-aa2d-8fb808d79490--1783948709--0.jpg",
+            "card_image_1": null,
+            "art_crop": "/art-crops/lea/386ea9eb-abc1-4862-aa2d-8fb808d79490--1783948709.jpg",
+            "finishes": 1,
+            "games": 1,
+            "price_usd": null,
+            "price_usd_foil": null,
+            "price_usd_etched": null,
+            "price_eur": "768.73",
+            "price_eur_foil": null,
+            "price_eur_etched": null,
+            "digital": 0,
+            "rarity": "uncommon",
+            "artist_id": "97324df5-d75e-4a60-854e-d90b634678c5",
+            "set_id": "288bd996-960e-448b-a187-9504c1930c2c",
+            "oracle_id": "b1544f21-7e98-461b-aed5-e748b0168c52"
+        },
+        {
+            "id": "f15c8803-f33a-4530-9882-bff1bf810c19",
+            "name": "Yoshimaru, Ever Faithful",
+            "searchable_name": "yoshimaru ever faithful",
+            "collector_number": "794",
+            "layout": "normal",
+            "lang": "en",
+            "card_image_0": "/card-images/sld/f15c8803-f33a-4530-9882-bff1bf810c19--1783913149--0.jpg",
+            "card_image_1": null,
+            "art_crop": "/art-crops/sld/f15c8803-f33a-4530-9882-bff1bf810c19--1783913149.jpg",
+            "finishes": 2,
+            "games": 1,
+            "price_usd": null,
+            "price_usd_foil": "65.19",
+            "price_usd_etched": null,
+            "price_eur": null,
+            "price_eur_foil": "50.86",
+            "price_eur_etched": null,
+            "digital": 0,
+            "rarity": "mythic",
+            "artist_id": "69dafabb-010d-4c62-b288-96174fe7eec5",
+            "set_id": "4d92a8a7-ccb0-437d-abdc-9d70fc5ed672",
+            "oracle_id": "963834c8-42df-4ee6-9b45-b9de88ce2eac"
+        }
+    ]
+}

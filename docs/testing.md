@@ -102,7 +102,23 @@ tests/e2e/
 
 Guest and app specs are separated **by directory, not by clearing cookies per test**. It is the one arrangement in which a stray `storageState` cannot make an auth-gate test pass by accident — the failure mode that would leave the whole project green and worthless.
 
-The fixture is `database/seeders/E2ESeeder`, **not** `DatabaseSeeder`: that one chains `DeckSeeder`, which pins every slot to a specific Scryfall printing and so needs a full `scryfall:update` behind it. `E2ESeeder` is fixed and committed — same ids, names and printings every run, because a browser test names the thing it clicks.
+### The fixture
+
+`database/seeders/E2ESeeder`, **not** `DatabaseSeeder`: that one chains `DeckSeeder`, which pins every slot to a specific Scryfall printing and so needs a full `scryfall:update` behind it. `E2ESeeder` is fixed and committed — same ids, names and printings every run, because a browser test names the thing it clicks.
+
+It seeds one verified user, a 22-card Scryfall snapshot, three containers with eight card stacks, and three decks:
+
+| Deck | Format | Identity | There to make this answerable |
+| --- | --- | --- | --- |
+| Atraxa Superfriends | Commander | WUBG | a single commander; four colours; Lightning Bolt is *out* of identity |
+| Yoshi and Rograkh | Commander | RW | a partner pair; Counterspell is *out* of identity, Lightning Bolt is in |
+| Legacy Burn | Legacy | — | a format with **no** command zone; quantities above one; a real sideboard |
+
+The two commander decks are the reason a card-search assertion can mean something. A search that ignored `color_identity` would return Lightning Bolt in both; one that returned nothing would fail both. Neither can pass by accident.
+
+`database/seeders/fixtures/scryfall.json` is real Scryfall data — real ids, oracle text, prices and `color_identity` strings — because the app reasons about all of it, and a hand-written approximation would be a fixture that agrees with the tests rather than with Magic. To extend it, add a card name to `database/seeders/fixtures/extract-scryfall-fixture.php` and re-run that script **on staging** (the only host with a full dataset); the script's own docblock has the commands. Nothing at test time talks to staging.
+
+**Card images 404**, deliberately. The snapshot keeps the real `card_image_*` paths, which point into `public/card-images` — a directory a developer machine does not have. Writing placeholders there would mean writing into a directory whose meaning differs per machine (on the servers it is a symlink into shared storage). Nothing asserts on artwork yet; a spec that needs it should generate the files from `environment.ts` rather than commit them.
 
 ### Three traps worth knowing before you touch the harness
 
