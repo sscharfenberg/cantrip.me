@@ -1,5 +1,9 @@
 # cantrip.me
 
+[![CI](https://github.com/sscharfenberg/cantrip.me/actions/workflows/ci.yml/badge.svg)](https://github.com/sscharfenberg/cantrip.me/actions/workflows/ci.yml)
+[![PHPUnit](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fsscharfenberg%2Fcantrip.me%2Fbadges%2Fphpunit.json)](https://github.com/sscharfenberg/cantrip.me/actions/workflows/ci.yml)
+[![Vitest](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fsscharfenberg%2Fcantrip.me%2Fbadges%2Fvitest.json)](https://github.com/sscharfenberg/cantrip.me/actions/workflows/ci.yml)
+
 A Magic: The Gathering card collection manager with a focus on UX: Dark/Light mode. Multi-language. Accessibility first. Responsive. Fast. 
 
 **Stack:** Laravel 13 / PHP 8.4 · Vue 3 + TypeScript · Inertia.js · Vite · SCSS · MariaDB · Vue-i18n (de/en) · Laravel Fortify (auth + 2FA TOTP)

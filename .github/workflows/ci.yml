@@ -28,8 +28,20 @@ jobs:
           cp .env.example .env
           php artisan key:generate
 
+      # `--log-junit` on top of the normal run: the XML feeds the README badge and
+      # nothing else. `composer test` forwards anything after `--` to PHPUnit.
       - name: Run tests
-        run: composer test
+        run: composer test -- --log-junit reports/phpunit.xml
+
+      # `!cancelled()` rather than the default `success()`: a RED suite's count is
+      # exactly what the badge has to show, so the XML must survive a failing step.
+      - name: Keep the count for the badge
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: junit-phpunit
+          path: reports/phpunit.xml
+          retention-days: 1
 
   pint:
     name: Pint
@@ -83,5 +95,72 @@ jobs:
       - name: Install npm dependencies
         run: npm ci
 
+      # `--reporter=default` is named explicitly because a lone `--reporter=junit`
+      # REPLACES the console output, which would leave a failing run with nothing
+      # readable in the log. The XML is for the badge job and nothing else.
       - name: Run tests
-        run: npm run test
+        run: npm run test -- --reporter=default --reporter=junit --outputFile.junit=reports/vitest.xml
+
+      # See the note in the PHP job for why this is `!cancelled()`.
+      - name: Keep the count for the badge
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: junit-vitest
+          path: reports/vitest.xml
+          retention-days: 1
+
+  # The numbers behind the README's badges. A job of its own because each suite's count
+  # comes from a different one above, and two jobs writing one branch would race.
+  #
+  # NO PLAYWRIGHT BADGE, because there is no Playwright job: the browser suite is
+  # deliberately local-only (docs/testing.md says why). Adding one before the suite runs
+  # here would pin a permanently grey `unknown` to the README.
+  badges:
+    name: Publish test badges
+    needs: [php-tests, frontend-tests]
+    # `always()` so a RED suite still publishes its count — a badge that only updates when
+    # everything passed is a badge that lies by omission, and "3 failed" is the case it is
+    # most worth showing. Pushes to main only: a pull request must not rewrite what the
+    # README of the default branch reports, and a fork's PR has no write token anyway.
+    if: ${{ always() && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # The only job here that can write anything.
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "26"
+
+      # No `npm ci` in this job: testBadges.ts deliberately imports nothing but Node
+      # built-ins, so the install would cost more than everything else here put together.
+      - uses: actions/download-artifact@v7
+        with:
+          path: reports
+          pattern: junit-*
+          merge-multiple: true
+
+      # A suite whose job died before running leaves no XML, and renders grey rather than
+      # inheriting the previous run's colour.
+      - name: Render the badge documents
+        run: >
+          node ./resources/build/testBadges.ts
+          phpunit=reports/phpunit.xml
+          vitest=reports/vitest.xml
+
+      # PINNED TO A COMMIT, NOT A TAG. A tag is a movable pointer, and whoever can move it
+      # would be running their code in a job holding `contents: write` on this repository.
+      # The comment is the human-readable half; only the SHA is enforced.
+      #
+      # `single-commit` keeps the branch one commit deep: it holds two small documents that
+      # are true right now, and their history is the CI log's job, not a branch's.
+      - name: Publish to the badges branch
+        uses: JamesIves/github-pages-deploy-action@fa24774553152dd7873cd16ebd8d959b010c5445 # v4.9.0
+        with:
+          branch: badges
+          folder: badges
+          single-commit: true

@@ -23,6 +23,11 @@
 /test-results
 /playwright-report
 
+# JUnit XML and the shields.io endpoint documents built from it. CI makes both and
+# publishes the badges to the `badges` branch; locally they are scratch output.
+/reports
+/badges
+
 /public/build
 /public/hot
 /public/hot.e2e-backup
