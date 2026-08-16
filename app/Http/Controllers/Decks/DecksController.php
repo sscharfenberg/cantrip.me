@@ -22,6 +22,7 @@ use App\Http\Requests\Decks\EditDeckRequest;
 use App\Http\Requests\Decks\GenerateDeckQrRequest;
 use App\Http\Requests\Decks\SetDeckCollectionModeRequest;
 use App\Http\Requests\Decks\SetDeckHeroImageRequest;
+use App\Http\Requests\Decks\SetDeckRulebreakerColorRequest;
 use App\Http\Requests\Decks\SetDeckStateRequest;
 use App\Http\Requests\Decks\SetDeckVisibilityRequest;
 use App\Http\Requests\Decks\ShowDeckRequest;
@@ -34,6 +35,7 @@ use App\Models\DeckCategory;
 use App\Models\DefaultCard;
 use App\Models\DefaultCardRelation;
 use App\Models\OracleCard;
+use App\Rulebreakers\RulebreakerRegistry;
 use App\Services\BracketSuggestionService;
 use App\Services\CommandZoneService;
 use App\Services\DeckBulkAddCollectionService;
@@ -276,6 +278,24 @@ class DecksController extends Controller
 
         $violations = DeckValidator::validate($deck);
         $illegalDeckCardIds = DeckValidator::illegalDeckCardIds($violations);
+
+        // What the Rulebreaker popover needs: whether this deck is led by one,
+        // whether it asks the pilot to nominate a colour, and what is nominated
+        // now. Null for the overwhelming majority of decks, which is what the
+        // frontend switches on — it never matches on commander names.
+        $rulebreakerRow = RulebreakerRegistry::commanderRowFor($deck);
+        $rulebreakerProfile = RulebreakerRegistry::forDeck($deck);
+        $rulebreaker = $rulebreakerRow === null ? null : [
+            'name' => $rulebreakerRow->oracleCard?->name,
+            // False while a card is known but its rule is not modelled yet —
+            // the set is not out, so the UI names the card without claiming to
+            // enforce it. See RulebreakerRegistry.
+            'enforced' => $rulebreakerProfile !== null,
+            'messageKey' => $rulebreakerProfile?->messageKey(),
+            'requiresColorChoice' => (bool) $rulebreakerProfile?->requiresColorChoice(),
+            'color' => $deck->rulebreaker_color,
+            'deckIdentity' => $deck->colorIdentity(),
+        ];
 
         $profile = $deck->format->rules();
         $allowsCompanion = $profile->allowsCompanion();
@@ -638,6 +658,7 @@ class DecksController extends Controller
             'categories' => $categories,
             'categoryNameMax' => DeckCategory::NAME_MAX,
             'violations' => $violations,
+            'rulebreaker' => $rulebreaker,
             'collectionMode' => $collectionMode,
             'collectionBadgeMode' => $collectionBadgeMode,
             'collectionModeContext' => $collectionModeContext,
@@ -1373,6 +1394,32 @@ class DecksController extends Controller
                 'mode' => __('decks.collection_mode.modes.'.$mode),
             ],
         ));
+        $request->session()->flash('type', 'success');
+
+        return redirect(route('decks.show', $deck));
+    }
+
+    /**
+     * Store the colour a Rulebreaker commander lets the pilot nominate —
+     * owner-only, fired from the Rulebreaker popover.
+     *
+     * Null clears the choice, which withdraws the widening. Cards already in
+     * the deck are not touched: any that the nomination had been legalising
+     * simply start reporting a colour-identity violation again, which is the
+     * honest outcome and matches how every other legality change behaves here.
+     */
+    public function setRulebreakerColor(SetDeckRulebreakerColorRequest $request, Deck $deck): RedirectResponse
+    {
+        $color = $request->validated('color');
+
+        $deck->update(['rulebreaker_color' => $color === '' ? null : $color]);
+
+        $request->session()->flash('message', $color === null || $color === ''
+            ? __('decks.rulebreaker.cleared_flash', ['name' => $deck->name])
+            : __('decks.rulebreaker.set_flash', [
+                'name' => $deck->name,
+                'color' => __('decks.rulebreaker.colors.'.$color),
+            ]));
         $request->session()->flash('type', 'success');
 
         return redirect(route('decks.show', $deck));

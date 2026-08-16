@@ -14,6 +14,7 @@ import type {
     DeckCommander,
     DeckCompanion,
     DeckMeta,
+    DeckRulebreaker,
     DeckToken,
     DeckViolation
 } from "Types/deckPage.ts";
@@ -53,6 +54,8 @@ const props = defineProps<{
     collectionMode: "A" | "B" | "C";
     /** Badge presentation mode — kept distinct from `collectionMode` for future divergence. */
     collectionBadgeMode: "A" | "B" | "C";
+    /** Rulebreaker state for the header badge, null when the deck has none. */
+    rulebreaker: DeckRulebreaker | null;
     /**
      * Owner-only context for the collection-mode badge popover. Null for
      * non-owners — the badge is gated on `isOwner`.
@@ -157,6 +160,7 @@ const cardNameByDefaultCardId = computed<Record<string, string>>(() => {
         :category-name-max="categoryNameMax"
         :violations="violations"
         :hero-art-crop="deck.hero_card?.art_crop ?? null"
+        :rulebreaker="rulebreaker"
         :collection-mode="collectionMode"
         :collection-badge-mode="collectionBadgeMode"
         :collection-mode-context="collectionModeContext"

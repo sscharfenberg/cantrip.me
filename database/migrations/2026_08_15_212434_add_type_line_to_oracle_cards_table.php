@@ -25,8 +25,15 @@ use Illuminate\Support\Facades\Schema;
  * run. Note the ordering constraint that creates: the import writes this
  * column, and `ShadowTableService` builds its shadow tables with
  * `CREATE TABLE LIKE` off the live schema, so this migration must land BEFORE
- * the next sync. Until then the column is simply NULL for every row, which no
- * caller treats as an error.
+ * the next sync.
+ *
+ * BETWEEN DEPLOY AND THAT SYNC THE COLUMN IS NULL FOR EVERY ROW, and callers
+ * added later do read it: the Rulebreaker type-based exemptions match on it, so
+ * a Tolabow deck's instant/sorcery widening is inert until the sync runs — the
+ * picker still shows the nominated colour while the cards it should legalise go
+ * on reporting violations. Nothing errors, and the basic-land exemption is
+ * unaffected, but the gap is real. Run `php artisan scryfall:update` promptly
+ * after deploying this, rather than waiting for the nightly cron.
  */
 return new class extends Migration
 {

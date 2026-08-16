@@ -1202,6 +1202,26 @@
                 "label": "Quick add",
                 "no_results": "Keine Karten für dieses Deck gefunden.",
                 "added": "Zum Hauptdeck hinzugefügt"
+            },
+            "rulebreaker": {
+                "label": "Rulebreaker",
+                "no_color": "Keine Farbe gewählt",
+                "in_identity": "bereits in der Identität",
+                "tooltip": "{name} — Rulebreaker: Die Deckbau-Regeln dieses Decks sind gelockert.",
+                "tooltip_unenforced": "{name} — Rulebreaker. Die Regel dieser Karte wird noch nicht geprüft.",
+                "colors": {
+                    "W": "Weiß",
+                    "U": "Blau",
+                    "B": "Schwarz",
+                    "R": "Rot",
+                    "G": "Grün"
+                },
+                "rules": {
+                    "tolabow": "Spontanzauber und Hexereien dürfen eine Farbe außerhalb der Identität deines Commanders enthalten."
+                },
+                "errors": {
+                    "generic": "Diese Farbe konnte nicht gespeichert werden."
+                }
             }
         },
         "create_deck": {

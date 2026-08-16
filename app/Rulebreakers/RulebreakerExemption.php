@@ -179,7 +179,14 @@ final class RulebreakerExemption
 
         foreach ($relevant as $face) {
             foreach ($this->types as $type) {
-                if (str_contains($face, $type)) {
+                // Case-INSENSITIVE, to match the `LIKE` in applyTo() running
+                // under MySQL's default case-insensitive collation. Scryfall
+                // type lines are always title-cased so this changes nothing
+                // today, but the whole point of this class is that the two
+                // consumers cannot disagree, and case was one axis on which
+                // they still could: a needle written in lowercase would have
+                // been honoured by search and ignored by the validator.
+                if (mb_stripos($face, $type) !== false) {
                     return true;
                 }
             }

@@ -5,12 +5,20 @@ import ColorIdentity from "Components/Card/ColorIdentity.vue";
 import CollectionModeBadge from "Components/Deck/CollectionModeBadge.vue";
 import DeckCardCount from "Components/Deck/DeckCardCount.vue";
 import DeckState from "Components/Deck/DeckState.vue";
+import RulebreakerBadge from "Components/Deck/RulebreakerBadge.vue";
 import Badge from "Components/UI/Badge.vue";
 import Icon from "Components/UI/Icon.vue";
 import Paragraph from "Components/UI/Paragraph.vue";
 import VisibilityBadge from "Components/UI/VisibilityBadge.vue";
 import { useFormatting } from "Composables/useFormatting.ts";
-import type { DeckCardRow, DeckCategoryRow, DeckCompanion, DeckMeta, DeckViolation } from "Types/deckPage.ts";
+import type {
+    DeckCardRow,
+    DeckCategoryRow,
+    DeckCompanion,
+    DeckMeta,
+    DeckRulebreaker,
+    DeckViolation
+} from "Types/deckPage.ts";
 import DeckActionsMenu from "./Actions/DeckActionsMenu.vue";
 import type { DeckActionsContainer, DeckActionsTarget } from "./Actions/DeckActionsMenu.vue";
 import DeckLegalityPanel from "./DeckLegalityPanel.vue";
@@ -26,6 +34,13 @@ const props = defineProps<{
     deck: DeckMeta;
     /** True when the request user owns the deck — gates the actions menu. */
     isOwner: boolean;
+    /**
+     * Rulebreaker state, or null when the deck is not led by one. Shown to
+     * everyone, not just the owner: the relaxation changes what is legal in the
+     * deck, so a visitor reading the list needs it too. Only the picker inside
+     * is owner-gated.
+     */
+    rulebreaker: DeckRulebreaker | null;
     /**
      * True when the deck is archived — collapses the actions menu to a
      * read-only set (QR / CSV / restore / delete).
@@ -113,6 +128,12 @@ const { formatPrice } = useFormatting();
             <badge type="info" v-tooltip="$t('pages.deck.total_worth')">
                 <icon name="money" :size="1" />{{ formatPrice(deck.total_worth) }}
             </badge>
+            <rulebreaker-badge
+                v-if="rulebreaker !== null"
+                :deck-id="deck.id"
+                :rulebreaker="rulebreaker"
+                :can-edit="isOwner"
+            />
             <collection-mode-badge
                 v-if="isOwner && collectionModeContext !== null && collectionModeContext.master_switch_enabled"
                 :deck-id="deck.id"

@@ -40,6 +40,21 @@ return [
         'flash_success' => 'Alle Karten aus Deck „:name" wurden zur Sammlung hinzugefügt.',
     ],
 
+    'rulebreaker' => [
+        'set_flash' => 'Spontanzauber und Hexereien in „:name“ dürfen jetzt auch :color sein.',
+        'cleared_flash' => 'Die gewählte Farbe für „:name“ wurde entfernt.',
+        'colors' => [
+            'W' => 'weiß',
+            'U' => 'blau',
+            'B' => 'schwarz',
+            'R' => 'rot',
+            'G' => 'grün',
+        ],
+        'errors' => [
+            'no_choice_to_make' => 'Der Commander dieses Decks lässt dich keine Farbe wählen.',
+            'already_in_identity' => 'Diese Farbe ist bereits in der Farbidentität deines Commanders — die Wahl muss eine hinzufügen.',
+        ],
+    ],
     'collection_mode' => [
         'set_flash' => 'Sammlungs-Tracking für „:name" ist jetzt :mode.',
         'modes' => [

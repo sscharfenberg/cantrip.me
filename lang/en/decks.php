@@ -40,6 +40,21 @@ return [
         'flash_success' => 'All cards from deck ":name" have been added to your collection.',
     ],
 
+    'rulebreaker' => [
+        'set_flash' => 'Instants and sorceries in ":name" may now also be :color.',
+        'cleared_flash' => 'The nominated colour for ":name" has been cleared.',
+        'colors' => [
+            'W' => 'white',
+            'U' => 'blue',
+            'B' => 'black',
+            'R' => 'red',
+            'G' => 'green',
+        ],
+        'errors' => [
+            'no_choice_to_make' => "This deck's commander does not let you nominate a colour.",
+            'already_in_identity' => "That colour is already in your commander's color identity — the choice has to add one.",
+        ],
+    ],
     'collection_mode' => [
         'set_flash' => 'Collection tracking for ":name" is now set to ":mode".',
         'modes' => [

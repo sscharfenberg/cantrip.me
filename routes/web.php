@@ -157,6 +157,9 @@ Route::middleware(array_filter(['auth', Features::enabled(Features::emailVerific
         ->name('decks.set-state');
     Route::patch('/decks/{deck}/collection-mode', [DecksController::class, 'setCollectionMode'])
         ->name('decks.collection-mode.set');
+
+    Route::patch('/decks/{deck}/rulebreaker-color', [DecksController::class, 'setRulebreakerColor'])
+        ->name('decks.rulebreaker-color.set');
     Route::post('/decks/{deck}/add-all-to-collection', [DecksController::class, 'addAllToCollection'])
         ->name('decks.add-all-to-collection');
     Route::get('/decks/{deck}/bulk-claim', [DecksController::class, 'bulkClaim'])

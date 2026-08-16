@@ -1202,6 +1202,26 @@
                 "label": "Quick add",
                 "no_results": "No cards found for this deck.",
                 "added": "Added to main deck"
+            },
+            "rulebreaker": {
+                "label": "Rulebreaker",
+                "no_color": "No colour chosen",
+                "in_identity": "already in identity",
+                "tooltip": "{name} — Rulebreaker: this deck's building rules are relaxed.",
+                "tooltip_unenforced": "{name} — Rulebreaker. This card's rule is not enforced yet.",
+                "colors": {
+                    "W": "White",
+                    "U": "Blue",
+                    "B": "Black",
+                    "R": "Red",
+                    "G": "Green"
+                },
+                "rules": {
+                    "tolabow": "Instants and sorceries may include one colour outside your commander's identity."
+                },
+                "errors": {
+                    "generic": "That colour could not be saved."
+                }
             }
         },
         "create_deck": {

@@ -55,6 +55,115 @@ export interface DeckCompanion {
     default_card: DeckCommanderDefaultCard;
 }
 
+export type DeckViolation =
+    | { type: "pool_legality"; card_ids: string[] }
+    | { type: "copy_limit"; card_ids: string[] }
+    | { type: "color_identity"; card_ids: string[] }
+    | { type: "deck_size_min"; current: number; min: number }
+    | { type: "deck_size_max"; current: number; max: number }
+    | { type: "sideboard_size_max"; current: number; max: number }
+    | { type: "commander_banned"; names: string[] }
+    | { type: "companion_restriction"; message_key: PerCardCompanionKey; card_ids: string[] }
+    | { type: "companion_size_restriction"; message_key: "yorion"; current: number; min: number };
+
+/**
+ * One result row returned by the deck card search API.
+ *
+ * Same shape for both the oracle endpoint (`/card-search/oracle`) and the
+ * printings endpoint (`/card-search/printings`). `printing` is nullable on
+ * the oracle path in the rare case an oracle card has no default card
+ * printing yet; the printings path always populates it.
+ */
+export interface DeckSearchResult {
+    oracle_id: string;
+    name: string;
+    cmc: number;
+    color_identity: string | null;
+    /**
+     * True when adding this card would break the deck's current companion
+     * restriction. Soft signal — the add is not blocked, the frontend just
+     * renders a warning badge. Always `false` (or absent) when the deck has
+     * no companion, and always `false` for Lutri/Umori/Yorion profiles for
+     * now (they need deck-state and haven't been wired through).
+     */
+    violates_companion?: boolean;
+    printing: DefaultCardImage | null;
+}
+
+/** One face of a quick-add result — same shape as commander faces. */
+export interface QuickAddCardFace {
+    type_line: string | null;
+    mana_cost: string | null;
+}
+
+/**
+ * One result row from the quick-add oracle endpoint
+ * (`/api/decks/{deck}/oracle-cards`).
+ *
+ * Oracle-level (one row per oracle card, no printings). `faces` carries the
+ * per-face `type_line` + `mana_cost` so the UI can render multi-faced cards.
+ * `default_card_id` is the newest printing's UUID, used for the add-card POST.
+ * `is_basic_land` and `has_unlimited_copies` flag cards exempt from the format's
+ * per-card copy limit ("a deck can have any number of cards named X" rule), so
+ * the result row should stay in the popover after add instead of being removed.
+ */
+export interface QuickAddCardResult {
+    id: string;
+    name: string;
+    color_identity: string | null;
+    default_card_id: string | null;
+    is_basic_land: boolean;
+    has_unlimited_copies: boolean;
+    faces: QuickAddCardFace[];
+}
+
+/**
+ * Three-part card count for the deck badge. Mainboard includes commanders
+ * (zone=command counts toward the legal deck size). Maybeboard rows are
+ * intentionally excluded — they're a scratch pile, not part of the deck.
+ */
+export interface DeckCardCount {
+    /** Mainboard + command zone — the legal deck size. */
+    main: number;
+    /** Companion (zone=companion). Always 0 or 1. */
+    companion: number;
+    /** Sideboard (zone=side). */
+    side: number;
+}
+
+/** Sum of every part — mainboard + companion + sideboard. */
+export function totalDeckCardCount(count: DeckCardCount): number {
+    return count.main + count.companion + count.side;
+}
+
+/** Deck metadata as passed by the controller. */
+export interface DeckMeta {
+    id: string;
+    name: string;
+    description: string | null;
+    format: string;
+    state: string;
+    visibility: string;
+    colors: string | null;
+    bracket: number | null;
+    card_count: DeckCardCount;
+    /** Sum of (deck_cards.quantity × default_card price) + commanders + companion, in the request user's currency (eur/usd). */
+    total_worth: number;
+    max_deck_size: number | null;
+    max_sideboard_size: number;
+    max_copies: number;
+    is_singleton: boolean;
+    enforces_color_identity: boolean;
+    allows_companion: boolean;
+    /** Oracle names of companions banned in this format (e.g. Lutri in Commander). */
+    banned_as_companion: string[];
+    /** Whether the format uses the Game Changer list — gates the per-card GC badge in the UI. */
+    uses_game_changer_list: boolean;
+    last_activity: string;
+    /** Deck hero / banner art — the chosen printing's art crop, or null. */
+    hero_card: DefaultCardArtCrop | null;
+}
+
 /**
  * Per-deck-card collection-integration status. Computed by
  * `DeckCollectionStatusService::statusForDeck` and rendered by
@@ -218,111 +327,26 @@ export type PerCardCompanionKey =
  * `commander_banned` carries the banned commanders' names directly because
  * commanders are not part of the deck-card lookup map.
  */
-export type DeckViolation =
-    | { type: "pool_legality"; card_ids: string[] }
-    | { type: "copy_limit"; card_ids: string[] }
-    | { type: "color_identity"; card_ids: string[] }
-    | { type: "deck_size_min"; current: number; min: number }
-    | { type: "deck_size_max"; current: number; max: number }
-    | { type: "sideboard_size_max"; current: number; max: number }
-    | { type: "commander_banned"; names: string[] }
-    | { type: "companion_restriction"; message_key: PerCardCompanionKey; card_ids: string[] }
-    | { type: "companion_size_restriction"; message_key: "yorion"; current: number; min: number };
-
 /**
- * One result row returned by the deck card search API.
+ * Rulebreaker state for the deck header, or null when the deck is not led by
+ * one — which is every deck today except a handful.
  *
- * Same shape for both the oracle endpoint (`/card-search/oracle`) and the
- * printings endpoint (`/card-search/printings`). `printing` is nullable on
- * the oracle path in the rare case an oracle card has no default card
- * printing yet; the printings path always populates it.
+ * `enforced` is false while a Rulebreaker is recognised but its rule is not
+ * modelled on the backend yet. The badge then names the card without claiming
+ * the deck is validated against it: the cards are from an unreleased set whose
+ * oracle text may still be re-templated.
  */
-export interface DeckSearchResult {
-    oracle_id: string;
-    name: string;
-    cmc: number;
-    color_identity: string | null;
-    /**
-     * True when adding this card would break the deck's current companion
-     * restriction. Soft signal — the add is not blocked, the frontend just
-     * renders a warning badge. Always `false` (or absent) when the deck has
-     * no companion, and always `false` for Lutri/Umori/Yorion profiles for
-     * now (they need deck-state and haven't been wired through).
-     */
-    violates_companion?: boolean;
-    printing: DefaultCardImage | null;
-}
-
-/** One face of a quick-add result — same shape as commander faces. */
-export interface QuickAddCardFace {
-    type_line: string | null;
-    mana_cost: string | null;
-}
-
-/**
- * One result row from the quick-add oracle endpoint
- * (`/api/decks/{deck}/oracle-cards`).
- *
- * Oracle-level (one row per oracle card, no printings). `faces` carries the
- * per-face `type_line` + `mana_cost` so the UI can render multi-faced cards.
- * `default_card_id` is the newest printing's UUID, used for the add-card POST.
- * `is_basic_land` and `has_unlimited_copies` flag cards exempt from the format's
- * per-card copy limit ("a deck can have any number of cards named X" rule), so
- * the result row should stay in the popover after add instead of being removed.
- */
-export interface QuickAddCardResult {
-    id: string;
-    name: string;
-    color_identity: string | null;
-    default_card_id: string | null;
-    is_basic_land: boolean;
-    has_unlimited_copies: boolean;
-    faces: QuickAddCardFace[];
-}
-
-/**
- * Three-part card count for the deck badge. Mainboard includes commanders
- * (zone=command counts toward the legal deck size). Maybeboard rows are
- * intentionally excluded — they're a scratch pile, not part of the deck.
- */
-export interface DeckCardCount {
-    /** Mainboard + command zone — the legal deck size. */
-    main: number;
-    /** Companion (zone=companion). Always 0 or 1. */
-    companion: number;
-    /** Sideboard (zone=side). */
-    side: number;
-}
-
-/** Sum of every part — mainboard + companion + sideboard. */
-export function totalDeckCardCount(count: DeckCardCount): number {
-    return count.main + count.companion + count.side;
-}
-
-/** Deck metadata as passed by the controller. */
-export interface DeckMeta {
-    id: string;
-    name: string;
-    description: string | null;
-    format: string;
-    state: string;
-    visibility: string;
-    colors: string | null;
-    bracket: number | null;
-    card_count: DeckCardCount;
-    /** Sum of (deck_cards.quantity × default_card price) + commanders + companion, in the request user's currency (eur/usd). */
-    total_worth: number;
-    max_deck_size: number | null;
-    max_sideboard_size: number;
-    max_copies: number;
-    is_singleton: boolean;
-    enforces_color_identity: boolean;
-    allows_companion: boolean;
-    /** Oracle names of companions banned in this format (e.g. Lutri in Commander). */
-    banned_as_companion: string[];
-    /** Whether the format uses the Game Changer list — gates the per-card GC badge in the UI. */
-    uses_game_changer_list: boolean;
-    last_activity: string;
-    /** Deck hero / banner art — the chosen printing's art crop, or null. */
-    hero_card: DefaultCardArtCrop | null;
-}
+export type DeckRulebreaker = {
+    /** Oracle name of the commander granting the relaxation. */
+    name: string | null;
+    /** Whether the rule is actually implemented, not merely recognised. */
+    enforced: boolean;
+    /** i18n key suffix under `pages.deck.rulebreaker.rules.*`, null when unenforced. */
+    messageKey: string | null;
+    /** Whether this commander asks the pilot to nominate a colour (Tolabow only). */
+    requiresColorChoice: boolean;
+    /** The nominated colour, or null when unset — a legal state granting no widening. */
+    color: string | null;
+    /** The deck's own identity, so the picker can disable colours it already covers. */
+    deckIdentity: string;
+};
