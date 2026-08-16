@@ -103,7 +103,22 @@ export const serverEnv: Record<string, string> = {
     CACHE_STORE: "database",
     QUEUE_CONNECTION: "sync",
     /* No Mailtrap. Password-reset specs read the log, not an inbox. */
-    MAIL_MAILER: "log"
+    MAIL_MAILER: "log",
+    /*
+     * PINNED, AND THIS ONE COST A RED CI RUN. `config/mail.php` falls back to
+     * `hello@example.com` only when the variable is ABSENT — and `.env.example`
+     * ships `MAIL_FROM_ADDRESS=` with an empty value, which `env()` returns as
+     * `""` rather than null. So on a machine whose `.env` came from the example
+     * (which is every CI runner), the registration mail had no `From` header and
+     * Symfony Mime threw `LogicException` — after the user row was committed.
+     * The request 500'd, the account existed, and the next validation round
+     * reported the name as already taken.
+     *
+     * It passed locally only because the developer's own `.env` fills these in,
+     * which is exactly the dependency this whole block exists to remove.
+     */
+    MAIL_FROM_ADDRESS: "e2e@cantrip.test",
+    MAIL_FROM_NAME: "cantrip.me e2e"
 };
 
 /** Run an artisan command with the E2E overrides applied, returning its stdout. */
