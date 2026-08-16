@@ -305,6 +305,92 @@ final class OracleNameSearch
     }
 
     /**
+     * Order a name search: exact, then prefix, then everything else, with a
+     * shortest-name tiebreaker.
+     *
+     * ONE IMPLEMENTATION, THREE CALLERS, deliberately. This logic lived as a
+     * private copy in each of DeckCardSearchService, CommandZoneService and
+     * DefaultCardSearchService, and they drifted: a translation-aware fix
+     * applied to the first left the commander picker ranking "Toba" as
+     * Mana Flare, Spirit Flare, Rush of Blood — cards whose only connection to
+     * the query is that the Japanese for "Flare" transliterates to
+     * `hotobashiru`, which contains "toba" mid-word — while Tobias Andrion,
+     * whose Japanese name `tobaiasu andorion` actually starts with it, placed
+     * sixth. Three copies of a ranking rule is how that happens.
+     *
+     * The tiers:
+     *
+     *   0  exact match on the English name, or on any translation
+     *   1  prefix match on either
+     *   2  prefix match on the first segment alone
+     *   3  everything else — matched by the WHERE, unranked
+     *
+     * Tier 2 exists because segments are AND-ed as order-independent
+     * `%segment%`: "urza tower" matches Urza's Tower, whose searchable_name is
+     * "urzas tower" and is therefore neither equal to nor prefixed by the
+     * joined query. Without it that card falls to the catch-all and gets
+     * ordered by name length, which is unrelated to what was typed.
+     *
+     * Translation branches are equality and prefix only — both index seeks on
+     * `(lang, searchable_name)`. A leading-wildcard tier would be a scan per
+     * candidate row, and ranking runs over the whole matched set.
+     *
+     * @param  Builder<OracleCard>|QueryBuilder  $query
+     * @param  string[]  $segments  Normalized segments (from {@see CardNameNormalizer::normalize}).
+     * @param  string  $searchableColumn  Fully-qualified normalized-name column to rank on.
+     * @param  string|null  $nameColumn  Display-name column for the tiebreaker; null to skip it (prefilter slices that never select a name).
+     * @param  bool  $withTranslations  False for queries not rooted at `oracle_cards` — the EXISTS correlates on `oracle_cards.id`.
+     */
+    public static function applyNameRanking(
+        Builder|QueryBuilder $query,
+        array $segments,
+        string $searchableColumn = 'oracle_cards.searchable_name',
+        ?string $nameColumn = 'oracle_cards.name',
+        bool $withTranslations = true,
+    ): void {
+        if ($segments !== []) {
+            // The WHOLE normalized query, not just the first segment: for
+            // "lightning bolt" only the full string can ever be an exact
+            // match, so a first-segment-only form could never fire on a
+            // multi-word name.
+            $full = implode(' ', $segments);
+            $first = $segments[0];
+
+            $exactTier = "{$searchableColumn} = ?";
+            $prefixTier = "{$searchableColumn} LIKE ?";
+            $bindings = [$full];
+
+            if ($withTranslations) {
+                $exactTier .= ' OR '.self::translationMatchesSql('=');
+                $bindings = array_merge($bindings, array_fill(0, self::translationMatchesBindingCount(), $full));
+            }
+
+            $bindings[] = $full.'%';
+
+            if ($withTranslations) {
+                $prefixTier .= ' OR '.self::translationMatchesSql('LIKE');
+                $bindings = array_merge($bindings, array_fill(0, self::translationMatchesBindingCount(), $full.'%'));
+            }
+
+            $bindings[] = $first.'%';
+
+            $query->orderByRaw(
+                "CASE
+                    WHEN {$exactTier} THEN 0
+                    WHEN {$prefixTier} THEN 1
+                    WHEN {$searchableColumn} LIKE ? THEN 2
+                    ELSE 3
+                END",
+                $bindings
+            );
+        }
+
+        if ($nameColumn !== null) {
+            $query->orderByRaw("CHAR_LENGTH({$nameColumn})")->orderBy($nameColumn);
+        }
+    }
+
+    /**
      * Apply the multi-segment name filter onto an OracleCard query,
      * OR-ed against the two translation tables for each segment.
      *

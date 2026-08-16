@@ -101,7 +101,7 @@ final class DeckCardSearchService
 
         self::applyColorIdentityFilter($query, $deck);
         OracleNameSearch::applyMultiTableNameSegments($query, $parsed['normalized_name_segments']);
-        self::applyNameRanking($query, 'oracle_cards.searchable_name', 'oracle_cards.name', $parsed['normalized_name_segments']);
+        OracleNameSearch::applyNameRanking($query, $parsed['normalized_name_segments']);
 
         $oracleCards = $query
             ->select('oracle_cards.id', 'oracle_cards.name', 'oracle_cards.cmc', 'oracle_cards.color_identity', 'oracle_cards.searchable_name')
@@ -223,7 +223,7 @@ final class DeckCardSearchService
             );
         }
 
-        self::applyNameRanking($query, 'oracle_cards.searchable_name', 'oracle_cards.name', $parsed['normalized_name_segments']);
+        OracleNameSearch::applyNameRanking($query, $parsed['normalized_name_segments']);
 
         // Over-fetch so the per-card-max filter below still produces a full
         // page when the deck already contains many matching cards.
@@ -375,12 +375,7 @@ final class DeckCardSearchService
         // Order phase 1 deterministically so the 200-oracle slice is stable.
         // For name queries, this ranks exact > prefix > contains; for token-
         // only queries, it falls through to the alphabetical tiebreaker.
-        self::applyNameRanking(
-            $oracleQuery,
-            'oracle_cards.searchable_name',
-            'oracle_cards.name',
-            $parsed['normalized_name_segments']
-        );
+        OracleNameSearch::applyNameRanking($oracleQuery, $parsed['normalized_name_segments']);
 
         /** @var Collection<string, OracleCard> $oraclesById */
         $oraclesById = $oracleQuery
@@ -425,25 +420,17 @@ final class DeckCardSearchService
             $query->where('default_cards.collector_number', $parsed['collector_number']);
         }
 
-        // Same tier structure as phase 1's {@see applyNameRanking}, minus the
-        // translation branches — this orders PRINTINGS and runs against
-        // `default_cards`, which the translation tables do not key on. Kept in
-        // step so the two phases cannot disagree about which of two oracles
-        // ranks higher for a multi-word query.
-        $segments = $parsed['normalized_name_segments'];
-        if ($segments !== []) {
-            $full = implode(' ', $segments);
-            $query->orderByRaw(
-                'CASE
-                    WHEN default_cards.searchable_name = ? THEN 0
-                    WHEN default_cards.searchable_name LIKE ? THEN 1
-                    WHEN default_cards.searchable_name LIKE ? THEN 2
-                    ELSE 3
-                END',
-                [$full, $full.'%', $segments[0].'%']
-            );
-        }
-        $query->orderByRaw('CHAR_LENGTH(default_cards.name)')->orderBy('default_cards.name');
+        // Printings, so no translation branches — this query is rooted at
+        // `default_cards`, which the translation tables do not key on. Same
+        // tiers otherwise, so the two phases cannot disagree about which
+        // oracle ranks higher for a multi-word query.
+        OracleNameSearch::applyNameRanking(
+            $query,
+            $parsed['normalized_name_segments'],
+            'default_cards.searchable_name',
+            'default_cards.name',
+            withTranslations: false,
+        );
 
         $rows = $query
             ->limit(self::PRINTINGS_LIMIT)
@@ -545,72 +532,5 @@ final class DeckCardSearchService
 
             $rulebreaker?->applyExemptionsTo($q, $deck, $colors);
         });
-    }
-
-    /**
-     * Order by exact/prefix/contains rank on the first segment, then by
-     * name length (shortest wins), then alphabetical.
-     *
-     * @param  Builder<OracleCard>  $query
-     * @param  string[]  $segments
-     */
-    private static function applyNameRanking(Builder $query, string $searchableColumn, string $nameColumn, array $segments): void
-    {
-        if ($segments !== []) {
-            // Ranked against the WHOLE normalized query, not just the first
-            // segment. For a one-word query the two are identical; for
-            // "lightning bolt" only the whole string can ever be an exact
-            // match, so the old first-segment form could never fire on a
-            // multi-word name.
-            $full = implode(' ', $segments);
-
-            // Translations rank alongside the English name, because a card
-            // matched ONLY through a translation otherwise scores nothing and
-            // falls through to the length tiebreaker — i.e. gets ordered by
-            // how long its ENGLISH name happens to be, which is unrelated to
-            // the query. Searching "稲妻" (→ "dao qi", a unique translation
-            // belonging to exactly one card) returned twenty other cards and
-            // not Lightning Bolt, purely because "Lightning Bolt" is 14
-            // characters and "Seeker" is 6.
-            //
-            // Both branches are index seeks on `(lang, searchable_name)`, so
-            // this asks only the two questions that index can answer: equality
-            // and prefix. A leading-wildcard rank would be a scan per row.
-            $exactTranslation = OracleNameSearch::translationMatchesSql('=');
-            $prefixTranslation = OracleNameSearch::translationMatchesSql('LIKE');
-
-            // The FIRST segment keeps a tier of its own alongside the full
-            // query. Segments are AND-ed as order-independent `%segment%`, so
-            // a card can satisfy the WHERE without containing them adjacent
-            // and in order: "urza tower" matches Urza's Tower, whose
-            // searchable_name is "urzas tower", which is neither equal to nor
-            // prefixed by "urza tower". Ranking on the full string alone would
-            // drop it to the catch-all tier and order it by English name
-            // length — reintroducing, for a different query shape, exactly the
-            // bug this ranking exists to remove.
-            $first = $segments[0];
-
-            $bindings = array_merge(
-                [$full],
-                array_fill(0, OracleNameSearch::translationMatchesBindingCount(), $full),
-                [$full.'%'],
-                array_fill(0, OracleNameSearch::translationMatchesBindingCount(), $full.'%'),
-                [$first.'%'],
-            );
-
-            $query->orderByRaw(
-                "CASE
-                    WHEN {$searchableColumn} = ? THEN 0
-                    WHEN {$exactTranslation} THEN 0
-                    WHEN {$searchableColumn} LIKE ? THEN 1
-                    WHEN {$prefixTranslation} THEN 1
-                    WHEN {$searchableColumn} LIKE ? THEN 2
-                    ELSE 3
-                END",
-                $bindings
-            );
-        }
-
-        $query->orderByRaw("CHAR_LENGTH({$nameColumn})")->orderBy($nameColumn);
     }
 }

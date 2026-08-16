@@ -62,14 +62,22 @@ class SetDeckRulebreakerColorRequest extends FormRequest
             $deck->loadMissing('commanders.oracleCard');
             $profile = RulebreakerRegistry::forDeck($deck);
 
-            if ($profile === null || ! $profile->requiresColorChoice()) {
-                $validator->errors()->add('color', __('decks.rulebreaker.errors.no_choice_to_make'));
+            $color = $this->input('color');
+            $isClearing = ! is_string($color) || $color === '';
 
+            // Clearing is allowed even when the deck's commander grants no
+            // choice, and that is not a loophole. Swapping the commander away
+            // from a Rulebreaker leaves the stored colour behind AND hides the
+            // badge, so refusing this would freeze the column at a value with
+            // no route to remove it — and swapping the Rulebreaker back in
+            // would silently restore a colour the pilot never re-chose.
+            if ($isClearing) {
                 return;
             }
 
-            $color = $this->input('color');
-            if (! is_string($color) || $color === '') {
+            if ($profile === null || ! $profile->requiresColorChoice()) {
+                $validator->errors()->add('color', __('decks.rulebreaker.errors.no_choice_to_make'));
+
                 return;
             }
 

@@ -107,7 +107,6 @@ function closePopover(): void {
 }
 
 function onSelect(target: Color | null): void {
-    closePopover();
     if (target === props.rulebreaker.color || processing.value) return;
     if (target !== null && unavailable.value.has(target)) return;
 
@@ -123,8 +122,13 @@ function onSelect(target: Color | null): void {
             onError: errors => {
                 error.value = errors.color ?? t("pages.deck.rulebreaker.errors.generic");
             },
+            // Closed HERE rather than on click, because the error paragraph
+            // lives inside the popover: closing first would dismiss the only
+            // surface the message can appear on, and a rejected pick would
+            // look exactly like nothing happening.
             onSuccess: () => {
                 error.value = null;
+                closePopover();
             },
             onFinish: () => {
                 processing.value = false;
@@ -198,6 +202,22 @@ function onSelect(target: Color | null): void {
     }
 
     &__menu {
+        /**
+         * The shared `.popover-content` switches to `display: flex` when open,
+         * and the default row direction lays the explanation out BESIDE the
+         * colour list — tolerable on a desktop, unusable on a phone. Every
+         * other popover in the app has a single child, so the direction never
+         * mattered until this one put a paragraph above its list.
+         */
+        flex-direction: column;
+
+        /**
+         * Wider than the shared `max-width: 50dvw`, which is sized for menus of
+         * short labels rather than a sentence of prose — on a 390px phone that
+         * cap leaves about 195px to wrap in.
+         */
+        max-width: min(90dvw, 26rem);
+
         position-anchor: v-bind(reference);
     }
 

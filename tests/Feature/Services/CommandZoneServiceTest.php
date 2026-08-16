@@ -167,4 +167,91 @@ class CommandZoneServiceTest extends TestCase
         $names = $results->pluck('name')->all();
         $this->assertNotContains('Lightning Bolt', $names);
     }
+
+    // ── Ranking and match transparency ─────────────────────────────────────
+
+    /**
+     * Regression for the shared ranking helper.
+     *
+     * ICU folds Japanese to romaji, so ほとばしる ("Flare") becomes
+     * `hotobashiru` — which contains "toba" mid-word. Searching "Toba"
+     * therefore matches seven Flare-ish cards through their translations,
+     * while Tobias Andrion matches because its Japanese name トバイアス
+     * transliterates to `tobaiasu andorion` and actually STARTS with the
+     * query.
+     *
+     * Before the ranking was shared, the commander picker scored only against
+     * the English name, so every one of these landed in the catch-all tier and
+     * was ordered by English name length: "Mana Flare" (10 chars) came first
+     * and Tobias Andrion placed sixth. A prefix match on a translation now
+     * outranks a mid-word one.
+     */
+    #[Test]
+    public function commanders_rank_a_translation_prefix_above_a_mid_word_match(): void
+    {
+        $parsed = CardSearchParser::parse('Toba');
+        $this->assertNotNull($parsed);
+
+        $results = CommandZoneService::searchCommanders(
+            CardFormat::Commander,
+            $parsed,
+            array_merge($this->defaultFilters(), ['rule0' => true]),
+        );
+
+        $names = $results->pluck('name')->all();
+        $this->assertContains('Tobias Andrion', $names);
+        $this->assertSame('Tobias Andrion', $names[0], 'a translation-prefix match must rank first');
+        $this->assertContains('Mana Flare', $names, 'mid-word translation matches still qualify, just lower');
+        $this->assertGreaterThan(
+            array_search('Tobias Andrion', $names, true),
+            array_search('Mana Flare', $names, true),
+            'Mana Flare matches only mid-word and must rank below the prefix match',
+        );
+    }
+
+    /**
+     * A result whose English name plainly does not contain the query needs to
+     * say why it is there. The deck-card search has carried this badge for a
+     * while; the commander picker shipped without it, so "Toba" returned Mana
+     * Flare with no explanation at all.
+     */
+    #[Test]
+    public function commanders_explain_a_translation_match(): void
+    {
+        $parsed = CardSearchParser::parse('Toba');
+        $this->assertNotNull($parsed);
+
+        $results = CommandZoneService::searchCommanders(
+            CardFormat::Commander,
+            $parsed,
+            array_merge($this->defaultFilters(), ['rule0' => true]),
+        );
+
+        $manaFlare = $results->firstWhere('name', 'Mana Flare');
+        $this->assertNotNull($manaFlare);
+        $this->assertNotNull($manaFlare['matched_translation'], 'a foreign-only match must be explained');
+        $this->assertSame('ja', $manaFlare['matched_translation']['lang']);
+        $this->assertSame('ほとばしる魔力', $manaFlare['matched_translation']['name']);
+    }
+
+    /**
+     * The converse: when the English name explains the match, the badge stays
+     * null rather than showing a translation the user did not search by.
+     */
+    #[Test]
+    public function commanders_stay_silent_when_the_english_name_explains_the_match(): void
+    {
+        $parsed = CardSearchParser::parse('atraxa');
+        $this->assertNotNull($parsed);
+
+        $results = CommandZoneService::searchCommanders(
+            CardFormat::Commander,
+            $parsed,
+            $this->defaultFilters(),
+        );
+
+        $atraxa = $results->firstWhere('name', "Atraxa, Praetors' Voice");
+        $this->assertNotNull($atraxa);
+        $this->assertNull($atraxa['matched_translation']);
+    }
 }

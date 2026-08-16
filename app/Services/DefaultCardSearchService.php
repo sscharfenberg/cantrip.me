@@ -92,17 +92,16 @@ final class DefaultCardSearchService
                     fn (Builder $q) => $q->where('collector_number', $parsed['collector_number'])
                 );
             }
-            // Rank phase 1 deterministically — exact > prefix > contains on
-            // the first segment — so the LIMIT slice surfaces the most likely
-            // hits if the cap still bites.
-            $first = $parsed['normalized_name_segments'][0];
-            $oracleQuery->orderByRaw(
-                'CASE
-                    WHEN oracle_cards.searchable_name = ? THEN 0
-                    WHEN oracle_cards.searchable_name LIKE ? THEN 1
-                    ELSE 2
-                END',
-                [$first, $first.'%']
+            // Rank phase 1 deterministically so the LIMIT slice surfaces the
+            // most likely hits if the cap still bites. Translation-aware,
+            // which matters more here than it looks: this decides WHICH
+            // oracles survive the prefilter, so a card matched only through a
+            // foreign name has to be able to survive it. No name tiebreaker —
+            // the slice never selects a display name.
+            OracleNameSearch::applyNameRanking(
+                $oracleQuery,
+                $parsed['normalized_name_segments'],
+                nameColumn: null,
             );
             $oracleRows = $oracleQuery
                 ->limit(self::ORACLE_PREFILTER_LIMIT)
@@ -160,17 +159,16 @@ final class DefaultCardSearchService
             ->leftJoin('sets', 'sets.id', '=', 'default_cards.set_id')
             ->leftJoin('artists', 'artists.id', '=', 'default_cards.artist_id');
 
-        $first = $normalizedSegments[0] ?? null;
-        if ($first !== null) {
-            $base->orderByRaw(
-                'CASE
-                    WHEN default_cards.searchable_name = ? THEN 0
-                    WHEN default_cards.searchable_name LIKE ? THEN 1
-                    ELSE 2
-                END',
-                [$first, $first.'%']
-            );
-        }
+        // Rooted at `default_cards`, which the translation tables do not key
+        // on, so no translation branches here — the oracle-level phase above
+        // has already done that work.
+        OracleNameSearch::applyNameRanking(
+            $base,
+            $normalizedSegments,
+            'default_cards.searchable_name',
+            nameColumn: null,
+            withTranslations: false,
+        );
         $base->orderBy('default_cards.name');
 
         return $base->limit(self::RESULT_LIMIT)->get($columns);

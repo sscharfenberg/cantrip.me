@@ -93,6 +93,31 @@
         grid-row: 2;
     }
 
+    /**
+     * Why this result matched when its English name does not contain the
+     * query. Its own row rather than beside the name: the value is a foreign
+     * card name, which can be long, and rows 1 and 2 are already a two-column
+     * split that would squeeze it.
+     */
+    &__translation {
+        display: flex;
+        align-items: center;
+        grid-column: 1 / -1;
+        grid-row: 3;
+
+        opacity: 0.75;
+
+        gap: 0.35rem;
+
+        font-size: 0.8rem;
+        font-weight: normal;
+    }
+
+    &__flag {
+        width: 1rem;
+        height: auto;
+    }
+
     &__partner {
         grid-column: 2;
         grid-row: 2;

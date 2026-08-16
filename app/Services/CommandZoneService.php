@@ -7,6 +7,7 @@ use App\Models\OracleCard;
 use App\Models\OracleCardFace;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Auth;
 
 class CommandZoneService
 {
@@ -68,9 +69,9 @@ class CommandZoneService
             $query->legalIn($format);
         }
 
-        self::applyNameRanking($query, $parsed['normalized_name_segments']);
+        OracleNameSearch::applyNameRanking($query, $parsed['normalized_name_segments']);
 
-        $candidates = $query->select('id', 'name', 'color_identity')
+        $candidates = $query->select('id', 'name', 'color_identity', 'searchable_name')
             ->with(['faces' => fn ($q) => $q->select('oracle_card_id', 'face_index', 'mana_cost', 'type_line', 'oracle_text', 'power', 'toughness', 'loyalty')
                 ->orderBy('face_index')])
             ->limit(self::CANDIDATE_LIMIT)
@@ -78,11 +79,20 @@ class CommandZoneService
 
         $bannedAsCommander = $filters['rule0'] ? [] : $format->rules()->bannedAsCommander();
 
-        return $candidates
+        $shown = $candidates
             ->filter(fn (OracleCard $card) => self::passesCommanderFilters($card, $filters, $bannedAsCommander))
             ->take(self::RESULT_LIMIT)
-            ->values()
-            ->map(fn (OracleCard $card) => self::mapCommanderCard($card));
+            ->values();
+
+        // Resolved AFTER the take(), so the lookup covers only the rows that
+        // will actually be shown rather than the whole candidate pool.
+        $matched = OracleNameSearch::resolveMatchedTranslations(
+            $shown->mapWithKeys(fn (OracleCard $card) => [$card->id => (string) $card->searchable_name])->all(),
+            $parsed['normalized_name_segments'],
+            Auth::user()?->locale->value,
+        );
+
+        return $shown->map(fn (OracleCard $card) => self::mapCommanderCard($card, $matched[$card->id] ?? null));
     }
 
     /**
@@ -180,7 +190,7 @@ class CommandZoneService
      *
      * @return array{id: string, name: string, color_identity: string|null, companion_type: string|null, partner_with_name: string|null, faces: array}
      */
-    public static function mapCommanderCard(OracleCard $card): array
+    public static function mapCommanderCard(OracleCard $card, ?array $matchedTranslation = null): array
     {
         $allOracleText = $card->faces->pluck('oracle_text')->implode("\n");
         $frontTypeLine = $card->faces->first()?->type_line ?? '';
@@ -196,6 +206,10 @@ class CommandZoneService
                 'type_line' => $face->type_line,
                 'mana_cost' => $face->mana_cost,
             ])->values(),
+            // Why this card is in the results when its English name plainly
+            // does not match. Null when the English name explains it, which is
+            // the overwhelming majority — see resolveMatchedTranslations().
+            'matched_translation' => $matchedTranslation,
         ];
     }
 
@@ -259,9 +273,9 @@ class CommandZoneService
             }
         }
 
-        self::applyNameRanking($query, $parsed['normalized_name_segments']);
+        OracleNameSearch::applyNameRanking($query, $parsed['normalized_name_segments']);
 
-        $candidates = $query->select('id', 'name', 'color_identity')
+        $candidates = $query->select('id', 'name', 'color_identity', 'searchable_name')
             ->with(['faces' => fn ($q) => $q->select('oracle_card_id', 'face_index', 'mana_cost', 'type_line', 'oracle_text', 'power', 'toughness', 'loyalty')
                 ->orderBy('face_index')])
             ->limit(self::CANDIDATE_LIMIT)
@@ -272,10 +286,19 @@ class CommandZoneService
             : self::isFrontFaceInstantOrSorcery($card)
         );
 
-        return $matches
+        $shown = $matches
             ->take(self::RESULT_LIMIT)
-            ->values()
-            ->map(fn (OracleCard $card) => self::mapCommanderCard($card));
+            ->values();
+
+        // Resolved AFTER the take(), so the lookup covers only the rows that
+        // will actually be shown rather than the whole candidate pool.
+        $matched = OracleNameSearch::resolveMatchedTranslations(
+            $shown->mapWithKeys(fn (OracleCard $card) => [$card->id => (string) $card->searchable_name])->all(),
+            $parsed['normalized_name_segments'],
+            Auth::user()?->locale->value,
+        );
+
+        return $shown->map(fn (OracleCard $card) => self::mapCommanderCard($card, $matched[$card->id] ?? null));
     }
 
     /** Front face is a Planeswalker with loyalty (i.e. an actual walker, not a "is also" card). */
@@ -335,31 +358,5 @@ class CommandZoneService
         }
 
         return ['type' => null, 'partner_with_name' => null];
-    }
-
-    /**
-     * Order a query by exact/prefix/contains rank on the first normalized
-     * segment, falling back to name length and alphabetical order.
-     *
-     * Expects the query to already have one WHERE per segment on the
-     * `searchable_name` column; this only adds ORDER BY clauses.
-     *
-     * @param  string[]  $normalizedSegments
-     */
-    private static function applyNameRanking(Builder $query, array $normalizedSegments): void
-    {
-        $first = $normalizedSegments[0] ?? null;
-        if ($first !== null) {
-            $query->orderByRaw(
-                'CASE
-                    WHEN searchable_name = ? THEN 0
-                    WHEN searchable_name LIKE ? THEN 1
-                    ELSE 2
-                END',
-                [$first, $first.'%']
-            );
-        }
-
-        $query->orderByRaw('CHAR_LENGTH(name)')->orderBy('name');
     }
 }

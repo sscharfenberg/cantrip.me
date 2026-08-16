@@ -135,6 +135,26 @@ class DeckRulebreakerColorTest extends TestCase
     }
 
     /**
+     * Regression: swapping the commander away from a Rulebreaker leaves the
+     * stored colour behind and hides the badge, so if the guard also refused
+     * a clear the column would be frozen with no route to remove it — and
+     * swapping the Rulebreaker back in would silently restore a colour the
+     * pilot never re-chose.
+     */
+    #[Test]
+    public function a_stale_nomination_can_still_be_cleared_after_the_commander_changes(): void
+    {
+        [$user, $deck] = $this->tolabowDeck(commanderName: 'Talrand, Sky Summoner');
+        $deck->update(['rulebreaker_color' => 'R']);
+
+        $this->actingAs($user)
+            ->patch(route('decks.rulebreaker-color.set', $deck), ['color' => null])
+            ->assertRedirect(route('decks.show', $deck));
+
+        $this->assertNull($deck->fresh()->rulebreaker_color);
+    }
+
+    /**
      * @return array{0: User, 1: Deck}
      */
     private function tolabowDeck(string $commanderName = 'Tolabow, Loch Rascal'): array

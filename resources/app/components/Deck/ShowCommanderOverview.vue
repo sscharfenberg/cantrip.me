@@ -18,12 +18,21 @@ export type CommanderResult = {
         "partner" | "partner_with" | "partner_type" | "friends_forever" | "doctors_companion" | "background" | null;
     partner_with_name: string | null;
     faces: CommanderFace[];
+    /**
+     * Why this card matched when its English name does not contain the query —
+     * e.g. searching "Toba" surfaces Mana Flare because the Japanese
+     * ほとばしる魔力 transliterates to `hotobashiru mo li`. Null when the
+     * English name explains the match, which is almost always.
+     */
+    matched_translation?: { lang: string; name: string } | null;
 };
 defineProps<{
     card: CommanderResult;
     /** CSS selector for the FloatingVue tooltip container. Defaults to `body`. */
     tooltipContainer?: string;
 }>();
+/** Resolve the flag image for a language code, as {@see CardFaceImage} does. */
+const flagSrc = (lang: string): string => new URL(`../../assets/flags/${lang}.svg`, import.meta.url).href;
 /** Color letter → i18n key mapping in WUBRG order. */
 const COLOR_NAMES: Record<string, string> = {
     W: "enums.colors.W",
@@ -49,6 +58,14 @@ const ciTooltip = (ci: string | null): string => {
 
 <template>
     <span class="commander-picker__name">{{ card.name }}</span>
+    <span v-if="card.matched_translation" class="commander-picker__translation" @click.stop>
+        <img
+            :src="flagSrc(card.matched_translation.lang)"
+            :alt="card.matched_translation.lang.toUpperCase()"
+            class="commander-picker__flag"
+        />
+        {{ card.matched_translation.name }}
+    </span>
     <span
         class="commander-picker__ci"
         v-tooltip="{ content: ciTooltip(card.color_identity), container: tooltipContainer ?? false }"
