@@ -1,0 +1,75 @@
+# cantrip.me — MariaDB for the end-to-end test suite
+# ==================================================
+# THIS IS NOT A DEVELOPMENT DATABASE. It exists for one reason: the Playwright
+# suite drives the real app, and the app's deck-building core is MariaDB-only —
+# `DeckCardSearchService` and `CommandZoneService` filter colour identity with
+# `REGEXP`, which SQLite cannot run. That is the same engine split `phpunit.xml`
+# already encodes as the `Local` (SQLite) and `Staging` (MariaDB) suites.
+#
+# Local development still happens against staging (see CLAUDE.md, "Staging
+# Server as Dev Environment"). Nothing here changes that, and nothing here is
+# reachable from the app's normal `.env`.
+#
+#   npm run e2e:db:up      # start it and wait until it answers
+#   npm run e2e:db:down    # stop it and discard everything in it
+#
+# See docs/testing.md for the full picture.
+
+name: cantrip-e2e
+
+services:
+    # MariaDB 11.8 — the major staging and production run (11.8.6), because the
+    # whole point of this container is to be the same SQL dialect. A test that
+    # passes here against a different major proves less than it appears to.
+    db:
+        image: mariadb:11.8
+        environment:
+            MARIADB_DATABASE: cantrip_e2e
+            MARIADB_USER: cantrip_e2e
+            MARIADB_PASSWORD: cantrip_e2e
+            # Throwaway credentials for a throwaway database that is only ever
+            # reachable from this machine. Kept in the file rather than in an
+            # `.env` on purpose: there is no secret here to leak, and a
+            # placeholder that looks like a secret invites someone to treat the
+            # container as though it held real data.
+            MARIADB_ROOT_PASSWORD: cantrip_e2e
+        command:
+            # The migrations pin `utf8mb4_unicode_ci` per table, but the server
+            # default decides what a `CREATE DATABASE` with no collation gets —
+            # which is what the image does on first boot. Setting it here keeps
+            # the e2e schema identical to staging's rather than "identical
+            # except the tables nobody thought to pin".
+            - --character-set-server=utf8mb4
+            - --collation-server=utf8mb4_unicode_ci
+        ports:
+            # 3307, DELIBERATELY NOT 3306, and this is the load-bearing line in
+            # the file. `.env` points local dev at 127.0.0.1:3306/`mbos`; on a
+            # matching port a stray `DB_HOST` or a forgotten tunnel could let
+            # the app talk to this database, or let an e2e run wipe a real one.
+            # A different port makes both mistakes structurally impossible
+            # rather than merely unlikely.
+            #
+            # Bound to loopback, not to every interface: an open MariaDB on
+            # cantrip_e2e/cantrip_e2e is found by a subnet scan in seconds, and
+            # a laptop is not always on a network you trust.
+            - "127.0.0.1:3307:3306"
+        tmpfs:
+            # IN RAM, WITH NO VOLUME, which is a correctness choice before it is
+            # a speed one. Every e2e run starts with `migrate:fresh`, so nothing
+            # here is ever meant to outlive it — and a persistent volume would
+            # let a half-finished run leave state that the next one silently
+            # inherits, which is the exact class of failure this suite exists to
+            # catch rather than produce. Stopping the container is a guaranteed
+            # reset. It is also considerably faster, which is the bonus.
+            - /var/lib/mysql
+        healthcheck:
+            # The image's own script, which waits for InnoDB to finish
+            # initialising rather than merely for the port to open — a plain
+            # port check goes green while the server is still refusing
+            # connections, and the first migration then fails on a database
+            # that was about to be perfectly fine.
+            test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+            interval: 3s
+            timeout: 3s
+            retries: 30
+            start_period: 30s

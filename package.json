@@ -17,6 +17,8 @@
         "dev": "npm run preinstall && vite --host",
         "build": "npm run preinstall && npm run lint && run-p type-check \"build-only {@}\" -- && npm run icons",
         "build-only": "vite build",
+        "e2e:db:up": "docker compose -f docker-compose.e2e.yml up -d --wait",
+        "e2e:db:down": "docker compose -f docker-compose.e2e.yml down",
         "test": "vitest run",
         "test:watch": "vitest",
         "test:coverage": "vitest run --coverage",
