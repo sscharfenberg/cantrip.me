@@ -9,11 +9,9 @@
  * fact with the staleness removed: CI rewrites it on every run, so it is either current or
  * visibly `unknown`.
  *
- * WHY JUNIT AND NOT EACH RUNNER'S OWN JSON. Vitest emits rich JSON and PHPUnit emits none —
- * `--log-junit` is the only machine-readable output the two have in common, so one parser
- * serves both instead of two shapes to keep in step. It is also what a Playwright badge would
- * need if the browser suite ever joins CI; that suite is deliberately local-only today (see
- * docs/testing.md), which is why nothing here asks for one.
+ * WHY JUNIT AND NOT EACH RUNNER'S OWN JSON. Vitest and Playwright both emit rich JSON, and
+ * PHPUnit emits none — `--log-junit` is the only machine-readable output the three have in
+ * common, so one parser serves all three instead of three shapes to keep in step.
  *
  * A MISSING FILE IS `unknown`, NOT A FAILURE. If a job dies before its tests run there is no
  * XML, and the honest badge says so; leaving the previous run's green in place would be the

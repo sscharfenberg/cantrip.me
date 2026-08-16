@@ -15,11 +15,11 @@ import { BASE_URL, PORT, STORAGE_STATE, serverEnv } from "./tests/e2e/support/en
  * tests/e2e/support/environment.ts for why the environment is overridden rather than
  * configured, and for the `public/hot` trap that silently blanks every asset.
  *
- * DELIBERATELY LOCAL-ONLY. It is not in `.github/workflows/ci.yml`, and that is a
- * decision rather than an omission: a browser failure wants a trace, a screenshot and a
- * re-run of one spec, none of which a CI round trip gives you cheaply. Putting it there
- * later means adding a MariaDB service container and a `npx playwright install --with-deps
- * chromium` step; nothing in this file assumes it will not happen.
+ * IT RUNS IN CI AND LOCALLY, AND THE LOCAL RUN IS THE ONE THAT MATTERS WHEN IT BREAKS.
+ * A browser failure wants a trace, a screenshot and a re-run of one spec, none of which a
+ * CI round trip gives you cheaply — so the harness starts everything it needs itself
+ * (`npm run e2e` and nothing else), and CI runs that exact command rather than a bespoke
+ * pipeline of its own. Same database container, same setup, same failure.
  */
 export default defineConfig({
     testDir: "./tests/e2e",
@@ -34,12 +34,19 @@ export default defineConfig({
      * connection at a time however many workers ask. So workers past the first buy
      * overlap on the browser side only, and each extra one lengthens the queue in front
      * of the bottleneck.
+     *
+     * ONE worker in CI. A shared runner has fewer, slower cores than a developer's machine
+     * and nothing else to do, so the second worker buys little and costs determinism —
+     * and a red CI run is the one you cannot attach a debugger to.
      */
     fullyParallel: true,
-    workers: 2,
+    workers: process.env.CI ? 1 : 2,
 
     /* A test that only passes sometimes is worse than no test — never let one land green. */
     retries: 0,
+
+    /* A `test.only` left in a commit turns the whole suite into one test. Not on CI it does not. */
+    forbidOnly: Boolean(process.env.CI),
 
     /*
      * ROOM FOR THE SERVER TO STALL. `artisan serve` answers one request at a time, so with
@@ -59,7 +66,15 @@ export default defineConfig({
     timeout: 60_000,
     expect: { timeout: 15_000 },
 
-    reporter: [["list"], ["html", { open: "never" }]],
+    /*
+     * The JUnit file is CI-only and has ONE reader: resources/build/testBadges.ts, which
+     * turns each suite's totals into the README's badge. It must be written even when the
+     * run fails — that is the point, since a red badge has to be able to say how many
+     * failed. The `github` reporter annotates the failing line in the diff view.
+     */
+    reporter: process.env.CI
+        ? [["github"], ["junit", { outputFile: "reports/playwright.xml" }], ["html", { open: "never" }]]
+        : [["list"], ["html", { open: "never" }]],
 
     use: {
         baseURL: BASE_URL,
@@ -102,7 +117,8 @@ export default defineConfig({
     /*
      * `--no-reload` so the server does not restart mid-run when a file is touched, and a
      * port that is neither 8000 nor mixtape's 8100 (see environment.ts). Reused when
-     * already up, which makes re-running a single spec fast.
+     * already up, which makes re-running a single spec fast — but never on CI, where
+     * anything already holding that port is a leftover, not a convenience.
      */
     webServer: {
         command: `php artisan serve --host=127.0.0.1 --port=${PORT} --no-reload`,
@@ -114,7 +130,7 @@ export default defineConfig({
          * bootstrap/app.php, and touches nothing.
          */
         url: `${BASE_URL}/up`,
-        reuseExistingServer: true,
+        reuseExistingServer: !process.env.CI,
         timeout: 60_000,
         stdout: "ignore",
         stderr: "pipe",

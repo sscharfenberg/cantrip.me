@@ -31,7 +31,7 @@ npm run test:coverage        # with v8 coverage report (.ts only — see vitest.
 npm run test -- harness      # filter by file path substring
 npm run test -- -t "echoes"  # filter by test name
 
-# End-to-end tests (Playwright) — drives the real app in Chromium, local only
+# End-to-end tests (Playwright) — drives the real app in Chromium
 npm run e2e                  # whole suite; starts the DB container + app server itself
 npm run e2e -- --grep Deck   # filter by test name
 npm run e2e:ui               # interactive runner
@@ -189,7 +189,7 @@ Conventions worth keeping:
 - The fixture is `database/seeders/E2ESeeder` — fixed ids, fixed names, fixed timestamps, no factories. `DatabaseSeeder` is unusable here: `DeckSeeder` pins printings by `(set code, collector number)` and so needs a full `scryfall:update`.
 - **Belongs here only if Vitest structurally cannot answer it** — real layout, real navigation, real database, real CSP. Anything provable with a mounted component and a mocked `fetch` is forty times cheaper in Vitest.
 - The three traps that cost the most to diagnose — a stale `public/hot` blanking every asset, a missing icon sprite making every icon-only control unclickable, and a cached config beating the environment overrides — are handled in `tests/e2e/support/environment.ts` and explained in `docs/testing.md`.
-- Not in CI, by decision: a browser failure wants a trace and a one-spec re-run, which a CI round trip does not give cheaply.
+- Runs in CI *and* locally. The CI job runs `npm run e2e` and nothing else — the harness starts its own database, build and server, so there is no second setup to keep in step and a red run reproduces with one local command. On failure CI keeps the trace as an artifact; open it with `npx playwright show-trace`.
 
 **Scryfall data sync** (background commands, not part of normal dev):
 - `php artisan scryfall:update` orchestrates the full sync via the shadow-table flow (see "Shadow-table architecture" below).

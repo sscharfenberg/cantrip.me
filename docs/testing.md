@@ -84,7 +84,7 @@ Nothing needs to be running first. `globalSetup` starts the database container i
 
 **It exists for the questions Vitest structurally cannot answer.** jsdom has no layout, no navigation, no Inertia server and no database, so "a page really boots with its assets", "auth genuinely gates this route" and "the deck query comes back from a real `REGEXP`" all live here rather than there. Anything that can be proven with a mounted component and a mocked `fetch` belongs in Vitest, which is roughly forty times faster per assertion.
 
-**It is deliberately not in CI.** A browser failure wants a trace, a screenshot and a re-run of one spec, and a CI round trip gives you none of those cheaply. Putting it there later needs a MariaDB service container and an `npx playwright install --with-deps chromium` step; nothing in `playwright.config.ts` assumes it will not happen.
+**It runs in CI too, and the CI job runs `npm run e2e` and nothing else.** That is the point of the harness starting its own database, build and server: the pipeline has no setup of its own to drift out of step, and a red CI run is reproducible with one command on your machine. When it does go red, download the `playwright-report` artifact and open the trace with `npx playwright show-trace` — a CI log alone tells you very little about a browser.
 
 ### Layout
 

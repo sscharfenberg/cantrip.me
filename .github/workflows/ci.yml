@@ -110,15 +110,88 @@ jobs:
           path: reports/vitest.xml
           retention-days: 1
 
-  # The numbers behind the README's badges. A job of its own because each suite's count
-  # comes from a different one above, and two jobs writing one branch would race.
+  # The browser suite. The expensive job: it needs PHP to serve the app, Node to build its
+  # assets, Docker for the database and Chromium to drive the whole thing.
   #
-  # NO PLAYWRIGHT BADGE, because there is no Playwright job: the browser suite is
-  # deliberately local-only (docs/testing.md says why). Adding one before the suite runs
-  # here would pin a permanently grey `unknown` to the README.
+  # It runs `npm run e2e` and nothing else, deliberately. The harness already starts the
+  # database container, builds the bundle and the icon sprite, migrates and seeds, then
+  # brings up `artisan serve` — so CI runs the same command a developer does, against the
+  # same `docker-compose.e2e.yml`. A bespoke CI pipeline here would be a second setup to
+  # keep in step, and the failure it produced would not be reproducible locally.
+  e2e:
+    name: End-to-end tests
+    runs-on: ubuntu-latest
+    # Generous: a cold run pays for the MariaDB image pull, a Chromium download and a Vite
+    # build before the first assertion. The suite itself is about a minute.
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          # pdo_mysql, NOT sqlite: this suite is the one that needs a real MariaDB,
+          # because the deck search filters colour identity with REGEXP.
+          extensions: intl, pdo_mysql
+          coverage: none
+          tools: composer:v2
+
+      - name: Install composer dependencies
+        uses: ramsey/composer-install@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: "26"
+          cache: npm
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      # An APP_KEY and nothing else. Every value the run actually depends on — database,
+      # locale, mailer, session driver — is overridden as a real environment variable by
+      # tests/e2e/support/environment.ts, which beats dotenv.
+      - name: Prepare environment
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+
+      # Chromium only. The suite declares one browser project, and downloading Firefox and
+      # WebKit to leave them unused would roughly triple this step.
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run tests
+        run: npm run e2e
+
+      # See the note in the PHP job for why this is `!cancelled()`.
+      - name: Keep the count for the badge
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: junit-playwright
+          path: reports/playwright.xml
+          retention-days: 1
+
+      # Only on failure, and this is the thing that makes a red CI run worth anything: the
+      # trace can be opened locally with `npx playwright show-trace`, which is as close as
+      # this gets to reproducing the failure on your own machine.
+      - name: Keep the trace of a failure
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
+
+  # The numbers behind the README's badges. A job of its own because each suite's count
+  # comes from a different one above, and three jobs writing one branch would race.
   badges:
     name: Publish test badges
-    needs: [php-tests, frontend-tests]
+    needs: [php-tests, frontend-tests, e2e]
     # `always()` so a RED suite still publishes its count — a badge that only updates when
     # everything passed is a badge that lies by omission, and "3 failed" is the case it is
     # most worth showing. Pushes to main only: a pull request must not rewrite what the
@@ -151,13 +224,14 @@ jobs:
           node ./resources/build/testBadges.ts
           phpunit=reports/phpunit.xml
           vitest=reports/vitest.xml
+          playwright=reports/playwright.xml
 
       # PINNED TO A COMMIT, NOT A TAG. A tag is a movable pointer, and whoever can move it
       # would be running their code in a job holding `contents: write` on this repository.
       # The comment is the human-readable half; only the SHA is enforced.
       #
-      # `single-commit` keeps the branch one commit deep: it holds two small documents that
-      # are true right now, and their history is the CI log's job, not a branch's.
+      # `single-commit` keeps the branch one commit deep: it holds three small documents
+      # that are true right now, and their history is the CI log's job, not a branch's.
       - name: Publish to the badges branch
         uses: JamesIves/github-pages-deploy-action@fa24774553152dd7873cd16ebd8d959b010c5445 # v4.9.0
         with:
