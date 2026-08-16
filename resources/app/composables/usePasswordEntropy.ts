@@ -20,6 +20,12 @@ export function usePasswordEntropy(): {
     let maxWaitTimer: ReturnType<typeof setTimeout> | null = null;
 
     const checkEntropy = () => {
+        // Both timers race to get here, so whichever wins has to disarm the
+        // other. Without clearing the debounce, a max-wait firing mid-typing
+        // left it armed and a duplicate request went out 750ms later.
+        if (debounceTimer) {
+            clearTimeout(debounceTimer);
+        }
         debounceTimer = null;
         if (maxWaitTimer) {
             clearTimeout(maxWaitTimer);

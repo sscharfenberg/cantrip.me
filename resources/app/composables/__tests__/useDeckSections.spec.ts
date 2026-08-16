@@ -221,7 +221,12 @@ describe("useDeckSections — allGroups", () => {
             // accident.
             const ramp = makeCategory("Ramp");
             const cards = [
-                makeDeckCard({ name: "Ancient Copper Dragon", type_line: "Creature — Dragon", cmc: 6, category_id: ramp.id }),
+                makeDeckCard({
+                    name: "Ancient Copper Dragon",
+                    type_line: "Creature — Dragon",
+                    cmc: 6,
+                    category_id: ramp.id
+                }),
                 makeDeckCard({ name: "Arbor Elf", type_line: "Creature — Elf", cmc: 1, category_id: ramp.id })
             ];
 

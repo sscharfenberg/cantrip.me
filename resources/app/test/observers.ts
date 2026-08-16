@@ -96,7 +96,6 @@ export class FakeResizeObserver {
         this.record.targets = [];
         this.record.disconnected = true;
     }
-
 }
 
 export class FakeIntersectionObserver {

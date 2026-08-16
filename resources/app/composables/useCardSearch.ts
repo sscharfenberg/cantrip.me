@@ -122,8 +122,17 @@ export function useCardSearch<T>(endpoint: string, setCode?: Ref<string>) {
                 }
             }
         } catch (e) {
+            // An abort means a newer search is already in flight and has set
+            // `processing` itself — leave it alone.
             if (e instanceof DOMException && e.name === "AbortError") return;
-            throw e;
+            // Anything else is a real failure. Logged rather than rethrown:
+            // every call site is fire-and-forget (`void searchCards(…)` and the
+            // debounce timer), so a rethrow had no one to catch it and simply
+            // became an unhandled rejection. Stopping the spinner is what the
+            // user needs — the results list keeps its previous contents.
+            console.error(e);
+            processing.value = false;
+            return;
         }
         processing.value = false;
     }

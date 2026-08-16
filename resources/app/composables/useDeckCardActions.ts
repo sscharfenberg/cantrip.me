@@ -148,7 +148,10 @@ export function useDeckCardActions(params: DeckCardActionParams, closePopover: (
             return;
         }
 
-        const data = (await response.json()) as { quantity?: number; deleted?: boolean };
+        // `.catch` because `flush` is fired and forgotten from `increment` /
+        // `decrement`: a 200 carrying HTML (a Fortify redirect, a 419 page)
+        // would otherwise reject with nothing to catch it.
+        const data = (await response.json().catch(() => ({}))) as { quantity?: number; deleted?: boolean };
 
         if (data.deleted) {
             spliceCard();
@@ -236,11 +239,12 @@ export function useDeckCardActions(params: DeckCardActionParams, closePopover: (
         });
         if (!response.ok) return;
 
-        const data = (await response.json()) as {
+        const data = (await response.json().catch(() => null)) as {
             source_quantity: number;
             target_id: string;
             target_quantity: number;
-        };
+        } | null;
+        if (data === null) return;
 
         const cards = page.props.cards as DeckCardRow[];
         const source = cards.find(c => c.id === params.cardId);

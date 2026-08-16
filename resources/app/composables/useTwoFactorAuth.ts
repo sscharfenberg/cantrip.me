@@ -207,7 +207,10 @@ export const useTwoFactorAuth = (): UseTwoFactorAuthReturn => {
             body: JSON.stringify({ password: pw })
         });
         if (!response.ok) {
-            const data = await response.json();
+            // A non-JSON error body (an HTML error page, a 419) must still
+            // resolve to `false`; every caller treats a rejection as fatal and
+            // leaves `processing` stuck on.
+            const data = (await response.json().catch(() => ({}))) as { errors?: Record<string, unknown> };
             validationErrors.value = Object.fromEntries(
                 Object.entries(data.errors ?? {}).map(([key, msgs]) => [key, Array.isArray(msgs) ? msgs[0] : msgs])
             );

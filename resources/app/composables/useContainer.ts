@@ -49,9 +49,29 @@ export function useContainer(containers: Ref<Container[]>, containerTypes: strin
     /** AbortController for the most recent in-flight sort PATCH. */
     let abortController: AbortController | null = null;
 
-    /** Sync local state when Inertia refreshes the page props (e.g. after delete). */
+    /**
+     * Sync local state when Inertia refreshes the page props (e.g. after a
+     * create or delete elsewhere on the page).
+     *
+     * A container whose type the filter has never offered before is switched
+     * on, matching the "everything visible" state the filter starts in.
+     * Without that, creating the first deckbox would add its chip to the filter
+     * bar while the container itself stayed hidden until a full reload — and a
+     * type the user has deliberately switched off stays off, because it is
+     * already known.
+     */
     watch(containers, fresh => {
         localContainers.value = [...fresh];
+
+        const revealed = new Set(activeTypes.value);
+        for (const container of fresh) {
+            const type = effectiveType(container);
+            if (!knownTypes.has(type)) {
+                knownTypes.add(type);
+                revealed.add(type);
+            }
+        }
+        activeTypes.value = revealed;
     });
 
     /**
@@ -121,6 +141,13 @@ export function useContainer(containers: Ref<Container[]>, containerTypes: strin
 
     /** Currently selected type filter keys. All types selected by default = show all. */
     const activeTypes = ref<Set<string>>(new Set(localContainers.value.map(effectiveType)));
+
+    /**
+     * Every type the filter has already offered the user. Distinct from
+     * `activeTypes`: a type the user switched off is still known, and so is not
+     * silently switched back on when the page props refresh.
+     */
+    const knownTypes = new Set<string>(activeTypes.value);
 
     /** Current name search string (raw, lowercasing happens in filteredContainers). */
     const search = ref("");

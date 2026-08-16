@@ -348,7 +348,12 @@ describe("useDeckStats — productionPips", () => {
         const { productionPips } = setup({
             cards: [spell("{W}", 1), spell("{U}", 1), manaRock(["W", "U", "B", "R", "G"])],
             commanders: [
-                makeCommander({ name: "Thrasios, Triton Hero", color_identity: "GU", mana_cost: ["{2}"], is_partner: true }),
+                makeCommander({
+                    name: "Thrasios, Triton Hero",
+                    color_identity: "GU",
+                    mana_cost: ["{2}"],
+                    is_partner: true
+                }),
                 makeCommander({ name: "Tymna the Weaver", color_identity: "WB", mana_cost: ["{2}"], is_partner: true })
             ],
             format: "commander"
