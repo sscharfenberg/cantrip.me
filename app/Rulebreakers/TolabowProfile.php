@@ -64,8 +64,14 @@ final class TolabowProfile extends RulebreakerProfile
             return null;
         }
 
-        $chosen = $deck->rulebreaker_color;
-        if ($chosen === null || $chosen === '') {
+        // Uppercased before comparing. The column is a bare nullable char(1)
+        // with nothing yet writing it, and a stored lowercase 'r' would fail
+        // every str_contains against a WUBRG identity — the widening would
+        // silently do nothing and the pilot would see violations with no
+        // visible cause. The picker's request should still validate the value;
+        // this is so a bad one degrades loudly rather than invisibly.
+        $chosen = strtoupper((string) ($deck->rulebreaker_color ?? ''));
+        if ($chosen === '' || ! str_contains(self::ANY_IDENTITY, $chosen)) {
             return null;
         }
 

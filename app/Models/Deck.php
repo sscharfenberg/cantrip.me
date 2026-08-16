@@ -7,6 +7,8 @@ use App\Enums\ContainerVisibility;
 use App\Enums\DeckCardRole;
 use App\Enums\DeckState;
 use App\Enums\DeckZone;
+use App\Services\DeckCardSearchService;
+use App\Services\DeckValidator;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -180,6 +182,71 @@ class Deck extends Model
             ->where('deck_id', $this->id)
             ->where('default_card_id', $defaultCardId)
             ->exists();
+    }
+
+    /**
+     * The colour identity this deck's cards are judged against — the single
+     * source for both the legality check and the card-search filter.
+     *
+     * Those two used to disagree. {@see DeckValidator} derived
+     * the identity from the command zone, while
+     * {@see DeckCardSearchService} read the `colors` column, and
+     * the column is not the same thing:
+     * `DeckCardService::recalculateColorsFromCommandZone()` folds the
+     * COMPANION's colours in as well. So a deck with a companion could be
+     * offered cards in search that the validator then flagged, and neither was
+     * obviously wrong on its own. No deck in production has ever hit it —
+     * there are no companion decks yet — which is precisely why it was worth
+     * closing before something depended on the discrepancy.
+     *
+     * `colors` wins because it is the denormalised value the rest of the app
+     * already treats as the deck's identity (stats, the header, the deck
+     * payload). Deriving instead would mean recomputing it on every search
+     * keystroke.
+     *
+     * **The companion union is safe, but only because something else makes it
+     * so.** Unifying on a column that includes the companion's colours would
+     * otherwise widen the legality check — a red commander with a white-black
+     * companion would give `colors = 'WBR'`, and every white and black card in
+     * the deck would then pass. It cannot arise because
+     * `SetDeckCompanionRequest` rejects a companion whose identity is not
+     * within the commander's, so the union can only ever equal the commander's
+     * identity. That is load-bearing: if that validation is ever relaxed, or if
+     * an import path writes a companion without it, this accessor starts
+     * reporting a wider identity than the command zone justifies and the
+     * derivation below should be made unconditional.
+     *
+     * **Why the fallback.** The column is NULL both for a deck with no command
+     * zone and for one whose commander is genuinely colourless — the recalc
+     * writes `$merged ?: null` and cannot distinguish them. Treating NULL as
+     * "colourless" outright would be right for the second case and badly wrong
+     * for a deck whose column was never populated: every coloured card in it
+     * would be reported as a colour-identity violation at once. Deriving from
+     * the command zone in that case costs one indexed query, only when the
+     * column is empty, and returns '' for a truly colourless commander anyway.
+     */
+    public function colorIdentity(): string
+    {
+        $stored = (string) ($this->colors ?? '');
+        if ($stored !== '') {
+            return $stored;
+        }
+
+        $letters = [];
+        foreach ($this->commanders as $deckCard) {
+            $oracle = $deckCard->oracleCard;
+            if ($oracle === null || $oracle->color_identity === null) {
+                continue;
+            }
+            foreach (str_split($oracle->color_identity) as $letter) {
+                $letters[$letter] = true;
+            }
+        }
+
+        return implode('', array_filter(
+            ['W', 'U', 'B', 'R', 'G'],
+            fn (string $letter): bool => isset($letters[$letter]),
+        ));
     }
 
     /**

@@ -264,6 +264,13 @@ class DecksController extends Controller
             'deckCards.oracleCard.legalities' => fn ($q) => $q->where('format', $deck->format->value),
             'deckCards.defaultCard:id,name,card_image_0,card_image_1,set_id,oracle_id',
             'deckCards.defaultCard.set:id,name,code',
+            // DeckValidator documents that it performs no queries of its own,
+            // which only holds if the command zone arrives hydrated. It reads
+            // these to resolve a Rulebreaker commander and, when `colors` is
+            // empty, to derive the deck's identity — both of which would
+            // otherwise lazy-load the relation plus one query per commander on
+            // every deck view.
+            'commanders.oracleCard',
             'categories',
         ]);
 

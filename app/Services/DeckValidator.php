@@ -19,8 +19,10 @@ use App\Rulebreakers\RulebreakerRegistry;
  *  - pool_legality — card banned or not legal in the deck's format
  *  - copy_limit — total copies across all rows for an oracle card exceeds
  *    the format's maxCopies (basic lands and unlimited-copies cards exempt)
- *  - color_identity — card color identity is not a subset of the combined
- *    commanders' color identity (only in formats that enforce it)
+ *  - color_identity — card color identity is not a subset of the deck's
+ *    identity (only in formats that enforce it). That identity comes from
+ *    {@see Deck::colorIdentity()}, which the card-search filter reads too, so
+ *    a card can never be offered by search and then flagged here.
  *
  * Deck-level violations (apply to the whole deck, not a specific card):
  *
@@ -36,15 +38,14 @@ use App\Rulebreakers\RulebreakerRegistry;
  *
  *  - deckCards.oracleCard.legalities (scoped to the deck's format)
  *  - deckCards.oracleCard.faces (for hasUnlimitedCopiesRule)
- *  - commanders.oracleCard (for combined color identity, and to resolve a
- *    Rulebreaker commander — see {@see RulebreakerRegistry})
+ *  - commanders.oracleCard (to resolve a Rulebreaker commander — see
+ *    {@see RulebreakerRegistry} — and for the identity fallback in
+ *    {@see Deck::colorIdentity()} when `decks.colors` is empty)
  *
  * @phpstan-type Violation array{type: string, card_ids?: array<int, string>, current?: int, min?: int, max?: int}
  */
 final class DeckValidator
 {
-    private const WUBRG = ['W', 'U', 'B', 'R', 'G'];
-
     /**
      * Return all legality violations for the deck.
      *
@@ -213,7 +214,10 @@ final class DeckValidator
      */
     private static function colorIdentityViolations(Deck $deck): array
     {
-        $commanderIdentity = self::combinedColorIdentity($deck->commanders);
+        // Read from the deck rather than derived here, so the legality check
+        // and the card-search filter cannot drift apart — see
+        // {@see Deck::colorIdentity()} for why they had.
+        $commanderIdentity = $deck->colorIdentity();
         // A Rulebreaker commander relaxes this check for some class of card —
         // "Angel cards of any color identity", or for Tolabow instants and
         // sorceries widened by one nominated colour. It reports the identity a
@@ -231,6 +235,13 @@ final class DeckValidator
                 continue;
             }
             $oracle = $deckCard->oracleCard;
+            // A row whose oracle relation does not resolve cannot be judged.
+            // Skipping matches the previous behaviour, where a null identity
+            // was treated as "no violation"; without the guard the Rulebreaker
+            // call below would TypeError and take down the deck page.
+            if ($oracle === null) {
+                continue;
+            }
             $identity = $rulebreaker?->allowedIdentityFor($oracle, $deck, $commanderIdentity) ?? $commanderIdentity;
             if (! self::respectsColorIdentity($oracle->color_identity, $identity)) {
                 $ids[$deckCard->id] = $deckCard->id;
@@ -331,27 +342,6 @@ final class DeckValidator
         }
 
         return $profile->isInPool($card);
-    }
-
-    /**
-     * @param  iterable<DeckCard>  $commandZone
-     */
-    private static function combinedColorIdentity(iterable $commandZone): string
-    {
-        $letters = [];
-        foreach ($commandZone as $deckCard) {
-            $oracle = $deckCard->oracleCard;
-            if ($oracle === null || $oracle->color_identity === null) {
-                continue;
-            }
-            foreach (str_split($oracle->color_identity) as $letter) {
-                $letters[$letter] = true;
-            }
-        }
-
-        $ordered = array_filter(self::WUBRG, fn (string $letter): bool => isset($letters[$letter]));
-
-        return implode('', $ordered);
     }
 
     private static function respectsColorIdentity(?string $cardIdentity, string $commanderIdentity): bool

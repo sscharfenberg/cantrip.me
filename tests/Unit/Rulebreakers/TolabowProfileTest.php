@@ -201,6 +201,29 @@ class TolabowProfileTest extends TestCase
         $this->assertSame('U', $this->profile()->allowedIdentityFor($counterspell, $deck, 'U'));
     }
 
+    /**
+     * The column is a bare char(1) with no cast and nothing yet writing it. A
+     * stored lowercase letter would fail every comparison against a WUBRG
+     * identity, so the widening would silently do nothing.
+     */
+    #[Test]
+    public function it_accepts_a_lowercase_nominated_colour(): void
+    {
+        $deck = $this->makeDeck($this->tolabow(), colors: 'U', rulebreakerColor: 'r');
+        $bolt = $this->makeOracleCard('Lightning Bolt', 'Instant', 'R');
+
+        $this->assertSame('UR', $this->profile()->allowedIdentityFor($bolt, $deck, 'U'));
+    }
+
+    #[Test]
+    public function it_ignores_a_nominated_colour_that_is_not_a_wubrg_letter(): void
+    {
+        $deck = $this->makeDeck($this->tolabow(), colors: 'U', rulebreakerColor: 'X');
+        $bolt = $this->makeOracleCard('Lightning Bolt', 'Instant', 'R');
+
+        $this->assertNull($this->profile()->allowedIdentityFor($bolt, $deck, 'U'));
+    }
+
     #[Test]
     public function it_requires_a_colour_choice(): void
     {

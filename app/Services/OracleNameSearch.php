@@ -265,10 +265,32 @@ final class OracleNameSearch
     {
         $langs = "'".implode("','", self::SEARCHABLE_LANGS)."'";
 
-        return 'EXISTS (SELECT 1 FROM '.self::ORACLE_TRANSLATION_TABLE.' AS rank_oct'
-            .' WHERE rank_oct.oracle_card_id = oracle_cards.id'
-            ." AND rank_oct.lang IN ($langs)"
-            ." AND rank_oct.searchable_name $operator ?)";
+        // Both translation tables, because {@see applyMultiTableNameSegments}
+        // ORs both when matching. Covering only the oracle-level table would
+        // leave a card matched solely through a FACE translation scoring
+        // nothing and falling back to the English-name-length tiebreaker —
+        // i.e. the same bug this ranking exists to fix, still open for
+        // multi-faced cards.
+        $branches = [];
+        foreach ([self::ORACLE_TRANSLATION_TABLE, self::FACE_TRANSLATION_TABLE] as $index => $table) {
+            $alias = "rank_t$index";
+            $branches[] = "EXISTS (SELECT 1 FROM $table AS $alias"
+                ." WHERE $alias.oracle_card_id = oracle_cards.id"
+                ." AND $alias.lang IN ($langs)"
+                ." AND $alias.searchable_name $operator ?)";
+        }
+
+        return '('.implode(' OR ', $branches).')';
+    }
+
+    /**
+     * How many bindings {@see translationMatchesSql} consumes, so callers
+     * building an ORDER BY can supply them positionally without counting the
+     * tables themselves.
+     */
+    public static function translationMatchesBindingCount(): int
+    {
+        return 2;
     }
 
     /**

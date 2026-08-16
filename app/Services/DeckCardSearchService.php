@@ -424,15 +424,22 @@ final class DeckCardSearchService
             $query->where('default_cards.collector_number', $parsed['collector_number']);
         }
 
-        $first = $parsed['normalized_name_segments'][0] ?? null;
-        if ($first !== null) {
+        // Same tier structure as phase 1's {@see applyNameRanking}, minus the
+        // translation branches — this orders PRINTINGS and runs against
+        // `default_cards`, which the translation tables do not key on. Kept in
+        // step so the two phases cannot disagree about which of two oracles
+        // ranks higher for a multi-word query.
+        $segments = $parsed['normalized_name_segments'];
+        if ($segments !== []) {
+            $full = implode(' ', $segments);
             $query->orderByRaw(
                 'CASE
                     WHEN default_cards.searchable_name = ? THEN 0
                     WHEN default_cards.searchable_name LIKE ? THEN 1
-                    ELSE 2
+                    WHEN default_cards.searchable_name LIKE ? THEN 2
+                    ELSE 3
                 END',
-                [$first, $first.'%']
+                [$full, $full.'%', $segments[0].'%']
             );
         }
         $query->orderByRaw('CHAR_LENGTH(default_cards.name)')->orderBy('default_cards.name');
@@ -489,8 +496,10 @@ final class DeckCardSearchService
      * Constrain the query to cards inside the deck's color identity.
      *
      * Only applies when the format enforces color identity (Commander,
-     * Oathbreaker, Brawl, etc.). `$deck->colors` holds the identity for
-     * commander formats. Empty `color_identity` (colorless) is always
+     * Oathbreaker, Brawl, etc.). The identity comes from
+     * {@see Deck::colorIdentity()} — the same accessor
+     * {@see DeckValidator} judges against, so search cannot offer a card the
+     * validator will then flag. Empty `color_identity` (colorless) is always
      * allowed — the regex `^[WUBRG]*$` matches the empty string.
      *
      * @param  Builder<OracleCard>  $query
@@ -502,7 +511,7 @@ final class DeckCardSearchService
             return;
         }
 
-        $colors = $deck->colors ?? '';
+        $colors = $deck->colorIdentity();
         // Whitelist to WUBRG to defeat any injection; `colors` is already
         // enum-like in the app but this is the regex character class.
         $safeColors = preg_replace('/[^WUBRG]/', '', $colors) ?? '';
@@ -552,15 +561,35 @@ final class DeckCardSearchService
             $exactTranslation = OracleNameSearch::translationMatchesSql('=');
             $prefixTranslation = OracleNameSearch::translationMatchesSql('LIKE');
 
+            // The FIRST segment keeps a tier of its own alongside the full
+            // query. Segments are AND-ed as order-independent `%segment%`, so
+            // a card can satisfy the WHERE without containing them adjacent
+            // and in order: "urza tower" matches Urza's Tower, whose
+            // searchable_name is "urzas tower", which is neither equal to nor
+            // prefixed by "urza tower". Ranking on the full string alone would
+            // drop it to the catch-all tier and order it by English name
+            // length — reintroducing, for a different query shape, exactly the
+            // bug this ranking exists to remove.
+            $first = $segments[0];
+
+            $bindings = array_merge(
+                [$full],
+                array_fill(0, OracleNameSearch::translationMatchesBindingCount(), $full),
+                [$full.'%'],
+                array_fill(0, OracleNameSearch::translationMatchesBindingCount(), $full.'%'),
+                [$first.'%'],
+            );
+
             $query->orderByRaw(
                 "CASE
                     WHEN {$searchableColumn} = ? THEN 0
                     WHEN {$exactTranslation} THEN 0
                     WHEN {$searchableColumn} LIKE ? THEN 1
                     WHEN {$prefixTranslation} THEN 1
-                    ELSE 2
+                    WHEN {$searchableColumn} LIKE ? THEN 2
+                    ELSE 3
                 END",
-                [$full, $full, $full.'%', $full.'%']
+                $bindings
             );
         }
 
