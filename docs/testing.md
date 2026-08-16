@@ -96,11 +96,22 @@ tests/e2e/
 │   ├── globalTeardown.ts  puts a stashed public/hot back
 │   ├── auth.setup.ts      signs in once, parks the session for the `app` project
 │   └── actions.ts         helpers shared across specs
-├── guest/*.spec.ts        run with NO stored session
-└── app/*.spec.ts          run signed in as the seeded user
+├── guest/                 run with NO stored session
+│   ├── smoke.spec.ts         the harness itself: server, CSS, bundle, sprite, auth gate
+│   ├── auth.spec.ts          login, right and wrong
+│   ├── logout.spec.ts        signs in for real, signs out, checks the gate came back
+│   ├── register.spec.ts      a taken username, and a successful registration
+│   └── public-pages.spec.ts  /about, /imprint, /privacy
+└── app/                   run signed in as the seeded user
+    ├── smoke.spec.ts         the parked session really belongs to the seeded account
+    ├── decks.spec.ts         the deck list: format folders, colour pips, opening a deck
+    ├── deck.spec.ts          command zone, categories, quick-add colour identity
+    └── collection.spec.ts    stacks, container totals, filtering, container isolation
 ```
 
 Guest and app specs are separated **by directory, not by clearing cookies per test**. It is the one arrangement in which a stray `storageState` cannot make an auth-gate test pass by accident — the failure mode that would leave the whole project green and worthless.
+
+**Writes need a lane of their own.** `fullyParallel` splits tests *within* a file as well as across files, and every worker shares one database, so a test that writes can land on a test that reads at any moment. The convention is: reads use the Atraxa deck, the one write uses the partner deck, and it adds a card **no reader searches for** — because `DeckCardSearchService` drops cards the deck already holds at the format's per-card maximum, so adding a searched-for card would make an unrelated test find nothing about half the time. If you add a mutating spec, say in a comment which readers you checked.
 
 ### The fixture
 
@@ -132,3 +143,9 @@ The two commander decks are the reason a card-search assertion can mean somethin
 * If the test uses `RefreshDatabase` (or any other write-heavy fixture) → put it elsewhere under `tests/Feature/` and self-skip on `getDriverName() === 'mysql'`. It will run via `composer test` only.
 
 The skip-guards inside individual tests are belt-and-suspenders on top of the testsuite split — they protect against running raw `php artisan test` (no `--testsuite` flag) on a host with the mysql connection configured.
+
+For the browser suite:
+
+* Put it in `tests/e2e/` only if it needs the browser to be a browser or the app to be the app — real layout, real navigation, a real session, a real database. Anything provable with a mounted component and a mocked `fetch` is about forty times cheaper in Vitest.
+* `guest/` if it must have no session, `app/` if it must have one.
+* **Mutate the source and confirm the test goes red before trusting it.** Every assertion in this suite was checked that way; several looked fine and proved nothing until the fixture was chosen so the two branches disagreed.
