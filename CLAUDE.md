@@ -150,9 +150,27 @@ When adding new tests:
 - Specs live in `__tests__/` folders **next to the code they cover** (`resources/app/utils/__tests__/colorIdentity.spec.ts`), named `*.spec.ts`. `tests/` at the repo root stays PHP-only.
 - `vitest.config.ts` is deliberately separate from `vite.config.ts` — the build config's `laravel-vite-plugin`, image optimizer and devtools plugins are all wrong under test. What must not drift between the two (the alias map) lives in `resources/build/aliases.ts` and is imported by both; the Vue compiler options are mirrored by hand. Adding an alias means touching `resources/build/aliases.ts` **and** `tsconfig.json#compilerOptions.paths`.
 - No test globals: import `describe`/`it`/`expect`/`vi` from `"vitest"` explicitly, so ESLint and `tsconfig.json` need no test-specific config.
-- `resources/app/test/setup.ts` runs before every spec file. It patches the jsdom gaps this app trips over (`IntersectionObserver`, `ResizeObserver`, `Element.scrollIntoView`, `matchMedia`, and an in-memory `localStorage`/`sessionStorage` — Node 26 ships a disabled `localStorage` global that shadows jsdom's), and installs the Vue Test Utils defaults: a fresh i18n instance and a `v-tooltip` stub that mirrors its value into `data-tooltip`.
-- i18n defaults to **key echo** — with no messages registered `$t("pages.login.title")` renders the key itself, so specs assert on keys and rewording `lang/de.json` can't turn tests red. Pass real messages via `createTestI18n({ de: {...} })` (from `resources/app/test/i18n.ts`) only when the test is *about* translated output.
+- `resources/app/test/setup.ts` runs before every spec file. It patches the jsdom gaps this app trips over — the two observer APIs, `Element.scrollIntoView`, `matchMedia`, `AnimationEvent`, the `<dialog>` and popover methods, and an in-memory `localStorage`/`sessionStorage` (Node 26 ships a *disabled* `localStorage` global that shadows jsdom's) — and installs the Vue Test Utils defaults: a fresh i18n instance per test, a `v-tooltip` stub, `enableAutoUnmount`, and a reset of the Inertia doubles.
+- i18n defaults to **key echo** — with no messages registered `$t("pages.login.title")` renders the key itself, so specs assert on keys and rewording `lang/de.json` can't turn tests red. Pass real messages via `createTestI18n({ de: {...} })` (from `resources/app/test/i18n.ts`) when the test is *about* translated output — anything interpolating a value needs this, or the interpolation goes unverified.
 - `resources/app/test/__tests__/harness.spec.ts` covers the harness itself. If it fails, fix the infrastructure before reading any other failure.
+
+The shared test kit in `resources/app/test/`:
+
+| Module | Use it for |
+| --- | --- |
+| `i18n.ts` | `createTestI18n(messages?)` — key echo by default. |
+| `inertia.ts` | Doubles for `usePage`, `router`, `Head`, `Link`, `Form`, `useForm`. `setPageProps({...})` sets the shared props; `routerMock` / `formMocks` are the assertion surface. Both `pageProps` and the form doubles are **reactive**, because the real ones are. |
+| `http.ts` | `installFetchMock()` — a `fetch` double returning real `Response` objects. Routes match a whole path (a query string may follow), newest registration wins, and `hang()` models abort semantics. |
+| `observers.ts` | Controllable `IntersectionObserver` / `ResizeObserver`; `resizeObservers.at(-1).trigger({ inlineSize })` drives the callback. `trigger()` throws on a disconnected or unobserved instance rather than firing into the void. |
+| `withSetup.ts` | Run a composable inside a component instance (needed for `provide`/`inject` and lifecycle hooks). Auto-unmounted after each test. |
+| `factories/deckCard.ts` | `makeDeckCard` / `makeCommander` / `makeCompanion` / `makeCategory`. |
+
+Conventions worth keeping:
+
+- Any spec touching `@inertiajs/vue3` needs `vi.mock("@inertiajs/vue3", async () => (await import("@/test/inertia.ts")).inertiaModuleMock());` at the top. The mock replaces the module wholesale, so a missing export is an import-time crash.
+- Components rendered through `Modal.vue` **teleport into `<body>`** — assert through `document`, not through the wrapper.
+- After a submit that fires a request, `await flushPromises()`; `trigger()` only awaits Vue's render queue.
+- **Choose fixtures where the branches disagree.** Repeatedly during this rollout a spec passed against a deliberately broken implementation because every case in an `it.each` mapped to the same result. Mutate the source and confirm the suite goes red before trusting a new test.
 
 **Scryfall data sync** (background commands, not part of normal dev):
 - `php artisan scryfall:update` orchestrates the full sync via the shadow-table flow (see "Shadow-table architecture" below).

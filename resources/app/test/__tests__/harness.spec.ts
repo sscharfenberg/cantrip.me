@@ -161,6 +161,28 @@ describe("harness: global directives", () => {
     });
 });
 
+describe("harness: dialog and popover", () => {
+    it("opens and closes a dialog, keeping the open flag consistent", () => {
+        // `Modal.vue` early-returns on `!modal.open`, so the flag is
+        // load-bearing rather than cosmetic.
+        const dialog = document.createElement("dialog");
+
+        dialog.showModal();
+        expect(dialog.open).toBe(true);
+
+        dialog.close();
+        expect(dialog.open).toBe(false);
+    });
+
+    it("provides the popover methods components call to dismiss their menus", () => {
+        const element = document.createElement("div");
+
+        expect(() => element.hidePopover()).not.toThrow();
+        expect(() => element.showPopover()).not.toThrow();
+        expect(() => element.togglePopover()).not.toThrow();
+    });
+});
+
 describe("harness: animation and transition events", () => {
     it("can construct both, whether or not jsdom provides them", () => {
         expect(() => new AnimationEvent("animationend")).not.toThrow();

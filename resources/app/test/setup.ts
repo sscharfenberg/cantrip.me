@@ -115,6 +115,50 @@ class StubTransitionEvent extends Event {
     }
 }
 
+/**
+ * jsdom parses `<dialog>` but implements none of its behaviour, so
+ * `showModal()` / `close()` are missing entirely and any component that opens a
+ * modal on mount throws before it renders.
+ *
+ * These keep the `open` flag consistent, which is all the app reads. A spec
+ * that wants to assert on the calls should spy over the top and restore
+ * afterwards — see `components/Modal/__tests__/Modal.spec.ts`.
+ */
+if (!HTMLDialogElement.prototype.showModal) {
+    HTMLDialogElement.prototype.showModal = function showModal(this: HTMLDialogElement): void {
+        this.open = true;
+    };
+}
+
+if (!HTMLDialogElement.prototype.close) {
+    HTMLDialogElement.prototype.close = function close(this: HTMLDialogElement): void {
+        this.open = false;
+    };
+}
+
+/**
+ * Popover API — also parsed but not implemented.
+ *
+ * Unlike the dialog stubs above, these are pure no-ops holding no visibility
+ * state: nothing in the app reads a popover's open-ness back, it only calls
+ * `hidePopover()` to dismiss its own menu. `togglePopover`'s return value is
+ * therefore not meaningful. A spec that wants to assert the call happened
+ * should shadow `hidePopover` with a spy of its own.
+ */
+if (!HTMLElement.prototype.hidePopover) {
+    HTMLElement.prototype.hidePopover = function hidePopover(): void {};
+}
+
+if (!HTMLElement.prototype.showPopover) {
+    HTMLElement.prototype.showPopover = function showPopover(): void {};
+}
+
+if (!HTMLElement.prototype.togglePopover) {
+    HTMLElement.prototype.togglePopover = function togglePopover(): boolean {
+        return false;
+    };
+}
+
 if (!("AnimationEvent" in globalThis)) {
     defineGlobal("AnimationEvent", StubAnimationEvent);
 }

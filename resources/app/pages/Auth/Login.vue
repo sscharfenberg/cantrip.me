@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, usePage } from "@inertiajs/vue3";
-import { computed, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 import FormGroup from "Components/Form/FormGroup.vue";
 import FormLegend from "Components/Form/FormLegend.vue";
 import OTPInput from "Components/Form/OTPInput/OTPInput.vue";
@@ -13,10 +13,21 @@ import LabelledLink from "Components/UI/LabelledLink.vue";
 import LinkGroup from "Components/UI/LinkGroup.vue";
 import LoadingSpinner from "Components/UI/LoadingSpinner.vue";
 import { useLogin } from "Composables/useLogin.ts";
+import { useToast } from "Composables/useToast.ts";
 defineOptions({ layout: NarrowLayout });
-defineProps<{
+const props = defineProps<{
+    /**
+     * Fortify's session status — set after a password reset or a verification
+     * email being sent. Distinct from the app's own `flash.message`, which
+     * `HandleInertiaRequests` reads from `session('message')`, so it has to be
+     * surfaced here rather than by the global toast bridge.
+     */
     status?: string;
 }>();
+const { addToast } = useToast();
+onMounted(() => {
+    if (props.status) addToast(props.status, "success");
+});
 const page = usePage();
 const features = computed(() => page.props.features);
 const showPassword = ref(false);

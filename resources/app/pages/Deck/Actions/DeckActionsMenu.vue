@@ -78,9 +78,10 @@ const props = withDefaults(
         /** Maximum length for a category name. */
         categoryNameMax?: number;
         /**
-         * Owner's containers — when provided, drives the "Add all cards to
-         * collection" entry. Omitted from the deck-list popover (which has
-         * no need for the bulk-add modal).
+         * Owner's containers. The "Add all cards to collection" entry is hidden
+         * without them — the modal it opens is gated on the same prop, so
+         * showing the entry would give the deck-list popover (which passes no
+         * containers) a menu item that closes the popover and opens nothing.
          */
         containers?: DeckActionsContainer[];
     }>(),
@@ -280,7 +281,7 @@ function onDeleteClick(): void {
                     {{ $t("pages.deck.unclaimed.menu_link") }}
                 </button>
             </li>
-            <li v-if="isOwner && !isArchived">
+            <li v-if="isOwner && !isArchived && containers !== undefined">
                 <button class="popover-list-item" @click.prevent="openAddAllToCollection">
                     <icon name="add-all" :size="1" />
                     {{ $t("pages.deck.add_all_to_collection.link") }}
