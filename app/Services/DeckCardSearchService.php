@@ -252,12 +252,14 @@ final class DeckCardSearchService
             ->pluck('total', 'oracle_card_id');
 
         $profile = $deck->format->rules();
+        $maxDeckSizeLifted = RulebreakerRegistry::forDeck($deck)?->removesMaxDeckSize() ?? false;
 
         $survivors = $candidates
             ->filter(fn (OracleCard $card): bool => $profile->canAddCopy(
                 $card,
                 (int) ($copiesByOracleId[$card->id] ?? 0),
                 0,
+                $maxDeckSizeLifted,
             )->allowed)
             ->take($limit)
             ->values();

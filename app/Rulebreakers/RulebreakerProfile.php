@@ -48,11 +48,11 @@ abstract class RulebreakerProfile
     /**
      * Every relaxation this commander grants, most permissive first.
      *
-     * Order is the tie-break: {@see allowedIdentityFor()} returns the first
-     * match, so where two exemptions could cover the same card the one granting
-     * the wider identity must come first. No printed Rulebreaker overlaps today
-     * — a basic land is not an instant — but the ordering is cheap to honour and
-     * expensive to discover the absence of.
+     * Order is presentational only. {@see allowedIdentityFor()} unions every
+     * matching exemption rather than taking the first, so a card covered by two
+     * of them is judged against both — matching the OR that
+     * {@see applyExemptionsTo()} emits in SQL. Listing the widest grant first
+     * still reads better, but nothing depends on it.
      *
      * `$baseIdentity` is supplied by the caller rather than read off the deck,
      * and that is deliberate. `decks.colors` is not necessarily the commander's
@@ -76,13 +76,37 @@ abstract class RulebreakerProfile
      */
     final public function allowedIdentityFor(OracleCard $card, Deck $deck, string $baseIdentity): ?string
     {
+        // The UNION of every matching exemption, not the first match.
+        //
+        // applyExemptionsTo() ORs its branches, so search offers a card that
+        // satisfies ANY of them. First-match-wins here would disagree the
+        // moment a card matched a narrow exemption before a wider one: the
+        // validator would flag what search had just offered, which is the
+        // exact drift this class exists to prevent. The ordering convention in
+        // exemptions() made that safe by hand; a union makes it safe by
+        // construction, so a profile authored in the "wrong" order cannot
+        // reintroduce it.
+        $letters = [];
+        $matched = false;
+
         foreach ($this->exemptions($deck, $baseIdentity) as $exemption) {
-            if ($exemption->matches($card)) {
-                return $exemption->identity;
+            if (! $exemption->matches($card)) {
+                continue;
+            }
+            $matched = true;
+            foreach (str_split($exemption->identity) as $letter) {
+                $letters[$letter] = true;
             }
         }
 
-        return null;
+        if (! $matched) {
+            return null;
+        }
+
+        return implode('', array_filter(
+            ['W', 'U', 'B', 'R', 'G'],
+            fn (string $letter): bool => isset($letters[$letter]),
+        ));
     }
 
     /**
@@ -101,6 +125,20 @@ abstract class RulebreakerProfile
                 $exemption->applyTo($q);
             });
         }
+    }
+
+    /**
+     * Whether this commander lifts the format's maximum deck size.
+     *
+     * Separate from {@see exemptions()} because it is not a colour-identity
+     * grant and has nothing to hang on a card: it changes a whole-deck check.
+     * Only Whtz, the Bibliophile does this. The format MINIMUM is untouched —
+     * "no maximum deck size" removes a ceiling, it does not excuse a short
+     * deck — and so is singleton.
+     */
+    public function removesMaxDeckSize(): bool
+    {
+        return false;
     }
 
     /**

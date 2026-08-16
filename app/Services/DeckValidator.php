@@ -85,7 +85,12 @@ final class DeckValidator
         if ($mainSize < $profile->minDeckSize()) {
             $violations[] = ['type' => 'deck_size_min', 'current' => $mainSize, 'min' => $profile->minDeckSize()];
         }
-        if ($profile->maxDeckSize() !== null && $mainSize > $profile->maxDeckSize()) {
+        // Whtz, the Bibliophile has "no maximum deck size" — the one Rulebreaker
+        // that relaxes a whole-deck check rather than colour identity, so it
+        // is read here rather than through the per-card exemptions. The
+        // MINIMUM still applies: the ceiling goes, the floor does not.
+        $liftsMaxDeckSize = RulebreakerRegistry::forDeck($deck)?->removesMaxDeckSize() ?? false;
+        if (! $liftsMaxDeckSize && $profile->maxDeckSize() !== null && $mainSize > $profile->maxDeckSize()) {
             $violations[] = ['type' => 'deck_size_max', 'current' => $mainSize, 'max' => $profile->maxDeckSize()];
         }
         // Note: `$deck->commanders` is now a HasMany<DeckCard> filtered to

@@ -114,11 +114,11 @@ final class RulebreakerExemption
                 $q->where(function (Builder $typeQuery): void {
                     foreach ($this->types as $type) {
                         // Bound as a parameter rather than interpolated: these
-                        // are constants today, but a LIKE needle spliced into
-                        // raw SQL is a bad habit to leave lying around.
+                        // are constants today, but a needle spliced into raw
+                        // SQL is a bad habit to leave lying around.
                         $typeQuery->orWhereRaw(
-                            self::CARD_TYPES_SQL.' LIKE ?',
-                            ['%'.$type.'%'],
+                            self::CARD_TYPES_SQL.' REGEXP ?',
+                            [self::wordBoundaryPattern($type)],
                         );
                     }
                 });
@@ -153,6 +153,25 @@ final class RulebreakerExemption
     }
 
     /**
+     * A whole-word pattern for one type name, shared by both consumers so they
+     * cannot match differently.
+     *
+     * WHOLE WORD, not substring, and that is load-bearing rather than tidy.
+     * "Lander" is a real Scryfall subtype — Lander Rizzi is
+     * "Legendary Artifact Creature — Lander Rogue" — so a `%Land%` match would
+     * hand an artifact creature to Grizzlegom, whose rule is about LAND cards.
+     * Across the dataset the boundary drops 1196 loose matches to 1194 exact
+     * ones, and the two it removes are precisely those false positives.
+     *
+     * Type names are alphabetic and spaces today; quoting anyway so a future
+     * needle cannot smuggle regex syntax into either engine.
+     */
+    private static function wordBoundaryPattern(string $type): string
+    {
+        return '\\b'.preg_quote($type, '/').'\\b';
+    }
+
+    /**
      * The card's own types, narrowed to the faces that determine them.
      *
      * `type_line` joins every face with " // ". A split card genuinely has both
@@ -179,14 +198,12 @@ final class RulebreakerExemption
 
         foreach ($relevant as $face) {
             foreach ($this->types as $type) {
-                // Case-INSENSITIVE, to match the `LIKE` in applyTo() running
-                // under MySQL's default case-insensitive collation. Scryfall
-                // type lines are always title-cased so this changes nothing
-                // today, but the whole point of this class is that the two
-                // consumers cannot disagree, and case was one axis on which
-                // they still could: a needle written in lowercase would have
-                // been honoured by search and ignored by the validator.
-                if (mb_stripos($face, $type) !== false) {
+                // Case-insensitive, matching the REGEXP in applyTo() under
+                // MariaDB's case-insensitive collation. Scryfall type lines are
+                // always title-cased so this changes nothing today, but the
+                // point of this class is that its two consumers cannot
+                // disagree, and case was one axis on which they still could.
+                if (preg_match('/'.self::wordBoundaryPattern($type).'/ui', $face) === 1) {
                     return true;
                 }
             }

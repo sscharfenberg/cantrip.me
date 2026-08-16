@@ -13,6 +13,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
+use Tests\Unit\Rulebreakers\RulebreakerProfilesTest;
 
 /**
  * Read-only integration tests for {@see DeckCardSearchService}.
@@ -621,5 +622,78 @@ class DeckCardSearchServiceTest extends TestCase
 
         $this->assertNotContains('Lightning Bolt', $this->oracleNames($plain, 'Lightning Bolt'));
         $this->assertContains('Counterspell', $this->oracleNames($plain, 'Counterspell'));
+    }
+
+    /**
+     * The other Rulebreakers, against real cards.
+     *
+     * Each assertion names a card that is genuinely OUTSIDE the deck's colour
+     * identity and commander-legal, so it can only be offered because the
+     * exemption fired. An earlier draft of these used Lander Rizzi, which is
+     * `not_legal` and mono-green — filtered by legality before the type matcher
+     * ran, and inside Grizzlegom's identity anyway. It passed while proving
+     * nothing, which is worse than not testing at all. The "Lander" false
+     * positive the word boundary exists for is covered by
+     * {@see RulebreakerProfilesTest} instead, since
+     * no legal card exercises it here.
+     */
+    private function rulebreakerDeck(string $commanderName, string $colors): Deck
+    {
+        $deck = $this->makeDeck(CardFormat::Commander, $colors);
+
+        $row = new DeckCard;
+        $row->zone = DeckZone::Command;
+        $row->setRelation('oracleCard', OracleCard::query()->where('name', $commanderName)->firstOrFail());
+        $deck->setRelation('commanders', new Collection([$row]));
+
+        return $deck;
+    }
+
+    /** Abandoned Outpost is a mono-WHITE land — outside Grizzlegom's RG. */
+    #[Test]
+    public function grizzlegom_offers_an_off_colour_land(): void
+    {
+        $grizzlegom = $this->rulebreakerDeck('Grizzlegom, Hurloon Hero', 'RG');
+        $plain = $this->makeDeck(CardFormat::Commander, 'RG');
+
+        $this->assertNotContains('Abandoned Outpost', $this->oracleNames($plain, 'Abandoned Outpost'),
+            'baseline: an RG deck without Grizzlegom must not be offered a white land');
+        $this->assertContains('Abandoned Outpost', $this->oracleNames($grizzlegom, 'Abandoned Outpost'));
+    }
+
+    /** Angel of Suffering is mono-BLACK — outside Seluma's mono-white. */
+    #[Test]
+    public function seluma_offers_an_off_colour_angel_but_not_an_off_colour_nonangel(): void
+    {
+        $seluma = $this->rulebreakerDeck('Seluma, Light of Aysen', 'W');
+
+        $this->assertContains('Angel of Suffering', $this->oracleNames($seluma, 'Angel of Suffering'));
+        $this->assertNotContains('Goblin Guide', $this->oracleNames($seluma, 'Goblin Guide'),
+            'the grant is for Angels, not for every off-colour creature');
+    }
+
+    /** Akki Scrapchomper is a mono-RED Phyrexian — outside Valko's mono-black. */
+    #[Test]
+    public function valko_offers_an_off_colour_phyrexian(): void
+    {
+        $valko = $this->rulebreakerDeck('Valko Indorian', 'B');
+        $plain = $this->makeDeck(CardFormat::Commander, 'B');
+
+        $this->assertNotContains('Akki Scrapchomper', $this->oracleNames($plain, 'Akki Scrapchomper'),
+            'baseline: a mono-black deck must not be offered a red creature');
+        $this->assertContains('Akki Scrapchomper', $this->oracleNames($valko, 'Akki Scrapchomper'));
+    }
+
+    /**
+     * Maular grants only creatures at mana value 7 or more, so a cheap
+     * off-colour creature stays out — the narrowing that distinguishes its
+     * rule from Seluma's.
+     */
+    #[Test]
+    public function maular_withholds_a_cheap_off_colour_creature(): void
+    {
+        $maular = $this->rulebreakerDeck('Maular, the Next Evolution', 'G');
+
+        $this->assertNotContains('Goblin Guide', $this->oracleNames($maular, 'Goblin Guide'));
     }
 }

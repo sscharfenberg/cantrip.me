@@ -16,6 +16,7 @@ use App\Models\CardStack;
 use App\Models\Deck;
 use App\Models\DeckCard;
 use App\Models\DefaultCard;
+use App\Rulebreakers\RulebreakerRegistry;
 use App\Services\DeckCardAssignmentService;
 use App\Services\DeckCardService;
 use App\Services\DeckPrintingsService;
@@ -84,6 +85,7 @@ class DeckCardController extends Controller
                 $oracleCard,
                 $siblingSum + $newQuantity - 1,
                 $currentDeckSize + $delta - 1,
+                RulebreakerRegistry::forDeck($deck)?->removesMaxDeckSize() ?? false,
             );
 
             abort_unless($result->allowed, 422);

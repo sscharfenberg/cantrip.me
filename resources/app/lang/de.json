@@ -1217,7 +1217,14 @@
                     "G": "Grün"
                 },
                 "rules": {
-                    "tolabow": "Spontanzauber und Hexereien dürfen eine Farbe außerhalb der Identität deines Commanders enthalten."
+                    "everforger": "Dieses Deck darf Artefaktkreaturen- und Ausrüstungskarten beliebiger Farbidentität sowie beliebige Standardländer enthalten.",
+                    "grizzlegom": "Dieses Deck darf beliebige Landkarten enthalten.",
+                    "maular": "Dieses Deck darf Kreaturenkarten mit Manawert 7 oder mehr beliebiger Farbidentität sowie beliebige Standardländer enthalten.",
+                    "seluma": "Dieses Deck darf Engel-Karten beliebiger Farbidentität sowie beliebige Standardländer enthalten.",
+                    "tolabow": "Spontanzauber und Hexereien dürfen eine Farbe außerhalb der Identität deines Commanders enthalten, und dieses Deck darf beliebige Standardländer enthalten.",
+                    "unluckiest_planeswalker": "Dieses Deck darf Aura-Karten beliebiger Farbidentität sowie beliebige Standardländer enthalten.",
+                    "valko_indorian": "Dieses Deck darf phyrexianische Karten beliebiger Farbidentität sowie beliebige Standardländer enthalten.",
+                    "whtz": "Dieses Deck hat keine maximale Deckgröße."
                 },
                 "errors": {
                     "generic": "Diese Farbe konnte nicht gespeichert werden."

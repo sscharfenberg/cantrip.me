@@ -55,6 +55,16 @@ export interface DeckCompanion {
     default_card: DeckCommanderDefaultCard;
 }
 
+/**
+ * A single legality violation on the deck.
+ *
+ * Per-card violations (`pool_legality`, `copy_limit`, `color_identity`,
+ * `companion_restriction`) carry the offending deck_card IDs. Deck-level
+ * violations (`deck_size_min`, `deck_size_max`, `sideboard_size_max`,
+ * `companion_size_restriction` for Yorion) carry the comparison numbers.
+ * `commander_banned` carries the banned commanders' names directly because
+ * commanders are not part of the deck-card lookup map.
+ */
 export type DeckViolation =
     | { type: "pool_legality"; card_ids: string[] }
     | { type: "copy_limit"; card_ids: string[] }
@@ -317,16 +327,6 @@ export interface DeckToken extends DefaultCardImage {
 export type PerCardCompanionKey =
     "gyruda" | "jegantha" | "kaheera" | "keruga" | "lurrus" | "lutri" | "obosh" | "umori" | "zirda";
 
-/**
- * A single legality violation on the deck.
- *
- * Per-card violations (`pool_legality`, `copy_limit`, `color_identity`,
- * `companion_restriction`) carry the offending deck_card IDs. Deck-level
- * violations (`deck_size_min`, `deck_size_max`, `sideboard_size_max`,
- * `companion_size_restriction` for Yorion) carry the comparison numbers.
- * `commander_banned` carries the banned commanders' names directly because
- * commanders are not part of the deck-card lookup map.
- */
 /**
  * Rulebreaker state for the deck header, or null when the deck is not led by
  * one — which is every deck today except a handful.

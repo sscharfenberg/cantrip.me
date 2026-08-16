@@ -14,14 +14,14 @@ use App\Models\OracleCard;
  * that regenerate oracle card IDs — the same reason
  * {@see CompanionRegistry} does.
  *
- * {@see NAMES} lists all eight cards, but {@see profileFor()} only maps the
- * ones whose rule is implemented. The two are deliberately allowed to
- * disagree: the cards are from Mystery Booster Commander Edition, which does
- * not release until 2026-11-09, and their oracle text is still preview-season
- * wording that Wizards may re-template before then. Naming a card here without
- * modelling its rule says "known, not yet built" — {@see isRulebreaker()}
- * reports it, and the deck is validated as though the card were an ordinary
- * commander, which is the safe direction to be wrong in.
+ * All eight are now modelled, so {@see NAMES} and {@see profileFor()} agree.
+ * They are allowed to diverge, and the machinery for that is deliberately
+ * kept: a name here with no profile means "known, not yet built" —
+ * {@see isRulebreaker()} still reports it so the UI can name the card, while
+ * the deck validates as though the commander were ordinary, which is the safe
+ * direction to be wrong in. That matters because the set does not release
+ * until 2026-11-09 and Wizards may still re-template the printed text; if a
+ * rule changes shape, dropping its profile is a safe interim state.
  */
 final class RulebreakerRegistry
 {
@@ -60,7 +60,14 @@ final class RulebreakerRegistry
     public static function profileFor(OracleCard $card): ?RulebreakerProfile
     {
         return match ($card->name) {
+            'Grizzlegom, Hurloon Hero' => new GrizzlegomProfile,
+            'Maular, the Next Evolution' => new MaularProfile,
+            'Seluma, Light of Aysen' => new SelumaProfile,
+            'The Everforger' => new EverforgerProfile,
+            'The Unluckiest Planeswalker' => new UnluckiestPlaneswalkerProfile,
             'Tolabow, Loch Rascal' => new TolabowProfile,
+            'Valko Indorian' => new ValkoIndorianProfile,
+            'Whtz, the Bibliophile' => new WhtzProfile,
             default => null,
         };
     }

@@ -133,12 +133,13 @@ class DeckValidatorRulebreakerTest extends TestCase
     }
 
     /**
-     * A Rulebreaker whose rule is not modelled yet must validate exactly as an
-     * ordinary commander does — the safe direction to be wrong in while the
-     * set is still in preview.
+     * Whtz relaxes deck SIZE, not colour identity, so colour-identity checking
+     * must be completely unaffected by it. A Rulebreaker that granted colour
+     * exemptions by accident would be invisible here otherwise — the deck
+     * would simply stop reporting violations it should.
      */
     #[Test]
-    public function an_unmodelled_rulebreaker_validates_like_an_ordinary_commander(): void
+    public function a_rulebreaker_with_no_colour_exemptions_flags_colour_identity_normally(): void
     {
         $whtz = $this->makeOracleCard('Whtz, the Bibliophile', 'Legendary Creature — Homunculus', 'WU');
         $bolt = $this->makeOracleCard('Lightning Bolt', 'Instant', 'R');
@@ -146,5 +147,56 @@ class DeckValidatorRulebreakerTest extends TestCase
         $deck = $this->deckWith($whtz, [$bolt], colors: 'WU');
 
         $this->assertCount(1, $this->colorIdentityViolations($deck));
+    }
+
+    /**
+     * Whtz, the Bibliophile — "has no maximum deck size". The only Rulebreaker
+     * that relaxes a whole-deck check, so it is read in the size branch rather
+     * than through the per-card exemptions.
+     */
+    #[Test]
+    public function whtz_lifts_the_maximum_deck_size(): void
+    {
+        $whtz = $this->makeOracleCard('Whtz, the Bibliophile', 'Legendary Creature — Homunculus', 'WU');
+        $cards = [];
+        for ($i = 0; $i < 120; $i++) {
+            $cards[] = $this->makeOracleCard("Filler $i", 'Creature — Human', 'W');
+        }
+
+        $deck = $this->deckWith($whtz, $cards, colors: 'WU');
+        $types = array_column(DeckValidator::validate($deck), 'type');
+
+        $this->assertNotContains('deck_size_max', $types, 'Whtz removes the ceiling');
+    }
+
+    /**
+     * The floor is untouched — "no maximum deck size" removes a ceiling, it
+     * does not excuse a short deck.
+     */
+    #[Test]
+    public function whtz_does_not_lift_the_minimum_deck_size(): void
+    {
+        $whtz = $this->makeOracleCard('Whtz, the Bibliophile', 'Legendary Creature — Homunculus', 'WU');
+        $deck = $this->deckWith($whtz, [$this->makeOracleCard('Lone Card', 'Creature — Human', 'W')], colors: 'WU');
+
+        $types = array_column(DeckValidator::validate($deck), 'type');
+
+        $this->assertContains('deck_size_min', $types);
+    }
+
+    /** An ordinary commander still gets the ceiling enforced. */
+    #[Test]
+    public function an_ordinary_commander_still_has_a_maximum_deck_size(): void
+    {
+        $talrand = $this->makeOracleCard('Talrand, Sky Summoner', 'Legendary Creature — Merfolk Wizard', 'U');
+        $cards = [];
+        for ($i = 0; $i < 120; $i++) {
+            $cards[] = $this->makeOracleCard("Filler $i", 'Creature — Merfolk', 'U');
+        }
+
+        $deck = $this->deckWith($talrand, $cards, colors: 'U');
+        $types = array_column(DeckValidator::validate($deck), 'type');
+
+        $this->assertContains('deck_size_max', $types);
     }
 }

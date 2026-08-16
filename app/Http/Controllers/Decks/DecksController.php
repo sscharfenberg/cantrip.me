@@ -293,7 +293,14 @@ class DecksController extends Controller
             'enforced' => $rulebreakerProfile !== null,
             'messageKey' => $rulebreakerProfile?->messageKey(),
             'requiresColorChoice' => (bool) $rulebreakerProfile?->requiresColorChoice(),
-            'color' => $deck->rulebreaker_color,
+            // Only surfaced when the CURRENT commander asks for a choice. The
+            // column survives a commander swap by design — swapping back
+            // restores the pick — but showing "Red" on a Seluma deck would
+            // claim a widening that is not in effect, with no picker to
+            // correct it.
+            'color' => $rulebreakerProfile?->requiresColorChoice() === true
+                ? $deck->rulebreaker_color
+                : null,
             'deckIdentity' => $deck->colorIdentity(),
         ];
 
@@ -630,7 +637,11 @@ class DecksController extends Controller
                 'bracket' => $deck->bracket,
                 'card_count' => $cardCount,
                 'total_worth' => $totalWorth,
-                'max_deck_size' => $profile->maxDeckSize(),
+                // Null when a Rulebreaker lifts it, so the add modal stops
+                // gating on a ceiling the backend no longer enforces.
+                'max_deck_size' => $rulebreakerProfile?->removesMaxDeckSize()
+                    ? null
+                    : $profile->maxDeckSize(),
                 'max_sideboard_size' => $profile->maxSideboardSize(),
                 'max_copies' => $profile->maxCopies(),
                 'is_singleton' => $profile->maxCopies() === 1,

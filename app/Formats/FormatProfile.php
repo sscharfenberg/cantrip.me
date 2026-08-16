@@ -139,17 +139,26 @@ abstract class FormatProfile
      *
      * Caller supplies the current copy count of this card and the current main
      * deck size so the profile does not need to touch the database.
+     *
+     * `$maxDeckSizeLifted` is how a Rulebreaker commander reaches this check.
+     * Whtz, the Bibliophile has "no maximum deck size", and suppressing the
+     * VIOLATION alone was not enough: the deck would report as legal while the
+     * add endpoint went on refusing the 101st card and quick-add filtered it
+     * out of the results, leaving the card's only ability unreachable. Passed
+     * in rather than resolved here because this method deliberately never
+     * touches the database — see the class docblock.
      */
     public function canAddCopy(
         OracleCard $card,
         int $currentCopies,
         int $currentDeckSize,
+        bool $maxDeckSizeLifted = false,
     ): AddCopyResult {
         if (! $this->isInPool($card)) {
             return AddCopyResult::denied(AddCopyFailure::NotInPool);
         }
 
-        if ($this->maxDeckSize() !== null && $currentDeckSize >= $this->maxDeckSize()) {
+        if (! $maxDeckSizeLifted && $this->maxDeckSize() !== null && $currentDeckSize >= $this->maxDeckSize()) {
             return AddCopyResult::denied(AddCopyFailure::ExceedsDeckSize);
         }
 

@@ -8,11 +8,14 @@ use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
 /**
- * The registry deliberately knows more cards than it models: all eight
- * Rulebreakers are named, but only the ones whose rule is built map to a
- * profile. These tests hold that distinction in place, because collapsing it
- * in either direction is a silent correctness change — modelling a card whose
- * preview-season wording later shifts, or forgetting one exists.
+ * All eight Rulebreakers are named AND modelled, and these hold both halves in
+ * place: every name resolves to a profile, and no two names resolve to the
+ * same one.
+ *
+ * The registry still tolerates a name without a profile — that is the safe
+ * interim state if Wizards re-templates a rule before the set releases on
+ * 2026-11-09 — but it should be a decision, not an oversight, which is what
+ * the completeness test is for.
  */
 class RulebreakerRegistryTest extends TestCase
 {
@@ -42,17 +45,45 @@ class RulebreakerRegistryTest extends TestCase
     }
 
     /**
-     * A named-but-unmodelled card resolves to null on purpose: the deck is then
-     * validated as though it were an ordinary commander, which is the safe
-     * direction to be wrong in while the set is still in preview.
+     * Every named Rulebreaker now resolves to a profile.
+     *
+     * This replaces a test that used Whtz as the "known but unmodelled" case,
+     * which stopped being true once all eight were built. Asserted over NAMES
+     * rather than card-by-card so adding a ninth name without a profile fails
+     * here — the registry tolerates that state deliberately, and the point is
+     * that it should be a decision rather than an oversight.
      */
     #[Test]
-    public function it_resolves_null_for_a_named_but_unmodelled_card(): void
+    public function every_named_rulebreaker_resolves_to_a_profile(): void
     {
-        $whtz = $this->makeOracleCard('Whtz, the Bibliophile', 'Legendary Creature — Homunculus', 'WU');
+        foreach (RulebreakerRegistry::NAMES as $name) {
+            $card = $this->makeOracleCard($name, 'Legendary Creature — Test', 'U');
+            $this->assertNotNull(
+                RulebreakerRegistry::profileFor($card),
+                "$name is named as a Rulebreaker but resolves to no profile",
+            );
+        }
+    }
 
-        $this->assertTrue(RulebreakerRegistry::isRulebreaker($whtz));
-        $this->assertNull(RulebreakerRegistry::profileFor($whtz));
+    /**
+     * Each profile is distinct — a copy-paste in the match arms would
+     * otherwise hand one card another's rule, which no other test would catch
+     * because both would still "resolve to a profile".
+     */
+    #[Test]
+    public function each_rulebreaker_resolves_to_its_own_profile(): void
+    {
+        $classes = [];
+        foreach (RulebreakerRegistry::NAMES as $name) {
+            $card = $this->makeOracleCard($name, 'Legendary Creature — Test', 'U');
+            $classes[$name] = RulebreakerRegistry::profileFor($card)::class;
+        }
+
+        $this->assertSame(
+            count($classes),
+            count(array_unique($classes)),
+            'two Rulebreakers share a profile class: '.json_encode($classes),
+        );
     }
 
     #[Test]
@@ -89,17 +120,17 @@ class RulebreakerRegistryTest extends TestCase
     }
 
     /**
-     * The UI needs to know a Rulebreaker is present even when its rule is not
-     * modelled, so it can still explain the card — hence a lookup separate
-     * from {@see RulebreakerRegistry::forDeck()}.
+     * The row lookup is separate from the profile lookup so the UI can name a
+     * Rulebreaker it cannot yet enforce. Nothing is unmodelled today, so this
+     * covers the lookup itself; the divergence it exists for is covered by
+     * {@see every_named_rulebreaker_resolves_to_a_profile}.
      */
     #[Test]
-    public function it_finds_the_command_zone_row_for_an_unmodelled_rulebreaker(): void
+    public function it_finds_the_command_zone_row_for_a_rulebreaker(): void
     {
         $whtz = $this->makeOracleCard('Whtz, the Bibliophile', 'Legendary Creature — Homunculus', 'WU');
         $deck = $this->makeDeck($whtz, colors: 'WU');
 
-        $this->assertNull(RulebreakerRegistry::forDeck($deck));
         $row = RulebreakerRegistry::commanderRowFor($deck);
         $this->assertNotNull($row);
         $this->assertSame($whtz->id, $row->oracle_card_id);

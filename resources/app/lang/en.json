@@ -1217,7 +1217,14 @@
                     "G": "Green"
                 },
                 "rules": {
-                    "tolabow": "Instants and sorceries may include one colour outside your commander's identity."
+                    "everforger": "This deck may contain artifact creature and Equipment cards of any colour identity, and any basic lands.",
+                    "grizzlegom": "This deck may contain any land cards.",
+                    "maular": "This deck may contain creature cards with mana value 7 or greater of any colour identity, and any basic lands.",
+                    "seluma": "This deck may contain Angel cards of any colour identity, and any basic lands.",
+                    "tolabow": "Instants and sorceries may include one colour outside your commander's identity, and this deck may contain any basic lands.",
+                    "unluckiest_planeswalker": "This deck may contain Aura cards of any colour identity, and any basic lands.",
+                    "valko_indorian": "This deck may contain Phyrexian cards of any colour identity, and any basic lands.",
+                    "whtz": "This deck has no maximum deck size."
                 },
                 "errors": {
                     "generic": "That colour could not be saved."

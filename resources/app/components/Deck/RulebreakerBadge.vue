@@ -84,22 +84,29 @@ const label = computed(() => {
         : t("pages.deck.rulebreaker.label");
 });
 
-const tooltip = computed(() =>
-    props.rulebreaker.enforced
-        ? t("pages.deck.rulebreaker.tooltip", { name: props.rulebreaker.name ?? "" })
-        : t("pages.deck.rulebreaker.tooltip_unenforced", { name: props.rulebreaker.name ?? "" })
-);
-
 /**
  * The hint above the swatches, keyed to the commander rather than hardcoded.
  * `hint` alone would show Tolabow's "instants and sorceries" wording for the
  * next colour-choosing Rulebreaker that comes along.
  */
 const hint = computed(() =>
-    props.rulebreaker.messageKey === null
-        ? ""
-        : t(`pages.deck.rulebreaker.rules.${props.rulebreaker.messageKey}`)
+    props.rulebreaker.messageKey === null ? "" : t(`pages.deck.rulebreaker.rules.${props.rulebreaker.messageKey}`)
 );
+
+/**
+ * The card's own rule, not a generic line. Seven of the eight Rulebreakers ask
+ * for no colour choice and so never open the popover — the tooltip is the only
+ * place their rule can be read at all.
+ */
+const tooltip = computed(() => {
+    const name = props.rulebreaker.name ?? "";
+
+    if (!props.rulebreaker.enforced) {
+        return t("pages.deck.rulebreaker.tooltip_unenforced", { name });
+    }
+
+    return hint.value === "" ? t("pages.deck.rulebreaker.tooltip", { name }) : `${name} — ${hint.value}`;
+});
 
 function closePopover(): void {
     const el = document.getElementById(popoverId);
@@ -154,9 +161,7 @@ function onSelect(target: Color | null): void {
             <icon name="swords" :size="1" />
             {{ label }}
         </button>
-        <badge v-else type="info" v-tooltip="tooltip">
-            <icon name="swords" :size="1" />{{ label }}
-        </badge>
+        <badge v-else type="info" v-tooltip="tooltip"> <icon name="swords" :size="1" />{{ label }} </badge>
 
         <dialog v-if="interactive" :id="popoverId" popover class="popover-content rulebreaker-badge__menu">
             <p v-if="hint !== ''" class="rulebreaker-badge__hint">{{ hint }}</p>
