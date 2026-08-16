@@ -1,13 +1,10 @@
-import path from "node:path";
-import { fileURLToPath } from "node:url";
 import { default as vitePluginVue } from "@vitejs/plugin-vue";
 import laravelPlugin from "laravel-vite-plugin";
 import { Features } from "lightningcss";
 import { defineConfig, loadEnv } from "vite";
 import { ViteImageOptimizer } from "vite-plugin-image-optimizer";
 import vitePluginVueDevtools from "vite-plugin-vue-devtools";
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+import { aliases } from "./resources/build/aliases.ts";
 
 /*
  * https://vite.dev/config/
@@ -24,7 +21,7 @@ export default defineConfig(({ mode }) => {
         /*
          * https://vite.dev/config/shared-options.html#publicdir
          */
-        // publicDir: path.resolve(__dirname, "resources/app/static/"),
+        // publicDir: "resources/app/static/",
 
         /*
          * https://vite.dev/config/shared-options.html#plugins
@@ -122,17 +119,10 @@ export default defineConfig(({ mode }) => {
 
         /*
          * https://vite.dev/config/shared-options.html#resolve-alias
+         * Shared with `vitest.config.ts` — see `resources/build/aliases.ts`.
          */
         resolve: {
-            alias: {
-                "~": path.resolve(__dirname, "node_modules"),
-                "@": path.resolve(__dirname, "resources/app"),
-                Assets: path.resolve(__dirname, "resources/app/assets"),
-                Components: path.resolve(__dirname, "resources/app/components"),
-                Composables: path.resolve(__dirname, "resources/app/composables"),
-                Abstracts: path.resolve(__dirname, "resources/app/styles/abstracts"),
-                Types: path.resolve(__dirname, "resources/app/types")
-            }
+            alias: aliases
         },
 
         optimizeDeps: {
@@ -149,7 +139,7 @@ export default defineConfig(({ mode }) => {
         },
 
         build: {
-            // outDir: path.resolve(__dirname, "public"),
+            // outDir: "public",
             emptyOutDir: true
         },
 

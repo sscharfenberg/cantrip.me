@@ -17,6 +17,9 @@
         "dev": "npm run preinstall && vite --host",
         "build": "npm run preinstall && npm run lint && run-p type-check \"build-only {@}\" -- && npm run icons",
         "build-only": "vite build",
+        "test": "vitest run",
+        "test:watch": "vitest",
+        "test:coverage": "vitest run --coverage",
         "type-check": "vue-tsc --build",
         "lint": "eslint 'resources/app/**/*.{js,ts,vue}' --fix && stylelint 'resources/app/**/*.{vue,scss}' --fix --quiet-deprecation-warnings",
         "icons": "node ./resources/build/icons.ts -v -i",
@@ -40,6 +43,7 @@
         "@types/node": "^26.1.2",
         "@types/semver": "^7.8.0",
         "@vitejs/plugin-vue": "^6.0.7",
+        "@vitest/coverage-v8": "^4.1.10",
         "@vue/eslint-config-prettier": "^10.2.0",
         "@vue/eslint-config-typescript": "^14.9.0",
         "@vue/test-utils": "^2.4.11",
@@ -72,6 +76,7 @@
         "vite": "^8.2.1",
         "vite-plugin-image-optimizer": "^2.0.3",
         "vite-plugin-vue-devtools": "^8.1.3",
+        "vitest": "^4.1.10",
         "vue-tsc": "^3.3.5"
     },
     "prettier": {

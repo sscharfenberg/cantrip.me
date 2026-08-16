@@ -15,6 +15,7 @@
 /.zed
 /auth.json
 
+/coverage
 /node_modules
 
 /public/build

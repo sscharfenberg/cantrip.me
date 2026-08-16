@@ -121,6 +121,7 @@
         "resources/types/**/*.d.ts",
         "resources/**/*.vue",
         "resources/**/*.ts",
-        "vite.config.ts"
+        "vite.config.ts",
+        "vitest.config.ts"
     ]
 }

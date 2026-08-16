@@ -20,6 +20,13 @@ npm run format        # Prettier
 npm run type-check    # vue-tsc --build
 npm run icons         # Process SVG icons
 
+# Frontend tests (Vitest)
+npm run test                 # run the whole suite once
+npm run test:watch           # watch mode
+npm run test:coverage        # with v8 coverage report (.ts only — see vitest.config.ts)
+npm run test -- harness      # filter by file path substring
+npm run test -- -t "echoes"  # filter by test name
+
 # Backend
 composer test                              # phpunit against SQLite (fast, local)
 composer test -- --filter=DeckTest         # filtered (note the `--` separator)
@@ -137,6 +144,15 @@ Two testsuites are configured in `phpunit.xml`, each driven by its own composer 
 When adding new tests:
 - If the test reads real Scryfall data and never writes → put it in `tests/Feature/Services/` and self-skip on `getDriverName() !== 'mysql'`.
 - If the test uses `RefreshDatabase` (or any other write-heavy fixture) → put it elsewhere under `tests/Feature/` and self-skip on `getDriverName() === 'mysql'`.
+
+**Frontend testing (Vitest):**
+
+- Specs live in `__tests__/` folders **next to the code they cover** (`resources/app/utils/__tests__/colorIdentity.spec.ts`), named `*.spec.ts`. `tests/` at the repo root stays PHP-only.
+- `vitest.config.ts` is deliberately separate from `vite.config.ts` — the build config's `laravel-vite-plugin`, image optimizer and devtools plugins are all wrong under test. What must not drift between the two (the alias map) lives in `resources/build/aliases.ts` and is imported by both; the Vue compiler options are mirrored by hand. Adding an alias means touching `resources/build/aliases.ts` **and** `tsconfig.json#compilerOptions.paths`.
+- No test globals: import `describe`/`it`/`expect`/`vi` from `"vitest"` explicitly, so ESLint and `tsconfig.json` need no test-specific config.
+- `resources/app/test/setup.ts` runs before every spec file. It patches the jsdom gaps this app trips over (`IntersectionObserver`, `ResizeObserver`, `Element.scrollIntoView`, `matchMedia`, and an in-memory `localStorage`/`sessionStorage` — Node 26 ships a disabled `localStorage` global that shadows jsdom's), and installs the Vue Test Utils defaults: a fresh i18n instance and a `v-tooltip` stub that mirrors its value into `data-tooltip`.
+- i18n defaults to **key echo** — with no messages registered `$t("pages.login.title")` renders the key itself, so specs assert on keys and rewording `lang/de.json` can't turn tests red. Pass real messages via `createTestI18n({ de: {...} })` (from `resources/app/test/i18n.ts`) only when the test is *about* translated output.
+- `resources/app/test/__tests__/harness.spec.ts` covers the harness itself. If it fails, fix the infrastructure before reading any other failure.
 
 **Scryfall data sync** (background commands, not part of normal dev):
 - `php artisan scryfall:update` orchestrates the full sync via the shadow-table flow (see "Shadow-table architecture" below).
