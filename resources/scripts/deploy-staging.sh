@@ -50,14 +50,21 @@ rm -rf public/build
 # setgid bit was lost in the past creates new files in deploy's
 # primary group instead of www-data. The `chgrp` step recovers group
 # ownership, `chmod 2775` on dirs re-establishes setgid so future
-# inheritance works on its own, and `chmod g+w` on files matches the
-# documented `664` convention. Scoped to source dirs so we don't
-# touch vendor/, node_modules/, storage/, public/build/, or .git/
-# (each managed by its own tooling with its own perm needs).
+# inheritance works on its own, and `chmod g+rw` on files matches the
+# documented `664` convention. Scoped to source dirs so we don't touch
+# vendor/, node_modules/, storage/, public/build/, or .git/ (each managed
+# by its own tooling with its own perm needs).
+#
+# READ as well as write, and that is not pedantry: `g+w` alone turns a 600
+# file into 620 — group-writable but still unreadable. An upload left
+# resources/app/components/Landmarks/Header/logo.svg at 600, this step
+# dutifully made it 620, and `npm run build` then died with EACCES for
+# everyone except the file's owner. The build normally runs AS that owner,
+# so it only surfaced when someone ran it by hand.
 SOURCE_DIRS=(app database docs tests routes resources lang config public)
 chgrp -R www-data "${SOURCE_DIRS[@]}"
 find "${SOURCE_DIRS[@]}" -type d -exec chmod 2775 {} +
-find "${SOURCE_DIRS[@]}" -type f ! -perm -g+w -exec chmod g+w {} +
+find "${SOURCE_DIRS[@]}" -type f ! -perm -g+rw -exec chmod g+rw {} +
 
 # bootstrap/ is swept by hand rather than via SOURCE_DIRS, so that
 # bootstrap/cache can be left out of it. Laravel rewrites the compiled
@@ -78,7 +85,7 @@ find "${SOURCE_DIRS[@]}" -type f ! -perm -g+w -exec chmod g+w {} +
 # config/route/view/event cache commands.
 chgrp www-data bootstrap bootstrap/*.php bootstrap/cache
 chmod 2775 bootstrap bootstrap/cache
-chmod g+w bootstrap/*.php
+chmod g+rw bootstrap/*.php
 
 composer install --no-dev --optimize-autoloader --no-interaction
 npm ci
