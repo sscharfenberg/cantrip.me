@@ -35,8 +35,14 @@ export const BASE_URL = `http://127.0.0.1:${PORT}`;
 /** The compose project that owns the throwaway MariaDB. See docs/testing.md. */
 const COMPOSE_FILE = path.join(repoRoot, "docker-compose.e2e.yml");
 
-/** Port the E2E MariaDB publishes on — 3307, deliberately not dev's 3306. */
-const DB_PORT = 3307;
+/**
+ * Port the E2E MariaDB publishes on.
+ *
+ * Not 3306 (local dev's) and not 3307 either — `~/.ssh/config` forwards that one
+ * to STAGING'S database for the `cantrip` host. See the comment on the `ports:`
+ * key in docker-compose.e2e.yml, and `assertIsE2EDatabase` below.
+ */
+const DB_PORT = 3399;
 
 /**
  * Where a stale `public/hot` is parked for the duration of a run.
@@ -115,32 +121,119 @@ const isListening = (port: number): Promise<boolean> =>
         });
     });
 
+/** The compose container id for the `db` service, or "" when it is not running. */
+const runningContainerId = (): string =>
+    execFileSync("docker", ["compose", "-f", COMPOSE_FILE, "ps", "--status", "running", "--quiet"], {
+        cwd: repoRoot,
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "pipe"]
+    }).trim();
+
 /**
- * Bring the E2E database container up, unless it already is.
+ * Refuse to go on unless the server answering on `DB_PORT` is THIS container.
+ *
+ * WHY A LIVENESS CHECK IS NOT ENOUGH, and it is not a hypothetical: the next
+ * thing that happens after this returns is `migrate:fresh`, which drops every
+ * table it can reach. "Something is listening" is not a safe precondition for
+ * that — this suite originally used port 3307, and `~/.ssh/config` forwards 3307
+ * to staging's MariaDB for the `cantrip` host, so an open ssh session was enough
+ * to make a test run point `migrate:fresh` at staging. The only thing that would
+ * have stopped it was the credentials happening not to match.
+ *
+ * So the identity is checked directly. MariaDB reports `@@hostname` as the
+ * container's own id, which is the first twelve characters of what compose calls
+ * the container — a value no tunnel, no local server and no second compose
+ * project can accidentally produce.
+ */
+const assertIsE2EDatabase = (containerId: string): void => {
+    /*
+     * Before the probe, or the probe is worthless: a cached
+     * `bootstrap/cache/config.php` beats the environment overrides, so a stale
+     * one would have this connect to the DEVELOPMENT database and then abort
+     * with a message about the port — which is the wrong diagnosis entirely.
+     * `resetDatabase` clears it again for its own reasons; both are cheap.
+     */
+    artisan("config:clear");
+
+    const probe = artisan(
+        "tinker",
+        "--execute",
+        "echo json_encode(DB::selectOne('select database() as db, @@hostname as host'));"
+    );
+
+    let server: { db?: string; host?: string };
+    try {
+        server = JSON.parse(probe.trim());
+    } catch {
+        throw new Error(`Could not read the identity of whatever is listening on port ${DB_PORT}:\n${probe}`);
+    }
+
+    /*
+     * A prefix match, because MariaDB reports the SHORT container id (twelve
+     * characters) where compose reports the full sixty-four. Written as an
+     * explicit `undefined` check rather than a `??` fallback: the fallback would
+     * be a sentinel string chosen never to match, which reads as a typo.
+     */
+    const isThisContainer = server.host !== undefined && containerId.startsWith(server.host);
+
+    if (server.db !== serverEnv.DB_DATABASE || !isThisContainer) {
+        throw new Error(
+            `Port ${DB_PORT} is NOT the E2E database container — refusing to migrate.\n` +
+                `  expected: database ${serverEnv.DB_DATABASE} on container ${containerId.slice(0, 12)}\n` +
+                `  found:    database ${server.db} on host ${server.host}\n` +
+                "Something else owns the port. The likely culprit is an ssh tunnel: the `cantrip`\n" +
+                "host in ~/.ssh/config forwards a local port to STAGING's MariaDB. Close it and retry."
+        );
+    }
+};
+
+/**
+ * Bring the E2E database container up, unless it already is, and prove that what
+ * answers on the port really is it.
  *
  * Started for the developer rather than demanded of them, so `npm run e2e` is
  * one command. `--wait` blocks on the compose healthcheck, which is what makes
- * the migration that follows safe: MariaDB accepts TCP connections for a second
- * or two before it will accept a login, and a `migrate:fresh` fired into that
- * window fails with an authentication error that reads like a wrong password.
+ * the migration that follows safe in the ordinary case: MariaDB accepts TCP
+ * connections for a second or two before it will accept a login, and a
+ * `migrate:fresh` fired into that window fails with an authentication error that
+ * reads like a wrong password.
  *
- * It is deliberately NOT torn down afterwards — see globalTeardown.
+ * The container is deliberately NOT torn down afterwards — see globalTeardown.
  */
 export const ensureDatabase = async (): Promise<void> => {
-    if (await isListening(DB_PORT)) return;
-
+    let containerId: string;
     try {
+        containerId = runningContainerId();
+    } catch {
+        throw new Error(
+            "Could not talk to Docker, which is where the E2E database lives.\n" +
+                "Start Docker Desktop and retry. See docs/testing.md for what the container is\n" +
+                "and why it is not the development database."
+        );
+    }
+
+    if (containerId === "") {
+        /*
+         * COMPOSE SAYS IT IS DOWN, so anything already on the port is a
+         * stranger — and `up` would fail on a bind conflict without ever saying
+         * why. Named here instead, because the answer is almost always an ssh
+         * tunnel and that is not a guess anyone makes quickly.
+         */
+        if (await isListening(DB_PORT)) {
+            throw new Error(
+                `Port ${DB_PORT} is in use, but the E2E database container is not running.\n` +
+                    "Something else has taken the port — most likely an ssh tunnel. Close it and retry."
+            );
+        }
+
         execFileSync("docker", ["compose", "-f", COMPOSE_FILE, "up", "-d", "--wait"], {
             cwd: repoRoot,
             stdio: "inherit"
         });
-    } catch {
-        throw new Error(
-            `Could not start the E2E database on port ${DB_PORT}.\n` +
-                "It runs in Docker — start Docker Desktop, then `npm run e2e:db:up`.\n" +
-                "See docs/testing.md for what the container is and why it is not the dev database."
-        );
+        containerId = runningContainerId();
     }
+
+    assertIsE2EDatabase(containerId);
 };
 
 /**

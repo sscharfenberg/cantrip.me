@@ -52,7 +52,7 @@ npm run e2e:db:down    # stop it and discard everything in it
 
 **Two design points worth knowing before you change them:**
 
-* **It listens on 3307, not 3306.** `.env` points local dev at `127.0.0.1:3306`/`mbos`. On a matching port, a stray `DB_HOST` or a forgotten tunnel could let the app talk to the test database — or let a test run wipe a real one. A different port makes both mistakes structurally impossible rather than merely unlikely. It is also bound to loopback, because an open MariaDB on `cantrip_e2e`/`cantrip_e2e` is found by a subnet scan in seconds.
+* **It listens on 3399 — not 3306, and pointedly not 3307.** `.env` points local dev at `127.0.0.1:3306`/`mbos`, so a matching port would let a stray `DB_HOST` reach the test database or let a test run wipe a real one. 3307 looks like the obvious alternative and is the worse trap: `~/.ssh/config` gives the `cantrip` host a `LocalForward 3307 localhost:3306`, so an open ssh session to staging owns that port and **what answers on it is staging's own database**. A run started while that tunnel was up would find something listening, believe the container was healthy, and aim `migrate:fresh` down the tunnel — with only the credentials in the way. `assertIsE2EDatabase()` in `tests/e2e/support/environment.ts` is the second line of defence: it compares MariaDB's `@@hostname` against the compose container id and aborts if they differ. It is also bound to loopback, because an open MariaDB on `cantrip_e2e`/`cantrip_e2e` is found by a subnet scan in seconds.
 * **Its storage is `tmpfs`, with no volume.** Every run starts with `migrate:fresh`, so nothing in it is meant to outlive a run, and a persistent volume would let a half-finished run leave state the next one silently inherits. `npm run e2e:db:down` is a guaranteed reset — verified: 27 tables before, 0 after.
 
 **Connecting to it by hand**, for poking at a failure:
@@ -61,7 +61,7 @@ npm run e2e:db:down    # stop it and discard everything in it
 docker exec -it cantrip-e2e-db-1 mariadb -ucantrip_e2e -pcantrip_e2e cantrip_e2e
 
 # or run an artisan command against it
-env DB_CONNECTION=mariadb DB_HOST=127.0.0.1 DB_PORT=3307 \
+env DB_CONNECTION=mariadb DB_HOST=127.0.0.1 DB_PORT=3399 \
     DB_DATABASE=cantrip_e2e DB_USERNAME=cantrip_e2e DB_PASSWORD=cantrip_e2e \
     php artisan migrate --force
 ```

@@ -21,7 +21,7 @@ npm run type-check    # vue-tsc --build
 npm run icons         # Process SVG icons
 
 # End-to-end test database (NOT for local dev — see docs/testing.md)
-npm run e2e:db:up            # throwaway MariaDB on :3307, waits until healthy
+npm run e2e:db:up            # throwaway MariaDB on :3399, waits until healthy
 npm run e2e:db:down          # stop it; tmpfs storage means everything is discarded
 
 # Frontend tests (Vitest)
@@ -232,7 +232,7 @@ The full update runs against `__shadow` build tables and atomically swaps them i
 
 Staging (`staging.cantrip.me`) is used as a remote dev server — same environment as prod, avoiding local Docker setup.
 
-**The one exception is the end-to-end test database.** `docker-compose.e2e.yml` runs a throwaway MariaDB on port **3307** for the Playwright suite, because the deck-building core filters colour identity with `REGEXP` and SQLite cannot run it. It is not a development database and nothing in normal development touches it — dev still points at staging, as below. It listens on 3307 rather than 3306 precisely so the two can never be confused. See `docs/testing.md`.
+**The one exception is the end-to-end test database.** `docker-compose.e2e.yml` runs a throwaway MariaDB on port **3399** for the Playwright suite, because the deck-building core filters colour identity with `REGEXP` and SQLite cannot run it. It is not a development database and nothing in normal development touches it — dev still points at staging, as below. The port is 3399 rather than 3306 (local dev) or the obvious-looking 3307 — `~/.ssh/config` forwards *that* one to staging's MariaDB for the `cantrip` host, so an open ssh session there would have an e2e run point `migrate:fresh` at staging. See `docs/testing.md`.
 
 **How it works:**
 - Vite runs on staging at port 5173 (HTTP, internal only)
