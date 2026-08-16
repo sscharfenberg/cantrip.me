@@ -1,5 +1,5 @@
 import { mount } from "@vue/test-utils";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { defineComponent, h } from "vue";
 import { withSetup } from "@/test/withSetup.ts";
 import type { DeckHighlightApi, HighlightableCard } from "../useDeckHighlight.ts";
@@ -337,6 +337,11 @@ describe("useDeckHighlight", () => {
     });
 
     it("throws rather than silently highlighting nothing when no provider exists", () => {
+        // Vue logs on the way out — once for the failed `inject`, once because
+        // the throw left `setup` with no render function. Both are the expected
+        // shape of this path, so they are silenced rather than printed as
+        // stderr noise on every run.
+        const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
         const Orphan = defineComponent({
             setup() {
                 useDeckHighlight();
@@ -345,5 +350,6 @@ describe("useDeckHighlight", () => {
         });
 
         expect(() => mount(Orphan)).toThrow(/no provideDeckHighlight/);
+        expect(warn).toHaveBeenCalled();
     });
 });

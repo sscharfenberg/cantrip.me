@@ -1,10 +1,10 @@
 import { mount } from "@vue/test-utils";
-import { beforeAll, describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 import { defineComponent, getCurrentInstance, h, nextTick, onMounted, onUnmounted, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { isSubsetCI } from "@/utils/colorIdentity.ts";
 import Icon from "Components/UI/Icon.vue";
-import { createTestI18n } from "../i18n.ts";
+import { createTestI18n, setTestMessages } from "../i18n.ts";
 import { inertiaModuleMock, pageProps, routerMock, setPageProps } from "../inertia.ts";
 import { intersectionObservers, resizeObservers } from "../observers.ts";
 import { withSetup } from "../withSetup.ts";
@@ -110,12 +110,29 @@ describe("harness: i18n defaults", () => {
         expect(mount(TranslatingComponent).text()).toBe("pages.login.title");
     });
 
-    it("uses real messages when a spec supplies its own i18n instance", () => {
-        const wrapper = mount(TranslatingComponent, {
-            global: { plugins: [createTestI18n({ de: { pages: { login: { title: "Anmelden" } } } })] }
-        });
+    it("uses real messages once a spec registers them", () => {
+        setTestMessages({ de: { pages: { login: { title: "Anmelden" } } } });
 
-        expect(wrapper.text()).toBe("Anmelden");
+        expect(mount(TranslatingComponent).text()).toBe("Anmelden");
+    });
+
+    it("keeps echoing every key the spec did not register", () => {
+        setTestMessages({ de: { pages: { login: { title: "Anmelden" } } } });
+        const Other = defineComponent({ template: `<p>{{ $t("pages.register.title") }}</p>` });
+
+        expect(mount(Other).text()).toBe("pages.register.title");
+    });
+
+    it("registers messages without installing vue-i18n a second time", () => {
+        // Passing another instance through `global.plugins` would append to the
+        // one `setup.ts` installs, re-registering `i18n-t` and friends and
+        // logging seven warnings per mount.
+        const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+        setTestMessages({ de: { pages: { login: { title: "Anmelden" } } } });
+
+        mount(TranslatingComponent);
+
+        expect(warn).not.toHaveBeenCalled();
     });
 });
 

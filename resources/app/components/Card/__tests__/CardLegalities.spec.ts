@@ -1,6 +1,6 @@
 import { mount } from "@vue/test-utils";
 import { describe, expect, it } from "vitest";
-import { createTestI18n } from "@/test/i18n.ts";
+import { setTestMessages } from "@/test/i18n.ts";
 import type { CardLegality } from "Types/cardPreview.ts";
 import CardLegalities from "../CardLegalities.vue";
 
@@ -46,7 +46,7 @@ describe("CardLegalities — ordering", () => {
     it("sorts by the translated format name, not by the raw slug", () => {
         // The slugs would sort standard/commander/modern; the German labels
         // sort the other way, and that is what the user reads.
-        const i18n = createTestI18n({
+        setTestMessages({
             de: {
                 enums: {
                     card_formats: { standard: "Alpha", commander: "Beta", modern: "Gamma" },
@@ -58,8 +58,7 @@ describe("CardLegalities — ordering", () => {
         const wrapper = mount(CardLegalities, {
             props: {
                 legalities: [legality("modern", "legal"), legality("standard", "legal"), legality("commander", "legal")]
-            },
-            global: { plugins: [i18n] }
+            }
         });
 
         expect(wrapper.findAll(".legalities__format").map(node => node.text())).toEqual(["Alpha", "Beta", "Gamma"]);

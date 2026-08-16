@@ -1,6 +1,6 @@
 import { mount } from "@vue/test-utils";
-import { describe, expect, it, vi } from "vitest";
-import { createTestI18n } from "@/test/i18n.ts";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { setTestMessages } from "@/test/i18n.ts";
 import type { StackClaim } from "Types/cardStackRow.ts";
 import CardStackClaimBadge from "../CardStackClaimBadge.vue";
 
@@ -12,8 +12,8 @@ const claim = (deck_id: string, deck_name: string): StackClaim => ({ deck_id, de
  * Real messages, not the default key echo: every label here interpolates a deck
  * name, and key-echo assertions would leave the interpolation unverified.
  */
-const i18n = () =>
-    createTestI18n({
+beforeEach(() => {
+    setTestMessages({
         de: {
             pages: {
                 collection: {
@@ -26,9 +26,9 @@ const i18n = () =>
             }
         }
     });
+});
 
-const render = (claims: StackClaim[]) =>
-    mount(CardStackClaimBadge, { props: { claims }, global: { plugins: [i18n()] } });
+const render = (claims: StackClaim[]) => mount(CardStackClaimBadge, { props: { claims } });
 
 describe("CardStackClaimBadge — no claims", () => {
     it("renders nothing, so call sites can mount it unconditionally", () => {

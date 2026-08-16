@@ -1,6 +1,6 @@
 import { mount } from "@vue/test-utils";
 import { describe, expect, it } from "vitest";
-import { createTestI18n } from "@/test/i18n.ts";
+import { setTestMessages } from "@/test/i18n.ts";
 import RadioButton from "../RadioButton.vue";
 import RadioButtonGroup from "../RadioButtonGroup.vue";
 
@@ -64,13 +64,10 @@ describe("RadioButtonGroup", () => {
     it("translates each label before handing it to the option", () => {
         // Real messages, because the default key echo would make a group that
         // forwarded the raw key look identical to one that translated it.
-        const i18n = createTestI18n({
+        setTestMessages({
             de: { pages: { login: { "2fa": { toggle: { "2fa": "Authenticator", recovery: "Wiederherstellung" } } } } }
         });
-        const wrapper = mount(RadioButtonGroup, {
-            props: { name: "type", radioButtons: OPTIONS },
-            global: { plugins: [i18n] }
-        });
+        const wrapper = mount(RadioButtonGroup, { props: { name: "type", radioButtons: OPTIONS } });
 
         expect(wrapper.findAllComponents(RadioButton).map(option => option.props("label"))).toEqual([
             "Authenticator",
