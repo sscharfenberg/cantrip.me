@@ -8,6 +8,7 @@ use App\Formats\FormatProfile;
 use App\Models\Deck;
 use App\Models\DefaultCard;
 use App\Models\OracleCard;
+use App\Rulebreakers\RulebreakerRegistry;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
@@ -511,12 +512,27 @@ final class DeckCardSearchService
             return;
         }
 
+        // Hydrated once, here, because both reads below walk the command zone:
+        // colorIdentity() when `colors` is empty, and the Rulebreaker lookup
+        // always. The search endpoints resolve `$deck` straight from route-model
+        // binding with nothing eager-loaded, so without this every keystroke
+        // pays a query for the relation plus one per commander. `loadMissing` is
+        // a no-op where a caller already loaded it — DecksController::show does.
+        $deck->loadMissing('commanders.oracleCard');
+
         $colors = $deck->colorIdentity();
         // Whitelist to WUBRG to defeat any injection; `colors` is already
         // enum-like in the app but this is the regex character class.
         $safeColors = preg_replace('/[^WUBRG]/', '', $colors) ?? '';
 
-        $query->where(function (Builder $q) use ($safeColors): void {
+        // A Rulebreaker commander relaxes the identity for some class of card,
+        // and search has to relax with it — otherwise the deck is told a card
+        // is legal by the validator while the picker refuses to offer it, which
+        // is the same drift {@see Deck::colorIdentity()} was made to close, just
+        // in the other direction.
+        $rulebreaker = RulebreakerRegistry::forDeck($deck);
+
+        $query->where(function (Builder $q) use ($safeColors, $rulebreaker, $deck, $colors): void {
             $q->whereNull('color_identity')
                 ->orWhere('color_identity', '');
 
@@ -526,6 +542,8 @@ final class DeckCardSearchService
             if ($safeColors !== '') {
                 $q->orWhereRaw('color_identity REGEXP ?', ['^['.$safeColors.']*$']);
             }
+
+            $rulebreaker?->applyExemptionsTo($q, $deck, $colors);
         });
     }
 

@@ -3,8 +3,13 @@
 namespace Tests\Feature\Services;
 
 use App\Enums\CardFormat;
+use App\Enums\DeckZone;
 use App\Models\Deck;
+use App\Models\DeckCard;
+use App\Models\OracleCard;
+use App\Rulebreakers\RulebreakerRegistry;
 use App\Services\DeckCardSearchService;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -505,5 +510,116 @@ class DeckCardSearchServiceTest extends TestCase
         $this->assertArrayHasKey('finishes', $printing);
         $this->assertArrayHasKey('set', $printing);
         $this->assertSame('lea', $printing['set']['code']);
+    }
+
+    // ── Rulebreaker exemptions ─────────────────────────────────────────────
+
+    /**
+     * A mono-blue Tolabow deck, optionally with a colour nominated.
+     *
+     * The command zone is hydrated in memory rather than persisted — these
+     * tests never write — but it has to be present, because that is what
+     * {@see RulebreakerRegistry::forDeck()} reads to find the rule.
+     */
+    private function tolabowDeck(?string $chosen = null): Deck
+    {
+        $deck = $this->makeDeck(CardFormat::Commander, 'U');
+        $deck->rulebreaker_color = $chosen;
+
+        $row = new DeckCard;
+        $row->zone = DeckZone::Command;
+        $row->setRelation('oracleCard', OracleCard::query()->where('name', 'Tolabow, Loch Rascal')->firstOrFail());
+        $deck->setRelation('commanders', new Collection([$row]));
+
+        return $deck;
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function oracleNames(Deck $deck, string $query): array
+    {
+        return array_column(DeckCardSearchService::searchOracleForDeck($deck, $query, 60), 'name');
+    }
+
+    /**
+     * The card is in the dataset from Mystery Booster Commander Edition, and
+     * the whole feature keys off its presence. Fail loudly rather than let the
+     * tests below pass vacuously if a future sync drops it.
+     */
+    #[Test]
+    public function tolabow_is_present_in_the_dataset(): void
+    {
+        $this->assertNotNull(OracleCard::query()->where('name', 'Tolabow, Loch Rascal')->first());
+    }
+
+    #[Test]
+    public function search_offers_an_off_colour_instant_once_a_colour_is_nominated(): void
+    {
+        $this->assertNotContains('Lightning Bolt', $this->oracleNames($this->tolabowDeck(), 'Lightning Bolt'));
+        $this->assertContains('Lightning Bolt', $this->oracleNames($this->tolabowDeck('R'), 'Lightning Bolt'));
+    }
+
+    /**
+     * The widening reaches instants and sorceries only — a red creature stays
+     * out, exactly as the validator would flag it.
+     */
+    #[Test]
+    public function search_still_withholds_an_off_colour_creature(): void
+    {
+        $this->assertNotContains('Goblin Guide', $this->oracleNames($this->tolabowDeck('R'), 'Goblin Guide'));
+    }
+
+    /**
+     * The case the layout narrowing exists for. Bonecrusher Giant is
+     * "Creature — Giant // Instant — Adventure" — a CREATURE card whose second
+     * face is an instant. Matching the joined type line would offer it, and
+     * would offer 169 other Adventure creatures with it.
+     */
+    #[Test]
+    public function search_does_not_offer_an_adventure_creature_as_an_instant(): void
+    {
+        $this->assertNotContains('Bonecrusher Giant', $this->oracleNames($this->tolabowDeck('R'), 'Bonecrusher'));
+    }
+
+    /**
+     * A split card genuinely is both halves, so it must still be offered —
+     * the narrowing has to spare `layout = split`, not blanket-truncate.
+     */
+    #[Test]
+    public function search_offers_a_split_card_whose_half_is_an_instant(): void
+    {
+        $this->assertContains('Fire // Ice', $this->oracleNames($this->tolabowDeck('R'), 'Fire // Ice'));
+    }
+
+    #[Test]
+    public function search_offers_off_colour_basic_lands_without_any_nomination(): void
+    {
+        $names = $this->oracleNames($this->tolabowDeck(), 'Mountain');
+
+        $this->assertContains('Mountain', $names);
+    }
+
+    /**
+     * The basic-land clause is about basics specifically — a red nonbasic land
+     * gets nothing, and Grizzlegom is the Rulebreaker that grants any land.
+     */
+    #[Test]
+    public function search_still_withholds_an_off_colour_nonbasic_land(): void
+    {
+        $this->assertNotContains('Shivan Reef', $this->oracleNames($this->tolabowDeck('R'), 'Shivan Reef'));
+    }
+
+    /**
+     * An ordinary commander is unaffected: no exemption branch is emitted and
+     * the filter behaves exactly as it did before Rulebreakers existed.
+     */
+    #[Test]
+    public function a_deck_without_a_rulebreaker_is_unchanged(): void
+    {
+        $plain = $this->makeDeck(CardFormat::Commander, 'U');
+
+        $this->assertNotContains('Lightning Bolt', $this->oracleNames($plain, 'Lightning Bolt'));
+        $this->assertContains('Counterspell', $this->oracleNames($plain, 'Counterspell'));
     }
 }

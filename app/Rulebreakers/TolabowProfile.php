@@ -3,7 +3,6 @@
 namespace App\Rulebreakers;
 
 use App\Models\Deck;
-use App\Models\OracleCard;
 
 /**
  * Tolabow, Loch Rascal — "Rulebreaker — If Tolabow, Loch Rascal is your
@@ -15,9 +14,9 @@ use App\Models\OracleCard;
  *
  * The instant/sorcery clause WIDENS the deck's identity by exactly one colour
  * rather than removing the restriction: mono-blue Tolabow nominating red may
- * run a UR instant, but not a URG one, and not a black one. That is why the
- * profile contract returns an identity to judge against instead of a boolean —
- * see {@see RulebreakerProfile}.
+ * run a UR instant, but not a URG one, and not a black one. That is why an
+ * exemption carries an identity instead of a boolean — see
+ * {@see RulebreakerProfile}.
  *
  * The nominated colour is the pilot's, stored on `decks.rulebreaker_color`. It
  * may be unset, which is a legal state and simply grants no widening; the deck
@@ -52,29 +51,21 @@ final class TolabowProfile extends RulebreakerProfile
     /**
      * {@inheritDoc}
      */
-    public function allowedIdentityFor(OracleCard $card, Deck $deck, string $baseIdentity): ?string
+    public function exemptions(Deck $deck, string $baseIdentity): array
     {
-        // "your deck can have any basic land cards" — an outright exemption,
-        // and independent of the nominated colour.
-        if ($this->isBasicLand($card)) {
-            return self::ANY_IDENTITY;
+        // "your deck can have any basic land cards" — outright, and independent
+        // of the nominated colour, so it holds even before one is picked. First
+        // because it is the wider grant of the two.
+        $exemptions = [new RulebreakerExemption(identity: self::ANY_IDENTITY, basicLands: true)];
+
+        $chosen = $this->nominatedColor($deck);
+        if ($chosen === null) {
+            return $exemptions;
         }
 
-        if (! $this->typeLineMentions($card, self::WIDENED_TYPES)) {
-            return null;
-        }
+        $widened = str_contains($baseIdentity, $chosen) ? $baseIdentity : $baseIdentity.$chosen;
+        $exemptions[] = new RulebreakerExemption(identity: $widened, types: self::WIDENED_TYPES);
 
-        // Uppercased before comparing. The column is a bare nullable char(1)
-        // with nothing yet writing it, and a stored lowercase 'r' would fail
-        // every str_contains against a WUBRG identity — the widening would
-        // silently do nothing and the pilot would see violations with no
-        // visible cause. The picker's request should still validate the value;
-        // this is so a bad one degrades loudly rather than invisibly.
-        $chosen = strtoupper((string) ($deck->rulebreaker_color ?? ''));
-        if ($chosen === '' || ! str_contains(self::ANY_IDENTITY, $chosen)) {
-            return null;
-        }
-
-        return str_contains($baseIdentity, $chosen) ? $baseIdentity : $baseIdentity.$chosen;
+        return $exemptions;
     }
 }

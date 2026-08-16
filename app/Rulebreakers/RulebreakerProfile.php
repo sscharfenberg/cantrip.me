@@ -3,10 +3,9 @@
 namespace App\Rulebreakers;
 
 use App\Companions\CompanionProfile;
-use App\Enums\Scryfall\ScryfallCardLayout;
-use App\Formats\FormatProfile;
 use App\Models\Deck;
 use App\Models\OracleCard;
+use Illuminate\Database\Eloquent\Builder;
 
 /**
  * Base class for the deckbuilding rule each Rulebreaker commander relaxes.
@@ -15,26 +14,30 @@ use App\Models\OracleCard;
  * construction for the deck they lead — "A deck with this commander can have
  * Angel cards of any color identity and any basic land cards", and so on.
  *
- * The mirror image of {@see CompanionProfile}, and deliberately
- * shaped like it: one class per card, resolved by name through a registry, so a
- * card's rule is read in one place rather than spread across the validator.
- * The difference is direction. A companion RESTRICTS and so produces
- * violations; a Rulebreaker PERMITS, and so removes violations that would
- * otherwise fire. It therefore hooks into the colour-identity check as an
- * override rather than appearing as a violation type of its own.
+ * The mirror image of {@see CompanionProfile}, and deliberately shaped like it:
+ * one class per card, resolved by name through a registry, so a card's rule is
+ * read in one place rather than spread across the validator. The difference is
+ * direction. A companion RESTRICTS and so produces violations; a Rulebreaker
+ * PERMITS, and so removes violations that would otherwise fire. It therefore
+ * hooks into the colour-identity check as an override rather than appearing as
+ * a violation type of its own.
  *
  * WHY A WIDENED IDENTITY RATHER THAN A BOOLEAN EXEMPTION. Most of these cards
  * grant "any color identity" to some class of card, which a boolean would model
  * fine. Tolabow does not: it grants ONE nominated colour on top of the
  * commander's, so an instant that is off-identity in two colours is still
- * illegal. Returning the identity a given card is judged against covers both —
- * `WUBRG` for a blanket exemption, `U` + the nominated colour for Tolabow — and
- * keeps the comparison itself in one place in the validator.
+ * illegal. Carrying the identity a given card is judged against covers both —
+ * `WUBRG` for a blanket exemption, base + nominated for Tolabow — and keeps the
+ * comparison itself in one place in the validator.
+ *
+ * A subclass declares {@see exemptions()} and nothing else. Both consumers read
+ * that one list: this class walks it per card, and the deck-card search filter
+ * turns it into SQL. See {@see RulebreakerExemption} for why the rule is data.
  */
 abstract class RulebreakerProfile
 {
     /** Every colour, i.e. "any color identity". */
-    protected const ANY_IDENTITY = 'WUBRG';
+    protected const ANY_IDENTITY = RulebreakerExemption::ANY_IDENTITY;
 
     /**
      * i18n key suffix under `pages.deck.rulebreaker.*`, used to explain the
@@ -43,28 +46,62 @@ abstract class RulebreakerProfile
     abstract public function messageKey(): string;
 
     /**
-     * The colour identity this card should be judged against, or null to fall
-     * back to the deck's own.
+     * Every relaxation this commander grants, most permissive first.
      *
-     * Returning null rather than the deck identity keeps the caller honest:
-     * "this rule has nothing to say about this card" and "this rule permits
-     * exactly the deck's colours" are the same outcome but not the same
-     * statement, and only the former should be silent.
+     * Order is the tie-break: {@see allowedIdentityFor()} returns the first
+     * match, so where two exemptions could cover the same card the one granting
+     * the wider identity must come first. No printed Rulebreaker overlaps today
+     * — a basic land is not an instant — but the ordering is cheap to honour and
+     * expensive to discover the absence of.
      *
      * `$baseIdentity` is supplied by the caller rather than read off the deck,
-     * and that is deliberate. `decks.colors` is NOT the commander's identity:
-     * `DeckCardService::recalculateColorsFromCommandZone()` folds in the
-     * companion's colours too, and the column is NULL on a freshly created
-     * deck. Widening either of those would be wrong in both directions — too
-     * permissive with a companion present, too strict before the column is
-     * populated — so the rule widens whatever the validator is actually
-     * comparing against.
+     * and that is deliberate. `decks.colors` is not necessarily the commander's
+     * identity, so the rule widens whatever the caller is actually comparing
+     * against — see {@see Deck::colorIdentity()}.
      *
-     * @param  OracleCard  $card  The card being judged, not the commander.
      * @param  Deck  $deck  Loaded with `commanders.oracleCard`.
-     * @param  string  $baseIdentity  The identity the deck is judged against.
+     * @param  string  $baseIdentity  The identity the deck is otherwise judged against.
+     * @return array<int, RulebreakerExemption>
      */
-    abstract public function allowedIdentityFor(OracleCard $card, Deck $deck, string $baseIdentity): ?string;
+    abstract public function exemptions(Deck $deck, string $baseIdentity): array;
+
+    /**
+     * The colour identity this card should be judged against, or null when this
+     * rule has nothing to say about it.
+     *
+     * Null rather than the deck's own identity keeps the caller honest: "this
+     * rule does not cover this card" and "this rule permits exactly the deck's
+     * colours" are the same outcome but not the same statement, and only the
+     * former should be silent.
+     */
+    final public function allowedIdentityFor(OracleCard $card, Deck $deck, string $baseIdentity): ?string
+    {
+        foreach ($this->exemptions($deck, $baseIdentity) as $exemption) {
+            if ($exemption->matches($card)) {
+                return $exemption->identity;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * OR this commander's exemptions onto a colour-identity filter, so search
+     * offers exactly the cards {@see allowedIdentityFor()} would accept.
+     *
+     * The caller owns the base identity branch; this adds one branch per
+     * exemption beside it.
+     *
+     * @param  Builder<OracleCard>  $query  A query rooted at `oracle_cards`.
+     */
+    final public function applyExemptionsTo(Builder $query, Deck $deck, string $baseIdentity): void
+    {
+        foreach ($this->exemptions($deck, $baseIdentity) as $exemption) {
+            $query->orWhere(function (Builder $q) use ($exemption): void {
+                $exemption->applyTo($q);
+            });
+        }
+    }
 
     /**
      * Whether this commander asks the pilot to nominate a colour, which the
@@ -79,63 +116,23 @@ abstract class RulebreakerProfile
     }
 
     /**
-     * Six of the eight Rulebreakers end their rule with "and any basic land
-     * cards", letting the deck run off-colour basics. Shared here so each
-     * profile states only what makes it different.
+     * The pilot's nominated colour, normalised, or null when unusable.
      *
-     * Matches on name against {@see FormatProfile::BASIC_LANDS}, which already
-     * covers Wastes and the Snow-Covered printings, rather than on the Basic
-     * supertype — the rule says "basic land cards", and that list is the same
-     * one the copy-limit check treats as unlimited.
+     * Uppercased and whitelisted because the column is a bare nullable char(1)
+     * with nothing yet writing it: a stored lowercase 'r' would fail every
+     * comparison against a WUBRG identity, so the widening would silently do
+     * nothing and the pilot would see violations with no visible cause. The
+     * picker's request should still validate the value; this is so a bad one
+     * degrades loudly rather than invisibly.
      */
-    protected function isBasicLand(OracleCard $card): bool
+    final protected function nominatedColor(Deck $deck): ?string
     {
-        return in_array($card->name, FormatProfile::BASIC_LANDS, true);
-    }
+        $chosen = strtoupper((string) ($deck->rulebreaker_color ?? ''));
 
-    /**
-     * True when the CARD's types include any of the given ones.
-     *
-     * Reads the denormalised `oracle_cards.type_line`, which holds every face
-     * joined with " // ", and then narrows to the faces that actually determine
-     * the card's types — which is not all of them.
-     *
-     * A split card genuinely has both halves' types: Fire // Ice is an instant
-     * card by either half. Every other multi-faced layout takes its types from
-     * the front face alone while the card is not on the stack. Bonecrusher
-     * Giant is "Creature — Giant // Instant — Adventure" and is a CREATURE
-     * card; its Adventure half is an alternative characteristic used only on
-     * the stack. Matching the joined line blindly would hand a red creature to
-     * a Tolabow deck that nominated red, which the rule does not permit.
-     *
-     * A null layout is treated as front-face-only, which is also the correct
-     * answer for the single-faced cards that dominate.
-     *
-     * NOTE for the search-side predicate: the same narrowing has to be applied
-     * in SQL, i.e. match `SUBSTRING_INDEX(type_line, ' // ', 1)` except where
-     * `layout = 'split'`. Matching the whole column there would reintroduce
-     * exactly this bug at the point where cards are offered.
-     *
-     * @param  array<int, string>  $types
-     */
-    protected function typeLineMentions(OracleCard $card, array $types): bool
-    {
-        $line = (string) ($card->type_line ?? '');
-        if ($line === '') {
-            return false;
+        if ($chosen === '' || ! str_contains(self::ANY_IDENTITY, $chosen)) {
+            return null;
         }
 
-        $faces = explode(' // ', $line);
-        $relevant = $card->layout === ScryfallCardLayout::Split ? $faces : [$faces[0]];
-
-        foreach ($relevant as $face) {
-            foreach ($types as $type) {
-                if (str_contains($face, $type)) {
-                    return true;
-                }
-            }
-        }
-
-        return false;
+        return $chosen;
     }
 }

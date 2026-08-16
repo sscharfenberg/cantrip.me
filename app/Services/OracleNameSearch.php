@@ -70,6 +70,13 @@ final class OracleNameSearch
     public const FACE_TRANSLATION_TABLE = 'oracle_card_face_translations';
 
     /**
+     * Both translation tables, in the order their bindings are consumed.
+     *
+     * @var list<string>
+     */
+    public const TRANSLATION_TABLES = [self::ORACLE_TRANSLATION_TABLE, self::FACE_TRANSLATION_TABLE];
+
+    /**
      * Languages eligible for foreign-language name search. Ordered by
      * row-count descending — the order doesn't affect query planning
      * (MySQL/MariaDB sort the IN list internally for index seeks) but
@@ -272,7 +279,7 @@ final class OracleNameSearch
         // i.e. the same bug this ranking exists to fix, still open for
         // multi-faced cards.
         $branches = [];
-        foreach ([self::ORACLE_TRANSLATION_TABLE, self::FACE_TRANSLATION_TABLE] as $index => $table) {
+        foreach (self::TRANSLATION_TABLES as $index => $table) {
             $alias = "rank_t$index";
             $branches[] = "EXISTS (SELECT 1 FROM $table AS $alias"
                 ." WHERE $alias.oracle_card_id = oracle_cards.id"
@@ -290,7 +297,11 @@ final class OracleNameSearch
      */
     public static function translationMatchesBindingCount(): int
     {
-        return 2;
+        // Derived, not stated. The SQL emits one placeholder per table, so a
+        // hardcoded count silently misaligns EVERY later binding in the
+        // caller's ORDER BY the moment a third translation table appears —
+        // no error, just wrong ranking.
+        return count(self::TRANSLATION_TABLES);
     }
 
     /**
