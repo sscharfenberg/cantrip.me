@@ -26,7 +26,7 @@ const to = computed(() => Math.min(props.page * props.pageSize, props.total));
  * Shows a sliding window around the current page. First/last page
  * buttons already exist as dedicated icons, so they are not repeated here.
  * Ellipsis indicates more pages exist in that direction.
- * Example for page 5 of 20: ["...", 4, 5, 6, "..."]
+ * Example for page 5 of 20: ["...", 3, 4, 5, 6, 7, "..."]
  */
 const NEIGHBORS = 2;
 const visiblePages = computed(() => {
@@ -43,9 +43,17 @@ const visiblePages = computed(() => {
 });
 /** User-entered page number for the "jump to page" input. */
 const jumpToPage = ref(props.page);
-/** Clamp user input to valid range before navigating. */
+/**
+ * Clamp user input to the valid range before navigating.
+ *
+ * `v-model.number` leaves unparseable input as the raw string, so anything
+ * non-numeric has to fall back to the current page — clamping it would
+ * otherwise produce NaN and navigate nowhere.
+ */
 function onJumpToPage() {
-    const clamped = Math.max(1, Math.min(totalPages.value, jumpToPage.value));
+    const requested = Number(jumpToPage.value);
+    const target = Number.isFinite(requested) ? requested : props.page;
+    const clamped = Math.max(1, Math.min(totalPages.value, target));
     jumpToPage.value = clamped;
     emit("navigate", clamped);
 }

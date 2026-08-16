@@ -3,7 +3,7 @@ import { ref } from "vue";
 const props = withDefaults(
     defineProps<{
         /** HTML `id` and `name` for the hidden input — auto-generated if omitted. */
-        refId: string;
+        refId?: string;
         /** Initial checked state on mount. */
         checkedInitially?: boolean;
         /** Whether the checkbox is disabled. */
@@ -38,6 +38,7 @@ const onCheckboxChange = (event: Event) => {
             :id="refId"
             type="checkbox"
             :name="refId"
+            :disabled="disabled"
             @change="onCheckboxChange"
             :value="value"
             :checked="checkboxStatus"

@@ -1,6 +1,6 @@
 import { mount } from "@vue/test-utils";
 import { beforeAll, describe, expect, it } from "vitest";
-import { defineComponent, getCurrentInstance, onMounted, onUnmounted } from "vue";
+import { defineComponent, getCurrentInstance, h, nextTick, onMounted, onUnmounted, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { isSubsetCI } from "@/utils/colorIdentity.ts";
 import Icon from "Components/UI/Icon.vue";
@@ -11,6 +11,9 @@ import { withSetup } from "../withSetup.ts";
 
 /** Flipped by a `withSetup` app's `onUnmounted`; see the teardown pair below. */
 let unmountedByTeardown = false;
+
+/** Live count of mounted throwaway components; see the cleanup pair below. */
+let mountedInstances = 0;
 
 /******************************************************************************
  * Harness regression tests.
@@ -123,6 +126,123 @@ describe("harness: global directives", () => {
 
     it("stubs v-tooltip and exposes its value as data-tooltip", () => {
         expect(mount(TooltipComponent).attributes("data-tooltip")).toBe("Kartenanzahl");
+    });
+
+    it("reads the content out of the options form", () => {
+        // Used where a tooltip has to escape a modal's stacking context.
+        const WithOptions = defineComponent({
+            template: `<span v-tooltip="{ content: 'Gebannt', container: '#modal-body' }">x</span>`
+        });
+
+        expect(mount(WithOptions).attributes("data-tooltip")).toBe("Gebannt");
+    });
+
+    it("renders no attribute at all when the directive is disabled", () => {
+        // `v-tooltip="false"` is how the badges suppress the tooltip once the
+        // label is visible; an empty string would read as "tooltip with no text".
+        const Disabled = defineComponent({ template: `<span v-tooltip="false">x</span>` });
+
+        expect(mount(Disabled).attributes("data-tooltip")).toBeUndefined();
+    });
+
+    it("removes the attribute when a live binding switches to disabled", () => {
+        // The runtime path when `showLabel` flips on an already-mounted badge.
+        const Toggling = defineComponent({
+            props: { tip: { type: [String, Boolean], default: "Kartenanzahl" } },
+            template: `<span v-tooltip="tip">x</span>`
+        });
+        const wrapper = mount(Toggling);
+
+        expect(wrapper.attributes("data-tooltip")).toBe("Kartenanzahl");
+
+        return wrapper.setProps({ tip: false }).then(() => {
+            expect(wrapper.attributes("data-tooltip")).toBeUndefined();
+        });
+    });
+});
+
+describe("harness: animation and transition events", () => {
+    it("can construct both, whether or not jsdom provides them", () => {
+        expect(() => new AnimationEvent("animationend")).not.toThrow();
+        expect(() => new TransitionEvent("transitionend")).not.toThrow();
+    });
+
+    it("carries the fields handlers filter on", () => {
+        const animation = new AnimationEvent("animationend", { animationName: "fade-out" });
+        const transition = new TransitionEvent("transitionend", { propertyName: "height" });
+
+        expect(animation.animationName).toBe("fade-out");
+        expect(transition.propertyName).toBe("height");
+    });
+
+    it("dispatches to a listener like any other event", () => {
+        const element = document.createElement("div");
+        let seen: string | null = null;
+        element.addEventListener("transitionend", event => {
+            seen = (event as TransitionEvent).propertyName;
+        });
+
+        element.dispatchEvent(new TransitionEvent("transitionend", { propertyName: "height" }));
+
+        expect(seen).toBe("height");
+    });
+});
+
+describe("harness: mounted components are cleaned up", () => {
+    const Counter = defineComponent({
+        setup() {
+            mountedInstances += 1;
+            onUnmounted(() => {
+                mountedInstances -= 1;
+            });
+            return () => null;
+        }
+    });
+
+    it("leaves a mounted component alive for the length of its own test", () => {
+        mount(Counter);
+        mount(Counter);
+
+        expect(mountedInstances).toBe(2);
+    });
+
+    it("has unmounted the previous test's components by now", () => {
+        // Without this, a component watching Inertia's shared props would react
+        // once per test that had run before — see `UI/ToastContainer.vue`.
+        expect(mountedInstances).toBe(0);
+    });
+});
+
+describe("harness: Inertia shared props are reactive", () => {
+    it("re-runs a watcher when a spec replaces the props", async () => {
+        // The real page props are reactive; a plain object would leave every
+        // `watch(() => page.props.…)` in the app silent under test.
+        const seen: unknown[] = [];
+        withSetup(() => {
+            watch(
+                () => pageProps.flash?.nonce,
+                nonce => seen.push(nonce)
+            );
+            return null;
+        });
+
+        setPageProps({ flash: { nonce: "n1" } });
+        await nextTick();
+
+        expect(seen).toEqual(["n1"]);
+    });
+
+    it("re-renders a component that reads them", async () => {
+        setPageProps({ currency: "eur" });
+        const Currency = defineComponent({
+            setup: () => () => h("span", String(pageProps.currency))
+        });
+        const wrapper = mount(Currency);
+
+        setPageProps({ currency: "usd" });
+        await nextTick();
+
+        expect(wrapper.text()).toBe("usd");
     });
 });
 

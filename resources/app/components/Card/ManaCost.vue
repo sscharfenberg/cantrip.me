@@ -4,7 +4,7 @@
  *
  * Accepts either a single cost string like `{2}{W}{U}` or an array of
  * per-face costs (e.g. `["{1}{R}", "{1}{U}"]` for split cards like
- * "Fire // Ice"). Multiple faces are joined with a `/` separator.
+ * "Fire // Ice"). Multiple faces are joined with a `//` separator.
  *
  * Each token is mapped to the SVG path `/symbol/<token>.svg` (with `/`
  * replaced by `-`) and rendered as an inline image.

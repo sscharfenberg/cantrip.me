@@ -1,5 +1,5 @@
-import { config } from "@vue/test-utils";
-import { beforeEach } from "vitest";
+import { config, enableAutoUnmount } from "@vue/test-utils";
+import { afterEach, beforeEach } from "vitest";
 import type { Directive } from "vue";
 import { createTestI18n } from "./i18n.ts";
 import { clearFormMocks, setPageProps } from "./inertia.ts";
@@ -80,6 +80,49 @@ if (!Element.prototype.scrollIntoView) {
     Element.prototype.scrollIntoView = function scrollIntoView(): void {};
 }
 
+/**
+ * jsdom never runs CSS, but it does dispatch whatever a test constructs — which
+ * is how a component that sequences behaviour on an animation finishing gets
+ * driven at all. `Modal.vue` defers `close()` until its exit animation ends;
+ * `UI/Accordion.vue` clears its inline heights on `transitionend`.
+ *
+ * jsdom 30 ships `TransitionEvent` but not `AnimationEvent`, so in practice
+ * only the first of these two is installed. Both are written out because the
+ * gap is a jsdom implementation detail that has moved before and can move
+ * again; the `in globalThis` guards mean the native wins whenever it exists.
+ * Extra fields are carried through so a handler filtering on `propertyName`
+ * behaves as it would in a browser.
+ */
+class StubAnimationEvent extends Event {
+    readonly animationName: string;
+    readonly elapsedTime: number;
+
+    constructor(type: string, init: EventInit & { animationName?: string; elapsedTime?: number } = {}) {
+        super(type, init);
+        this.animationName = init.animationName ?? "";
+        this.elapsedTime = init.elapsedTime ?? 0;
+    }
+}
+
+class StubTransitionEvent extends Event {
+    readonly propertyName: string;
+    readonly elapsedTime: number;
+
+    constructor(type: string, init: EventInit & { propertyName?: string; elapsedTime?: number } = {}) {
+        super(type, init);
+        this.propertyName = init.propertyName ?? "";
+        this.elapsedTime = init.elapsedTime ?? 0;
+    }
+}
+
+if (!("AnimationEvent" in globalThis)) {
+    defineGlobal("AnimationEvent", StubAnimationEvent);
+}
+
+if (!("TransitionEvent" in globalThis)) {
+    defineGlobal("TransitionEvent", StubTransitionEvent);
+}
+
 // Installed unconditionally rather than behind an `if (!globalThis.localStorage)`
 // guard: merely *reading* the global trips Node's ExperimentalWarning, which
 // would then print once per spec file. The shim is what the suite wants in
@@ -111,23 +154,63 @@ if (!globalThis.matchMedia) {
  * Vue Test Utils defaults
  *****************************************************************************/
 
+/** The shapes `v-tooltip` accepts: content, an options object, or `false` to disable. */
+type TooltipValue = string | false | null | undefined | { content?: unknown };
+
+/**
+ * Resolve a `v-tooltip` binding to the text FloatingVue would show, or null
+ * when the directive is disabled.
+ *
+ * `false` is FloatingVue's "no tooltip" — several components pass
+ * `showLabel ? false : t(…)` so the explanation appears either as a visible
+ * label or as a tooltip, never both. The object form carries `content` plus
+ * placement options (`container: "#modal-body"` where a tooltip has to escape
+ * a modal's stacking context).
+ */
+const tooltipContent = (value: TooltipValue): string | null => {
+    if (value === false || value === null || value === undefined) return null;
+    if (typeof value === "object") {
+        return value.content === undefined ? null : String(value.content);
+    }
+    return String(value);
+};
+
 /**
  * Stand-in for FloatingVue's `v-tooltip`, which `main.ts` installs app-wide.
  *
- * Rather than rendering a floating element, the value is written to
- * `data-tooltip` on the host element. Tooltip *content* is frequently real
- * logic in this app (see `Deck/DeckCardCount.vue`, which assembles a multi-line
- * HTML tooltip), so making it assertable via `wrapper.attributes("data-tooltip")`
- * is worth more than a bare no-op.
+ * Rather than rendering a floating element, the resolved content is written to
+ * `data-tooltip` on the host element, and the attribute is absent when the
+ * directive is disabled. Tooltip *content* is frequently real logic in this app
+ * — see `Deck/DeckCardCount.vue`, which assembles a multi-line HTML tooltip —
+ * so making it assertable is worth more than a bare no-op.
  */
-const tooltipStub: Directive<HTMLElement, string | undefined> = {
+const tooltipStub: Directive<HTMLElement, TooltipValue> = {
     mounted(el, binding) {
-        el.dataset.tooltip = binding.value ?? "";
+        applyTooltip(el, binding.value);
     },
     updated(el, binding) {
-        el.dataset.tooltip = binding.value ?? "";
+        applyTooltip(el, binding.value);
     }
 };
+
+const applyTooltip = (el: HTMLElement, value: TooltipValue): void => {
+    const content = tooltipContent(value);
+    if (content === null) {
+        delete el.dataset.tooltip;
+    } else {
+        el.dataset.tooltip = content;
+    }
+};
+
+/*
+ * Unmount every component a test mounted, once it ends.
+ *
+ * Without this a mounted component lives on: its watchers keep firing, and a
+ * component that reacts to Inertia's shared props — `UI/ToastContainer.vue`
+ * watches `flash.nonce` — would respond once per leftover instance, so a spec
+ * would see one toast per test that had run before it.
+ */
+enableAutoUnmount(afterEach);
 
 beforeEach(() => {
     // A fresh i18n instance per test: a spec that flips the locale, or registers

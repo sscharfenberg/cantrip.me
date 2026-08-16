@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { ref, useTemplateRef, watch } from "vue";
+import { onMounted, ref, useTemplateRef, watch } from "vue";
 const props = withDefaults(
     defineProps<{
         /** HTML `id` and `name` for the hidden input — auto-generated if omitted. */
-        refId: string;
+        refId?: string;
         /** Initial checked state on mount. */
         checkedInitially?: boolean;
         /** Whether the checkbox is disabled. */
@@ -31,13 +31,20 @@ watch(
     }
 );
 const inputRef = useTemplateRef<HTMLInputElement>("inputRef");
-watch(
-    () => props.indeterminate,
-    value => {
-        if (inputRef.value) inputRef.value.indeterminate = value;
-    },
-    { flush: "post", immediate: true }
-);
+/**
+ * `indeterminate` has no HTML attribute — it exists only as a DOM property, so
+ * it has to be written to the element by hand.
+ *
+ * Done in `onMounted` as well as in a watcher because an `immediate` watcher
+ * runs during setup, when the template ref is still null: a checkbox that
+ * mounts already indeterminate (the select-all header of a table with some
+ * rows preselected) would otherwise render as plain unchecked.
+ */
+const syncIndeterminate = (value: boolean): void => {
+    if (inputRef.value) inputRef.value.indeterminate = value;
+};
+onMounted(() => syncIndeterminate(props.indeterminate));
+watch(() => props.indeterminate, syncIndeterminate, { flush: "post" });
 /** @emits change — Fired with the new boolean checked state whenever the user toggles the checkbox. */
 const emit = defineEmits<{
     change: [checked: boolean];
