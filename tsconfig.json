@@ -122,6 +122,8 @@
         "resources/**/*.vue",
         "resources/**/*.ts",
         "vite.config.ts",
-        "vitest.config.ts"
+        "vitest.config.ts",
+        "playwright.config.ts",
+        "tests/e2e/**/*.ts"
     ]
 }

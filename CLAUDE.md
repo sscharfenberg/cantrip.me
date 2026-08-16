@@ -31,6 +31,12 @@ npm run test:coverage        # with v8 coverage report (.ts only — see vitest.
 npm run test -- harness      # filter by file path substring
 npm run test -- -t "echoes"  # filter by test name
 
+# End-to-end tests (Playwright) — drives the real app in Chromium, local only
+npm run e2e                  # whole suite; starts the DB container + app server itself
+npm run e2e -- --grep Deck   # filter by test name
+npm run e2e:ui               # interactive runner
+npm run e2e:report           # last run's HTML report (traces, screenshots)
+
 # Backend
 composer test                              # phpunit against SQLite (fast, local)
 composer test -- --filter=DeckTest         # filtered (note the `--` separator)
@@ -175,6 +181,15 @@ Conventions worth keeping:
 - Components rendered through `Modal.vue` **teleport into `<body>`** — assert through `document`, not through the wrapper.
 - After a submit that fires a request, `await flushPromises()`; `trigger()` only awaits Vue's render queue.
 - **Choose fixtures where the branches disagree.** Repeatedly during this rollout a spec passed against a deliberately broken implementation because every case in an `it.each` mapped to the same result. Mutate the source and confirm the suite goes red before trusting a new test.
+
+**End-to-end testing (Playwright):**
+
+- Specs live under `tests/e2e/`, split `guest/` (no session) and `app/` (signed in). **By directory, not by clearing cookies per test** — it is the only arrangement in which a stray `storageState` cannot make an auth-gate test pass by accident.
+- `npm run e2e` needs nothing running first: global setup starts the `docker-compose.e2e.yml` MariaDB if it is down, rebuilds the bundle **and the icon sprite**, migrates fresh and seeds; Playwright then starts `artisan serve` on port 8101.
+- The fixture is `database/seeders/E2ESeeder` — fixed ids, fixed names, fixed timestamps, no factories. `DatabaseSeeder` is unusable here: `DeckSeeder` pins printings by `(set code, collector number)` and so needs a full `scryfall:update`.
+- **Belongs here only if Vitest structurally cannot answer it** — real layout, real navigation, real database, real CSP. Anything provable with a mounted component and a mocked `fetch` is forty times cheaper in Vitest.
+- The three traps that cost the most to diagnose — a stale `public/hot` blanking every asset, a missing icon sprite making every icon-only control unclickable, and a cached config beating the environment overrides — are handled in `tests/e2e/support/environment.ts` and explained in `docs/testing.md`.
+- Not in CI, by decision: a browser failure wants a trace and a one-spec re-run, which a CI round trip does not give cheaply.
 
 **Scryfall data sync** (background commands, not part of normal dev):
 - `php artisan scryfall:update` orchestrates the full sync via the shadow-table flow (see "Shadow-table architecture" below).

@@ -7,6 +7,7 @@
 | PHPUnit `Local`     | `tests/Unit` + `tests/Feature` *(excl. `Feature/Services`)* | SQLite in-memory          | `composer test`        |
 | PHPUnit `Staging`   | `tests/Feature/Services` only                                | MariaDB (`mbos`)          | `composer test:mysql`  |
 | Vitest              | `resources/app/**/__tests__/*.spec.ts`                       | jsdom, no server          | `npm run test`         |
+| Playwright          | `tests/e2e/**/*.spec.ts`                                     | Chromium + the real app   | `npm run e2e`          |
 
 The two PHPUnit testsuites in `phpunit.xml` are physically separate and split along DB-engine lines. Each composer script targets exactly one suite, so running the wrong command on the wrong host can't ever drop a `RefreshDatabase` test onto the live MariaDB.
 
@@ -66,6 +67,48 @@ env DB_CONNECTION=mariadb DB_HOST=127.0.0.1 DB_PORT=3307 \
 ```
 
 If an artisan command against it fails with a connection error that names the *wrong* database, run `php artisan config:clear` first — a cached `bootstrap/cache/config.php` beats real environment variables.
+
+## `npm run e2e` — the Playwright suite
+
+Drives the **real app** in a real Chromium: Laravel over the throwaway MariaDB above, migrated and seeded fresh at the start of every run.
+
+```bash
+npm run e2e                       # the whole suite
+npm run e2e -- --grep "Deck"      # one slice
+npm run e2e -- tests/e2e/guest    # one directory
+npm run e2e:ui                    # the interactive runner, for debugging a failure
+npm run e2e:report                # last run's HTML report, with traces and screenshots
+```
+
+Nothing needs to be running first. `globalSetup` starts the database container if it is down, rebuilds the bundle and the icon sprite, migrates fresh and seeds — then Playwright starts the app server itself on **port 8101**.
+
+**It exists for the questions Vitest structurally cannot answer.** jsdom has no layout, no navigation, no Inertia server and no database, so "a page really boots with its assets", "auth genuinely gates this route" and "the deck query comes back from a real `REGEXP`" all live here rather than there. Anything that can be proven with a mounted component and a mocked `fetch` belongs in Vitest, which is roughly forty times faster per assertion.
+
+**It is deliberately not in CI.** A browser failure wants a trace, a screenshot and a re-run of one spec, and a CI round trip gives you none of those cheaply. Putting it there later needs a MariaDB service container and an `npx playwright install --with-deps chromium` step; nothing in `playwright.config.ts` assumes it will not happen.
+
+### Layout
+
+```
+tests/e2e/
+├── support/
+│   ├── environment.ts     ports, the server environment, the DB/asset/hot-file plumbing
+│   ├── globalSetup.ts     container → assets → migrate → seed, in that order
+│   ├── globalTeardown.ts  puts a stashed public/hot back
+│   ├── auth.setup.ts      signs in once, parks the session for the `app` project
+│   └── actions.ts         helpers shared across specs
+├── guest/*.spec.ts        run with NO stored session
+└── app/*.spec.ts          run signed in as the seeded user
+```
+
+Guest and app specs are separated **by directory, not by clearing cookies per test**. It is the one arrangement in which a stray `storageState` cannot make an auth-gate test pass by accident — the failure mode that would leave the whole project green and worthless.
+
+The fixture is `database/seeders/E2ESeeder`, **not** `DatabaseSeeder`: that one chains `DeckSeeder`, which pins every slot to a specific Scryfall printing and so needs a full `scryfall:update` behind it. `E2ESeeder` is fixed and committed — same ids, names and printings every run, because a browser test names the thing it clicks.
+
+### Three traps worth knowing before you touch the harness
+
+* **`public/hot` silently blanks every asset.** The file is written by `npm run dev` and is *not* removed when that server stops, and while it exists `@vite` ignores the built manifest entirely. This repo has a sharper version of it than most: development happens on staging, whose `public/hot` names `https://staging.cantrip.me:5174`. `stashStaleHotFile()` parks a *stale* marker for the duration of a run and puts it back afterwards — a live dev server is left alone, since it serves assets perfectly well. Symptom when it goes wrong: every selector times out.
+* **The icon sprite is not part of the Vite build.** `npm run icons` writes `storage/app/public/sprite.svg` and `app.blade.php` inlines it; `<Icon>` renders `<use href="#name">` against it. Without it nothing errors and the markup still validates — the icons are just invisible, and every icon-only control becomes unclickable. `buildAssets()` runs both steps for this reason, and `guest/smoke.spec.ts` asserts the sprite is on the page.
+* **A cached config beats real environment variables.** The whole run is configured by overriding the environment rather than editing `.env`, so a stale `bootstrap/cache/config.php` would point `migrate:fresh` at the *development* database. `resetDatabase()` runs `config:clear` first, every time.
 
 ## Adding new tests
 

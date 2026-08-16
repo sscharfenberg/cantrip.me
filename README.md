@@ -43,12 +43,14 @@ php artisan db:seed
 
 The seeder creates the test user, wipes existing containers and card stacks for the first user, creates 10 sample containers, and distributes 60 random cards across them.
 
+The end-to-end suite uses a different one — `E2ESeeder`, a fixed fixture that needs no Scryfall sync. It is run for you by `npm run e2e`; see [docs/testing.md](docs/testing.md).
+
 ## Documentation
 
 In-depth docs live under `docs/`:
 
 * **[Development](docs/development.md)** — `composer dev`, NPM commands, IDE setup (Prettier / ESLint / Stylelint).
-* **[Testing](docs/testing.md)** — `composer test` (Local / SQLite) vs. `composer test:mysql` (Staging / MariaDB), prerequisites, how to add new tests.
+* **[Testing](docs/testing.md)** — the four suites: `composer test` (Local / SQLite), `composer test:mysql` (Staging / MariaDB), `npm run test` (Vitest), `npm run e2e` (Playwright). Prerequisites and how to add new tests.
 * **[Artisan commands](docs/artisan-commands.md)** — every project-specific artisan command: the Scryfall sync flow (shadow-table swap), per-step commands, image GC, FK repair, scheduled tasks.
 * **[GitHub Actions](docs/github-actions.md)** — CI pipeline, staging deploy (manual), production deploy (manual, reviewer-gated), versioning, end-to-end release flow.
 * **[Makefile shortcuts](docs/makefile.md)** — `make logs-staging` / `make logs-prod` for pulling server logs locally.

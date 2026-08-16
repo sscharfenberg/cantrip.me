@@ -18,8 +18,14 @@
 /coverage
 /node_modules
 
+# Playwright — the parked E2E sessions, its per-run artefacts, and its HTML report.
+/tests/e2e/.auth
+/test-results
+/playwright-report
+
 /public/build
 /public/hot
+/public/hot.e2e-backup
 /public/storage
 /public/art-crops
 /public/card-images

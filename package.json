@@ -19,11 +19,14 @@
         "build-only": "vite build",
         "e2e:db:up": "docker compose -f docker-compose.e2e.yml up -d --wait",
         "e2e:db:down": "docker compose -f docker-compose.e2e.yml down",
+        "e2e": "playwright test",
+        "e2e:ui": "playwright test --ui",
+        "e2e:report": "playwright show-report",
         "test": "vitest run",
         "test:watch": "vitest",
         "test:coverage": "vitest run --coverage",
         "type-check": "vue-tsc --build",
-        "lint": "eslint 'resources/app/**/*.{js,ts,vue}' --fix && stylelint 'resources/app/**/*.{vue,scss}' --fix --quiet-deprecation-warnings",
+        "lint": "eslint 'resources/app/**/*.{js,ts,vue}' 'tests/e2e/**/*.ts' playwright.config.ts --fix && stylelint 'resources/app/**/*.{vue,scss}' --fix --quiet-deprecation-warnings",
         "icons": "node ./resources/build/icons.ts -v -i",
         "format": "prettier --write 'resources/app/**/*.{ts,vue,scss,json,md}'",
         "preinstall": "node ./resources/build/checkNodeVersion.ts"
@@ -39,6 +42,7 @@
         "vue-input-otp": "^0.3.2"
     },
     "devDependencies": {
+        "@playwright/test": "^1.62.1",
         "@tsconfig/node24": "^24.0.4",
         "@types/jsdom": "^30.0.0",
         "@types/minimist": "^1.2.5",
