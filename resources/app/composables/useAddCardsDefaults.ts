@@ -21,12 +21,20 @@ const APP_DEFAULTS: Required<AddCardsDefaults> = {
 /** Reactive state holding the currently saved defaults. Shared across all consumers. */
 const savedDefaults = ref<AddCardsDefaults>(load());
 
-/** Read defaults from localStorage, returning an empty object on failure. */
+/**
+ * Read defaults from localStorage, returning an empty object on failure.
+ *
+ * The shape check after parsing matters as much as the try/catch: a stored
+ * `"null"` or `"42"` is valid JSON, so it would sail past the catch and then
+ * blow up in `hasSavedDefaults`, which calls `Object.keys` on it.
+ */
 function load(): AddCardsDefaults {
     try {
         const raw = localStorage.getItem(STORAGE_KEY);
         if (!raw) return {};
-        return JSON.parse(raw) as AddCardsDefaults;
+        const parsed: unknown = JSON.parse(raw);
+        if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) return {};
+        return parsed as AddCardsDefaults;
     } catch {
         return {};
     }
@@ -34,7 +42,12 @@ function load(): AddCardsDefaults {
 
 /** Write the given defaults to localStorage and update reactive state. */
 function persist(defaults: AddCardsDefaults): void {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(defaults));
+    try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(defaults));
+    } catch {
+        // Storage unavailable or over quota — the defaults still apply for the
+        // rest of this session, they just won't survive a reload.
+    }
     savedDefaults.value = { ...defaults };
 }
 

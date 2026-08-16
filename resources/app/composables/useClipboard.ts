@@ -51,10 +51,16 @@ export const useClipboard = (): UseClipboardReturn => {
                 // cause a visible flash.
                 textarea.style.cssText = "position:fixed;top:-9999px;left:-9999px;opacity:0";
                 document.body.appendChild(textarea);
-                textarea.focus();
-                textarea.select();
-                document.execCommand("copy");
-                document.body.removeChild(textarea);
+                try {
+                    textarea.focus();
+                    textarea.select();
+                    document.execCommand("copy");
+                } finally {
+                    // In a `finally` because an `execCommand` that throws would
+                    // otherwise leave the scratch element in the document for
+                    // the rest of the session.
+                    textarea.remove();
+                }
             }
 
             copied.value = true;

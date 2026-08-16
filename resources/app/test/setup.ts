@@ -2,6 +2,8 @@ import { config } from "@vue/test-utils";
 import { beforeEach } from "vitest";
 import type { Directive } from "vue";
 import { createTestI18n } from "./i18n.ts";
+import { clearFormMocks, setPageProps } from "./inertia.ts";
+import { FakeIntersectionObserver, FakeResizeObserver, clearRecordedObservers } from "./observers.ts";
 
 /******************************************************************************
  * Global Vitest setup — imported once per spec file, before any test in it.
@@ -21,23 +23,6 @@ import { createTestI18n } from "./i18n.ts";
 /******************************************************************************
  * jsdom gaps
  *****************************************************************************/
-
-/**
- * No-op stand-in for the two observer APIs jsdom does not implement.
- *
- * Components use them for lazy image loading (`Card/CardSearch/Results.vue`)
- * and sticky-header detection (`DataTable/DataTable.vue`). Nothing under test
- * asserts on intersection callbacks — the class exists so `new
- * IntersectionObserver(...)` in `onMounted` resolves instead of throwing.
- */
-class NoopObserver {
-    observe(): void {}
-    unobserve(): void {}
-    disconnect(): void {}
-    takeRecords(): [] {
-        return [];
-    }
-}
 
 /**
  * Minimal in-memory `Storage`.
@@ -85,13 +70,10 @@ const defineGlobal = (name: string, value: unknown): void => {
     Object.defineProperty(globalThis, name, { value, configurable: true, writable: true });
 };
 
-if (!("IntersectionObserver" in globalThis)) {
-    defineGlobal("IntersectionObserver", NoopObserver);
-}
-
-if (!("ResizeObserver" in globalThis)) {
-    defineGlobal("ResizeObserver", NoopObserver);
-}
+// jsdom implements neither observer. The fakes record every instance so a spec
+// can drive the callback directly — see `resources/app/test/observers.ts`.
+defineGlobal("IntersectionObserver", FakeIntersectionObserver);
+defineGlobal("ResizeObserver", FakeResizeObserver);
 
 if (!Element.prototype.scrollIntoView) {
     // jsdom has no layout engine, so scrolling is a no-op by definition.
@@ -155,4 +137,12 @@ beforeEach(() => {
 
     localStorage.clear();
     sessionStorage.clear();
+    clearRecordedObservers();
+
+    // Inertia's doubles are plain module state, which none of Vitest's
+    // clearMocks / restoreMocks / unstubGlobals reach. Without this a spec that
+    // forgets its own `setPageProps` silently inherits the previous test's
+    // shared props — and passes for the wrong reason.
+    setPageProps({});
+    clearFormMocks();
 });

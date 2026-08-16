@@ -1,9 +1,16 @@
 import { mount } from "@vue/test-utils";
 import { beforeAll, describe, expect, it } from "vitest";
-import { defineComponent } from "vue";
+import { defineComponent, getCurrentInstance, onMounted, onUnmounted } from "vue";
+import { useI18n } from "vue-i18n";
 import { isSubsetCI } from "@/utils/colorIdentity.ts";
 import Icon from "Components/UI/Icon.vue";
 import { createTestI18n } from "../i18n.ts";
+import { inertiaModuleMock, pageProps, routerMock, setPageProps } from "../inertia.ts";
+import { intersectionObservers, resizeObservers } from "../observers.ts";
+import { withSetup } from "../withSetup.ts";
+
+/** Flipped by a `withSetup` app's `onUnmounted`; see the teardown pair below. */
+let unmountedByTeardown = false;
 
 /******************************************************************************
  * Harness regression tests.
@@ -116,5 +123,154 @@ describe("harness: global directives", () => {
 
     it("stubs v-tooltip and exposes its value as data-tooltip", () => {
         expect(mount(TooltipComponent).attributes("data-tooltip")).toBe("Kartenanzahl");
+    });
+});
+
+describe("harness: recorded observers", () => {
+    /** Mount something that registers a ResizeObserver on a real element. */
+    const observing = () => {
+        const element = document.createElement("div");
+        const seen: number[] = [];
+        const [, app] = withSetup(() => {
+            const observer = new ResizeObserver(entries => {
+                seen.push(entries[0].contentBoxSize[0].inlineSize);
+            });
+            observer.observe(element);
+            onUnmounted(() => observer.disconnect());
+            return null;
+        });
+        return { seen, app, element };
+    };
+
+    it("records each observer as it is constructed", () => {
+        const { element } = observing();
+
+        expect(resizeObservers).toHaveLength(1);
+        expect(resizeObservers[0].targets).toEqual([element]);
+    });
+
+    it("drives the callback from trigger()", () => {
+        const { seen } = observing();
+
+        resizeObservers[0].trigger({ inlineSize: 1200 });
+
+        expect(seen).toEqual([1200]);
+    });
+
+    it("marks an observer disconnected when its component unmounts", () => {
+        const { app } = observing();
+
+        app.unmount();
+
+        expect(resizeObservers[0].disconnected).toBe(true);
+    });
+
+    it("refuses to fire a disconnected observer rather than pretending", () => {
+        // A silent no-op here would let a "nothing happens after unmount" test
+        // pass without ever exercising anything.
+        const { app } = observing();
+        app.unmount();
+
+        expect(() => resizeObservers[0].trigger({ inlineSize: 1200 })).toThrow(/after disconnect/);
+    });
+
+    it("refuses to fire an observer that is watching nothing", () => {
+        withSetup(() => {
+            new IntersectionObserver(() => {});
+            return null;
+        });
+
+        expect(() => intersectionObservers[0].trigger([])).toThrow(/nothing is observed/);
+    });
+
+    it("starts each test with an empty registry", () => {
+        expect(resizeObservers).toEqual([]);
+        expect(intersectionObservers).toEqual([]);
+        observing();
+    });
+
+    it("does not carry observers over from the previous test", () => {
+        expect(resizeObservers).toEqual([]);
+    });
+});
+
+describe("harness: withSetup", () => {
+    it("runs the composable inside a component instance", () => {
+        const [result] = withSetup(() => {
+            expect(getCurrentInstance()).not.toBeNull();
+            return "value";
+        });
+
+        expect(result).toBe("value");
+    });
+
+    it("fires onMounted", () => {
+        let mounted = false;
+        withSetup(() => {
+            onMounted(() => {
+                mounted = true;
+            });
+            return null;
+        });
+
+        expect(mounted).toBe(true);
+    });
+
+    it("installs the plugins it is given, which VTU's global config does not reach", () => {
+        const [locale] = withSetup(() => useI18n().locale.value, [createTestI18n()]);
+
+        expect(locale).toBe("de");
+    });
+
+    it("unmounts leftover apps after each test, firing onUnmounted", () => {
+        withSetup(() => {
+            onUnmounted(() => {
+                unmountedByTeardown = true;
+            });
+            return null;
+        });
+
+        expect(unmountedByTeardown).toBe(false);
+    });
+
+    it("has run the previous test's teardown by now", () => {
+        expect(unmountedByTeardown).toBe(true);
+    });
+});
+
+describe("harness: Inertia doubles", () => {
+    it("serves the shared props a spec sets", () => {
+        setPageProps({ csrfToken: "csrf-token" });
+
+        expect(pageProps).toEqual({ csrfToken: "csrf-token" });
+        pageProps.leaked = true;
+    });
+
+    it("starts each test with empty shared props", () => {
+        // Module state that none of Vitest's mock-reset options can reach; the
+        // global setup blanks it instead.
+        expect(pageProps).toEqual({});
+    });
+
+    it("resets the router spies between tests", () => {
+        expect(routerMock.visit).not.toHaveBeenCalled();
+        routerMock.visit("/decks");
+    });
+
+    it("does not carry router calls over from the previous test", () => {
+        expect(routerMock.visit).not.toHaveBeenCalled();
+    });
+
+    it("exports every symbol the app imports from @inertiajs/vue3", () => {
+        // `vi.mock` replaces the module wholesale, so a missing export is an
+        // import-time crash in whichever page component uses it.
+        expect(Object.keys(inertiaModuleMock()).sort()).toEqual([
+            "Form",
+            "Head",
+            "Link",
+            "router",
+            "useForm",
+            "usePage"
+        ]);
     });
 });

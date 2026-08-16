@@ -47,7 +47,12 @@ export default defineConfig({
         include: ["resources/app/**/__tests__/**/*.spec.ts"],
 
         // Every spy/stub is undone between tests, so a forgotten cleanup in one
-        // spec cannot leak into the next.
+        // spec cannot leak into the next. `clearMocks` is the one that matters
+        // for the long-lived doubles in `resources/app/test/inertia.ts`:
+        // `restoreMocks` only reaches spies made with `vi.spyOn`, so without it
+        // a bare `vi.fn()` created at module load would accumulate calls across
+        // the whole file and make `not.toHaveBeenCalled()` unusable.
+        clearMocks: true,
         restoreMocks: true,
         unstubGlobals: true,
         unstubEnvs: true,

@@ -243,6 +243,12 @@ describe("arcPath", () => {
             expect(arcs(straddling).find(a => a.rx === 50)?.largeArc).toBe(1);
             expect(arcs(straddling).find(a => a.rx === 49.5)?.largeArc).toBe(0);
         });
+
+        it("flags both arcs long when both sweeps pass a half turn", () => {
+            const wide = arcPath(0, 3.5, 0, 3.5, 50, 49.5);
+
+            expect(arcs(wide).map(a => a.largeArc)).toEqual([1, 1]);
+        });
     });
 
     it("projects the gap radially, so the inner arc spans a narrower angle", () => {

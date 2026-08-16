@@ -9,7 +9,7 @@ import type { DeckCardRow } from "Types/deckPage";
 export type DeckCardGrouping = {
     /** Primary card type for this group. */
     group: DeckCardGroup;
-    /** Cards belonging to the group, in the order they were provided. */
+    /** Cards belonging to the group, ordered by the active sort mode. */
     cards: DeckCardRow[];
     /** Sum of quantities of the cards in this group. */
     count: number;
