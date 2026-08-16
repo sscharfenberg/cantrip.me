@@ -59,8 +59,14 @@ export const arcPath = (
         const y3 = rInner * Math.sin(theta1Inner);
         const x4 = rInner * Math.cos(theta0Inner);
         const y4 = rInner * Math.sin(theta0Inner);
-        const largeArc = sweepOuter > Math.PI ? 1 : 0;
-        return `M${x1},${y1} A${rOuter},${rOuter} 0 ${largeArc} 1 ${x2},${y2} L${x3},${y3} A${rInner},${rInner} 0 ${largeArc} 0 ${x4},${y4} Z`;
+        // Each arc gets its own large-arc flag, as in the rounded branch below.
+        // The radial-gap projection makes the inner sweep narrower than the
+        // outer one, so a segment straddling a half turn can need 1 outside and
+        // 0 inside; sharing one flag would draw the inner arc the long way
+        // round and turn the keystone inside out.
+        const largeArcOuter = sweepOuter > Math.PI ? 1 : 0;
+        const largeArcInner = sweepInner > Math.PI ? 1 : 0;
+        return `M${x1},${y1} A${rOuter},${rOuter} 0 ${largeArcOuter} 1 ${x2},${y2} L${x3},${y3} A${rInner},${rInner} 0 ${largeArcInner} 0 ${x4},${y4} Z`;
     }
 
     const dOuter = cr / rOuter;
