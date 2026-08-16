@@ -60,6 +60,27 @@ class E2ESeeder extends Seeder
     public const USER_PASSWORD = 'e2e-password';
 
     /**
+     * A second account, owned by the logout spec.
+     *
+     * IT EXISTS FOR THE LOGIN THROTTLE, not for its rows — it owns nothing.
+     * Fortify limits login to `Limit::perMinute(5)` keyed on `name|ip`
+     * (FortifyServiceProvider), so the budget is per NAME, and a run already
+     * spends three of the main account's five: the setup project's login, and
+     * the two in `guest/auth.spec.ts`. Logging out has to sign in for real —
+     * a parked `storageState` cannot be used, because signing out invalidates
+     * the session server-side and would take every other `app` spec's cookie
+     * down with it — so on the shared name it would be the fourth, with one to
+     * spare for the whole future of the suite.
+     *
+     * A separate name is a separate bucket. The failure it avoids is worth the
+     * fifteen lines: a throttled login does not report an error, it simply never
+     * navigates, which reads as "the login form is broken".
+     */
+    public const LOGOUT_USER_ID = '0198a1b2-0000-7000-8000-000000000002';
+
+    public const LOGOUT_USER_NAME = 'E2E Logout';
+
+    /**
      * The three seeded decks.
      *
      * They are not three of the same thing. Each one exists to make a different
@@ -118,7 +139,8 @@ class E2ESeeder extends Seeder
     {
         $this->stamp = Carbon::parse('2026-01-01 12:00:00');
 
-        $user = $this->seedUser();
+        $user = $this->seedUser(self::USER_ID, self::USER_NAME, 'e2e@cantrip.test');
+        $this->seedUser(self::LOGOUT_USER_ID, self::LOGOUT_USER_NAME, 'e2e-logout@cantrip.test');
         $this->seedScryfall();
         $this->seedContainers($user);
         $this->seedCardStacks($user);
@@ -126,14 +148,15 @@ class E2ESeeder extends Seeder
     }
 
     /**
-     * The signed-in account.
+     * One of the two seeded accounts. Identical but for identity — see
+     * {@see LOGOUT_USER_NAME} for why there are two.
      *
      * Verified up front (`email_verified_at` set), because the verification flow
      * gets its own spec that mints its own unverified user — leaving this one
      * unverified would put a verification wall in front of every authenticated
      * spec instead.
      */
-    private function seedUser(): User
+    private function seedUser(string $id, string $name, string $email): User
     {
         /*
          * `forceFill`, because `id`, `created_at` and `updated_at` are all
@@ -143,9 +166,9 @@ class E2ESeeder extends Seeder
          * hashed on the way in.
          */
         $user = (new User)->forceFill([
-            'id' => self::USER_ID,
-            'name' => self::USER_NAME,
-            'email' => 'e2e@cantrip.test',
+            'id' => $id,
+            'name' => $name,
+            'email' => $email,
             'locale' => 'de',
             'currency' => 'eur',
             'deck_view_default' => 'text',

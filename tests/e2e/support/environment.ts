@@ -76,6 +76,15 @@ export const serverEnv: Record<string, string> = {
     APP_ENV: "local",
     APP_DEBUG: "true",
     APP_URL: BASE_URL,
+    /*
+     * Pinned, not inherited. The committed `.env` happens to say `de` today, and
+     * the specs assert on German catalog strings — including SERVER-rendered
+     * ones like Fortify's `auth.failed`, which no amount of browser `locale`
+     * setting would change. Leaving it out makes the suite pass because of a
+     * line in a file it does not own.
+     */
+    APP_LOCALE: "de",
+    APP_FALLBACK_LOCALE: "en",
     DB_CONNECTION: "mariadb",
     DB_HOST: "127.0.0.1",
     DB_PORT: String(DB_PORT),
@@ -330,6 +339,17 @@ export const resetDatabase = (): void => {
  * not null.
  */
 export const SEED_USER = { name: "E2E Tester", password: "e2e-password" } as const;
+
+/**
+ * The second seeded account, owned by the logout spec.
+ *
+ * It exists for the login THROTTLE rather than for any rows of its own —
+ * `E2ESeeder::LOGOUT_USER_NAME` carries the full reasoning. In short: Fortify
+ * limits login to five per minute per name, signing out has to be a real login
+ * (a parked session cannot be used, because logging out invalidates it
+ * server-side for everyone), and a separate name is a separate bucket.
+ */
+export const LOGOUT_USER = { name: "E2E Logout", password: SEED_USER.password } as const;
 
 /**
  * Where `auth.setup.ts` parks the signed-in session for the `app` project.
