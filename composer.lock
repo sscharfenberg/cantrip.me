@@ -1500,16 +1500,16 @@
         },
         {
             "name": "inertiajs/inertia-laravel",
-            "version": "v3.2.0",
+            "version": "v3.3.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/inertiajs/inertia-laravel.git",
-                "reference": "d97fd2bc77d9d4189425d51cb95e900c23171633"
+                "reference": "7bfd75e352938b703180574b943d81963555a0aa"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/inertiajs/inertia-laravel/zipball/d97fd2bc77d9d4189425d51cb95e900c23171633",
-                "reference": "d97fd2bc77d9d4189425d51cb95e900c23171633",
+                "url": "https://api.github.com/repos/inertiajs/inertia-laravel/zipball/7bfd75e352938b703180574b943d81963555a0aa",
+                "reference": "7bfd75e352938b703180574b943d81963555a0aa",
                 "shasum": ""
             },
             "require": {
@@ -1519,7 +1519,7 @@
                 "symfony/console": "^7.0|^8.0"
             },
             "conflict": {
-                "laravel/boost": "<2.2.0"
+                "laravel/boost": "<2.5.0"
             },
             "require-dev": {
                 "guzzlehttp/guzzle": "^7.15.2|^8.0",
@@ -1566,9 +1566,9 @@
             ],
             "support": {
                 "issues": "https://github.com/inertiajs/inertia-laravel/issues",
-                "source": "https://github.com/inertiajs/inertia-laravel/tree/v3.2.0"
+                "source": "https://github.com/inertiajs/inertia-laravel/tree/v3.3.1"
             },
-            "time": "2026-07-28T20:37:01+00:00"
+            "time": "2026-08-04T21:58:51+00:00"
         },
         {
             "name": "laravel/fortify",
@@ -2954,16 +2954,16 @@
         },
         {
             "name": "nette/schema",
-            "version": "v1.3.5",
+            "version": "v1.3.6",
             "source": {
                 "type": "git",
                 "url": "https://github.com/nette/schema.git",
-                "reference": "f0ab1a3cda782dbc5da270d28545236aa80c4002"
+                "reference": "c54350438cd6914616f790a49cb424605f421562"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/nette/schema/zipball/f0ab1a3cda782dbc5da270d28545236aa80c4002",
-                "reference": "f0ab1a3cda782dbc5da270d28545236aa80c4002",
+                "url": "https://api.github.com/repos/nette/schema/zipball/c54350438cd6914616f790a49cb424605f421562",
+                "reference": "c54350438cd6914616f790a49cb424605f421562",
                 "shasum": ""
             },
             "require": {
@@ -3015,9 +3015,9 @@
             ],
             "support": {
                 "issues": "https://github.com/nette/schema/issues",
-                "source": "https://github.com/nette/schema/tree/v1.3.5"
+                "source": "https://github.com/nette/schema/tree/v1.3.6"
             },
-            "time": "2026-02-23T03:47:12+00:00"
+            "time": "2026-08-16T21:58:41+00:00"
         },
         {
             "name": "nette/utils",
