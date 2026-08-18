@@ -211,7 +211,7 @@ jobs:
 
       # No `npm ci` in this job: testBadges.ts deliberately imports nothing but Node
       # built-ins, so the install would cost more than everything else here put together.
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           path: reports
           pattern: junit-*
