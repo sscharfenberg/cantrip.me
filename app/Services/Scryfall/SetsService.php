@@ -108,8 +108,9 @@ class SetsService extends ScryfallService
         foreach ($this->getCachedSetIcons() as $existing) {
             $basename = basename($existing);
             if ($basename === "$code.svg" || str_starts_with($basename, "$code--")) {
-                Storage::disk('set')->delete($existing);
-                Log::channel('scryfall')->debug("deleted stale set icon: $basename");
+                if ($this->deleteStaleFile('set', $existing)) {
+                    Log::channel('scryfall')->debug("deleted stale set icon: $basename");
+                }
             }
         }
 

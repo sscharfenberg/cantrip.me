@@ -5,6 +5,9 @@ namespace App\Services\Scryfall;
 use App\Services\Scryfall\Shadow\ShadowTableRegistry;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
+use Throwable;
 
 class ScryfallService
 {
@@ -207,5 +210,44 @@ class ScryfallService
     protected function tableName(string $live, bool $shadow): string
     {
         return $shadow ? ShadowTableRegistry::shadow($live) : $live;
+    }
+
+    /**
+     * Delete a stale cached asset, treating failure as non-fatal.
+     *
+     * Every caller deletes a *superseded* file — an art crop, card face or
+     * set icon whose Scryfall timestamp has moved on. The fresh version is
+     * downloaded to a new filename immediately afterwards, so a leftover
+     * old file costs disk space and nothing else. Letting Flysystem's
+     * `UnableToDeleteFile` escape, by contrast, aborts the whole import
+     * step and with it the nightly `scryfall:update` — the outcome is
+     * wildly out of proportion to the problem.
+     *
+     * In practice this fires when the file or its directory is not writable
+     * by the running user: the shared asset dirs under `/var/www/mbo-shared`
+     * are written by whichever user cron happens to run as, so a changed
+     * cron user turns every previously-cached file into an undeletable one.
+     * Counted in {@see ScryfallRunStats::$staleFilesUndeletable} so a
+     * systemic permission problem shows up in the end-of-run summary
+     * instead of only in the log.
+     *
+     * @param  string  $disk  The filesystem disk name.
+     * @param  string  $path  Path on that disk.
+     * @return bool Whether the file is gone.
+     */
+    protected function deleteStaleFile(string $disk, string $path): bool
+    {
+        try {
+            Storage::disk($disk)->delete($path);
+
+            return true;
+        } catch (Throwable $e) {
+            ScryfallRunStats::$staleFilesUndeletable++;
+            Log::channel('scryfall')->warning(
+                "could not delete stale file '$path' on disk '$disk', leaving it in place: {$e->getMessage()}"
+            );
+
+            return false;
+        }
     }
 }

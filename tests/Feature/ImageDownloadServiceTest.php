@@ -22,11 +22,19 @@ use Tests\TestCase;
  * pass, the static counters reflect what happened on disk (downloaded /
  * skipped / failed), separately for card faces and art crops.
  *
+ * Also covers the resilience contract around stale-file cleanup: a cached
+ * file the running user cannot delete must not abort the pass. It used to —
+ * Flysystem's UnableToDeleteFile escaped cleanupOldVersions() and killed the
+ * whole nightly scryfall:update on the first undeletable file it met.
+ *
  * Skipped on the staging suite — uses RefreshDatabase.
  */
 class ImageDownloadServiceTest extends TestCase
 {
     use RefreshDatabase;
+
+    /** @var list<string> Directories chmod'ed read-only by a test. */
+    private array $lockedDirectories = [];
 
     protected function setUp(): void
     {
@@ -37,6 +45,18 @@ class ImageDownloadServiceTest extends TestCase
         ScryfallRunStats::reset();
         Storage::fake('card-images');
         Storage::fake('art-crops');
+    }
+
+    protected function tearDown(): void
+    {
+        // A directory left read-only would break the next Storage::fake()
+        // cleanup, so unlock it whatever the test did.
+        foreach ($this->lockedDirectories as $path) {
+            @chmod($path, 0755);
+        }
+        $this->lockedDirectories = [];
+
+        parent::tearDown();
     }
 
     #[Test]
@@ -111,6 +131,73 @@ class ImageDownloadServiceTest extends TestCase
         $this->assertSame(0, ScryfallRunStats::$cardImagesDownloaded);
         $this->assertSame(0, ScryfallRunStats::$cardImagesSkipped);
         $this->assertSame(0, ScryfallRunStats::$cardImagesFailed);
+    }
+
+    #[Test]
+    public function an_undeletable_stale_file_does_not_abort_the_pass(): void
+    {
+        $lockedSet = $this->makeSet();
+        $writableSet = $this->makeSet();
+
+        // A superseded crop (timestamp 111) in a set directory the process
+        // cannot write to — mirrors production, where the shared asset dirs
+        // were owned by the previous cron user and not group-writable.
+        $stranded = $this->makeDefaultCard('Stranded Crop', $lockedSet, [
+            'art_crop' => 'https://img.test/stranded.jpg?999',
+        ]);
+        $staleFile = "{$lockedSet->code}/{$stranded->id}--111.jpg";
+        Storage::disk('art-crops')->put($staleFile, 'superseded');
+
+        // An unrelated card in a healthy directory: the pass must reach it.
+        $healthy = $this->makeDefaultCard('Healthy Crop', $writableSet, [
+            'art_crop' => 'https://img.test/healthy.jpg?222',
+        ]);
+
+        $this->lockDirectory(Storage::disk('art-crops')->path($lockedSet->code));
+
+        Http::fake(['*' => Http::response('fake-image-bytes', 200)]);
+
+        (new ImageDownloadService)->downloadArtCrops();
+
+        $this->assertSame(
+            1,
+            ScryfallRunStats::$staleFilesUndeletable,
+            'the undeletable stale crop must be counted, not thrown'
+        );
+        $this->assertTrue(
+            Storage::disk('art-crops')->exists($staleFile),
+            'the stale file stays on disk — cleanup failure is tolerated, not retried'
+        );
+
+        // The pass continued past the failure and cached the other card.
+        $this->assertSame(1, ScryfallRunStats::$artCropsDownloaded);
+        $this->assertTrue(
+            Storage::disk('art-crops')->exists("{$writableSet->code}/{$healthy->id}--222.jpg"),
+            'the healthy card must still be downloaded'
+        );
+
+        // The locked card could not be written either, so it counts as failed
+        // rather than downloaded — degraded, but the run survives.
+        $this->assertSame(1, ScryfallRunStats::$artCropsFailed);
+    }
+
+    /**
+     * Strip write permission from a directory so unlink() inside it fails.
+     *
+     * Skips the test when the permission bits have no effect — running as
+     * root, or on a filesystem that ignores them — rather than asserting on
+     * a condition that was never actually created.
+     */
+    private function lockDirectory(string $path): void
+    {
+        chmod($path, 0555);
+        $this->lockedDirectories[] = $path;
+
+        $probe = $path.'/.write-probe';
+        if (@file_put_contents($probe, 'x') !== false) {
+            @unlink($probe);
+            $this->markTestSkipped('Directory permissions are not enforced for this user.');
+        }
     }
 
     private function makeSet(): Set

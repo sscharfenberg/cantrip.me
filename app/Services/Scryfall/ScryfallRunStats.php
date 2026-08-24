@@ -34,6 +34,13 @@ class ScryfallRunStats
 
     public static int $artCropsFailed = 0;
 
+    /**
+     * Stale cached assets (art crops, card faces, set icons) that could
+     * not be deleted — almost always a filesystem permission problem.
+     * Non-fatal, see {@see ScryfallService::deleteStaleFile()}.
+     */
+    public static int $staleFilesUndeletable = 0;
+
     public static function reset(): void
     {
         self::$relationsRetargeted = 0;
@@ -45,5 +52,6 @@ class ScryfallRunStats
         self::$artCropsDownloaded = 0;
         self::$artCropsSkipped = 0;
         self::$artCropsFailed = 0;
+        self::$staleFilesUndeletable = 0;
     }
 }

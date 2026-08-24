@@ -56,6 +56,8 @@ class ImageDownloadService extends ScryfallService
         $skipped = 0;
         $failed = 0;
 
+        $staleBefore = ScryfallRunStats::$staleFilesUndeletable;
+
         Log::channel('scryfall')->notice("begin downloading art crop images (target={$target}).");
 
         [$cardsTable, $setsTable] = $this->resolveTables($target);
@@ -87,6 +89,7 @@ class ImageDownloadService extends ScryfallService
             "finished art crop download: $total cards processed "
             ."($downloaded downloaded, $skipped skipped, $failed failed) "
             .'in '.$this->formatService->formatMs($ms).'.'
+            .$this->undeletableSuffix($staleBefore)
         );
     }
 
@@ -156,7 +159,7 @@ class ImageDownloadService extends ScryfallService
         foreach ($files as $file) {
             $basename = basename($file);
             if ($basename === "$uuid.jpg" || str_starts_with($basename, "$uuid--")) {
-                Storage::disk('art-crops')->delete($file);
+                $this->deleteStaleFile('art-crops', $file);
             }
         }
     }
@@ -176,6 +179,8 @@ class ImageDownloadService extends ScryfallService
         $downloaded = 0;
         $skipped = 0;
         $failed = 0;
+
+        $staleBefore = ScryfallRunStats::$staleFilesUndeletable;
 
         Log::channel('scryfall')->notice("begin downloading card images (target={$target}).");
 
@@ -208,6 +213,7 @@ class ImageDownloadService extends ScryfallService
             "finished card image download: $total images processed "
             ."($downloaded downloaded, $skipped skipped, $failed failed) "
             .'in '.$this->formatService->formatMs($ms).'.'
+            .$this->undeletableSuffix($staleBefore)
         );
     }
 
@@ -286,9 +292,29 @@ class ImageDownloadService extends ScryfallService
         foreach ($files as $file) {
             $basename = basename($file);
             if (str_starts_with($basename, "$uuid--") && str_ends_with($basename, $suffix)) {
-                Storage::disk('card-images')->delete($file);
+                $this->deleteStaleFile('card-images', $file);
             }
         }
+    }
+
+    /**
+     * Report stale files this step could not delete, if any.
+     *
+     * Reads the run-wide counter rather than a local one so the number also
+     * covers deletes attempted from other services in the same run; the
+     * baseline is captured per step so each step reports only its own.
+     *
+     * @param  int  $staleBefore  Counter value before this step ran.
+     */
+    private function undeletableSuffix(int $staleBefore): string
+    {
+        $undeletable = ScryfallRunStats::$staleFilesUndeletable - $staleBefore;
+
+        if ($undeletable === 0) {
+            return '';
+        }
+
+        return " could not delete $undeletable stale file(s) — check filesystem permissions.";
     }
 
     /**
