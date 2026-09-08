@@ -1,3 +1,5 @@
+// @vitest-environment node
+
 import { describe, expect, it } from "vitest";
 import type { DeleteDeckTarget } from "../deleteDeck.ts";
 import { hasDeletableContent } from "../deleteDeck.ts";

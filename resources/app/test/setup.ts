@@ -65,6 +65,15 @@ class MemoryStorage {
     }
 }
 
+/**
+ * Whether a DOM exists at all.
+ *
+ * This file is the setup for every spec, including the `@vitest-environment node`
+ * ones that never mount a component — those get no jsdom, so the prototype patches
+ * below would throw `Element is not defined` before their first assertion.
+ */
+const hasDom = typeof HTMLElement !== "undefined";
+
 /** Overwrite a global unconditionally — plain assignment loses to a getter. */
 const defineGlobal = (name: string, value: unknown): void => {
     Object.defineProperty(globalThis, name, { value, configurable: true, writable: true });
@@ -75,7 +84,7 @@ const defineGlobal = (name: string, value: unknown): void => {
 defineGlobal("IntersectionObserver", FakeIntersectionObserver);
 defineGlobal("ResizeObserver", FakeResizeObserver);
 
-if (!Element.prototype.scrollIntoView) {
+if (hasDom && !Element.prototype.scrollIntoView) {
     // jsdom has no layout engine, so scrolling is a no-op by definition.
     Element.prototype.scrollIntoView = function scrollIntoView(): void {};
 }
@@ -124,13 +133,13 @@ class StubTransitionEvent extends Event {
  * that wants to assert on the calls should spy over the top and restore
  * afterwards — see `components/Modal/__tests__/Modal.spec.ts`.
  */
-if (!HTMLDialogElement.prototype.showModal) {
+if (hasDom && !HTMLDialogElement.prototype.showModal) {
     HTMLDialogElement.prototype.showModal = function showModal(this: HTMLDialogElement): void {
         this.open = true;
     };
 }
 
-if (!HTMLDialogElement.prototype.close) {
+if (hasDom && !HTMLDialogElement.prototype.close) {
     HTMLDialogElement.prototype.close = function close(this: HTMLDialogElement): void {
         this.open = false;
     };
@@ -145,15 +154,15 @@ if (!HTMLDialogElement.prototype.close) {
  * therefore not meaningful. A spec that wants to assert the call happened
  * should shadow `hidePopover` with a spy of its own.
  */
-if (!HTMLElement.prototype.hidePopover) {
+if (hasDom && !HTMLElement.prototype.hidePopover) {
     HTMLElement.prototype.hidePopover = function hidePopover(): void {};
 }
 
-if (!HTMLElement.prototype.showPopover) {
+if (hasDom && !HTMLElement.prototype.showPopover) {
     HTMLElement.prototype.showPopover = function showPopover(): void {};
 }
 
-if (!HTMLElement.prototype.togglePopover) {
+if (hasDom && !HTMLElement.prototype.togglePopover) {
     HTMLElement.prototype.togglePopover = function togglePopover(): boolean {
         return false;
     };

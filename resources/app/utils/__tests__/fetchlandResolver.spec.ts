@@ -1,3 +1,5 @@
+// @vitest-environment node
+
 import { describe, expect, it } from "vitest";
 import type { LandCandidate } from "../fetchlandResolver.ts";
 import { buildFetchBuckets, makeFetchResolver, parsePatternColors, resolveFetchPattern } from "../fetchlandResolver.ts";

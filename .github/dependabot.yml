@@ -17,6 +17,20 @@ updates:
           - "eslint"
           - "eslint-*"
           - "@*/eslint-*"
+
+      # `@vitest/coverage-v8` pins its `vitest` peer to an exact version rather than a
+      # range — coverage-v8 5.0.0 asks for `vitest: "5.0.0"`, flat. So a PR bumping one
+      # of the two on its own cannot resolve at any version and dies in `npm ci` on
+      # ERESOLVE before a single test runs, and a rebase can't save it. Grouping them is
+      # what makes a Vitest major installable at all, not a tidiness preference; it stays
+      # for as long as that peer is an exact pin.
+      #
+      # `vite` is deliberately *not* in here. Vitest's peer on it is a genuine range
+      # (`^6.4.0 || ^7.0.0 || ^8.0.0`), so Vite can and should move on its own schedule.
+      vitest:
+        patterns:
+          - "vitest"
+          - "@vitest/*"
     ignore:
       # TypeScript is held below 6.1 by one peer range — the `typescript-eslint` packages
       # (parser and eslint-plugin, both reached through `@vue/eslint-config-typescript`)

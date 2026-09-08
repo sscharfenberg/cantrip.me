@@ -1,3 +1,5 @@
+// @vitest-environment node
+
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { installFetchMock } from "@/test/http.ts";
 import type { FetchMock } from "@/test/http.ts";
