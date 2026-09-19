@@ -1,5 +1,6 @@
 @use "sass:map";
 @use "Abstracts/colors" as c;
+@use "Abstracts/mixins" as m;
 @use "Abstracts/sizes" as s;
 @use "Abstracts/timings" as ti;
 
@@ -59,12 +60,33 @@
             cursor: move;
         }
 
+        /**
+         * The flash endpoints reach the keyframes as plain custom
+         * properties rather than the light-dark() tokens they are built
+         * from. Chrome (through 153.0.8010.48) kills the renderer with a
+         * CHECK failure when a CSS animation interpolates light-dark(),
+         * so every quick-add crashed the tab — the add itself succeeded,
+         * which is why the network log showed nothing but 200/201.
+         * The dark branch is applied by the theme-dark block below.
+         */
         &--just-added {
+            --card-flash-from-background: #{map.get(c.$pages, "deck", "quick-add", "flash-from-background", "light")};
+            --card-flash-from-surface: #{map.get(c.$pages, "deck", "quick-add", "flash-from-surface", "light")};
+            --card-flash-to-background: #{map.get(c.$pages, "deck", "quick-add", "flash-to-background", "light")};
+            --card-flash-to-surface: #{map.get(c.$pages, "deck", "quick-add", "flash-to-surface", "light")};
+
             @media (prefers-reduced-motion: no-preference) {
                 animation: card-just-added-flash map.get(ti.$timings, "delayed") ease-out;
             }
         }
     }
+}
+
+@include m.theme-dark(".text-card-group .card--just-added") {
+    --card-flash-from-background: #{map.get(c.$pages, "deck", "quick-add", "flash-from-background", "dark")};
+    --card-flash-from-surface: #{map.get(c.$pages, "deck", "quick-add", "flash-from-surface", "dark")};
+    --card-flash-to-background: #{map.get(c.$pages, "deck", "quick-add", "flash-to-background", "dark")};
+    --card-flash-to-surface: #{map.get(c.$pages, "deck", "quick-add", "flash-to-surface", "dark")};
 }
 
 .image-card-group {
@@ -153,13 +175,13 @@
 
 @keyframes card-just-added-flash {
     0% {
-        background-color: map.get(c.$pages, "deck", "quick-add", "flash-background");
-        color: map.get(c.$pages, "deck", "quick-add", "flash-surface");
+        background-color: var(--card-flash-from-background);
+        color: var(--card-flash-from-surface);
     }
 
     100% {
-        background-color: map.get(c.$pages, "deck", "card", "background");
-        color: map.get(c.$pages, "deck", "card", "surface");
+        background-color: var(--card-flash-to-background);
+        color: var(--card-flash-to-surface);
     }
 }
 

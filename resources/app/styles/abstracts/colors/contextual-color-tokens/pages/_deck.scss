@@ -78,8 +78,33 @@ $deck: (
                 ),
             "surface": light-dark(map.get(c.$grey, "abbey"), map.get(c.$grey, "infra"))
         ),
-        "flash-background": light-dark(map.get(c.$brand, "light1", "contrast"), map.get(c.$brand, "dark1", "contrast")),
-        "flash-surface": light-dark(map.get(c.$brand, "light1", "color"), map.get(c.$brand, "dark1", "color"))
+        /**
+         * The just-added flash is the only animation in the app that
+         * interpolates colour, so its endpoints are stored as separate
+         * light / dark branches instead of a single light-dark() value:
+         * Chrome (through 153.0.8010.48) kills the renderer with a CHECK
+         * failure when a CSS animation interpolates light-dark(), which
+         * made every deck quick-add crash the tab. The "to" pair mirrors
+         * "card" above — the animation carries no `forwards`, so it has
+         * to land on the row's resting colours or it visibly snaps.
+         * See styles/components/deck/_card.scss.
+         */
+        "flash-from-background": (
+            "light": map.get(c.$brand, "light1", "contrast"),
+            "dark": map.get(c.$brand, "dark1", "contrast")
+        ),
+        "flash-from-surface": (
+            "light": map.get(c.$brand, "light1", "color"),
+            "dark": map.get(c.$brand, "dark1", "color")
+        ),
+        "flash-to-background": (
+            "light": color.adjust(#fff, $alpha: -0.5),
+            "dark": color.adjust(#000, $alpha: -0.5)
+        ),
+        "flash-to-surface": (
+            "light": map.get(c.$grey, "abbey"),
+            "dark": map.get(c.$grey, "fog")
+        )
     ),
     "split-printings": (
         "stepper": (
