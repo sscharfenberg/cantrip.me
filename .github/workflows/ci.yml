@@ -8,7 +8,11 @@ on:
 jobs:
   php-tests:
     name: PHP tests
-    runs-on: ubuntu-latest
+    # Pinned rather than `ubuntu-latest`: GitHub migrates that label to Ubuntu 26
+    # from 2026-10-19. A runner image change can break a build in ways that have
+    # nothing to do with the commit that happens to trip over it, so it should be
+    # a deliberate bump we can revert, not something that lands on its own.
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
 
@@ -45,7 +49,7 @@ jobs:
 
   pint:
     name: Pint
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
 
@@ -64,7 +68,7 @@ jobs:
 
   frontend:
     name: Frontend build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
 
@@ -82,7 +86,7 @@ jobs:
 
   frontend-tests:
     name: Frontend tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
 
@@ -120,7 +124,7 @@ jobs:
   # keep in step, and the failure it produced would not be reproducible locally.
   e2e:
     name: End-to-end tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # Generous: a cold run pays for the MariaDB image pull, a Chromium download and a Vite
     # build before the first assertion. The suite itself is about a minute.
     timeout-minutes: 20
@@ -197,7 +201,7 @@ jobs:
     # most worth showing. Pushes to main only: a pull request must not rewrite what the
     # README of the default branch reports, and a fork's PR has no write token anyway.
     if: ${{ always() && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     # The only job here that can write anything.
     permissions:
