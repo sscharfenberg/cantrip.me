@@ -83,7 +83,7 @@
         "vite-plugin-image-optimizer": "^2.0.3",
         "vite-plugin-vue-devtools": "^8.2.1",
         "vitest": "^5.0.0",
-        "vue-tsc": "^3.3.5"
+        "vue-tsc": "^3.3.11"
     },
     "prettier": {
         "printWidth": 120,
