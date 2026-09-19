@@ -13,7 +13,8 @@ concurrency:
 jobs:
   deploy:
     name: ${{ github.sha }} → production
-    runs-on: ubuntu-latest
+    # Pinned deliberately rather than `ubuntu-latest` — see ci.yml.
+    runs-on: ubuntu-24.04
     environment: production
     timeout-minutes: 30
 

@@ -13,7 +13,8 @@ concurrency:
 jobs:
   deploy:
     name: main → staging
-    runs-on: ubuntu-latest
+    # Pinned deliberately rather than `ubuntu-latest` — see ci.yml.
+    runs-on: ubuntu-24.04
     environment: staging
     timeout-minutes: 20
 
