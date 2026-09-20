@@ -21,10 +21,10 @@ test("lists every card stack in the collection", async ({ page }) => {
     const table = page.getByRole("table");
 
     /*
-     * Eight rows, which is the whole fixture — the footer's own count, so a
+     * Nine rows, which is the whole fixture — the footer's own count, so a
      * silently paginated or filtered table cannot satisfy it.
      */
-    await expect(page.getByText("1–8 / 8")).toBeVisible();
+    await expect(page.getByText("1–9 / 9")).toBeVisible();
     await expect(table.getByRole("row").filter({ hasText: "Dark Ritual" })).toContainText("Trade Binder");
     await expect(table.getByRole("row").filter({ hasText: "Forest" })).toContainText("Atraxa Deckbox");
 });
@@ -35,15 +35,15 @@ test("totals each container from the stacks inside it", async ({ page }) => {
     await expect(page.getByText("Zeige 3 / 3 Container.")).toBeVisible();
 
     /*
-     * 7, 11 and 3 are sums of the `amount` column, not stored anywhere — the
-     * binder holds 2 + 1 + 4 and the deckbox 1 + 1 + 1 + 8. Three different
-     * numbers, so a total that ignored `amount` and counted rows (3, 4, 1) would
-     * be wrong for all three.
+     * 7, 11 and 4 are sums of the `amount` column, not stored anywhere — the
+     * binder holds 2 + 1 + 4, the deckbox 1 + 1 + 1 + 8 and the display 3 + 1.
+     * Three different numbers, so a total that ignored `amount` and counted
+     * rows (3, 4, 2) would be wrong for all three.
      */
     for (const [name, cards] of [
         ["Trade Binder", "7"],
         ["Atraxa Deckbox", "11"],
-        ["Sealed Display", "3"]
+        ["Sealed Display", "4"]
     ] as const) {
         await expect(page.getByRole("listitem").filter({ hasText: name })).toContainText(cards);
     }

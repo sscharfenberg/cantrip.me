@@ -18,6 +18,21 @@ test.describe("harness", () => {
         await expect(page.getByRole("heading", { name: "Organisiere deine Magic Sammlung." })).toBeVisible();
     });
 
+    test("no longer wears the beta badge", async ({ page }) => {
+        await page.goto("/");
+
+        /*
+         * The badge was a span in the header title, so its absence is asserted
+         * against the title itself rather than the page — a missing header
+         * would otherwise pass this by rendering nothing at all.
+         */
+        const title = page.getByRole("heading", { level: 1 });
+
+        await expect(title).toContainText("cantrip.me");
+        await expect(title).not.toContainText("beta");
+        await expect(title.locator(".status")).toHaveCount(0);
+    });
+
     test("ran the JavaScript bundle", async ({ page }) => {
         await page.goto("/");
 

@@ -262,12 +262,30 @@ class E2ESeeder extends Seeder
             // Owned and wanted by no deck at all.
             [self::BINDER_ID, 'Dark Ritual', 4, Finish::Nonfoil, CardLanguage::De],
             [self::DISPLAY_ID, 'Lightning Bolt', 3, Finish::Nonfoil, CardLanguage::En],
+
+            /*
+             * A SECOND PRINTING of a card already owned above, pinned by set
+             * code because the point is that it is not the one `printing()`
+             * would pick. Two things need it:
+             *
+             *  - "other printings you own" in the card preview only renders
+             *    when the viewer owns a different printing of the same card,
+             *    and it is the only place the printing thumbnail and its
+             *    hover preview exist;
+             *  - quick-add prefers the printing with the MOST free copies, so
+             *    a second printing with a smaller count is what makes that
+             *    preference distinguishable from "newest" (leb is newer than
+             *    lea) and from "any owned printing".
+             */
+            [self::DISPLAY_ID, 'Counterspell', 1, Finish::Nonfoil, CardLanguage::En, 'leb'],
         ];
 
-        foreach ($stacks as [$containerId, $cardName, $amount, $finish, $language]) {
+        foreach ($stacks as $stack) {
+            [$containerId, $cardName, $amount, $finish, $language] = $stack;
+
             (new CardStack)->forceFill([
                 'user_id' => $user->id,
-                'default_card_id' => $this->printing($cardName)->id,
+                'default_card_id' => $this->printing($cardName, $stack[5] ?? null)->id,
                 'container_id' => $containerId,
                 'amount' => $amount,
                 'finish' => $finish,
@@ -383,12 +401,19 @@ class E2ESeeder extends Seeder
      * something to pick, and "whichever row comes back first" would make the
      * fixture depend on storage order — which is precisely the kind of thing
      * that changes under you and fails a spec two milestones later.
+     *
+     * `$setCode` narrows to one set for the rare row that needs a printing
+     * other than the oldest — see the second Counterspell in
+     * {@see seedCardStacks}. Pinning by set code is safe here in a way it is
+     * not in `DeckSeeder`: the snapshot is committed, so the set either is in
+     * it or the lookup throws.
      */
-    private function printing(string $name): DefaultCard
+    private function printing(string $name, ?string $setCode = null): DefaultCard
     {
         $printing = DefaultCard::query()
             ->join('sets', 'sets.id', '=', 'default_cards.set_id')
             ->where('default_cards.name', $name)
+            ->when($setCode !== null, fn ($query) => $query->where('sets.code', $setCode))
             ->orderBy('sets.released_at')
             /* Length first, so '9' sorts before '10' rather than after it. */
             ->orderByRaw('LENGTH(default_cards.collector_number)')
@@ -397,7 +422,8 @@ class E2ESeeder extends Seeder
             ->first();
 
         if ($printing === null) {
-            throw new \RuntimeException("E2ESeeder: no printing of \"$name\" in the Scryfall snapshot.");
+            $where = $setCode === null ? '' : " from set \"$setCode\"";
+            throw new \RuntimeException("E2ESeeder: no printing of \"$name\"$where in the Scryfall snapshot.");
         }
 
         return $printing;
