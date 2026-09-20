@@ -280,8 +280,6 @@ class DeckCollectionStatusService
      */
     public static function availabilityForDeck(Deck $deck): array
     {
-        $userId = $deck->user_id;
-
         $deckCardRows = DeckCard::query()
             ->where('deck_id', $deck->id)
             ->get(['id', 'oracle_card_id', 'default_card_id', 'quantity']);
@@ -290,14 +288,92 @@ class DeckCollectionStatusService
             return [];
         }
 
-        $oracleIds = $deckCardRows->pluck('oracle_card_id')->unique()->values();
+        $oracleIds = $deckCardRows->pluck('oracle_card_id')->unique()->values()->all();
 
+        ['free' => $freeByOracle, 'held' => $heldByOracle] = self::partitionCopies($deck, $oracleIds);
+
+        $result = [];
+        foreach ($deckCardRows as $dc) {
+            $free = $freeByOracle[$dc->oracle_card_id] ?? [];
+            $exact = $free[$dc->default_card_id] ?? 0;
+            $other = array_sum($free) - $exact;
+            $needed = (int) $dc->quantity;
+
+            $result[$dc->id] = [
+                'state' => match (true) {
+                    $exact >= $needed => self::AVAILABILITY_AVAILABLE,
+                    $exact + $other > 0 => self::AVAILABILITY_PARTIAL,
+                    default => self::AVAILABILITY_UNAVAILABLE,
+                },
+                'needed' => $needed,
+                'exact' => $exact,
+                'other' => $other,
+                'blocked' => $heldByOracle[$dc->oracle_card_id] ?? 0,
+            ];
+        }
+
+        return $result;
+    }
+
+    /**
+     * Free copies of the given oracle cards' printings, from this deck's
+     * point of view: `oracle id → printing id → copies`.
+     *
+     * "Free" is {@see availabilityForDeck}'s definition, shared so the two
+     * features can never drift: a copy counts unless another deck holds it,
+     * either through a `deck_card_card_stack` pivot row or by sitting in a
+     * container that is another deck's `decks.container_id`. Copies this
+     * deck itself holds stay free — they are its own.
+     *
+     * Each oracle's printings come back **newest first** (set release date,
+     * then printing id), so a caller breaking a tie by taking the first of
+     * several equal maxima gets the newest printing without sorting again.
+     *
+     * Honours the collection-integration master switch, unlike the private
+     * partition underneath: this is the entry point for callers outside the
+     * deck page, which have no controller-level gate of their own.
+     *
+     * @param  list<string>  $oracleIds
+     * @return array<string, array<string, int>>
+     */
+    public static function freeCopiesForOracles(Deck $deck, array $oracleIds): array
+    {
+        if ($oracleIds === [] || ! ($deck->user?->collection_integration_enabled ?? false)) {
+            return [];
+        }
+
+        return self::partitionCopies($deck, $oracleIds)['free'];
+    }
+
+    /**
+     * Split the owner's copies of the given oracle cards into the ones this
+     * deck may use and the ones another deck holds.
+     *
+     * One batched read of every owned stack of those oracle cards,
+     * left-joined through the pivot so explicit holds come back in the same
+     * pass. A stack claimed by several deck_cards fans out into several
+     * rows; the fold collapses them back per stack before summing, so an
+     * amount is never counted twice.
+     *
+     * Rows arrive newest-printing-first and the `free` map is built in that
+     * order, which is what lets {@see freeCopiesForOracles} promise a
+     * newest-first iteration order to its callers.
+     *
+     * Deliberately ungated: {@see availabilityForDeck}'s caller checks the
+     * master switch before it ever gets here, and re-checking would put the
+     * same gate in two places.
+     *
+     * @param  list<string>  $oracleIds
+     * @return array{free: array<string, array<string, int>>, held: array<string, int>}
+     */
+    private static function partitionCopies(Deck $deck, array $oracleIds): array
+    {
         // Containers designated as some *other* deck's deckbox. Flipped
         // to a lookup so the per-stack test below is an isset() rather
         // than an in_array() scan.
         $reservedContainerIds = array_flip(
             DB::table('decks')
-                ->where('user_id', $userId)
+                ->where('user_id', $deck->user_id)
                 ->where('id', '!=', $deck->id)
                 ->whereNotNull('container_id')
                 ->distinct()
@@ -305,16 +381,15 @@ class DeckCollectionStatusService
                 ->all()
         );
 
-        // One batched read of every owned stack of any oracle card in
-        // the deck, left-joined through the pivot so explicit holds come
-        // back in the same pass. A stack claimed by several deck_cards
-        // fans out into several rows; the fold below collapses them.
         $rows = DB::table('card_stacks')
             ->join('default_cards', 'default_cards.id', '=', 'card_stacks.default_card_id')
+            ->join('sets', 'sets.id', '=', 'default_cards.set_id')
             ->leftJoin('deck_card_card_stack', 'deck_card_card_stack.card_stack_id', '=', 'card_stacks.id')
             ->leftJoin('deck_cards', 'deck_cards.id', '=', 'deck_card_card_stack.deck_card_id')
-            ->where('card_stacks.user_id', $userId)
+            ->where('card_stacks.user_id', $deck->user_id)
             ->whereIn('default_cards.oracle_id', $oracleIds)
+            ->orderByDesc('sets.released_at')
+            ->orderByDesc('default_cards.id')
             ->get([
                 'card_stacks.id as stack_id',
                 'card_stacks.default_card_id as printing_id',
@@ -338,40 +413,19 @@ class DeckCollectionStatusService
             }
         }
 
-        // Sum copies per oracle card per printing, split by hold.
-        $freeByOracle = [];
-        $heldByOracle = [];
+        $free = [];
+        $held = [];
         foreach ($stacks as $stack) {
             if ($stack['held']) {
-                $heldByOracle[$stack['oracle_id']] = ($heldByOracle[$stack['oracle_id']] ?? 0) + $stack['amount'];
+                $held[$stack['oracle_id']] = ($held[$stack['oracle_id']] ?? 0) + $stack['amount'];
 
                 continue;
             }
-            $freeByOracle[$stack['oracle_id']][$stack['printing_id']] =
-                ($freeByOracle[$stack['oracle_id']][$stack['printing_id']] ?? 0) + $stack['amount'];
+            $free[$stack['oracle_id']][$stack['printing_id']] =
+                ($free[$stack['oracle_id']][$stack['printing_id']] ?? 0) + $stack['amount'];
         }
 
-        $result = [];
-        foreach ($deckCardRows as $dc) {
-            $free = $freeByOracle[$dc->oracle_card_id] ?? [];
-            $exact = $free[$dc->default_card_id] ?? 0;
-            $other = array_sum($free) - $exact;
-            $needed = (int) $dc->quantity;
-
-            $result[$dc->id] = [
-                'state' => match (true) {
-                    $exact >= $needed => self::AVAILABILITY_AVAILABLE,
-                    $exact + $other > 0 => self::AVAILABILITY_PARTIAL,
-                    default => self::AVAILABILITY_UNAVAILABLE,
-                },
-                'needed' => $needed,
-                'exact' => $exact,
-                'other' => $other,
-                'blocked' => $heldByOracle[$dc->oracle_card_id] ?? 0,
-            ];
-        }
-
-        return $result;
+        return ['free' => $free, 'held' => $held];
     }
 
     /**

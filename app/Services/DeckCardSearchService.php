@@ -174,6 +174,40 @@ final class DeckCardSearchService
     }
 
     /**
+     * Pick the printing a quick-add should use for one oracle card.
+     *
+     * The printing with the most free copies wins. `$freeCopies` arrives
+     * newest-printing-first from
+     * {@see DeckCollectionStatusService::freeCopiesForOracles}, and the
+     * comparison below is a strict `>`, so a tie between equal counts keeps
+     * the first — i.e. the newest of the tied printings.
+     *
+     * An empty map means the collection has nothing free for this card, or
+     * the master switch is off: fall back to `$newestPrintingId`, the rule
+     * that governed every add before this.
+     *
+     * Public because it is the quick-add preference rule and the only part
+     * of it that can be tested directly: `searchOracleCardsForDeck` orders
+     * by `CHAR_LENGTH`, so the whole search path is MariaDB-only, while this
+     * is a pure function over the two inputs.
+     *
+     * @param  array<string, int>  $freeCopies  Printing id → free copies, newest printing first.
+     */
+    public static function preferredPrintingId(array $freeCopies, ?string $newestPrintingId): ?string
+    {
+        $bestId = null;
+        $bestCount = 0;
+        foreach ($freeCopies as $printingId => $copies) {
+            if ($copies > $bestCount) {
+                $bestId = $printingId;
+                $bestCount = $copies;
+            }
+        }
+
+        return $bestId ?? $newestPrintingId;
+    }
+
+    /**
      * Quick-add oracle search — returns oracle cards with each face's
      * `type_line` and `mana_cost`, shaped like the commander-search response.
      *
@@ -264,17 +298,31 @@ final class DeckCardSearchService
             ->take($limit)
             ->values();
 
-        // Resolve each survivor's newest printing so the quick-add click can
-        // POST a `default_card_id` to /api/decks/{deck}/cards without an
-        // intermediate lookup.
-        $newestPrintings = self::fetchNewestPrintings($survivors->pluck('id')->all());
+        // Resolve each survivor's printing so the quick-add click can POST a
+        // `default_card_id` to /api/decks/{deck}/cards without an
+        // intermediate lookup. Preference order:
+        //
+        //   1. the printing this deck has most copies of free in the
+        //      collection — quick-adding a card you own should reach for the
+        //      cardboard you can actually put in the deck, not whatever came
+        //      out most recently;
+        //   2. failing that, the newest printing, which is the rule that
+        //      applied to every add before this and still applies whenever
+        //      the collection has nothing to offer or the
+        //      collection-integration master switch is off.
+        $survivorOracleIds = $survivors->pluck('id')->all();
+        $newestPrintings = self::fetchNewestPrintings($survivorOracleIds);
+        $freeCopies = DeckCollectionStatusService::freeCopiesForOracles($deck, $survivorOracleIds);
 
         return $survivors
             ->map(fn (OracleCard $card): array => [
                 'id' => $card->id,
                 'name' => $card->name,
                 'color_identity' => $card->color_identity,
-                'default_card_id' => $newestPrintings[$card->id]['id'] ?? null,
+                'default_card_id' => self::preferredPrintingId(
+                    $freeCopies[$card->id] ?? [],
+                    $newestPrintings[$card->id]['id'] ?? null,
+                ),
                 // Cards exempt from per-card copy limits — the frontend uses these
                 // to decide when a result row should stick around past the max.
                 'is_basic_land' => in_array($card->name, FormatProfile::BASIC_LANDS, true),
