@@ -186,6 +186,7 @@ class CardStackController extends Controller
                         'path' => $defaultCard->set->path,
                     ],
                     'available_langs' => OracleNameSearch::availableLangsByOracle([$defaultCard->oracle_id])[$defaultCard->oracle_id] ?? [],
+                    'owned' => CardStackService::ownedAmountsFor($request->user(), [$defaultCard->id])[$defaultCard->id] ?? null,
                 ],
             ],
         ]);

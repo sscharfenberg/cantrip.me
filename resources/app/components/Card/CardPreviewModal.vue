@@ -48,6 +48,7 @@ const faceImage = computed<DefaultCardImage | null>(() => {
         card_image_1: card.value.card_image_1,
         artist: card.value.artist,
         cn: card.value.collector_number,
+        owned: card.value.owned,
         finishes: card.value.finish ? [card.value.finish] : [],
         set: {
             name: card.value.set_name ?? "",

@@ -37,7 +37,7 @@ class DeckCommanderController extends Controller
             ->value('default_card_id');
 
         return response()->json(DeckPrintingsService::listForOracle(
-            $request->user()->id,
+            $request->user(),
             $oracleCard->id,
             $currentDefaultCardId,
         ));

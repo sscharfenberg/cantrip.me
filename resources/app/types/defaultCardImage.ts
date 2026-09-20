@@ -17,6 +17,15 @@ export type DefaultCardImage = {
      */
     matched_translation?: { lang: string; name: string } | null;
     /**
+     * Copies of this exact printing in the *viewer's* collection, driving
+     * the ownership badge on `CardFaceImage`'s panel. Filled by
+     * `CardStackService::ownedAmountsFor`, which returns nothing for a
+     * guest, nothing while the collection-integration master switch is
+     * off, and nothing for a printing the viewer owns none of — so a
+     * number here always means "there is something to show".
+     */
+    owned?: number | null;
+    /**
      * Foreign languages the card's oracle has any translation in.
      * English is implicit (never in the list). Drives the card-stack
      * language picker's narrowing once the user picks a card. Absent

@@ -263,7 +263,7 @@ class DeckCardController extends Controller
     public function printings(ShowDeckCardPrintingsRequest $request, Deck $deck, DeckCard $deckCard): JsonResponse
     {
         return response()->json(DeckPrintingsService::listForOracle(
-            $request->user()->id,
+            $request->user(),
             $deckCard->oracle_card_id,
             $deckCard->default_card_id,
         ));

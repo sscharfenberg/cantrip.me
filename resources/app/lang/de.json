@@ -1474,6 +1474,9 @@
             "allowed_type": "Erlaubter Dateityp: {type}",
             "max_size": "Maximale Dateigröße: {size}"
         },
+        "card_face_image": {
+            "owned": "{count} Exemplar in deiner Sammlung | {count} Exemplare in deiner Sammlung"
+        },
         "card_preview": {
             "title": "Kartendetails",
             "total_price": "Gesamt ({amount}×)",

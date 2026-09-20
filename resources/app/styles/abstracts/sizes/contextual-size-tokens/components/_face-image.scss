@@ -8,5 +8,6 @@ $face-image: (
     "card-image-max": 24rem,
     "set": map.get(s.$icons, "medium"),
     "radius": math.round(map.get(s.$radius, "featured") * 1.45),
-    "panel-padding": 1ex 1ch
+    "panel-padding": 1ex 1ch,
+    "panel-gap": 0.5ex
 );

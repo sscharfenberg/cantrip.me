@@ -8,6 +8,7 @@ use App\Http\Requests\Collection\ShowCardStackPreviewRequest;
 use App\Models\CardStack;
 use App\Services\CardPreviewService;
 use App\Services\CardStackClaimService;
+use App\Services\CardStackService;
 use App\Services\ContainerService;
 use Illuminate\Http\JsonResponse;
 
@@ -65,6 +66,7 @@ class CardStackPreviewController extends Controller
 
         if ($user = $request->user()) {
             $payload['collection'] = CardPreviewService::collectionInfoFor($card, $user);
+            $payload['owned'] = CardStackService::ownedAmountsFor($user, [$card->id])[$card->id] ?? null;
         }
 
         return response()->json($payload);

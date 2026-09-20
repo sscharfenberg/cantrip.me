@@ -37,6 +37,7 @@ use App\Models\DefaultCardRelation;
 use App\Models\OracleCard;
 use App\Rulebreakers\RulebreakerRegistry;
 use App\Services\BracketSuggestionService;
+use App\Services\CardStackService;
 use App\Services\CommandZoneService;
 use App\Services\DeckBulkAddCollectionService;
 use App\Services\DeckCollectionModeService;
@@ -604,6 +605,17 @@ class DecksController extends Controller
         // alongside each token so the panel can render a "Needed for: …"
         // tooltip without an extra eager-load — names get resolved
         // client-side from props the deck page already holds.
+        // Owned counts for the token printings, resolved in one query before
+        // the grouping below so the per-token closure doesn't issue one each.
+        $tokenPrintingIds = DefaultCardRelation::query()
+            ->where('component', ScryfallRelatedComponent::Token->value)
+            ->whereIn('source_default_card_id', $sourceDefaultCardIds)
+            ->pluck('related_default_card_id')
+            ->unique()
+            ->values()
+            ->all();
+        $tokenOwnedAmounts = CardStackService::ownedAmountsFor($request->user(), $tokenPrintingIds);
+
         $tokens = DefaultCardRelation::query()
             ->where('component', ScryfallRelatedComponent::Token->value)
             ->whereIn('source_default_card_id', $sourceDefaultCardIds)
@@ -615,7 +627,7 @@ class DecksController extends Controller
             ])
             ->get()
             ->groupBy(fn (DefaultCardRelation $rel) => $rel->relatedCard->id)
-            ->map(function ($group) {
+            ->map(function ($group) use ($tokenOwnedAmounts) {
                 $token = $group->first()->relatedCard;
 
                 return [
@@ -637,6 +649,7 @@ class DecksController extends Controller
                         ->unique()
                         ->values()
                         ->all(),
+                    'owned' => $tokenOwnedAmounts[$token->id] ?? null,
                 ];
             })
             ->values();

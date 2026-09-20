@@ -12,6 +12,44 @@ use Illuminate\Support\Facades\DB;
 class CardStackService
 {
     /**
+     * How many copies of each given printing sit in the user's collection,
+     * keyed by `default_card_id`.
+     *
+     * Feeds the ownership badge on `CardFaceImage`'s panel. The global
+     * collection-integration master switch is honoured here rather than at
+     * each of the half-dozen payload producers that call this: with the
+     * switch off — or for a guest — the map comes back empty, every payload
+     * ships `owned => null`, and nothing renders.
+     *
+     * Printings the user owns none of are absent from the map rather than
+     * present as 0, so a caller's `?? null` collapses "owns none" and
+     * "nothing to show" into the same nullish value. The badge is a
+     * positive signal only; it never announces a zero.
+     *
+     * Proxies count. A proxy is a card in a sleeve as far as "do I have
+     * this to hand" goes, and every other collection count in the app
+     * treats it the same way.
+     *
+     * @param  list<string>  $defaultCardIds
+     * @return array<string, int> Printing id → copies owned.
+     */
+    public static function ownedAmountsFor(?User $user, array $defaultCardIds): array
+    {
+        if ($user === null || ! $user->collection_integration_enabled || $defaultCardIds === []) {
+            return [];
+        }
+
+        return CardStack::query()
+            ->where('user_id', $user->id)
+            ->whereIn('default_card_id', array_values(array_unique($defaultCardIds)))
+            ->groupBy('default_card_id')
+            ->selectRaw('default_card_id, SUM(amount) as total')
+            ->pluck('total', 'default_card_id')
+            ->map(fn ($total): int => (int) $total)
+            ->all();
+    }
+
+    /**
      * Verify that a container belongs to the given user.
      *
      * Aborts with 403 if ownership does not match.

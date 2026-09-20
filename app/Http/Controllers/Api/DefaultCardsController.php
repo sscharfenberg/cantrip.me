@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Enums\Finish;
 use App\Http\Controllers\Controller;
 use App\Services\CardSearchParser;
+use App\Services\CardStackService;
 use App\Services\DefaultCardSearchService;
 use App\Services\OracleNameSearch;
 use Illuminate\Http\JsonResponse;
@@ -123,6 +124,10 @@ class DefaultCardsController extends Controller
             array_keys($built['oracle_searchable_names']),
         );
 
+        // Copies of each printing the viewer already owns — drives the
+        // ownership badge on the result tile's panel.
+        $ownedAmounts = CardStackService::ownedAmountsFor(Auth::user(), $rows->pluck('id')->all());
+
         $results = $rows->map(fn (object $row): array => [
             'id' => $row->id,
             'name' => $row->card_name,
@@ -138,6 +143,7 @@ class DefaultCardsController extends Controller
             ] : null,
             'matched_translation' => $matchedTranslations[$row->oracle_id] ?? null,
             'available_langs' => $availableLangsByOracle[$row->oracle_id] ?? [],
+            'owned' => $ownedAmounts[$row->id] ?? null,
         ])->values();
 
         return response()->json(['total' => $total, 'results' => $results]);

@@ -6,6 +6,7 @@ use App\Enums\ContainerType;
 use App\Enums\Finish;
 use App\Models\CardStack;
 use App\Models\DefaultCard;
+use App\Models\User;
 
 /**
  * Shared printings-listing logic for the switch-printing modal.
@@ -45,10 +46,11 @@ final class DeckPrintingsService
      *     set: array{name: string, code: string, path: string|null}|null,
      *     in_collection: bool,
      *     is_current: bool,
+     *     owned: int|null,
      * }>
      */
     public static function listForOracle(
-        string|int $userId,
+        User $user,
         string $oracleCardId,
         ?string $currentDefaultCardId,
     ): array {
@@ -73,7 +75,7 @@ final class DeckPrintingsService
 
         $availableIds = CardStack::query()
             ->leftJoin('containers', 'card_stacks.container_id', '=', 'containers.id')
-            ->where('card_stacks.user_id', $userId)
+            ->where('card_stacks.user_id', $user->id)
             ->whereIn('card_stacks.default_card_id', $printings->pluck('id')->all())
             ->where(function ($query): void {
                 $query->whereNull('card_stacks.container_id')
@@ -82,6 +84,13 @@ final class DeckPrintingsService
             ->pluck('card_stacks.default_card_id')
             ->unique()
             ->flip();
+
+        // `in_collection` answers "is one of these free to take?" — it
+        // deliberately skips deckboxes. `owned` is the plain shelf count of
+        // every copy wherever it sits, which is what the face-image panel
+        // badge shows, so the two disagree for a printing that only exists
+        // inside a deckbox. Both are wanted.
+        $ownedAmounts = CardStackService::ownedAmountsFor($user, $printings->pluck('id')->all());
 
         return $printings
             ->map(fn (DefaultCard $card): array => [
@@ -99,6 +108,7 @@ final class DeckPrintingsService
                 ] : null,
                 'in_collection' => $availableIds->has($card->id),
                 'is_current' => $card->id === $currentDefaultCardId,
+                'owned' => $ownedAmounts[$card->id] ?? null,
             ])
             ->values()
             ->all();

@@ -78,19 +78,27 @@
     }
 
     &__panel {
+        display: flex;
         position: absolute;
         inset: auto 0 0;
         z-index: map.get(z.$index, "main");
+        flex-direction: column;
 
         padding: map.get(s.$components, "face-image", "panel-padding");
+
+        gap: map.get(s.$components, "face-image", "panel-gap");
 
         background-color: map.get(c.$components, "face-image", "meta", "background");
         color: map.get(c.$components, "face-image", "meta", "surface");
         border-bottom-right-radius: inherit;
         border-bottom-left-radius: inherit;
 
+        // Two rows, each `left-aligned content … right-aligned extra`:
+        // row 1 is collector number + set symbol (pushed right by
+        // `&__set`'s own `margin-left: auto`), row 2 is artist + owned count.
         &-line,
-        &-artist {
+        &-artist,
+        &-owned {
             display: flex;
             align-items: center;
 
@@ -99,10 +107,28 @@
             font-size: 0.9em;
         }
 
+        // Takes the row's slack so the owned count sits flush right, and
+        // `min-width: 0` lets a long artist name wrap instead of pushing
+        // the count out of the panel.
         &-artist {
             opacity: 0.8;
 
+            min-width: 0;
+            flex: 1 1 auto;
+
             font-size: 0.8em;
+        }
+
+        // Only as wide as the icon and digits need. `margin-left: auto`
+        // rather than the row's `justify-content`, so it stays flush right
+        // on a printing with no artist to grow beside it (tokens).
+        &-owned {
+            flex: 0 0 auto;
+
+            margin-left: auto;
+
+            font-size: 0.8em;
+            font-weight: bold;
         }
     }
 

@@ -102,7 +102,7 @@ class DeckCompanionController extends Controller
             ->first();
 
         return response()->json(DeckPrintingsService::listForOracle(
-            $request->user()->id,
+            $request->user(),
             $companionRow?->oracle_card_id,
             $companionRow?->default_card_id,
         ));

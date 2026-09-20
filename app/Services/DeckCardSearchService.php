@@ -450,8 +450,10 @@ final class DeckCardSearchService
                 'artists.name as artist_name',
             ]);
 
+        $ownedAmounts = CardStackService::ownedAmountsFor(Auth::user(), $rows->pluck('id')->all());
+
         return $rows
-            ->map(function (object $row) use ($oraclesById, $companionProfile, $deck, $matchedTranslations): array {
+            ->map(function (object $row) use ($oraclesById, $companionProfile, $deck, $matchedTranslations, $ownedAmounts): array {
                 $oracle = $oraclesById->get($row->oracle_id);
 
                 return [
@@ -476,6 +478,7 @@ final class DeckCardSearchService
                             'path' => $row->set_path,
                         ] : null,
                         'matched_translation' => $matchedTranslations[$row->oracle_id] ?? null,
+                        'owned' => $ownedAmounts[$row->id] ?? null,
                     ],
                 ];
             })

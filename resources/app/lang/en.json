@@ -1474,6 +1474,9 @@
             "allowed_type": "Allowed file type: {type}",
             "max_size": "Maximum file size: {size}"
         },
+        "card_face_image": {
+            "owned": "{count} copy in your collection | {count} copies in your collection"
+        },
         "card_preview": {
             "title": "Card Details",
             "total_price": "Total ({amount}×)",
