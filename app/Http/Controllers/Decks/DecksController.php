@@ -339,20 +339,34 @@ class DecksController extends Controller
         $companionRow = $deck->deckCards->firstWhere('role', DeckCardRole::Companion);
 
         // Collection-integration mode + per-card status. Owners only —
-        // viewers never see collection state for someone else's deck. Per-row
-        // status badges are mode-C-only by design: mode B decks (the user has
-        // a collection but hasn't engaged with this deck via pivot) get a
-        // count-based display in Phase 2.2 instead, and mode A is silent.
+        // viewers never see collection state for someone else's deck.
+        //
+        // Which per-row badge ships depends first on the deck's *state*,
+        // not its mode. A planned deck is being assembled, so every row
+        // carries collection *availability* ("can I cover this slot?")
+        // whatever tracking mode it sits in. A finished or archived deck
+        // is about coverage of the physical build, so the mode badges
+        // take over: mode C ships the five-way explicit status, mode B
+        // the deckbox counts, mode A stays silent. The two never render
+        // together — exactly one of the three maps is ever populated.
         $collectionMode = DeckCollectionStatusService::MODE_A;
         $collectionBadgeMode = DeckCollectionStatusService::MODE_A;
         $collectionStatuses = [];
         $collectionImplicitStatuses = [];
+        $collectionAvailability = [];
         $collectionModeContext = null;
         $containers = collect();
         $hasUnclaimedCards = false;
         if ($request->user()?->id === $deck->user_id) {
             $collectionMode = DeckCollectionStatusService::effectiveMode($request->user(), $deck);
-            if ($collectionMode === DeckCollectionStatusService::MODE_C) {
+            if ($deck->state === DeckState::Planned) {
+                // Availability ignores `collection_mode` but still obeys
+                // the user-level master switch — while that is off, no
+                // collection-derived UI renders anywhere in the app.
+                if ($request->user()->collection_integration_enabled) {
+                    $collectionAvailability = DeckCollectionStatusService::availabilityForDeck($deck);
+                }
+            } elseif ($collectionMode === DeckCollectionStatusService::MODE_C) {
                 $collectionStatuses = DeckCollectionStatusService::statusForDeck($deck);
             } elseif ($collectionMode === DeckCollectionStatusService::MODE_B && $deck->container_id !== null) {
                 // Mode B's per-row "in this deckbox / elsewhere" partition
@@ -424,6 +438,7 @@ class DecksController extends Controller
                 'mana_cost' => $companionOracle->faces->sortBy('face_index')->pluck('mana_cost')->values()->all(),
                 'collection_status' => $collectionStatuses[$companionRow->id] ?? null,
                 'collection_implicit_status' => $collectionImplicitStatuses[$companionRow->id] ?? null,
+                'collection_availability' => $collectionAvailability[$companionRow->id] ?? null,
                 'default_card' => [
                     'id' => $companionDefault->id ?? null,
                     'card_image_0' => $companionDefault->card_image_0 ?? null,
@@ -470,7 +485,7 @@ class DecksController extends Controller
             ->where('zone', DeckZone::Command)
             ->sortBy(fn (DeckCard $dc): int => $dc->role === DeckCardRole::Commander ? 0 : 1)
             ->values();
-        $commanders = $commanderRows->map(function (DeckCard $dc) use ($illegalDeckCardIds, $collectionStatuses, $collectionImplicitStatuses) {
+        $commanders = $commanderRows->map(function (DeckCard $dc) use ($illegalDeckCardIds, $collectionStatuses, $collectionImplicitStatuses, $collectionAvailability) {
             $oracle = $dc->oracleCard;
             $printing = $dc->defaultCard;
 
@@ -499,6 +514,7 @@ class DecksController extends Controller
                 // badges have to track them.
                 'collection_status' => $collectionStatuses[$dc->id] ?? null,
                 'collection_implicit_status' => $collectionImplicitStatuses[$dc->id] ?? null,
+                'collection_availability' => $collectionAvailability[$dc->id] ?? null,
                 'default_card' => [
                     'id' => $printing?->id,
                     'card_image_0' => $printing?->card_image_0,
@@ -532,6 +548,7 @@ class DecksController extends Controller
                 'category_id' => $dc->category_id,
                 'collection_status' => $collectionStatuses[$dc->id] ?? null,
                 'collection_implicit_status' => $collectionImplicitStatuses[$dc->id] ?? null,
+                'collection_availability' => $collectionAvailability[$dc->id] ?? null,
                 'default_card' => [
                     'id' => $dc->defaultCard?->id,
                     'name' => $dc->defaultCard?->name,

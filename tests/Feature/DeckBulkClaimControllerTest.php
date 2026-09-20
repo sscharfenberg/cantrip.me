@@ -435,6 +435,10 @@ class DeckBulkClaimControllerTest extends TestCase
         // `collection_implicit_status` counts. The mode-C
         // `collection_status` field stays null on mode-B decks — the two
         // render paths are mutually exclusive.
+        //
+        // Built, not planned: a planned deck reports collection
+        // *availability* instead of its tracking-mode status whatever
+        // mode it is in — see {@see DeckShowAvailabilityTest}.
         $user = User::factory()->create();
         $deckbox = Container::create([
             'user_id' => $user->id,
@@ -443,7 +447,11 @@ class DeckBulkClaimControllerTest extends TestCase
             'sort_order' => 1,
         ]);
         $deck = $this->makeDeck($user);
-        $deck->update(['container_id' => $deckbox->id, 'collection_mode' => 'B']);
+        $deck->update([
+            'container_id' => $deckbox->id,
+            'collection_mode' => 'B',
+            'state' => DeckState::Built->value,
+        ]);
         $oracle = $this->makeOracleCard();
         $default = $this->makeDefaultCard($oracle);
         $this->makeCardStack($user, $default, $deckbox);
@@ -469,9 +477,12 @@ class DeckBulkClaimControllerTest extends TestCase
         // a null `collection_implicit_status` per card. Under explicit
         // modes the badge still reports the user's chosen mode (B) —
         // we no longer downgrade to A on missing container.
+        //
+        // Built, not planned, so the null really is the missing anchor
+        // and not the planned-deck availability path taking over.
         $user = User::factory()->create();
         $deck = $this->makeDeck($user);
-        $deck->update(['collection_mode' => 'B']);
+        $deck->update(['collection_mode' => 'B', 'state' => DeckState::Built->value]);
         $oracle = $this->makeOracleCard();
         $default = $this->makeDefaultCard($oracle);
         $this->makeCardStack($user, $default);

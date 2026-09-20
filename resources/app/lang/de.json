@@ -914,6 +914,25 @@
                 "partial_with_missing": "{owned} von {needed} im Besitz ({in_deckbox} hier, {elsewhere} woanders). {missing} fehlen.",
                 "all_missing": "Du besitzt diese Karte nicht ({needed} fehlen)."
             },
+            "state_tooltip": {
+                "planned": {
+                    "intro": "Jede Karte zeigt, ob deine Sammlung sie abdecken kann:",
+                    "available": "Grün — genug freie Exemplare dieses Drucks.",
+                    "partial": "Orange — etwas ist frei, aber nicht genug von diesem Druck.",
+                    "unavailable": "Rot — nichts frei; kaufen oder tauschen.",
+                    "note": "Exemplare, die einem anderen Deck zugeordnet sind oder in der Deckbox eines anderen Decks liegen, zählen nicht als frei."
+                },
+                "tracked": "Die Karten-Badges folgen dem Sammlungs-Tracking dieses Decks. Ein geplantes Deck zeigt stattdessen die Verfügbarkeit in deiner Sammlung."
+            },
+            "collection_availability": {
+                "available": "{exact} von {needed} Exemplaren dieses Drucks sind in deiner Sammlung verfügbar.",
+                "partial_printing": "Nur {exact} von {needed} Exemplaren dieses Drucks sind verfügbar.",
+                "partial_other": "Von diesem Druck ist nichts verfügbar, aber du hast {other} Exemplare anderer Drucke ({needed} benötigt).",
+                "partial_mixed": "{exact} von {needed} Exemplaren dieses Drucks verfügbar, dazu {other} Exemplare anderer Drucke.",
+                "unavailable_held": "Du besitzt {blocked} Exemplare, aber alle gehören schon zu anderen Decks ({needed} benötigt).",
+                "unavailable_missing": "Du besitzt diese Karte nicht ({needed} benötigt) — kaufen oder tauschen.",
+                "also_held": "{blocked} weitere Exemplare gehören zu anderen Decks."
+            },
             "collection_mode": {
                 "modes": {
                     "A": {

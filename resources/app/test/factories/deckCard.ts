@@ -68,6 +68,7 @@ export function makeDeckCard(overrides: Partial<DeckCardRow> = {}): DeckCardRow 
         category_id: null,
         collection_status: null,
         collection_implicit_status: null,
+        collection_availability: null,
         default_card: {
             id: null,
             name: null,
@@ -105,6 +106,7 @@ export function makeCommander(overrides: Partial<DeckCommander> = {}): DeckComma
         is_illegal: false,
         collection_status: null,
         collection_implicit_status: null,
+        collection_availability: null,
         default_card: { id: `default-card-${sequence}`, card_image_0: null, card_image_1: null },
         ...overrides
     };
@@ -131,6 +133,7 @@ export function makeCompanion(overrides: Partial<DeckCompanion> = {}): DeckCompa
         mana_cost: ["{1}{W}{B}"],
         collection_status: null,
         collection_implicit_status: null,
+        collection_availability: null,
         default_card: { id: `default-card-${sequence}`, card_image_0: null, card_image_1: null },
         ...overrides
     };

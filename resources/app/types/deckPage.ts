@@ -32,6 +32,8 @@ export interface DeckCommander {
     collection_status: CollectionStatus | null;
     /** Mode-B implicit deckbox counts — null in modes A / C. */
     collection_implicit_status: CollectionImplicitStatus | null;
+    /** Planned-deck availability — null unless the deck is planned. */
+    collection_availability: CollectionAvailability | null;
     default_card: DeckCommanderDefaultCard;
 }
 
@@ -52,6 +54,8 @@ export interface DeckCompanion {
     collection_status: CollectionStatus | null;
     /** Mode-B implicit deckbox counts — null in modes A / C. */
     collection_implicit_status: CollectionImplicitStatus | null;
+    /** Planned-deck availability — null unless the deck is planned. */
+    collection_availability: CollectionAvailability | null;
     default_card: DeckCommanderDefaultCard;
 }
 
@@ -198,6 +202,31 @@ export interface CollectionImplicitStatus {
     missing: number;
 }
 
+/**
+ * Planned-deck availability. Computed by
+ * `DeckCollectionStatusService::availabilityForDeck` and rendered by
+ * `CollectionAvailabilityBadge`. Null on every row unless the deck is
+ * in state `planned`, the viewer owns it, and the user-level collection
+ * master switch is on — availability and the mode-B/C badges are
+ * mutually exclusive, see the field-level docs.
+ */
+export interface CollectionAvailability {
+    /**
+     * `available` — enough free copies of the row's own printing.
+     * `partial` — something is free, but not enough of that printing.
+     * `unavailable` — no free copy of any printing of the card.
+     */
+    state: "available" | "partial" | "unavailable";
+    /** Copies the deck row asks for (`deck_cards.quantity`). */
+    needed: number;
+    /** Free copies of the row's own printing. */
+    exact: number;
+    /** Free copies of any other printing of the same oracle card. */
+    other: number;
+    /** Copies held by another deck — claimed, or in another deck's deckbox. */
+    blocked: number;
+}
+
 /** Default card (specific printing) attached to a deck card. */
 export interface DeckCardDefaultCard {
     id: string | null;
@@ -253,6 +282,14 @@ export interface DeckCardRow {
      * Null in modes A and C and for non-owners.
      */
     collection_implicit_status: CollectionImplicitStatus | null;
+    /**
+     * Per-card collection availability, computed only for owners of a
+     * deck in state `planned` and only while the collection master
+     * switch is on. Null otherwise — and when it is set, the two status
+     * fields above are null, because a planned deck shows availability
+     * *instead of* its tracking-mode badge.
+     */
+    collection_availability: CollectionAvailability | null;
     default_card: DeckCardDefaultCard;
 }
 

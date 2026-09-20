@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import CardImagePreview from "Components/Card/CardImagePreview.vue";
 import ManaCost from "Components/Card/ManaCost.vue";
+import CollectionAvailabilityBadge from "Components/Deck/CollectionAvailabilityBadge.vue";
 import CollectionImplicitBadge from "Components/Deck/CollectionImplicitBadge.vue";
 import CollectionStatusBadge from "Components/Deck/CollectionStatusBadge.vue";
 import type { DeckCompanion } from "Types/deckPage.ts";
@@ -40,6 +41,11 @@ defineProps<{
                 :quantity="1"
                 variant="corner"
             />
+            <collection-availability-badge
+                v-if="companion.collection_availability"
+                :availability="companion.collection_availability"
+                variant="corner"
+            />
             <deck-companion-actions-menu
                 v-if="isOwner"
                 :deck-id="deckId"
@@ -70,6 +76,11 @@ defineProps<{
                 v-if="collectionMode === 'B' && companion.collection_implicit_status"
                 :status="companion.collection_implicit_status"
                 :quantity="1"
+                variant="inline"
+            />
+            <collection-availability-badge
+                v-if="companion.collection_availability"
+                :availability="companion.collection_availability"
                 variant="inline"
             />
             <mana-cost :mana-cost="companion.mana_cost" />

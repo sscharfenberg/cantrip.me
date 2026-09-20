@@ -34,6 +34,12 @@ use Illuminate\Support\Facades\DB;
  *
  *   claimed_for_this_deck > available > claimed_by_other_deck
  *     > wrong_printing > not_owned
+ *
+ * {@see availabilityForDeck} sits alongside those two and answers a
+ * different question for *planned* decks — "can my collection cover
+ * this slot?" — with a three-value taxonomy that ignores the deck's
+ * mode entirely. Planned decks show availability instead of the
+ * mode-B/C badges; finished and archived decks show the mode badges.
  */
 class DeckCollectionStatusService
 {
@@ -52,6 +58,17 @@ class DeckCollectionStatusService
     public const MODE_B = 'B';
 
     public const MODE_C = 'C';
+
+    /**
+     * Planned-deck availability states. Deliberately a separate, coarser
+     * taxonomy from the five mode-C statuses above: a planned deck asks
+     * "can my collection cover this slot?", not "which stack backs it?".
+     */
+    public const AVAILABILITY_AVAILABLE = 'available';
+
+    public const AVAILABILITY_PARTIAL = 'partial';
+
+    public const AVAILABILITY_UNAVAILABLE = 'unavailable';
 
     /**
      * Determine which of the three collection-integration modes applies
@@ -212,6 +229,145 @@ class DeckCollectionStatusService
                 'in_deckbox' => $counts['in_deckbox'],
                 'elsewhere' => $counts['elsewhere'],
                 'missing' => max(0, (int) $dc->quantity - $owned),
+            ];
+        }
+
+        return $result;
+    }
+
+    /**
+     * Per-deck-card *availability* for a planned deck.
+     *
+     * Answers the planning question — "can my collection cover this
+     * slot, or do I have to buy / trade for it?" — and is deliberately
+     * independent of the deck's collection-integration mode: a planned
+     * deck reports availability whether it sits in mode A, B or C. The
+     * caller gates on `decks.state` and on the user-level master switch.
+     *
+     * A stack counts as *available* to this deck unless another deck has
+     * a hold on it. Two kinds of hold, mirroring the two tracking modes:
+     *
+     *  - explicit — a `deck_card_card_stack` pivot row tying the stack to
+     *    a deck_card of *another* deck. Pivots pointing at this deck are
+     *    this deck's own copies and stay available.
+     *  - implicit — the stack sits in a container that is another deck's
+     *    `decks.container_id`. Any other deck counts, whatever its mode:
+     *    a binder designated as a deck's deckbox holds that deck's cards
+     *    regardless of whether the user switched tracking on for it.
+     *
+     * Per deck_card row the available copies are split into `exact`
+     * (the row's own printing) and `other` (any other printing of the
+     * same oracle card), and the state follows from the row's quantity:
+     *
+     *  - `available`   — `exact >= quantity`. The printing in the deck
+     *                    list is fully covered.
+     *  - `partial`     — something is available but not that: too few
+     *                    copies of the printing, other printings only,
+     *                    or a mix of both.
+     *  - `unavailable` — no free copy of any printing. `blocked` then
+     *                    tells the tooltip whether the user owns copies
+     *                    that other decks hold, or none at all.
+     *
+     * `blocked` is the total held by other decks across every printing
+     * of the oracle card and is reported in all three states.
+     *
+     * Counts are at face value, exactly as {@see implicitStatusForDeck}
+     * documents: two deck_card rows of the same printing in this deck
+     * each see the whole free pool rather than a share of it.
+     *
+     * @return array<string, array{state: string, needed: int, exact: int, other: int, blocked: int}>
+     *                                                                                                Keyed by deck_card_id.
+     */
+    public static function availabilityForDeck(Deck $deck): array
+    {
+        $userId = $deck->user_id;
+
+        $deckCardRows = DeckCard::query()
+            ->where('deck_id', $deck->id)
+            ->get(['id', 'oracle_card_id', 'default_card_id', 'quantity']);
+
+        if ($deckCardRows->isEmpty()) {
+            return [];
+        }
+
+        $oracleIds = $deckCardRows->pluck('oracle_card_id')->unique()->values();
+
+        // Containers designated as some *other* deck's deckbox. Flipped
+        // to a lookup so the per-stack test below is an isset() rather
+        // than an in_array() scan.
+        $reservedContainerIds = array_flip(
+            DB::table('decks')
+                ->where('user_id', $userId)
+                ->where('id', '!=', $deck->id)
+                ->whereNotNull('container_id')
+                ->distinct()
+                ->pluck('container_id')
+                ->all()
+        );
+
+        // One batched read of every owned stack of any oracle card in
+        // the deck, left-joined through the pivot so explicit holds come
+        // back in the same pass. A stack claimed by several deck_cards
+        // fans out into several rows; the fold below collapses them.
+        $rows = DB::table('card_stacks')
+            ->join('default_cards', 'default_cards.id', '=', 'card_stacks.default_card_id')
+            ->leftJoin('deck_card_card_stack', 'deck_card_card_stack.card_stack_id', '=', 'card_stacks.id')
+            ->leftJoin('deck_cards', 'deck_cards.id', '=', 'deck_card_card_stack.deck_card_id')
+            ->where('card_stacks.user_id', $userId)
+            ->whereIn('default_cards.oracle_id', $oracleIds)
+            ->get([
+                'card_stacks.id as stack_id',
+                'card_stacks.default_card_id as printing_id',
+                'card_stacks.amount as amount',
+                'card_stacks.container_id as container_id',
+                'default_cards.oracle_id as oracle_id',
+                'deck_cards.deck_id as claimed_by_deck_id',
+            ]);
+
+        $stacks = [];
+        foreach ($rows as $row) {
+            $stacks[$row->stack_id] ??= [
+                'printing_id' => $row->printing_id,
+                'oracle_id' => $row->oracle_id,
+                'amount' => (int) $row->amount,
+                'held' => $row->container_id !== null && isset($reservedContainerIds[$row->container_id]),
+            ];
+
+            if ($row->claimed_by_deck_id !== null && $row->claimed_by_deck_id !== $deck->id) {
+                $stacks[$row->stack_id]['held'] = true;
+            }
+        }
+
+        // Sum copies per oracle card per printing, split by hold.
+        $freeByOracle = [];
+        $heldByOracle = [];
+        foreach ($stacks as $stack) {
+            if ($stack['held']) {
+                $heldByOracle[$stack['oracle_id']] = ($heldByOracle[$stack['oracle_id']] ?? 0) + $stack['amount'];
+
+                continue;
+            }
+            $freeByOracle[$stack['oracle_id']][$stack['printing_id']] =
+                ($freeByOracle[$stack['oracle_id']][$stack['printing_id']] ?? 0) + $stack['amount'];
+        }
+
+        $result = [];
+        foreach ($deckCardRows as $dc) {
+            $free = $freeByOracle[$dc->oracle_card_id] ?? [];
+            $exact = $free[$dc->default_card_id] ?? 0;
+            $other = array_sum($free) - $exact;
+            $needed = (int) $dc->quantity;
+
+            $result[$dc->id] = [
+                'state' => match (true) {
+                    $exact >= $needed => self::AVAILABILITY_AVAILABLE,
+                    $exact + $other > 0 => self::AVAILABILITY_PARTIAL,
+                    default => self::AVAILABILITY_UNAVAILABLE,
+                },
+                'needed' => $needed,
+                'exact' => $exact,
+                'other' => $other,
+                'blocked' => $heldByOracle[$dc->oracle_card_id] ?? 0,
             ];
         }
 

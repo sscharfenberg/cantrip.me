@@ -914,6 +914,25 @@
                 "partial_with_missing": "{owned} of {needed} owned ({in_deckbox} here, {elsewhere} elsewhere). {missing} missing.",
                 "all_missing": "You don't own this card ({needed} missing)."
             },
+            "state_tooltip": {
+                "planned": {
+                    "intro": "Each card shows whether your collection can cover it:",
+                    "available": "Green — enough free copies of that printing.",
+                    "partial": "Orange — some copies are free, but not enough of that printing.",
+                    "unavailable": "Red — nothing free; buy or trade for it.",
+                    "note": "Copies claimed by another deck, or stored in another deck's deckbox, don't count as free."
+                },
+                "tracked": "Card badges follow this deck's collection tracking mode. A planned deck shows collection availability instead."
+            },
+            "collection_availability": {
+                "available": "{exact} of {needed} copies of this printing are available in your collection.",
+                "partial_printing": "Only {exact} of {needed} copies of this printing are available.",
+                "partial_other": "No copy of this printing is available, but you have {other} of other printings ({needed} needed).",
+                "partial_mixed": "{exact} of {needed} copies of this printing available, plus {other} of other printings.",
+                "unavailable_held": "You own {blocked} copies, but every one belongs to another deck ({needed} needed).",
+                "unavailable_missing": "You don't own this card ({needed} needed) — buy or trade for it.",
+                "also_held": "{blocked} further copies belong to other decks."
+            },
             "collection_mode": {
                 "modes": {
                     "A": {

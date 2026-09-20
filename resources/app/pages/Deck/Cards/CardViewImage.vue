@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { useI18n } from "vue-i18n";
+import CollectionAvailabilityBadge from "@/components/Deck/CollectionAvailabilityBadge.vue";
 import CollectionImplicitBadge from "@/components/Deck/CollectionImplicitBadge.vue";
 import CollectionStatusBadge from "@/components/Deck/CollectionStatusBadge.vue";
 import DeckCardActionsMenu from "@/pages/Deck/Actions/DeckCardActionsMenu.vue";
@@ -105,6 +106,11 @@ const { allGroups } = useDeckSections(
                         :quantity="1"
                         variant="corner"
                     />
+                    <collection-availability-badge
+                        v-if="commander.collection_availability"
+                        :availability="commander.collection_availability"
+                        variant="corner"
+                    />
                     <deck-commander-actions-menu
                         v-if="isOwner"
                         :deck-id="deck.id"
@@ -178,6 +184,11 @@ const { allGroups } = useDeckSections(
                         v-if="collectionMode === 'B' && card.collection_implicit_status"
                         :status="card.collection_implicit_status"
                         :quantity="card.quantity"
+                        variant="corner"
+                    />
+                    <collection-availability-badge
+                        v-if="card.collection_availability"
+                        :availability="card.collection_availability"
                         variant="corner"
                     />
                     <deck-card-actions-menu

@@ -77,6 +77,15 @@ const props = defineProps<{
      */
     containers: DeckActionsContainer[];
 }>();
+/**
+ * Whether the state badge spells out what the per-card badges of this
+ * state mean. Owner-only, and only while the collection master switch
+ * is on — with it off no per-card badge renders at all, so the legend
+ * would describe icons that aren't there.
+ */
+const explainState = computed<boolean>(
+    () => props.isOwner && props.collectionModeContext?.master_switch_enabled === true
+);
 const heroBackgroundStyle = computed<Record<string, string> | undefined>(() =>
     props.heroArtCrop ? { "--hero-art-crop": `url('${props.heroArtCrop}')` } : undefined
 );
@@ -123,7 +132,7 @@ const { formatPrice } = useFormatting();
             >
                 <icon name="swords" :size="1" />{{ deck.bracket }}
             </badge>
-            <deck-state :state="deck.state" />
+            <deck-state :state="deck.state" :explain="explainState" />
             <deck-card-count :count="deck.card_count" />
             <badge type="info" v-tooltip="$t('pages.deck.total_worth')">
                 <icon name="money" :size="1" />{{ formatPrice(deck.total_worth) }}

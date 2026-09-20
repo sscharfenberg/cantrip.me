@@ -487,4 +487,272 @@ class DeckCollectionStatusServiceTest extends TestCase
         // Asserting <= 3 to allow connection-level chatter on some drivers.
         $this->assertLessThanOrEqual(3, count($queries));
     }
+
+    // ── availabilityForDeck ───────────────────────────────────────────────
+
+    private function makeContainer(User $user, string $name = 'Deckbox'): Container
+    {
+        return Container::create([
+            'user_id' => $user->id,
+            'name' => $name,
+            'type' => 'deckbox',
+            'sort_order' => 1,
+        ]);
+    }
+
+    #[Test]
+    public function availability_is_available_when_the_printing_covers_the_row(): void
+    {
+        $user = User::factory()->create();
+        $deck = $this->makeDeck($user);
+        $oracle = $this->makeOracleCard('Lightning Bolt');
+        $default = $this->makeDefaultCard($oracle);
+        $this->makeCardStack($user, $default, amount: 4);
+        $deckCard = $this->makeDeckCard($deck, $oracle, $default, quantity: 4);
+
+        $availability = DeckCollectionStatusService::availabilityForDeck($deck);
+
+        $this->assertSame(
+            ['state' => 'available', 'needed' => 4, 'exact' => 4, 'other' => 0, 'blocked' => 0],
+            $availability[$deckCard->id]
+        );
+    }
+
+    #[Test]
+    public function availability_is_partial_when_the_printing_is_short_of_the_quantity(): void
+    {
+        // Two free copies against a 4-of. Owning *some* is not owning
+        // enough — the row still needs buying, so it must not read green.
+        $user = User::factory()->create();
+        $deck = $this->makeDeck($user);
+        $oracle = $this->makeOracleCard('Brainstorm');
+        $default = $this->makeDefaultCard($oracle);
+        $this->makeCardStack($user, $default, amount: 2);
+        $deckCard = $this->makeDeckCard($deck, $oracle, $default, quantity: 4);
+
+        $availability = DeckCollectionStatusService::availabilityForDeck($deck);
+
+        $this->assertSame(
+            ['state' => 'partial', 'needed' => 4, 'exact' => 2, 'other' => 0, 'blocked' => 0],
+            $availability[$deckCard->id]
+        );
+    }
+
+    #[Test]
+    public function availability_is_partial_when_only_another_printing_is_free(): void
+    {
+        $user = User::factory()->create();
+        $deck = $this->makeDeck($user);
+        $set = $this->makeSet();
+        $oracle = $this->makeOracleCard('Counterspell');
+        $chosen = $this->makeDefaultCard($oracle, $set);
+        $alt = $this->makeDefaultCard($oracle, $set);
+        $this->makeCardStack($user, $alt, amount: 3);
+        $deckCard = $this->makeDeckCard($deck, $oracle, $chosen, quantity: 1);
+
+        $availability = DeckCollectionStatusService::availabilityForDeck($deck);
+
+        $this->assertSame(
+            ['state' => 'partial', 'needed' => 1, 'exact' => 0, 'other' => 3, 'blocked' => 0],
+            $availability[$deckCard->id]
+        );
+    }
+
+    #[Test]
+    public function availability_is_unavailable_when_nothing_is_owned(): void
+    {
+        $user = User::factory()->create();
+        $deck = $this->makeDeck($user);
+        $oracle = $this->makeOracleCard('Mana Drain');
+        $default = $this->makeDefaultCard($oracle);
+        $deckCard = $this->makeDeckCard($deck, $oracle, $default, quantity: 1);
+
+        $availability = DeckCollectionStatusService::availabilityForDeck($deck);
+
+        $this->assertSame(
+            ['state' => 'unavailable', 'needed' => 1, 'exact' => 0, 'other' => 0, 'blocked' => 0],
+            $availability[$deckCard->id]
+        );
+    }
+
+    #[Test]
+    public function availability_excludes_copies_claimed_by_another_deck(): void
+    {
+        // Explicit hold: the only copy carries a mode-C pivot row to a
+        // deck_card of a different deck. `blocked` keeps the count so
+        // the tooltip can say "you own it, another deck has it".
+        $user = User::factory()->create();
+        $deck = $this->makeDeck($user);
+        $otherDeck = $this->makeDeck($user);
+        $oracle = $this->makeOracleCard('Sol Ring');
+        $default = $this->makeDefaultCard($oracle);
+        $stack = $this->makeCardStack($user, $default, amount: 1);
+        $otherRow = $this->makeDeckCard($otherDeck, $oracle, $default, quantity: 1);
+        $otherRow->cardStacks()->attach($stack->id);
+        $deckCard = $this->makeDeckCard($deck, $oracle, $default, quantity: 1);
+
+        $availability = DeckCollectionStatusService::availabilityForDeck($deck);
+
+        $this->assertSame(
+            ['state' => 'unavailable', 'needed' => 1, 'exact' => 0, 'other' => 0, 'blocked' => 1],
+            $availability[$deckCard->id]
+        );
+    }
+
+    #[Test]
+    public function availability_excludes_copies_sitting_in_another_decks_deckbox(): void
+    {
+        // Implicit hold: no pivot row anywhere, but the container is
+        // another deck's `container_id`, so the cards are physically
+        // spoken for.
+        $user = User::factory()->create();
+        $deck = $this->makeDeck($user);
+        $otherDeck = $this->makeDeck($user);
+        $otherBox = $this->makeContainer($user, 'Other deckbox');
+        $otherDeck->update(['container_id' => $otherBox->id]);
+        $oracle = $this->makeOracleCard('Swords to Plowshares');
+        $default = $this->makeDefaultCard($oracle);
+        $this->makeCardStack($user, $default, $otherBox, amount: 2);
+        $deckCard = $this->makeDeckCard($deck, $oracle, $default, quantity: 1);
+
+        $availability = DeckCollectionStatusService::availabilityForDeck($deck);
+
+        $this->assertSame(
+            ['state' => 'unavailable', 'needed' => 1, 'exact' => 0, 'other' => 0, 'blocked' => 2],
+            $availability[$deckCard->id]
+        );
+    }
+
+    #[Test]
+    public function availability_counts_this_decks_own_claims_and_deckbox_as_free(): void
+    {
+        // Copies this deck already holds — via its own pivot row or its
+        // own deckbox — are the deck's to use. Only *other* decks block.
+        $user = User::factory()->create();
+        $deck = $this->makeDeck($user);
+        $ownBox = $this->makeContainer($user, 'This deck');
+        $deck->update(['container_id' => $ownBox->id]);
+        $set = $this->makeSet();
+
+        $claimed = $this->makeOracleCard('Claimed Card');
+        $claimedPrinting = $this->makeDefaultCard($claimed, $set);
+        $claimedStack = $this->makeCardStack($user, $claimedPrinting, amount: 1);
+        $claimedRow = $this->makeDeckCard($deck->fresh(), $claimed, $claimedPrinting, quantity: 1);
+        $claimedRow->cardStacks()->attach($claimedStack->id);
+
+        $boxed = $this->makeOracleCard('Boxed Card');
+        $boxedPrinting = $this->makeDefaultCard($boxed, $set);
+        $this->makeCardStack($user, $boxedPrinting, $ownBox, amount: 1);
+        $boxedRow = $this->makeDeckCard($deck->fresh(), $boxed, $boxedPrinting, quantity: 1);
+
+        $availability = DeckCollectionStatusService::availabilityForDeck($deck->fresh());
+
+        $this->assertSame('available', $availability[$claimedRow->id]['state']);
+        $this->assertSame('available', $availability[$boxedRow->id]['state']);
+        $this->assertSame(0, $availability[$claimedRow->id]['blocked']);
+        $this->assertSame(0, $availability[$boxedRow->id]['blocked']);
+    }
+
+    #[Test]
+    public function availability_reports_blocked_copies_alongside_the_free_ones(): void
+    {
+        // Mixed pool: one free copy of the printing, three locked away in
+        // another deck's deckbox, against a 4-of. State is partial, and
+        // `blocked` carries the three so the tooltip can explain where
+        // the missing copies went.
+        $user = User::factory()->create();
+        $deck = $this->makeDeck($user);
+        $otherDeck = $this->makeDeck($user);
+        $otherBox = $this->makeContainer($user, 'Other deckbox');
+        $otherDeck->update(['container_id' => $otherBox->id]);
+        $oracle = $this->makeOracleCard('Ponder');
+        $default = $this->makeDefaultCard($oracle);
+        $this->makeCardStack($user, $default, amount: 1);
+        $this->makeCardStack($user, $default, $otherBox, amount: 3);
+        $deckCard = $this->makeDeckCard($deck, $oracle, $default, quantity: 4);
+
+        $availability = DeckCollectionStatusService::availabilityForDeck($deck);
+
+        $this->assertSame(
+            ['state' => 'partial', 'needed' => 4, 'exact' => 1, 'other' => 0, 'blocked' => 3],
+            $availability[$deckCard->id]
+        );
+    }
+
+    #[Test]
+    public function availability_ignores_stacks_owned_by_another_user(): void
+    {
+        $user = User::factory()->create();
+        $stranger = User::factory()->create();
+        $deck = $this->makeDeck($user);
+        $oracle = $this->makeOracleCard('Black Lotus');
+        $default = $this->makeDefaultCard($oracle);
+        $this->makeCardStack($stranger, $default, amount: 4);
+        $deckCard = $this->makeDeckCard($deck, $oracle, $default, quantity: 1);
+
+        $availability = DeckCollectionStatusService::availabilityForDeck($deck);
+
+        $this->assertSame('unavailable', $availability[$deckCard->id]['state']);
+        $this->assertSame(0, $availability[$deckCard->id]['blocked']);
+    }
+
+    #[Test]
+    public function availability_ignores_a_container_that_belongs_to_another_users_deck(): void
+    {
+        // `decks.container_id` is looked up per user. A stranger's deck
+        // pointing at a container id must never hold this user's cards.
+        $user = User::factory()->create();
+        $stranger = User::factory()->create();
+        $box = $this->makeContainer($user, 'My binder');
+        $strangerDeck = $this->makeDeck($stranger);
+        $strangerDeck->update(['container_id' => $box->id]);
+        $deck = $this->makeDeck($user);
+        $oracle = $this->makeOracleCard('Demonic Tutor');
+        $default = $this->makeDefaultCard($oracle);
+        $this->makeCardStack($user, $default, $box, amount: 1);
+        $deckCard = $this->makeDeckCard($deck, $oracle, $default, quantity: 1);
+
+        $availability = DeckCollectionStatusService::availabilityForDeck($deck);
+
+        $this->assertSame('available', $availability[$deckCard->id]['state']);
+    }
+
+    #[Test]
+    public function availability_returns_an_empty_map_for_an_empty_deck(): void
+    {
+        $user = User::factory()->create();
+        $deck = $this->makeDeck($user);
+
+        $this->assertSame([], DeckCollectionStatusService::availabilityForDeck($deck));
+    }
+
+    #[Test]
+    public function availability_uses_a_bounded_number_of_queries(): void
+    {
+        $user = User::factory()->create();
+        $deck = $this->makeDeck($user);
+        $set = $this->makeSet();
+
+        for ($i = 0; $i < 10; $i++) {
+            $oracle = $this->makeOracleCard("Card {$i}");
+            $default = $this->makeDefaultCard($oracle, $set);
+            $this->makeDeckCard($deck, $oracle, $default);
+            if ($i % 2 === 0) {
+                $this->makeCardStack($user, $default);
+            }
+        }
+
+        DB::flushQueryLog();
+        DB::enableQueryLog();
+
+        DeckCollectionStatusService::availabilityForDeck($deck);
+
+        $queries = DB::getQueryLog();
+        DB::disableQueryLog();
+
+        // Three queries: deck_cards, the other decks' container ids, and
+        // the joined stacks read. Asserting <= 4 to allow connection-level
+        // chatter on some drivers.
+        $this->assertLessThanOrEqual(4, count($queries));
+    }
 }

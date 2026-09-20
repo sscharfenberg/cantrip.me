@@ -2,6 +2,7 @@
 import { ref } from "vue";
 import { VueDraggable } from "vue-draggable-plus";
 import { useI18n } from "vue-i18n";
+import CollectionAvailabilityBadge from "@/components/Deck/CollectionAvailabilityBadge.vue";
 import CollectionImplicitBadge from "@/components/Deck/CollectionImplicitBadge.vue";
 import CollectionStatusBadge from "@/components/Deck/CollectionStatusBadge.vue";
 import DeckCardActionsMenu from "@/pages/Deck/Actions/DeckCardActionsMenu.vue";
@@ -151,6 +152,11 @@ const openPreview = (id: string | null, quantity?: number): void => {
                                 :quantity="1"
                                 variant="inline"
                             />
+                            <collection-availability-badge
+                                v-if="commander.collection_availability"
+                                :availability="commander.collection_availability"
+                                variant="inline"
+                            />
                             <mana-cost :mana-cost="commander.mana_cost" />
                             <deck-commander-actions-menu
                                 v-if="isOwner"
@@ -252,6 +258,11 @@ const openPreview = (id: string | null, quantity?: number): void => {
                                 v-if="collectionMode === 'B' && card.collection_implicit_status"
                                 :status="card.collection_implicit_status"
                                 :quantity="card.quantity"
+                                variant="inline"
+                            />
+                            <collection-availability-badge
+                                v-if="card.collection_availability"
+                                :availability="card.collection_availability"
                                 variant="inline"
                             />
                             <mana-cost :mana-cost="card.mana_cost" />
