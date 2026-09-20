@@ -125,7 +125,6 @@
         }
     },
     "header": {
-        "status": "public beta test - we will try not to wipe your data",
         "user_nav": "User and language navigation",
         "site_nav": "Site navigation",
         "lang": {
