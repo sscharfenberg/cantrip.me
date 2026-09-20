@@ -4,6 +4,7 @@ import { computed, ref, useId } from "vue";
 import { useI18n } from "vue-i18n";
 import { hasDeletableContent } from "@/utils/deleteDeck.ts";
 import type { DeleteDeckTarget } from "@/utils/deleteDeck.ts";
+import type { UnavailableCard } from "@/utils/unavailableCards.ts";
 import Icon from "Components/UI/Icon.vue";
 import PopOver from "Components/UI/PopOver.vue";
 import type { DeckCardCount, DeckCardRow, DeckCategoryRow } from "Types/deckPage.ts";
@@ -11,6 +12,7 @@ import { totalDeckCardCount } from "Types/deckPage.ts";
 import AddAllToCollectionModal from "../Modals/AddAllToCollectionModal.vue";
 import DeckAddGroupModal from "../Modals/DeckAddGroupModal.vue";
 import DeckCustomGroupsModal from "../Modals/DeckCustomGroupsModal.vue";
+import DeckUnavailableCardsModal from "../Modals/DeckUnavailableCardsModal.vue";
 import DeleteDeckModal from "../Modals/DeleteDeckModal.vue";
 
 /** Container option shipped to the AddAllToCollectionModal dropdown. */
@@ -84,6 +86,16 @@ const props = withDefaults(
          * containers) a menu item that closes the popover and opens nothing.
          */
         containers?: DeckActionsContainer[];
+        /**
+         * Cards the collection cannot fully cover, derived by
+         * `collectUnavailableCards` on the deck page. Empty is the whole gate
+         * for the entry that opens them: the deck page only ships per-card
+         * availability for a planned deck whose owner has collection
+         * integration switched on, so an empty list already means one of
+         * "not planned", "not the owner", "tracking off" or "nothing
+         * missing" — none of which wants a menu item.
+         */
+        unavailableCards?: UnavailableCard[];
     }>(),
     { isOwner: true, isArchived: false, hasUnclaimedCards: false }
 );
@@ -93,6 +105,9 @@ const showCustomGroupsModal = ref(false);
 const showCreateGroupModal = ref(false);
 const showDeleteModal = ref(false);
 const showAddAllToCollectionModal = ref(false);
+const showUnavailableCardsModal = ref(false);
+/** Whether there is a shopping list worth offering. See the prop's doc. */
+const hasUnavailableCards = computed(() => (props.unavailableCards?.length ?? 0) > 0);
 const showGroupActions = computed(
     () => props.cards !== undefined && props.categories !== undefined && props.categoryNameMax !== undefined
 );
@@ -109,6 +124,7 @@ const showGroup3 = computed(
     () =>
         props.isOwner &&
         (!props.isArchived ||
+            hasUnavailableCards.value ||
             (props.hasUnclaimedCards && (props.collectionMode === "B" || props.collectionMode === "C")))
 );
 const showGroup5 = computed(() => props.isOwner);
@@ -124,6 +140,11 @@ const deleteTarget = computed<DeleteDeckTarget>(() => ({
 function closePopover(): void {
     const dialog = document.getElementById(popoverId);
     if (dialog !== null) dialog.hidePopover();
+}
+/** Open the unavailable-cards list and close the popover. */
+function openUnavailableCards(): void {
+    closePopover();
+    showUnavailableCardsModal.value = true;
 }
 /** Open the custom groups modal and close the popover. */
 function openCustomGroups(): void {
@@ -281,6 +302,12 @@ function onDeleteClick(): void {
                     {{ $t("pages.deck.unclaimed.menu_link") }}
                 </button>
             </li>
+            <li v-if="isOwner && hasUnavailableCards">
+                <button class="popover-list-item" @click.prevent="openUnavailableCards">
+                    <icon name="money" :size="1" />
+                    {{ $t("pages.deck.unavailable.link") }}
+                </button>
+            </li>
             <li v-if="isOwner && !isArchived && containers !== undefined">
                 <button class="popover-list-item" @click.prevent="openAddAllToCollection">
                     <icon name="add-all" :size="1" />
@@ -322,6 +349,11 @@ function onDeleteClick(): void {
         :deck-id="props.deck.id"
         :category-name-max="props.categoryNameMax!"
         @close="showCreateGroupModal = false"
+    />
+    <deck-unavailable-cards-modal
+        v-if="showUnavailableCardsModal"
+        :cards="unavailableCards ?? []"
+        @close="showUnavailableCardsModal = false"
     />
     <delete-deck-modal v-if="showDeleteModal" :target="deleteTarget" @close="showDeleteModal = false" />
     <add-all-to-collection-modal

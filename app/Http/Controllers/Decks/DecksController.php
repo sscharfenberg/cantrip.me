@@ -265,8 +265,8 @@ class DecksController extends Controller
             'deckCards.oracleCard',
             'deckCards.oracleCard.faces:oracle_card_id,face_index,type_line,mana_cost,oracle_text',
             'deckCards.oracleCard.legalities' => fn ($q) => $q->where('format', $deck->format->value),
-            'deckCards.defaultCard:id,name,card_image_0,card_image_1,set_id,oracle_id',
-            'deckCards.defaultCard.set:id,name,code',
+            'deckCards.defaultCard:id,name,card_image_0,card_image_1,collector_number,set_id,oracle_id',
+            'deckCards.defaultCard.set:id,name,code,path',
             // DeckValidator documents that it performs no queries of its own,
             // which only holds if the command zone arrives hydrated. It reads
             // these to resolve a Rulebreaker commander and, when `colors` is
@@ -444,6 +444,12 @@ class DecksController extends Controller
                     'id' => $companionDefault->id ?? null,
                     'card_image_0' => $companionDefault->card_image_0 ?? null,
                     'card_image_1' => $companionDefault->card_image_1 ?? null,
+                    'collector_number' => $companionDefault->collector_number ?? null,
+                    'set' => isset($companionDefault->set) ? [
+                        'name' => $companionDefault->set->name,
+                        'code' => $companionDefault->set->code,
+                        'path' => $companionDefault->set->path,
+                    ] : null,
                 ],
             ];
         }
@@ -520,6 +526,12 @@ class DecksController extends Controller
                     'id' => $printing?->id,
                     'card_image_0' => $printing?->card_image_0,
                     'card_image_1' => $printing?->card_image_1,
+                    'collector_number' => $printing?->collector_number,
+                    'set' => $printing?->set !== null ? [
+                        'name' => $printing->set->name,
+                        'code' => $printing->set->code,
+                        'path' => $printing->set->path,
+                    ] : null,
                 ],
             ];
         })->values();
@@ -555,9 +567,11 @@ class DecksController extends Controller
                     'name' => $dc->defaultCard?->name,
                     'card_image_0' => $dc->defaultCard?->card_image_0,
                     'card_image_1' => $dc->defaultCard?->card_image_1,
+                    'collector_number' => $dc->defaultCard?->collector_number,
                     'set' => $dc->defaultCard?->set ? [
                         'name' => $dc->defaultCard->set->name,
                         'code' => $dc->defaultCard->set->code,
+                        'path' => $dc->defaultCard->set->path,
                     ] : null,
                 ],
             ])->values();

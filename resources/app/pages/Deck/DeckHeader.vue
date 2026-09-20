@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
+import type { UnavailableCard } from "@/utils/unavailableCards.ts";
 import ColorIdentity from "Components/Card/ColorIdentity.vue";
 import CollectionModeBadge from "Components/Deck/CollectionModeBadge.vue";
 import DeckCardCount from "Components/Deck/DeckCardCount.vue";
@@ -71,6 +72,8 @@ const props = defineProps<{
     collectionModeContext: CollectionModeContext | null;
     /** Owner-only flag — true when at least one deck slot is uncovered. */
     hasUnclaimedCards: boolean;
+    /** Cards the collection cannot fully cover — gates and fills the shopping list. */
+    unavailableCards: UnavailableCard[];
     /**
      * Owner-only container list for the "Add all cards to collection"
      * modal — empty for non-owners.
@@ -129,6 +132,7 @@ const { formatPrice } = useFormatting();
                 :category-name-max="categoryNameMax"
                 :collection-mode="collectionMode"
                 :has-unclaimed-cards="hasUnclaimedCards"
+                :unavailable-cards="unavailableCards"
                 :containers="isOwner ? containers : undefined"
             />
         </header>

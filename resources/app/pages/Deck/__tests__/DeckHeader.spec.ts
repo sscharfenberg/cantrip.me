@@ -50,6 +50,7 @@ const render = (state: string, overrides: Record<string, unknown> = {}) =>
             collectionBadgeMode: "C",
             collectionModeContext: { master_switch_enabled: true },
             hasUnclaimedCards: false,
+            unavailableCards: [],
             containers: [],
             ...overrides
         }

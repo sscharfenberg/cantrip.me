@@ -1,11 +1,21 @@
 import type { DefaultCardArtCrop } from "Types/defaultCardArtCrop.ts";
 import type { DefaultCardImage } from "Types/defaultCardImage.ts";
 
-/** Default card image attached to a commander. */
+/** A printing's set, as the deck page ships it. `path` is the set icon. */
+export interface DeckCardSet {
+    name: string;
+    code: string;
+    path: string | null;
+}
+
+/** Default card image attached to a commander or the companion. */
 export interface DeckCommanderDefaultCard {
     id: string;
     card_image_0: string | null;
     card_image_1: string | null;
+    /** Printing identity, for the unavailable-cards shopping list. */
+    collector_number: string | null;
+    set: DeckCardSet | null;
 }
 
 /** A commander in the deck's command zone. */
@@ -233,7 +243,8 @@ export interface DeckCardDefaultCard {
     name: string | null;
     card_image_0: string | null;
     card_image_1: string | null;
-    set: { name: string; code: string } | null;
+    collector_number: string | null;
+    set: DeckCardSet | null;
 }
 
 /** A single card entry in the deck. */

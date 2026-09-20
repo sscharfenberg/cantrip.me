@@ -962,6 +962,13 @@
                 "set_built_label": "Den Status dieses Decks zusätzlich auf „fertig\" setzen",
                 "submit": "Alle hinzufügen"
             },
+            "unavailable": {
+                "link": "Nicht verfügbare Karten",
+                "title": "Nicht verfügbare Karten",
+                "intro": "Eine Karte in diesem Deck kann deine Sammlung nicht vollständig abdecken. | {count} Karten in diesem Deck kann deine Sammlung nicht vollständig abdecken.",
+                "copy": "Kartennamen kopieren",
+                "copied": "kopiert"
+            },
             "unclaimed": {
                 "title": "Offene Karten für '{name}'",
                 "heading": "Offene Karten für '{name}'",

@@ -2,6 +2,7 @@
 import { Head } from "@inertiajs/vue3";
 import { computed } from "vue";
 import { combineCI } from "@/utils/colorIdentity.ts";
+import { collectUnavailableCards } from "@/utils/unavailableCards.ts";
 import DeckStatsSection from "Components/Deck/DeckStats/DeckStatsSection.vue";
 import Icon from "Components/UI/Icon.vue";
 import { useBreadcrumbs } from "Composables/useBreadcrumbs.ts";
@@ -105,6 +106,14 @@ const commanderColorIdentity = computed(() => combineCI(props.commanders.map(c =
  */
 const isArchived = computed(() => props.deck.state === "archived");
 /**
+ * The deck's shopping list. Derived here rather than in the menu because this
+ * is the only component holding all three sources — mainboard rows, the
+ * command zone and the companion.
+ */
+const unavailableCards = computed(() =>
+    collectUnavailableCards(props.cards, props.commanders, props.companion)
+);
+/**
  * Effective owner-edit flag — false for non-owners *and* for archived
  * decks. Components that gate every editing affordance on `isOwner`
  * (DeckNavigation, both card views) receive this; DeckHeader still gets
@@ -165,6 +174,7 @@ const cardNameByDefaultCardId = computed<Record<string, string>>(() => {
         :collection-badge-mode="collectionBadgeMode"
         :collection-mode-context="collectionModeContext"
         :has-unclaimed-cards="hasUnclaimedCards"
+        :unavailable-cards="unavailableCards"
         :containers="containers"
     />
     <deck-navigation

@@ -431,7 +431,7 @@ describe("useDeckCardActions — moveZone", () => {
     it("absorbs sibling rows the server merged away", async () => {
         // Same oracle, same printing, no category: the server collapses them,
         // so the local list has to as well or a ghost row lingers.
-        const printing = { id: "printing-1", name: "Sol Ring", card_image_0: null, card_image_1: null, set: null };
+        const printing = { id: "printing-1", name: "Sol Ring", card_image_0: null, card_image_1: null, collector_number: null, set: null };
         const source = deckCard({ quantity: 2, default_card: printing });
         const survivor = makeDeckCard({
             id: "card-side",
@@ -457,7 +457,7 @@ describe("useDeckCardActions — moveZone", () => {
     });
 
     it("keeps a categorised sibling out of the merge", async () => {
-        const printing = { id: "printing-1", name: "Sol Ring", card_image_0: null, card_image_1: null, set: null };
+        const printing = { id: "printing-1", name: "Sol Ring", card_image_0: null, card_image_1: null, collector_number: null, set: null };
         const source = deckCard({ quantity: 2, default_card: printing });
         const survivor = makeDeckCard({
             id: "card-side",
@@ -508,7 +508,8 @@ describe("useDeckCardActions — switchPrinting", () => {
         name: "Sol Ring",
         card_image_0: "/img/front.jpg",
         card_image_1: null,
-        set: { name: "Commander 2021", code: "c21", path: null }
+        cn: "263",
+        set: { name: "Commander 2021", code: "c21", path: "/set/c21.svg" }
     } as DeckPrinting;
 
     it("swaps the printing before the server has answered", async () => {
@@ -529,12 +530,18 @@ describe("useDeckCardActions — switchPrinting", () => {
 
         await actions.switchPrinting(printing);
 
+        /*
+         * Collector number and set icon included: the unavailable-cards list
+         * reads both off the row, so an optimistic swap that dropped them
+         * would leave that list naming the printing the user just replaced.
+         */
         expect(cards[0].default_card).toEqual({
             id: "printing-2",
             name: "Sol Ring",
             card_image_0: "/img/front.jpg",
             card_image_1: null,
-            set: { name: "Commander 2021", code: "c21" }
+            collector_number: "263",
+            set: { name: "Commander 2021", code: "c21", path: "/set/c21.svg" }
         });
     });
 
@@ -551,7 +558,7 @@ describe("useDeckCardActions — switchPrinting", () => {
 
     it("restores the previous printing when the server refuses", async () => {
         http.status(PRINTING_URL, 422);
-        const original = { id: "printing-1", name: "Sol Ring", card_image_0: null, card_image_1: null, set: null };
+        const original = { id: "printing-1", name: "Sol Ring", card_image_0: null, card_image_1: null, collector_number: null, set: null };
         const { actions, cards } = setup({ cards: [deckCard({ default_card: original })] });
 
         await actions.switchPrinting(printing);

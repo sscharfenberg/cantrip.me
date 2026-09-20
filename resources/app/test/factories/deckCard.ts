@@ -74,6 +74,7 @@ export function makeDeckCard(overrides: Partial<DeckCardRow> = {}): DeckCardRow 
             name: null,
             card_image_0: null,
             card_image_1: null,
+            collector_number: null,
             set: null
         },
         ...overrides
@@ -107,7 +108,13 @@ export function makeCommander(overrides: Partial<DeckCommander> = {}): DeckComma
         collection_status: null,
         collection_implicit_status: null,
         collection_availability: null,
-        default_card: { id: `default-card-${sequence}`, card_image_0: null, card_image_1: null },
+        default_card: {
+            id: `default-card-${sequence}`,
+            card_image_0: null,
+            card_image_1: null,
+            collector_number: null,
+            set: null
+        },
         ...overrides
     };
 }
@@ -134,7 +141,13 @@ export function makeCompanion(overrides: Partial<DeckCompanion> = {}): DeckCompa
         collection_status: null,
         collection_implicit_status: null,
         collection_availability: null,
-        default_card: { id: `default-card-${sequence}`, card_image_0: null, card_image_1: null },
+        default_card: {
+            id: `default-card-${sequence}`,
+            card_image_0: null,
+            card_image_1: null,
+            collector_number: null,
+            set: null
+        },
         ...overrides
     };
 }

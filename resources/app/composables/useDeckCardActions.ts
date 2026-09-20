@@ -308,7 +308,8 @@ export function useDeckCardActions(params: DeckCardActionParams, closePopover: (
             name: printing.name,
             card_image_0: printing.card_image_0,
             card_image_1: printing.card_image_1,
-            set: printing.set ? { name: printing.set.name, code: printing.set.code } : null
+            collector_number: printing.cn,
+            set: printing.set ? { name: printing.set.name, code: printing.set.code, path: printing.set.path } : null
         };
         const response = await fetch(`/api/decks/${params.deckId}/cards/${params.cardId}/printing`, {
             method: "PATCH",

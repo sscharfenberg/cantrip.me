@@ -399,3 +399,70 @@ describe("DeckActionsMenu — modals", () => {
         expect(HTMLElement.prototype.hidePopover).toHaveBeenCalled();
     });
 });
+
+describe("DeckActionsMenu — the unavailable-cards entry", () => {
+    const shoppingList = [
+        {
+            id: "deck-card-1",
+            name: "Arcane Signet",
+            quantity: 1,
+            setCode: "c21",
+            setName: "Commander 2021",
+            setPath: null,
+            collectorNumber: "263",
+            image: null,
+            availability: { state: "unavailable" as const, needed: 1, exact: 0, other: 0, blocked: 0 }
+        }
+    ];
+
+    it("is offered when the collection cannot cover something", () => {
+        const wrapper = render({ ...fullyEquipped, unavailableCards: shoppingList });
+
+        expect(entries(wrapper).join("|")).toContain("pages.deck.unavailable.link");
+    });
+
+    it("is hidden when the list is empty", () => {
+        /*
+         * Empty carries four meanings at once — deck not planned, viewer not
+         * the owner, collection tracking off, or nothing actually missing —
+         * because the deck page ships no availability in any of them. All
+         * four want the entry gone, which is why the gate is the list itself
+         * rather than a flag per condition.
+         */
+        const wrapper = render({ ...fullyEquipped, unavailableCards: [] });
+
+        expect(entries(wrapper).join("|")).not.toContain("pages.deck.unavailable.link");
+    });
+
+    it("is hidden when no list is passed at all", () => {
+        // The deck-list row popover passes no card data of any kind.
+        const wrapper = render({ isOwner: true });
+
+        expect(entries(wrapper).join("|")).not.toContain("pages.deck.unavailable.link");
+    });
+
+    it("is hidden from a visitor", () => {
+        const wrapper = render({ ...fullyEquipped, isOwner: false, unavailableCards: shoppingList });
+
+        expect(entries(wrapper).join("|")).not.toContain("pages.deck.unavailable.link");
+    });
+
+    it("sits directly above the add-all-to-collection entry", () => {
+        // Where the user asked for it, and the two belong together: one says
+        // what is missing, the other puts what you have into the collection.
+        const labels = entries(render({ ...fullyEquipped, unavailableCards: shoppingList }));
+        const mine = labels.findIndex(label => label.includes("pages.deck.unavailable.link"));
+        const addAll = labels.findIndex(label => label.includes("pages.deck.add_all_to_collection.link"));
+
+        expect(mine).toBeGreaterThanOrEqual(0);
+        expect(addAll).toBe(mine + 1);
+    });
+
+    it("opens the list", async () => {
+        const wrapper = render({ ...fullyEquipped, unavailableCards: shoppingList });
+
+        await click(wrapper, "pages.deck.unavailable.link");
+
+        expect(document.querySelector(".unavailable-cards")).not.toBeNull();
+    });
+});

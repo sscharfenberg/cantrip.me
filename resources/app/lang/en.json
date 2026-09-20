@@ -962,6 +962,13 @@
                 "set_built_label": "Also set this deck's state to finished",
                 "submit": "Add all to collection"
             },
+            "unavailable": {
+                "link": "Show unavailable cards",
+                "title": "Unavailable cards",
+                "intro": "One card in this deck cannot be fully covered by your collection. | {count} cards in this deck cannot be fully covered by your collection.",
+                "copy": "Copy card name",
+                "copied": "copied"
+            },
             "unclaimed": {
                 "title": "Unclaimed cards for '{name}'",
                 "heading": "Unclaimed cards for '{name}'",
