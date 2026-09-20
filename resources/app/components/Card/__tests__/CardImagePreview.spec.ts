@@ -1,4 +1,4 @@
-import { mount } from "@vue/test-utils";
+import { flushPromises, mount } from "@vue/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import CardImagePreview from "../CardImagePreview.vue";
 
@@ -26,11 +26,14 @@ const render = (props: Record<string, unknown> = {}) => {
     });
 };
 
-/** Hover the trigger and let the dwell timer elapse. */
+/**
+ * Hover the trigger and let the dwell timer elapse. `flushPromises` because
+ * the timer callback awaits a tick before promoting the popover.
+ */
 const hover = async (wrapper: ReturnType<typeof render>) => {
     await wrapper.find(".card-preview__trigger").trigger("mouseenter");
     vi.advanceTimersByTime(400);
-    await wrapper.vm.$nextTick();
+    await flushPromises();
 };
 
 describe("CardImagePreview — where the preview lands", () => {
@@ -94,5 +97,57 @@ describe("CardImagePreview — when the preview shows", () => {
 
     it("still renders its slot when there is no image", () => {
         expect(render({ src: null }).find(".label").exists()).toBe(true);
+    });
+});
+
+describe("CardImagePreview — escaping a modal", () => {
+    it("promotes the preview into the top layer", async () => {
+        // The only way out of `Modal.vue`: its content box is `overflow:
+        // hidden` and its body scrolls, so a plain positioned child is
+        // clipped to the modal, and the dialog's own top-layer promotion
+        // paints it above everything left in the normal stacking context.
+        const showPopover = vi.spyOn(HTMLElement.prototype, "showPopover");
+        const wrapper = render({ teleportTo: "#host" });
+
+        await hover(wrapper);
+
+        expect(showPopover).toHaveBeenCalledTimes(1);
+        expect(showPopover.mock.instances[0]).toBe(document.querySelector("#host .card-preview"));
+    });
+
+    it("declares the popover manual, so light-dismiss stays the modal's", async () => {
+        // An `auto` popover would close on Escape and on outside clicks —
+        // both of which belong to the modal underneath it. This one closes
+        // on mouseleave and nothing else.
+        const wrapper = render();
+
+        await hover(wrapper);
+
+        expect(document.querySelector(".card-preview")?.getAttribute("popover")).toBe("manual");
+    });
+
+    it("does not promote anything while the dwell timer is still running", async () => {
+        const showPopover = vi.spyOn(HTMLElement.prototype, "showPopover");
+        const wrapper = render();
+
+        await wrapper.find(".card-preview__trigger").trigger("mouseenter");
+        vi.advanceTimersByTime(200);
+        await flushPromises();
+
+        expect(showPopover).not.toHaveBeenCalled();
+    });
+
+    it("leaves the top layer by unmounting rather than calling hidePopover", async () => {
+        // `hidePopover()` throws on an element that was never shown, and the
+        // element is gone the moment `visible` drops — so the call would be
+        // both risky and pointless.
+        const hidePopover = vi.spyOn(HTMLElement.prototype, "hidePopover");
+        const wrapper = render();
+        await hover(wrapper);
+
+        await wrapper.find(".card-preview__trigger").trigger("mouseleave");
+
+        expect(document.querySelector(".card-preview")).toBeNull();
+        expect(hidePopover).not.toHaveBeenCalled();
     });
 });
