@@ -927,7 +927,7 @@
             "collection_availability": {
                 "available": "{exact} von {needed} Exemplaren dieses Drucks sind in deiner Sammlung verfügbar.",
                 "partial_printing": "Nur {exact} von {needed} Exemplaren dieses Drucks sind verfügbar.",
-                "partial_other": "Von diesem Druck ist nichts verfügbar, aber du hast {other} Exemplare anderer Drucke ({needed} benötigt).",
+                "partial_other": "Von diesem Druck ist nichts verfügbar, aber {other} Exemplare anderer Drucke sind verfügbar ({needed} benötigt).",
                 "partial_mixed": "{exact} von {needed} Exemplaren dieses Drucks verfügbar, dazu {other} Exemplare anderer Drucke.",
                 "unavailable_held": "Du besitzt {blocked} Exemplare, aber alle gehören schon zu anderen Decks ({needed} benötigt).",
                 "unavailable_missing": "Du besitzt diese Karte nicht ({needed} benötigt) — kaufen oder tauschen.",

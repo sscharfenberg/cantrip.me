@@ -86,6 +86,17 @@ const props = defineProps<{
 const explainState = computed<boolean>(
     () => props.isOwner && props.collectionModeContext?.master_switch_enabled === true
 );
+/**
+ * Whether to offer the collection-mode picker. Owner-only and gated on
+ * the master switch as ever, and additionally hidden while the deck is
+ * planned: a planned deck ignores its tracking mode entirely and shows
+ * availability instead, so offering a choice that changes nothing on
+ * the page would only mislead. The stored mode is untouched and the
+ * picker comes back when the deck is set to finished.
+ */
+const showCollectionModeBadge = computed<boolean>(
+    () => explainState.value && props.deck.state !== "planned"
+);
 const heroBackgroundStyle = computed<Record<string, string> | undefined>(() =>
     props.heroArtCrop ? { "--hero-art-crop": `url('${props.heroArtCrop}')` } : undefined
 );
@@ -144,7 +155,7 @@ const { formatPrice } = useFormatting();
                 :can-edit="isOwner"
             />
             <collection-mode-badge
-                v-if="isOwner && collectionModeContext !== null && collectionModeContext.master_switch_enabled"
+                v-if="showCollectionModeBadge"
                 :deck-id="deck.id"
                 :mode="collectionBadgeMode"
             />
