@@ -5,6 +5,7 @@ import GameChangerBadge from "Components/Card/Badges/GameChangerBadge.vue";
 import MassLandDenialBadge from "Components/Card/Badges/MassLandDenialBadge.vue";
 import ProxyBadge from "Components/Card/Badges/ProxyBadge.vue";
 import CardFaceImage from "Components/Card/CardFaceImage.vue";
+import CardImagePreview from "Components/Card/CardImagePreview.vue";
 import CardLegalities from "Components/Card/CardLegalities.vue";
 import CardRulings from "Components/Card/CardRulings.vue";
 import ManaCost from "Components/Card/ManaCost.vue";
@@ -175,7 +176,7 @@ onMounted(async () => {
                 </dl>
                 <div v-if="card.collection?.same_printing.length" class="cardstack-preview__collection">
                     <headline :size="4">{{ t("components.card_preview.collection.same_printing") }}</headline>
-                    <ul class="cardstack-preview__copies">
+                    <ul class="cardstack-preview__copies cardstack-preview__copies--same">
                         <li v-for="(entry, i) in card.collection.same_printing" :key="`same-${i}`">
                             <span class="cardstack-preview__copies-container">
                                 <em v-if="!entry.container_name">
@@ -189,15 +190,21 @@ onMounted(async () => {
                 </div>
                 <div v-if="card.collection?.other_printings.length" class="cardstack-preview__collection">
                     <headline :size="4">{{ t("components.card_preview.collection.other_printings") }}</headline>
-                    <ul class="cardstack-preview__copies">
+                    <ul class="cardstack-preview__copies cardstack-preview__copies--printings">
                         <li v-for="(entry, i) in card.collection.other_printings" :key="`other-${i}`">
-                            <img
+                            <card-image-preview
                                 v-if="entry.card_image_0"
                                 :src="entry.card_image_0"
                                 :alt="`[${entry.set_code?.toUpperCase()}] #${entry.collector_number}`"
-                                class="cardstack-preview__copies-thumb"
-                                loading="lazy"
-                            />
+                                teleport-to="#modal-body"
+                            >
+                                <img
+                                    :src="entry.card_image_0"
+                                    :alt="`[${entry.set_code?.toUpperCase()}] #${entry.collector_number}`"
+                                    class="cardstack-preview__copies-thumb"
+                                    loading="lazy"
+                                />
+                            </card-image-preview>
                             <span class="cardstack-preview__copies-printing">
                                 <img
                                     v-if="entry.set_path"
@@ -251,6 +258,19 @@ onMounted(async () => {
 
 :deep(.cardstack-preview__collection h4) {
     margin-top: 1rem;
+}
+
+// CardImagePreview styles its trigger for a datatable cell — block-level with
+// row padding and a pointer cursor. Here it wraps nothing but the thumbnail
+// and has no click action, so strip all three. Has to live in a scoped block:
+// the trigger's own styles are scoped and therefore unlayered, which always
+// beats `styles/components/**` inside @layer components.
+:deep(.cardstack-preview__copies--printings .card-preview__trigger) {
+    display: flex;
+
+    padding: 0;
+
+    cursor: default;
 }
 </style>
 

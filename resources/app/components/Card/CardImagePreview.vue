@@ -10,11 +10,19 @@ const OFFSET_X = 16;
 const OFFSET_Y = 16;
 /** Delay in milliseconds before the tooltip appears. */
 const SHOW_DELAY = 300;
-defineProps<{
+const props = defineProps<{
     /** URL of the card image to display. When null, the tooltip is disabled. */
     src: string | null;
     /** Alt text for the card image. */
     alt: string;
+    /**
+     * Where to teleport the floating preview. Defaults to `body`, which is
+     * right everywhere except inside a native `<dialog>` opened with
+     * `showModal()`: that renders in the browser's top layer, which paints
+     * above every z-index in the normal stacking context, so a preview left
+     * in `body` would hide behind the modal. Pass `#modal-body` there.
+     */
+    teleportTo?: string;
 }>();
 const emit = defineEmits<{ preview: [] }>();
 const visible = ref(false);
@@ -69,7 +77,7 @@ function positionTooltip(e: MouseEvent) {
     <span v-else class="card-preview__trigger" @click="emit('preview')">
         <slot />
     </span>
-    <Teleport to="body">
+    <Teleport :to="props.teleportTo ?? 'body'">
         <div v-if="visible" class="card-preview" :style="{ left: x + 'px', top: y + 'px' }">
             <img :src="src!" :alt="alt" class="card-preview__image" />
         </div>

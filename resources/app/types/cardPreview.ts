@@ -27,7 +27,7 @@ export interface CollectionOtherPrintingEntry {
     set_name: string | null;
     set_path: string | null;
     collector_number: string;
-    /** Front-face image URL; rendered as a tiny thumbnail in the modal. */
+    /** Front-face image URL; the row's thumbnail, with a hover preview of the full card. */
     card_image_0: string | null;
     /** Container name or null when the stack is unsorted. */
     container_name: string | null;

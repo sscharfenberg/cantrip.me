@@ -7,9 +7,13 @@ $cardstack-preview: (
         "width": map.get(s.$icons, "medium"),
         "height": map.get(s.$icons, "medium")
     ),
+    // Big enough to tell two printings of the same card apart at a glance —
+    // that is the entire job of the "other printings you own" list. At the
+    // previous 1.75rem the full card was an unreadable smudge and a showcase
+    // printing was indistinguishable from the normal one.
     "thumb": (
-        "width": 1.75rem,
-        "height": 2.4rem,
-        "radius": 0.125rem
+        "width": 3.5rem,
+        "height": 4.8rem,
+        "radius": 0.25rem
     )
 );
