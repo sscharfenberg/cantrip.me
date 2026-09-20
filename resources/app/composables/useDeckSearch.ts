@@ -9,11 +9,13 @@ import type { DeckSearchResult } from "Types/deckPage.ts";
  *  - `searchOracle(q)` → `/api/decks/{deck}/card-search/oracle`
  *    Oracle-level search for the quick-add input. Ignores `set:` / `cn:`
  *    tokens and returns distinct oracle cards with their newest printing.
- *  - `searchPrintings(q, { includeNonLegal })` → `/api/decks/{deck}/card-search/printings`
+ *  - `searchPrintings(q, { includeNonLegal, onlyAvailable })` → `/api/decks/{deck}/card-search/printings`
  *    Printing-level search for the full card-add modal. Honors `set:` /
  *    `cn:` tokens and can return multiple printings of the same oracle
  *    card. When `includeNonLegal` is true, format-legality filters are
- *    dropped but color identity is still enforced.
+ *    dropped but color identity is still enforced. When `onlyAvailable` is
+ *    true, results are narrowed to printings the deck has a free copy of in
+ *    the collection.
  *
  * Debouncing is intentionally NOT handled here — the consuming component
  * decides when to fire (e.g. a `watch` on the input for auto-search plus
@@ -71,9 +73,15 @@ export function useDeckSearch(deckId: string) {
 
     /**
      * Printing-level search. `includeNonLegal=true` drops the legality
-     * filter while keeping color identity enforced.
+     * filter while keeping color identity enforced; `onlyAvailable=true`
+     * narrows results to printings the deck has a free copy of in the
+     * collection. Both flags are omitted from the query string when false,
+     * so the URL stays the same as before for the default search.
      */
-    async function searchPrintings(q: string, options: { includeNonLegal?: boolean } = {}): Promise<void> {
+    async function searchPrintings(
+        q: string,
+        options: { includeNonLegal?: boolean; onlyAvailable?: boolean } = {}
+    ): Promise<void> {
         if (q.trim().length < 2) {
             results.value = [];
             return;
@@ -81,6 +89,9 @@ export function useDeckSearch(deckId: string) {
         const params = new URLSearchParams({ q });
         if (options.includeNonLegal) {
             params.set("include_non_legal", "1");
+        }
+        if (options.onlyAvailable) {
+            params.set("only_available", "1");
         }
         await fetchFromEndpoint(`/api/decks/${deckId}/card-search/printings?${params}`);
     }

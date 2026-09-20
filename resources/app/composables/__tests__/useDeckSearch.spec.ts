@@ -105,6 +105,34 @@ describe("useDeckSearch — searchPrintings", () => {
         expect(http.lastCall()?.url).not.toContain("include_non_legal");
     });
 
+    it("asks for available-only printings when told to", async () => {
+        const search = useDeckSearch(DECK_ID);
+
+        await search.searchPrintings("sol ring");
+        expect(http.lastCall()?.url).not.toContain("only_available");
+
+        await search.searchPrintings("sol ring", { onlyAvailable: true });
+        expect(http.lastCall()?.url).toContain("only_available=1");
+    });
+
+    it("omits the availability flag when it is explicitly false", async () => {
+        await useDeckSearch(DECK_ID).searchPrintings("sol ring", { onlyAvailable: false });
+
+        expect(http.lastCall()?.url).not.toContain("only_available");
+    });
+
+    it("carries both flags at once", async () => {
+        await useDeckSearch(DECK_ID).searchPrintings("sol ring", {
+            includeNonLegal: true,
+            onlyAvailable: true
+        });
+
+        const url = http.lastCall()?.url ?? "";
+
+        expect(url).toContain("include_non_legal=1");
+        expect(url).toContain("only_available=1");
+    });
+
     it("applies the same two-character minimum", async () => {
         await useDeckSearch(DECK_ID).searchPrintings("s");
 

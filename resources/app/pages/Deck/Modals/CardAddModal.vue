@@ -23,7 +23,22 @@ const emit = defineEmits<{ close: [] }>();
 const { query, results, processing, searchPrintings, reset } = useDeckSearch(props.deck.id);
 /** When true, the printings endpoint is called with `include_non_legal=1`. */
 const includeNonLegal = ref(false);
+/**
+ * When true, the printings endpoint is called with `only_available=1` and
+ * results are narrowed to printings this deck has a free copy of. Defaults
+ * to off — a search that silently hid most of Magic would be a surprise.
+ */
+const onlyAvailable = ref(false);
 const page = usePage();
+/**
+ * Whether to offer the availability filter at all. The whole notion of
+ * "available" comes from collection integration, so with the master switch
+ * off the toggle would promise a filter the backend refuses to apply.
+ */
+const collectionIntegrationEnabled = computed<boolean>(
+    () => (page.props.auth as { user?: { collection_integration_enabled?: boolean } } | undefined)?.user
+        ?.collection_integration_enabled === true
+);
 /** True while a card-add POST is in flight. */
 const adding = ref(false);
 /** Inline feedback shown after a successful add. */
@@ -95,7 +110,10 @@ const runSearch = () => {
     }
     if (feedbackTimer) clearTimeout(feedbackTimer);
     feedback.value = null;
-    searchPrintings(query.value, { includeNonLegal: includeNonLegal.value });
+    searchPrintings(query.value, {
+        includeNonLegal: includeNonLegal.value,
+        onlyAvailable: onlyAvailable.value
+    });
 };
 /** Debounce input changes — wait 750ms after the last keystroke before searching. */
 watch(query, () => {
@@ -105,6 +123,11 @@ watch(query, () => {
 /** Re-run the search when the user toggles the non-legal switch. */
 const onIncludeNonLegalChange = (checked: boolean) => {
     includeNonLegal.value = checked;
+    runSearch();
+};
+/** Re-run the search when the user toggles the availability filter. */
+const onOnlyAvailableChange = (checked: boolean) => {
+    onlyAvailable.value = checked;
     runSearch();
 };
 /** Close the modal and clear search state so reopening starts fresh. */
@@ -145,6 +168,20 @@ onMounted(() => searchInput.value?.focus());
                         :label="$t('pages.deck.add.include_non_legal')"
                         :checked-initially="includeNonLegal"
                         @change="onIncludeNonLegalChange"
+                    />
+                </template>
+            </form-group>
+            <form-group
+                v-if="collectionIntegrationEnabled"
+                for-id="card_add_only_available"
+                :label="$t('pages.deck.add.only_available')"
+            >
+                <template #addon>
+                    <Switch
+                        ref-id="card_add_only_available"
+                        :label="$t('pages.deck.add.only_available')"
+                        :checked-initially="onlyAvailable"
+                        @change="onOnlyAvailableChange"
                     />
                 </template>
             </form-group>

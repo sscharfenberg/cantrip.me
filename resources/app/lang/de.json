@@ -1210,6 +1210,7 @@
                 "label": "Karten hinzufügen",
                 "title": "Karten hinzufügen",
                 "search_label": "Nach einer Karte suchen",
+                "only_available": "Nur Drucke zeigen, die in deiner Sammlung verfügbar sind",
                 "include_non_legal": "Nicht legale Karten einschließen",
                 "submit": "Suchen",
                 "no_results": "Keine Karten gefunden.",

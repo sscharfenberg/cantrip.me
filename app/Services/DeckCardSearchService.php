@@ -361,8 +361,12 @@ final class DeckCardSearchService
      *     }
      * }>
      */
-    public static function searchPrintingsForDeck(Deck $deck, string $rawQuery, bool $includeNonLegal = false): array
-    {
+    public static function searchPrintingsForDeck(
+        Deck $deck,
+        string $rawQuery,
+        bool $includeNonLegal = false,
+        bool $onlyAvailable = false,
+    ): array {
         $parsed = CardSearchParser::parse($rawQuery);
         if (! $parsed) {
             return [];
@@ -468,6 +472,15 @@ final class DeckCardSearchService
 
         if ($parsed['collector_number']) {
             $query->where('default_cards.collector_number', $parsed['collector_number']);
+        }
+
+        // "Only printings available in my collection" — applied here, before
+        // the LIMIT, so a narrowed search still returns a full page instead
+        // of whatever survived an unfiltered page. Gated on the master
+        // switch as well as the flag: the toggle is hidden while the switch
+        // is off, so a request arriving anyway is not one to honour.
+        if ($onlyAvailable && ($deck->user?->collection_integration_enabled ?? false)) {
+            DeckCollectionStatusService::constrainToFreePrintings($query, $deck);
         }
 
         // Printings, so no translation branches — this query is rooted at

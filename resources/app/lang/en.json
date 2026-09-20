@@ -1210,6 +1210,7 @@
                 "label": "Add cards",
                 "title": "Add cards",
                 "search_label": "Search for a card",
+                "only_available": "Only show printings available in your collection",
                 "include_non_legal": "Include non-legal cards",
                 "submit": "Search",
                 "no_results": "No cards match your search.",

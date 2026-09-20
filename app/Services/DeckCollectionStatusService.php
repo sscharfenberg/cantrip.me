@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Deck;
 use App\Models\DeckCard;
 use App\Models\User;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -343,6 +344,51 @@ class DeckCollectionStatusService
         }
 
         return self::partitionCopies($deck, $oracleIds)['free'];
+    }
+
+    /**
+     * Narrow a `default_cards` query to printings this deck has a free copy
+     * of — the SQL twin of {@see partitionCopies}'s PHP rule.
+     *
+     * Same definition, expressed twice because the two are asked different
+     * questions: the partition needs per-printing amounts out of rows it has
+     * already fetched, while this has to constrain a query *before* its
+     * LIMIT so a filtered search still returns a full page. **Change one and
+     * you must change the other** — `QuickAddPrintingPreferenceTest` pins
+     * them to the same answer on the same fixture for exactly that reason.
+     *
+     * A printing survives when the owner has at least one stack of it that
+     * is neither pivoted to a deck_card of another deck nor sitting in a
+     * container that is another deck's `decks.container_id`. This deck's own
+     * claims and its own deckbox do not disqualify anything.
+     *
+     * The caller owns the master-switch gate: this is a query fragment, and
+     * silently declining to filter would widen a result set the user asked
+     * to narrow.
+     */
+    public static function constrainToFreePrintings(Builder $query, Deck $deck): void
+    {
+        $query->whereExists(function (Builder $stacks) use ($deck): void {
+            $stacks->from('card_stacks')
+                ->whereColumn('card_stacks.default_card_id', 'default_cards.id')
+                ->where('card_stacks.user_id', $deck->user_id)
+                ->whereNotExists(function (Builder $claims) use ($deck): void {
+                    $claims->from('deck_card_card_stack')
+                        ->join('deck_cards', 'deck_cards.id', '=', 'deck_card_card_stack.deck_card_id')
+                        ->whereColumn('deck_card_card_stack.card_stack_id', 'card_stacks.id')
+                        ->where('deck_cards.deck_id', '!=', $deck->id);
+                })
+                ->where(function (Builder $unreserved) use ($deck): void {
+                    $unreserved->whereNull('card_stacks.container_id')
+                        ->orWhereNotIn('card_stacks.container_id', function (Builder $boxes) use ($deck): void {
+                            $boxes->from('decks')
+                                ->select('container_id')
+                                ->where('user_id', $deck->user_id)
+                                ->where('id', '!=', $deck->id)
+                                ->whereNotNull('container_id');
+                        });
+                });
+        });
     }
 
     /**

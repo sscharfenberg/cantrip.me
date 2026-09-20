@@ -52,7 +52,9 @@ class DeckCardSearchController extends Controller
      * Honors `set:` / `cn:` tokens so the user can pin results to a specific
      * printing, and can return multiple printings of the same oracle card.
      * When `include_non_legal=1`, the format-legality filter is dropped but
-     * color identity is still enforced — the Rule 0 escape hatch.
+     * color identity is still enforced — the Rule 0 escape hatch. When
+     * `only_available=1`, results are narrowed to printings this deck has a
+     * free copy of in the collection.
      */
     public function printings(SearchDeckPrintingsRequest $request, Deck $deck): JsonResponse
     {
@@ -60,6 +62,7 @@ class DeckCardSearchController extends Controller
             $deck,
             trim((string) $request->query('q', '')),
             $request->boolean('include_non_legal'),
+            $request->boolean('only_available'),
         );
 
         return response()->json($results);
