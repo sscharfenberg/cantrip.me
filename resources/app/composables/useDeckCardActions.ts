@@ -1,6 +1,8 @@
 import { router, usePage } from "@inertiajs/vue3";
 import type { ComputedRef } from "vue";
 import { computed, ref, watch } from "vue";
+import { useI18n } from "vue-i18n";
+import { useToast } from "Composables/useToast";
 import type { DeckCardDefaultCard, DeckCardRow } from "Types/deckPage";
 import type { DeckPrinting } from "Types/defaultCardImage";
 
@@ -31,7 +33,30 @@ export interface DeckCardActionParams {
     maxCopies: number;
     /** Whether the format is singleton. */
     isSingleton: boolean;
+    /** Getter for the deck's current size — mainboard + command zone (`deck.card_count.main`). */
+    deckSize: () => number;
+    /** Getter for the format's deck-size ceiling; null when there is none or a Rulebreaker lifts it. */
+    maxDeckSize: () => number | null;
+    /**
+     * Whether this row counts toward the deck size (zone main or command).
+     * Sideboard, maybeboard and companion rows are never capped by it.
+     */
+    countsTowardDeckSize: boolean;
 }
+
+/**
+ * Refusal reasons the quantity endpoint sends as `reason` on a 422 —
+ * `App\Formats\Capabilities\AddCopyFailure`. Each has a toast message
+ * under `pages.deck.card_quantity.errors`.
+ */
+const REFUSAL_REASONS = [
+    "exceeds_max_copies",
+    "violates_singleton",
+    "not_in_pool",
+    "exceeds_deck_size",
+    "violates_color_identity"
+] as const;
+type RefusalReason = (typeof REFUSAL_REASONS)[number];
 
 /** Return type of {@link useDeckCardActions}. */
 export type UseDeckCardActionsReturn = {
@@ -74,6 +99,8 @@ const DEBOUNCE_MS = 500;
  */
 export function useDeckCardActions(params: DeckCardActionParams, closePopover: () => void): UseDeckCardActionsReturn {
     const page = usePage();
+    const { t } = useI18n();
+    const { addToast } = useToast();
 
     /**
      * Local quantity reflecting pending clicks. Drives the `canIncrement`
@@ -88,11 +115,20 @@ export function useDeckCardActions(params: DeckCardActionParams, closePopover: (
     /**
      * Whether one more copy can be added.
      *
+     * The deck-size ceiling comes first because it binds basics and
+     * unlimited cards too. Pending clicks count toward it, as they do toward
+     * the copy limit.
+     *
      * Sums sibling rows with the same oracle card (split printings) so the
-     * limit applies to the oracle card in aggregate, not to each row
+     * copy limit applies to the oracle card in aggregate, not to each row
      * independently.
      */
     const canIncrement = computed((): boolean => {
+        const maxDeckSize = params.maxDeckSize();
+        const pending = effectiveQty.value - params.quantity();
+        if (params.countsTowardDeckSize && maxDeckSize !== null && params.deckSize() + pending >= maxDeckSize) {
+            return false;
+        }
         if (params.isBasicLand) return true;
         if (params.isUnlimited) return true;
         if (params.isSingleton) return false;
@@ -145,6 +181,7 @@ export function useDeckCardActions(params: DeckCardActionParams, closePopover: (
 
         if (!response.ok) {
             effectiveQty.value = params.quantity();
+            if (response.status === 422) addToast(await refusalMessage(response), "error");
             return;
         }
 
@@ -162,6 +199,18 @@ export function useDeckCardActions(params: DeckCardActionParams, closePopover: (
         }
 
         router.reload({ only: ["deck", "cards", "violations", "tokens"] });
+    }
+
+    /**
+     * Toast text for a refused quantity change, from the 422's `reason`.
+     * Falls back to a generic message for a body that is missing, not JSON,
+     * or names a reason this client does not know.
+     */
+    async function refusalMessage(response: Response): Promise<string> {
+        const data = (await response.json().catch(() => ({}))) as { reason?: string };
+        const reason = REFUSAL_REASONS.find((r): r is RefusalReason => r === data.reason);
+        if (reason === undefined) return t("pages.deck.card_quantity.errors.generic");
+        return t(`pages.deck.card_quantity.errors.${reason}`, { max: params.maxDeckSize() ?? "" });
     }
 
     /** Add one copy (debounced). */

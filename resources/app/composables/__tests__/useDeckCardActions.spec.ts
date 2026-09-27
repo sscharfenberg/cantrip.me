@@ -4,11 +4,14 @@ import { nextTick, ref } from "vue";
 import { makeDeckCard } from "@/test/factories/deckCard.ts";
 import { installFetchMock } from "@/test/http.ts";
 import type { FetchMock } from "@/test/http.ts";
+import { createTestI18n, setTestMessages } from "@/test/i18n.ts";
 import { routerMock, setPageProps } from "@/test/inertia.ts";
+import { withSetup } from "@/test/withSetup.ts";
 import type { DeckCardRow } from "Types/deckPage.ts";
 import type { DeckPrinting } from "Types/defaultCardImage.ts";
 import type { DeckCardActionParams } from "../useDeckCardActions.ts";
 import { useDeckCardActions } from "../useDeckCardActions.ts";
+import { useToast } from "../useToast.ts";
 
 vi.mock("@inertiajs/vue3", async () => (await import("@/test/inertia.ts")).inertiaModuleMock());
 
@@ -29,6 +32,9 @@ let closePopover: Mock<() => void>;
 const deckCard = (overrides: Partial<DeckCardRow> = {}): DeckCardRow =>
     makeDeckCard({ id: CARD_ID, oracle_card_id: ORACLE_ID, quantity: 1, ...overrides });
 
+/** Messages of the toasts currently on screen. */
+const toastMessages = (): string[] => useToast().activeToasts.value.map(toast => toast.message);
+
 /**
  * Wire the composable up against a live `page.props.cards` array — the
  * composable mutates that array in place to patch the DOM without a reload, so
@@ -45,20 +51,27 @@ const setup = (
     setPageProps({ csrfToken: "csrf-token", cards });
 
     const quantity = ref(options.quantity ?? cards.find(c => c.id === CARD_ID)?.quantity ?? 1);
-    const actions = useDeckCardActions(
-        {
-            deckId: DECK_ID,
-            cardId: CARD_ID,
-            oracleCardId: ORACLE_ID,
-            quantity: () => quantity.value,
-            cards: () => cards,
-            isBasicLand: false,
-            isUnlimited: false,
-            maxCopies: 4,
-            isSingleton: false,
-            ...options.params
-        },
-        closePopover
+    const [actions] = withSetup(
+        () =>
+            useDeckCardActions(
+                {
+                    deckId: DECK_ID,
+                    cardId: CARD_ID,
+                    oracleCardId: ORACLE_ID,
+                    quantity: () => quantity.value,
+                    cards: () => cards,
+                    isBasicLand: false,
+                    isUnlimited: false,
+                    maxCopies: 4,
+                    isSingleton: false,
+                    deckSize: () => 50,
+                    maxDeckSize: () => null,
+                    countsTowardDeckSize: true,
+                    ...options.params
+                },
+                closePopover
+            ),
+        [createTestI18n()]
     );
 
     return { actions, cards, quantity };
@@ -72,6 +85,12 @@ beforeEach(() => {
     closePopover = vi.fn<() => void>();
     http = installFetchMock();
     http.json(QUANTITY_URL, { quantity: 2 });
+
+    // Toast state is a module-level singleton, so it survives between tests.
+    const { activeToasts, removeToast } = useToast();
+    for (const toast of [...activeToasts.value]) {
+        removeToast(toast.id);
+    }
 });
 
 afterEach(() => {
@@ -148,6 +167,103 @@ describe("useDeckCardActions — canIncrement", () => {
         await nextTick();
 
         expect(actions.canIncrement.value).toBe(true);
+    });
+});
+
+describe("useDeckCardActions — canIncrement at the deck-size ceiling", () => {
+    const full = { deckSize: () => 100, maxDeckSize: () => 100 };
+
+    it("refuses even a basic land once the deck is full", () => {
+        expect(setup({ params: { ...full, isBasicLand: true } }).actions.canIncrement.value).toBe(false);
+    });
+
+    it("refuses an unlimited card once the deck is full", () => {
+        expect(setup({ params: { ...full, isUnlimited: true } }).actions.canIncrement.value).toBe(false);
+    });
+
+    it("allows a basic land one short of the ceiling", () => {
+        const params = { deckSize: () => 99, maxDeckSize: () => 100, isBasicLand: true };
+
+        expect(setup({ params }).actions.canIncrement.value).toBe(true);
+    });
+
+    it("counts clicks that have not been sent yet toward the ceiling", () => {
+        const params = { deckSize: () => 98, maxDeckSize: () => 100, isBasicLand: true };
+        const { actions } = setup({ params });
+
+        actions.increment();
+        expect(actions.canIncrement.value).toBe(true);
+
+        actions.increment();
+        expect(actions.canIncrement.value).toBe(false);
+    });
+
+    it("leaves rows outside the main deck uncapped", () => {
+        const params = { ...full, isBasicLand: true, countsTowardDeckSize: false };
+
+        expect(setup({ params }).actions.canIncrement.value).toBe(true);
+    });
+
+    it("has no ceiling when the format or a Rulebreaker sets none", () => {
+        const params = { deckSize: () => 250, maxDeckSize: () => null, isBasicLand: true };
+
+        expect(setup({ params }).actions.canIncrement.value).toBe(true);
+    });
+});
+
+describe("useDeckCardActions — refusal toast", () => {
+    it("explains a full deck, naming the ceiling", async () => {
+        http.json(QUANTITY_URL, { reason: "exceeds_deck_size" }, 422);
+        const { actions } = setup({ params: { maxDeckSize: () => 100 } });
+        // After `setup` — it builds the i18n instance these messages land on.
+        setTestMessages({
+            de: { pages: { deck: { card_quantity: { errors: { exceeds_deck_size: "Deck voll ({max})" } } } } }
+        });
+
+        actions.increment();
+        await flush();
+
+        expect(toastMessages()).toEqual(["Deck voll (100)"]);
+    });
+
+    it("names the rule the server refused on", async () => {
+        http.json(QUANTITY_URL, { reason: "violates_singleton" }, 422);
+        const { actions } = setup();
+
+        actions.increment();
+        await flush();
+
+        expect(toastMessages()).toEqual(["pages.deck.card_quantity.errors.violates_singleton"]);
+    });
+
+    it("falls back to a generic message for a reason it does not know", async () => {
+        http.json(QUANTITY_URL, { reason: "something_new" }, 422);
+        const { actions } = setup();
+
+        actions.increment();
+        await flush();
+
+        expect(toastMessages()).toEqual(["pages.deck.card_quantity.errors.generic"]);
+    });
+
+    it("falls back to a generic message for a 422 without a JSON body", async () => {
+        http.malformed(QUANTITY_URL, 422);
+        const { actions } = setup();
+
+        actions.increment();
+        await flush();
+
+        expect(toastMessages()).toEqual(["pages.deck.card_quantity.errors.generic"]);
+    });
+
+    it("stays quiet on a failure that is not a refusal", async () => {
+        http.status(QUANTITY_URL, 500);
+        const { actions } = setup();
+
+        actions.increment();
+        await flush();
+
+        expect(toastMessages()).toEqual([]);
     });
 });
 
@@ -431,7 +547,14 @@ describe("useDeckCardActions — moveZone", () => {
     it("absorbs sibling rows the server merged away", async () => {
         // Same oracle, same printing, no category: the server collapses them,
         // so the local list has to as well or a ghost row lingers.
-        const printing = { id: "printing-1", name: "Sol Ring", card_image_0: null, card_image_1: null, collector_number: null, set: null };
+        const printing = {
+            id: "printing-1",
+            name: "Sol Ring",
+            card_image_0: null,
+            card_image_1: null,
+            collector_number: null,
+            set: null
+        };
         const source = deckCard({ quantity: 2, default_card: printing });
         const survivor = makeDeckCard({
             id: "card-side",
@@ -457,7 +580,14 @@ describe("useDeckCardActions — moveZone", () => {
     });
 
     it("keeps a categorised sibling out of the merge", async () => {
-        const printing = { id: "printing-1", name: "Sol Ring", card_image_0: null, card_image_1: null, collector_number: null, set: null };
+        const printing = {
+            id: "printing-1",
+            name: "Sol Ring",
+            card_image_0: null,
+            card_image_1: null,
+            collector_number: null,
+            set: null
+        };
         const source = deckCard({ quantity: 2, default_card: printing });
         const survivor = makeDeckCard({
             id: "card-side",
@@ -558,7 +688,14 @@ describe("useDeckCardActions — switchPrinting", () => {
 
     it("restores the previous printing when the server refuses", async () => {
         http.status(PRINTING_URL, 422);
-        const original = { id: "printing-1", name: "Sol Ring", card_image_0: null, card_image_1: null, collector_number: null, set: null };
+        const original = {
+            id: "printing-1",
+            name: "Sol Ring",
+            card_image_0: null,
+            card_image_1: null,
+            collector_number: null,
+            set: null
+        };
         const { actions, cards } = setup({ cards: [deckCard({ default_card: original })] });
 
         await actions.switchPrinting(printing);

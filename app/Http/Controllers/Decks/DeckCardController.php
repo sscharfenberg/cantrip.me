@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Decks;
 
+use App\Enums\DeckZone;
+use App\Formats\Capabilities\AddCopyFailure;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Decks\ModifyDeckCardRequest;
 use App\Http\Requests\Decks\MoveDeckCardZoneRequest;
@@ -54,8 +56,9 @@ class DeckCardController extends Controller
      * Change a deck card's quantity by a signed delta.
      *
      * Positive deltas are validated against format rules (singleton, max copies,
-     * deck size). When the resulting quantity reaches zero or below the card row
-     * is deleted entirely.
+     * deck size). A refusal is a 422 carrying the {@see AddCopyFailure} value as
+     * `reason`, so the frontend can say why. When the resulting quantity reaches
+     * zero or below the card row is deleted entirely.
      */
     public function updateQuantity(UpdateDeckCardQuantityRequest $request, Deck $deck, DeckCard $deckCard): JsonResponse
     {
@@ -72,7 +75,13 @@ class DeckCardController extends Controller
 
         if ($delta > 0) {
             $oracleCard = $deckCard->oracleCard;
-            $currentDeckSize = $deck->deckCards()->sum('quantity');
+            // Deck size is mainboard + command zone, the same count DeckValidator
+            // and the deck header use. Sideboard, maybeboard and companion rows
+            // neither count toward it nor are capped by it.
+            $deckSizeZones = [DeckZone::Main, DeckZone::Command];
+            $currentDeckSize = $deck->deckCards()->whereIn('zone', $deckSizeZones)->sum('quantity');
+            $maxDeckSizeLifted = ! in_array($deckCard->zone, $deckSizeZones, true)
+                || (RulebreakerRegistry::forDeck($deck)?->removesMaxDeckSize() ?? false);
             // Sum sibling rows (other printings of the same oracle card in this deck)
             // so copy limits account for split rows. Without this a singleton could
             // be incremented past 1 on any single row when split across printings.
@@ -85,10 +94,12 @@ class DeckCardController extends Controller
                 $oracleCard,
                 $siblingSum + $newQuantity - 1,
                 $currentDeckSize + $delta - 1,
-                RulebreakerRegistry::forDeck($deck)?->removesMaxDeckSize() ?? false,
+                $maxDeckSizeLifted,
             );
 
-            abort_unless($result->allowed, 422);
+            if (! $result->allowed) {
+                return response()->json(['reason' => $result->reason?->value], 422);
+            }
         }
 
         $deckCard->update(['quantity' => $newQuantity]);
