@@ -727,6 +727,14 @@
             "loading": "QR Code wird generiert...",
             "no_selection": "Bitte wähle ein Deck."
         },
+        "deck_print": {
+            "link": "Druckbares Deck anzeigen",
+            "title": "Druckbare Deckliste: {name}",
+            "explanation": "Das Deck als reiner Text, gruppiert wie auf der Deckseite. Du kannst den Text vor dem Drucken oder Herunterladen bearbeiten – Änderungen werden nicht im Deck gespeichert.",
+            "textarea": "Deckliste",
+            "print": "Drucken",
+            "download": "Als Textdatei herunterladen"
+        },
         "import": {
             "title": "CSV importieren",
             "link": "CSV importieren",

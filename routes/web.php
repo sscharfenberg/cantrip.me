@@ -239,6 +239,8 @@ Route::get('/decks/{deck}', [DecksController::class, 'show'])
     ->name('decks.show');
 Route::get('/decks/{deck}/export', [DeckExportController::class, 'deck'])
     ->name('deck.export');
+Route::get('/decks/{deck}/print', [DecksController::class, 'print'])
+    ->name('deck.print');
 Route::get('containers/{container}', [ContainerController::class, 'show'])
     ->name('container.show');
 Route::get('collection/cardstack/{cardStack}/preview', [CardStackPreviewController::class, 'show'])

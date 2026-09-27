@@ -26,8 +26,10 @@ import type { Locator, Page } from "@playwright/test";
  * than that file's "Yoshi and Rograkh", because the card it has to add —
  * Counterspell, the only card the fixture owns in two printings — is outside
  * the Boros deck's colour identity and already singleton-blocked in Atraxa.
- * Nothing else in the suite reads Legacy Burn's card list; `decks.spec.ts`
- * matches it by name in the deck list only.
+ * `decks.spec.ts` matches Legacy Burn by name in the deck list only;
+ * `deck-print.spec.ts` does read its card list, and is written to tolerate
+ * this one extra Counterspell in the mainboard — so if this test ever adds
+ * something else, or adds it elsewhere, update that spec too.
  *****************************************************************************/
 
 /**
@@ -54,8 +56,7 @@ const openDeck = async (page: Page, name: string, format?: string): Promise<void
  * Scoped to `li.card` rather than page text: a card name also appears in the
  * hover preview it triggers and, for some cards, in the legality panel.
  */
-const cardRow = (page: Page, name: string): Locator =>
-    page.locator("li.card").filter({ hasText: name });
+const cardRow = (page: Page, name: string): Locator => page.locator("li.card").filter({ hasText: name });
 
 /**
  * Flip one of the modal's switches.
@@ -66,8 +67,7 @@ const cardRow = (page: Page, name: string): Locator =>
  * `.wrapper >` prefix disambiguates: `FormGroup` renders a second `<label>`
  * with the same `for`, which would be a strict-mode violation on its own.
  */
-const flipSwitch = (page: Page, id: string): Promise<void> =>
-    page.locator(`.wrapper > label[for="${id}"]`).click();
+const flipSwitch = (page: Page, id: string): Promise<void> => page.locator(`.wrapper > label[for="${id}"]`).click();
 
 test("badges each deck card with what the collection can cover", async ({ page }) => {
     await openDeck(page, "Atraxa Superfriends");

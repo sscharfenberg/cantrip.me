@@ -45,14 +45,15 @@ const props = withDefaults(
         /**
          * True when the request user owns the deck. Owners see every
          * action; non-owners (public-deck visitors) get a menu reduced
-         * to just "Download CSV". Defaults to true so the deck-list
-         * popover (own-decks page) doesn't have to pass it explicitly.
+         * to "Download CSV" and "Show printable deck". Defaults to true
+         * so the deck-list popover (own-decks page) doesn't have to pass
+         * it explicitly.
          */
         isOwner?: boolean;
         /**
          * True when the deck is archived — collapses the menu to a
-         * read-only set: QR code, Download CSV, Restore from archive,
-         * Delete deck. Edit / visibility / state-flip / group / bulk-add
+         * read-only set: QR code, Download CSV, printable deck, Restore
+         * from archive, Delete deck. Edit / visibility / state-flip / group / bulk-add
          * entries are hidden. Restore + Delete remain because they are
          * the only two transitions that make sense on an archived deck.
          */
@@ -114,7 +115,7 @@ const showGroupActions = computed(
 /**
  * Per-group visibility, used to decide which inter-group dividers to render.
  * Groups: 1 settings/state, 2 custom groups, 3 collection actions,
- * 4 QR + CSV (always visible — CSV has no auth gate), 5 delete.
+ * 4 QR + CSV + printable deck (always visible — neither CSV nor print has an auth gate), 5 delete.
  * Divider visibility = "previous group visible AND any following group visible";
  * since G4 always shows, the trailing-half always evaluates true for d1/d2/d3.
  */
@@ -190,6 +191,14 @@ function onQrClick(): void {
 function onExportClick(): void {
     closePopover();
     window.location.href = `/decks/${props.deck.id}/export`;
+}
+/**
+ * Navigate to the printable plain-text deck list. Same visibility as the
+ * deck page and the CSV export, so it is offered to every viewer.
+ */
+function onPrintClick(): void {
+    closePopover();
+    router.visit(`/decks/${props.deck.id}/print`);
 }
 /**
  * Flip the deck between private and public via the dedicated quick-toggle
@@ -325,6 +334,12 @@ function onDeleteClick(): void {
                 <button class="popover-list-item" @click.prevent="onExportClick">
                     <icon name="download" :size="1" />
                     {{ $t("pages.decks.actions.export") }}
+                </button>
+            </li>
+            <li>
+                <button class="popover-list-item" @click.prevent="onPrintClick">
+                    <icon name="print" :size="1" />
+                    {{ $t("pages.deck_print.link") }}
                 </button>
             </li>
             <li v-if="showGroup5" class="popover-list__divider" aria-hidden="true" />

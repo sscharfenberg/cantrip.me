@@ -53,7 +53,7 @@ export function resolveGroup(typeLine: string): DeckCardGroup {
  * Comparator for deck cards based on the active sort mode. Mana sorts by
  * `cmc` ascending and breaks ties alphabetically; name sorts purely by name.
  */
-export function compareCards(mode: DeckSort): (a: DeckCardRow, b: DeckCardRow) => number {
+export function compareCards<T extends Pick<DeckCardRow, "name" | "cmc">>(mode: DeckSort): (a: T, b: T) => number {
     if (mode === "name") {
         return (a, b) => a.name.localeCompare(b.name);
     }

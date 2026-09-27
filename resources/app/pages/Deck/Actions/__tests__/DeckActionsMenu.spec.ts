@@ -53,8 +53,11 @@ beforeEach(() => {
 });
 
 describe("DeckActionsMenu — what a non-owner sees", () => {
-    it("gets the CSV export and nothing else", () => {
-        expect(entries(render({ ...fullyEquipped, isOwner: false }))).toEqual(["pages.decks.actions.export"]);
+    it("gets the CSV export and the printable deck, nothing else", () => {
+        expect(entries(render({ ...fullyEquipped, isOwner: false }))).toEqual([
+            "pages.decks.actions.export",
+            "pages.deck_print.link"
+        ]);
     });
 
     it("cannot delete, edit or change the deck's state", () => {
@@ -80,6 +83,7 @@ describe("DeckActionsMenu — what an owner sees", () => {
                 "pages.deck.add_all_to_collection.link",
                 "pages.deck_qr.link",
                 "pages.decks.actions.export",
+                "pages.deck_print.link",
                 "pages.decks.actions.delete"
             ])
         );
@@ -170,6 +174,7 @@ describe("DeckActionsMenu — an archived deck", () => {
             "pages.deck.unclaimed.menu_link",
             "pages.deck_qr.link",
             "pages.decks.actions.export",
+            "pages.deck_print.link",
             "pages.decks.actions.delete"
         ]);
     });
@@ -227,7 +232,8 @@ describe("DeckActionsMenu — navigation", () => {
         ["pages.create_deck.edit_link", "/decks/deck-1/edit"],
         ["pages.deck.bulk_claim.menu_link", "/decks/deck-1/bulk-claim"],
         ["pages.deck.unclaimed.menu_link", "/decks/deck-1/unclaimed"],
-        ["pages.deck_qr.link", "/decks/deck-1/qr"]
+        ["pages.deck_qr.link", "/decks/deck-1/qr"],
+        ["pages.deck_print.link", "/decks/deck-1/print"]
     ])("sends %s to %s", async (label, url) => {
         const wrapper = render(fullyEquipped);
 

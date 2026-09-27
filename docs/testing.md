@@ -106,6 +106,7 @@ tests/e2e/
     ├── smoke.spec.ts         the parked session really belongs to the seeded account
     ├── decks.spec.ts         the deck list: format folders, colour pips, opening a deck
     ├── deck.spec.ts          command zone, categories, quick-add colour identity
+    ├── deck-print.spec.ts    printable deck list: menu → page, real printings, download, print frame
     └── collection.spec.ts    stacks, container totals, filtering, container isolation
 ```
 

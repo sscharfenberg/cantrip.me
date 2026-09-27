@@ -454,23 +454,7 @@ class DecksController extends Controller
             ];
         }
 
-        // Three-part card count for the badge ("main + companion / side").
-        // The mainboard total includes the command zone (commanders /
-        // partners / signature spell), since that's part of the legal
-        // deck size — a Commander deck reads "100" for 99 mainboard + 1
-        // commander. Companion and sideboard get their own slots; the
-        // maybeboard is intentionally excluded (not part of the deck).
-        $cardCount = [
-            'main' => (int) $deck->deckCards
-                ->whereIn('zone', [DeckZone::Main, DeckZone::Command])
-                ->sum('quantity'),
-            'companion' => (int) $deck->deckCards
-                ->where('zone', DeckZone::Companion)
-                ->sum('quantity'),
-            'side' => (int) $deck->deckCards
-                ->where('zone', DeckZone::Side)
-                ->sum('quantity'),
-        ];
+        $cardCount = $this->cardCountFor($deck);
         $cardCountTotal = $cardCount['main'] + $cardCount['companion'] + $cardCount['side'];
         $lastActivity = max(array_filter([
             $deck->updated_at?->toIso8601String(),
@@ -1593,6 +1577,99 @@ class DecksController extends Controller
             'deck' => $deck ? ['id' => $deck->id, 'name' => $deck->name] : null,
             'decks' => $decks,
         ]);
+    }
+
+    /**
+     * Display the printable plain-text deck list.
+     *
+     * Same visibility rules as {@see show()} — public decks for anyone with
+     * the link, private decks for the owner only. The payload is
+     * deliberately lean: only what the text needs (names, quantities,
+     * printings, and the fields the frontend groups by), so the page can
+     * reproduce the deck view's grouping without any collection state.
+     */
+    public function print(ShowDeckRequest $request, Deck $deck): Response
+    {
+        $deck->load([
+            'deckCards.oracleCard:id,name,cmc',
+            'deckCards.oracleCard.faces:oracle_card_id,face_index,type_line',
+            'deckCards.defaultCard:id,collector_number,set_id',
+            'deckCards.defaultCard.set:id,code',
+            'categories',
+        ]);
+
+        $printing = fn (DeckCard $dc): array => [
+            'name' => $dc->oracleCard->name,
+            'quantity' => $dc->quantity,
+            'set_code' => $dc->defaultCard?->set?->code,
+            'collector_number' => $dc->defaultCard?->collector_number,
+        ];
+
+        $commanders = $deck->deckCards
+            ->where('zone', DeckZone::Command)
+            ->sortBy(fn (DeckCard $dc): int => $dc->role === DeckCardRole::Commander ? 0 : 1)
+            ->map($printing)
+            ->values();
+
+        $companionRow = $deck->deckCards->firstWhere('zone', DeckZone::Companion);
+
+        $cards = $deck->deckCards
+            ->whereNotIn('zone', [DeckZone::Command, DeckZone::Companion])
+            ->map(fn (DeckCard $dc): array => [
+                ...$printing($dc),
+                'id' => $dc->id,
+                'cmc' => $dc->oracleCard->cmc,
+                'type_line' => $dc->oracleCard->faces->firstWhere('face_index', 0)?->type_line ?? '',
+                'zone' => $dc->zone->value,
+                'category_id' => $dc->category_id,
+            ])
+            ->values();
+
+        return Inertia::render('Deck/DeckPrintPage', [
+            'isOwner' => $request->user()?->id === $deck->user_id,
+            'deck' => [
+                'id' => $deck->id,
+                'name' => $deck->name,
+                'description' => $deck->description,
+                'format' => $deck->format->value,
+                'state' => $deck->state->value,
+                'bracket' => $deck->bracket,
+                'card_count' => $this->cardCountFor($deck),
+                'max_sideboard_size' => $deck->format->rules()->maxSideboardSize(),
+            ],
+            'commanders' => $commanders,
+            'companion' => $companionRow !== null ? $printing($companionRow) : null,
+            'cards' => $cards,
+            'categories' => $deck->categories->sortBy('name')->map(fn (DeckCategory $cat) => [
+                'id' => $cat->id,
+                'name' => $cat->name,
+            ])->values(),
+        ]);
+    }
+
+    /**
+     * Three-part card count for the badge ("main + companion / side").
+     * The mainboard total includes the command zone (commanders /
+     * partners / signature spell), since that's part of the legal deck
+     * size — a Commander deck reads "100" for 99 mainboard + 1
+     * commander. Companion and sideboard get their own slots; the
+     * maybeboard is intentionally excluded (not part of the deck).
+     *
+     * @return array{main: int, companion: int, side: int}
+     */
+    private function cardCountFor(Deck $deck): array
+    {
+        return [
+            'main' => (int) $deck->deckCards
+                ->whereIn('zone', [DeckZone::Main, DeckZone::Command])
+                ->sum('quantity'),
+            'companion' => (int) $deck->deckCards
+                ->where('zone', DeckZone::Companion)
+                ->sum('quantity'),
+            'side' => (int) $deck->deckCards
+                ->where('zone', DeckZone::Side)
+                ->sum('quantity'),
+        ];
     }
 
     /**

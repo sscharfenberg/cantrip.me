@@ -727,6 +727,14 @@
             "loading": "Generating QR code...",
             "no_selection": "Please select a deck."
         },
+        "deck_print": {
+            "link": "Show printable deck",
+            "title": "Printable deck list: {name}",
+            "explanation": "The deck as plain text, grouped as on the deck page. You can edit the text before printing or downloading it — changes are not saved to the deck.",
+            "textarea": "Deck list",
+            "print": "Print",
+            "download": "Download as text file"
+        },
         "import": {
             "title": "Import CSV",
             "link": "Import CSV",

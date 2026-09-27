@@ -3,6 +3,7 @@ import { computed, toValue } from "vue";
 import { compareCards } from "@/utils/deckGrouping";
 import type { DeckCardGroup } from "@/utils/deckGrouping";
 import { useDeckGrouping } from "Composables/useDeckGrouping.ts";
+import type { GroupableCard } from "Composables/useDeckGrouping.ts";
 import type { DeckSort } from "Composables/useDeckSort.ts";
 import type { DeckCardRow, DeckCategoryRow, DeckCommander, DeckCompanion } from "Types/deckPage";
 
@@ -14,7 +15,13 @@ import type { DeckCardRow, DeckCategoryRow, DeckCommander, DeckCompanion } from 
  * membership is derived from the card's type line; non-null means a
  * user-defined category stored in `deck_categories`.
  */
-export interface CardSection {
+/**
+ * The card fields sectioning reads. A full `DeckCardRow` satisfies it; the
+ * printable deck page ships a leaner row and reuses the same grouping.
+ */
+export type SectionableCard = GroupableCard & Pick<DeckCardRow, "zone" | "category_id">;
+
+export interface CardSection<T extends SectionableCard = DeckCardRow> {
     /**
      * Group identifier — a {@link DeckCardGroup} for defaults, `cat-{uuid}`
      * for categories, the literal `"side"` for the sideboard bucket.
@@ -23,7 +30,7 @@ export interface CardSection {
     /** Display label — i18n-resolved for defaults, raw name for categories. */
     label: string;
     /** Cards belonging to this group, sorted by the active sort mode. */
-    cards: DeckCardRow[];
+    cards: T[];
     /** Sum of `quantity` across all cards — may differ from `cards.length` for multi-copy entries. */
     count: number;
     /** Non-null for custom categories — used as the drop target category ID. */
@@ -46,17 +53,17 @@ export interface CardSection {
  * visibly empty. Instead the template renders it outside the column
  * distribution, alongside {@link dragTargets}, only during a drag.
  */
-export type Section =
+export type Section<T extends SectionableCard = DeckCardRow> =
     | { kind: "commanders"; commanders: DeckCommander[] }
     | { kind: "companion"; companion: DeckCompanion }
-    | { kind: "group"; group: CardSection };
+    | { kind: "group"; group: CardSection<T> };
 
 /** Return type of {@link useDeckSections}. */
-export type UseDeckSectionsReturn = {
+export type UseDeckSectionsReturn<T extends SectionableCard = DeckCardRow> = {
     /** All card groups (default type groups + custom categories), sorted alphabetically. */
-    allGroups: ComputedRef<CardSection[]>;
+    allGroups: ComputedRef<CardSection<T>[]>;
     /** Flat list of visual sections ready for column distribution. */
-    sections: ComputedRef<Section[]>;
+    sections: ComputedRef<Section<T>[]>;
     /**
      * Extra drop-target sections that appear only during a drag. These are
      * kept separate from `sections` so that starting a drag does not change
@@ -64,7 +71,7 @@ export type UseDeckSectionsReturn = {
      * and swallow the `@end` event). Includes empty custom categories and
      * placeholder default groups for the dragged card's type.
      */
-    dragTargets: ComputedRef<CardSection[]>;
+    dragTargets: ComputedRef<CardSection<T>[]>;
 };
 
 /**
@@ -98,8 +105,8 @@ export type UseDeckSectionsReturn = {
  * @param translate - i18n translate function for default group labels.
  * @param draggedTypeGroup - Ref to the type group of the card being dragged.
  */
-export function useDeckSections(
-    cards: MaybeRefOrGetter<DeckCardRow[]>,
+export function useDeckSections<T extends SectionableCard = DeckCardRow>(
+    cards: MaybeRefOrGetter<T[]>,
     commanders: MaybeRefOrGetter<DeckCommander[]>,
     companion: MaybeRefOrGetter<DeckCompanion | null>,
     categories: MaybeRefOrGetter<DeckCategoryRow[]>,
@@ -107,17 +114,17 @@ export function useDeckSections(
     allowsSideboard: MaybeRefOrGetter<boolean>,
     translate: (key: string) => string,
     draggedTypeGroup: Ref<DeckCardGroup | null>
-): UseDeckSectionsReturn {
+): UseDeckSectionsReturn<T> {
     // Only main-zone, uncategorised cards flow into the default type groups.
     // Sideboard cards go to the dedicated `side` bucket below, regardless of
     // their type line; custom categories only hold main-zone cards.
-    const { groups: typeGroups } = useDeckGrouping(
+    const { groups: typeGroups } = useDeckGrouping<T>(
         () => toValue(cards).filter(c => c.zone !== "side" && c.category_id === null),
         sortMode
     );
 
-    const allGroups = computed<CardSection[]>(() => {
-        const result: CardSection[] = [];
+    const allGroups = computed<CardSection<T>[]>(() => {
+        const result: CardSection<T>[] = [];
 
         for (const g of typeGroups.value) {
             result.push({
@@ -130,7 +137,7 @@ export function useDeckSections(
             });
         }
 
-        const catBuckets = new Map<string, CardSection>();
+        const catBuckets = new Map<string, CardSection<T>>();
         const allCards = toValue(cards);
         const allCategories = toValue(categories);
 
@@ -153,7 +160,7 @@ export function useDeckSections(
             }
         }
 
-        const comparator = compareCards(toValue(sortMode));
+        const comparator = compareCards<T>(toValue(sortMode));
         for (const bucket of catBuckets.values()) {
             if (bucket.cards.length > 0) {
                 bucket.cards.sort(comparator);
@@ -195,8 +202,8 @@ export function useDeckSections(
         return result;
     });
 
-    const sections = computed<Section[]>(() => {
-        const result: Section[] = [];
+    const sections = computed<Section<T>[]>(() => {
+        const result: Section<T>[] = [];
         const cmds = toValue(commanders);
         if (cmds.length > 0) {
             result.push({ kind: "commanders", commanders: cmds });
@@ -219,11 +226,11 @@ export function useDeckSections(
      * and a placeholder default type group when all cards of the dragged
      * card's type are in custom categories.
      */
-    const dragTargets = computed<CardSection[]>(() => {
+    const dragTargets = computed<CardSection<T>[]>(() => {
         const dtg = draggedTypeGroup.value;
         if (!dtg) return [];
 
-        const targets: CardSection[] = [];
+        const targets: CardSection<T>[] = [];
         const presentKeys = new Set(allGroups.value.map(g => g.key));
 
         // Empty custom categories not already shown in allGroups.
