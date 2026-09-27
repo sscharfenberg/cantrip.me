@@ -44,7 +44,7 @@ const showCompanionModal = ref(false);
             :max-copies="deck.max_copies"
             :cards="cards"
         />
-        <card-add-modal v-if="showAddModal" :deck="deck" :cards="cards" @close="showAddModal = false" />
+        <card-add-modal v-if="showAddModal" :deck="deck" @close="showAddModal = false" />
         <add-companion-modal
             v-if="showCompanionModal"
             :deck-id="deck.id"

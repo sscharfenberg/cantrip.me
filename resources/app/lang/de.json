@@ -1164,17 +1164,17 @@
                 }
             },
             "card_quantity": {
-                "increment": "Add one card",
-                "decrement": "Remove one card",
-                "destroy": "Remove all",
-                "errors": {
-                    "exceeds_deck_size": "Das Deck ist voll ({max} Karten). Entferne zuerst eine Karte.",
-                    "violates_singleton": "Dieses Format erlaubt nur ein Exemplar dieser Karte.",
-                    "exceeds_max_copies": "Das Deck enthält bereits die maximale Anzahl dieser Karte.",
-                    "not_in_pool": "Diese Karte ist in diesem Format nicht legal.",
-                    "violates_color_identity": "Diese Karte liegt außerhalb der Farbidentität des Commanders.",
-                    "generic": "Die Karte konnte nicht hinzugefügt werden."
-                }
+                "increment": "Eine Karte hinzufügen",
+                "decrement": "Eine Karte entfernen",
+                "destroy": "Alle entfernen"
+            },
+            "add_refused": {
+                "exceeds_deck_size": "Das Deck ist voll ({max} Karten). Entferne zuerst eine Karte.",
+                "violates_singleton": "Dieses Format erlaubt nur ein Exemplar dieser Karte.",
+                "exceeds_max_copies": "Das Deck enthält bereits die maximale Anzahl dieser Karte.",
+                "not_in_pool": "Diese Karte ist in diesem Format nicht legal.",
+                "violates_color_identity": "Diese Karte liegt außerhalb der Farbidentität des Commanders.",
+                "generic": "Die Karte konnte nicht hinzugefügt werden."
             },
             "switch_printing": {
                 "title": "Edition für {card} wechseln",

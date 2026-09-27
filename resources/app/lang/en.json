@@ -1166,15 +1166,15 @@
             "card_quantity": {
                 "increment": "Add one card",
                 "decrement": "Remove one card",
-                "destroy": "Remove all",
-                "errors": {
-                    "exceeds_deck_size": "The deck is full ({max} cards). Remove a card before adding another.",
-                    "violates_singleton": "This format allows only one copy of this card.",
-                    "exceeds_max_copies": "The deck already has the maximum number of copies of this card.",
-                    "not_in_pool": "This card is not legal in this format.",
-                    "violates_color_identity": "This card is outside the commander's color identity.",
-                    "generic": "The card could not be added."
-                }
+                "destroy": "Remove all"
+            },
+            "add_refused": {
+                "exceeds_deck_size": "The deck is full ({max} cards). Remove a card before adding another.",
+                "violates_singleton": "This format allows only one copy of this card.",
+                "exceeds_max_copies": "The deck already has the maximum number of copies of this card.",
+                "not_in_pool": "This card is not legal in this format.",
+                "violates_color_identity": "This card is outside the commander's color identity.",
+                "generic": "The card could not be added."
             },
             "switch_printing": {
                 "title": "Switch printing for {card}",

@@ -20,18 +20,23 @@ use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 /**
- * Feature coverage for PATCH /api/decks/{deck}/cards/{deckCard}/quantity.
+ * Feature coverage for the format rules on the two ways a copy enters a deck:
+ * PATCH /api/decks/{deck}/cards/{deckCard}/quantity ("+") and
+ * POST /api/decks/{deck}/cards (Add Cards, Quick Add). Both go through one
+ * check, so the same deck must get the same answer from either.
  *
  * The deck-size cap counts mainboard + command zone only — the same count
  * DeckValidator and the deck header use. It used to sum every zone, so a
  * Commander deck with a maybeboard refused a basic land it had room for.
+ * Adding a card used to skip the check entirely, so a full deck took a
+ * 101st card through Add Cards while "+" refused it.
  * A refusal ships the AddCopyFailure as `reason` so the UI can explain it.
  *
  * The Local PHPUnit suite uses SQLite. The defensive `mysql` skip keeps
  * the test out of a misconfigured `composer test:mysql` invocation
  * (which would wipe live data via `RefreshDatabase`).
  */
-class DeckCardQuantityTest extends TestCase
+class DeckCardAddLimitsTest extends TestCase
 {
     use RefreshDatabase;
 
@@ -138,6 +143,14 @@ class DeckCardQuantityTest extends TestCase
             ->patchJson("/api/decks/{$deck->id}/cards/{$deckCard->id}/quantity", ['delta' => 1]);
     }
 
+    private function add(User $user, Deck $deck, DeckCard $likeRow, DeckZone $zone = DeckZone::Main): TestResponse
+    {
+        return $this->actingAs($user)->postJson("/api/decks/{$deck->id}/cards", [
+            'default_card_id' => $likeRow->default_card_id,
+            'zone' => $zone->value,
+        ]);
+    }
+
     #[Test]
     public function it_adds_a_basic_land_while_the_deck_has_room(): void
     {
@@ -212,5 +225,56 @@ class DeckCardQuantityTest extends TestCase
         $this->increment($user, $deck, $nonBasic)
             ->assertUnprocessable()
             ->assertExactJson(['reason' => 'violates_singleton']);
+    }
+
+    #[Test]
+    public function adding_a_card_to_a_deck_with_room_creates_the_row(): void
+    {
+        [$user, $deck, $swamp] = $this->commanderDeck(99);
+
+        $this->add($user, $deck, $swamp)->assertCreated();
+        $this->assertSame(2, (int) $deck->deckCards()->where('oracle_card_id', $swamp->oracle_card_id)->sum('quantity'));
+    }
+
+    /**
+     * Regression: store() had no format check, so Add Cards took a 101st
+     * card that "+" refused.
+     */
+    #[Test]
+    public function adding_a_card_to_a_full_deck_is_refused_like_the_plus_button(): void
+    {
+        [$user, $deck, $swamp] = $this->commanderDeck(100);
+
+        $this->add($user, $deck, $swamp)
+            ->assertUnprocessable()
+            ->assertExactJson(['reason' => 'exceeds_deck_size']);
+        $this->assertSame(1, $deck->deckCards()->where('oracle_card_id', $swamp->oracle_card_id)->count());
+    }
+
+    #[Test]
+    public function adding_a_second_copy_of_a_non_basic_violates_singleton(): void
+    {
+        [$user, $deck] = $this->commanderDeck(50);
+        $solRing = $this->makeDeckCard($deck, 'Sol Ring', 1);
+
+        $this->add($user, $deck, $solRing)
+            ->assertUnprocessable()
+            ->assertExactJson(['reason' => 'violates_singleton']);
+    }
+
+    #[Test]
+    public function adding_to_the_maybeboard_is_not_capped_by_a_full_deck(): void
+    {
+        [$user, $deck, $swamp] = $this->commanderDeck(100);
+
+        $this->add($user, $deck, $swamp, DeckZone::Maybe)->assertCreated();
+    }
+
+    #[Test]
+    public function a_whtz_deck_takes_an_added_card_past_one_hundred(): void
+    {
+        [$user, $deck, $swamp] = $this->commanderDeck(100, 'Whtz, the Bibliophile');
+
+        $this->add($user, $deck, $swamp)->assertCreated();
     }
 }

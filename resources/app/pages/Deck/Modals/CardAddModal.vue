@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { router, usePage } from "@inertiajs/vue3";
 import { computed, nextTick, onMounted, ref, useTemplateRef, watch } from "vue";
+import { useI18n } from "vue-i18n";
+import { refusalMessageKey } from "@/utils/deckCardRefusal.ts";
 import SearchSyntax from "Components/Card/SearchSyntax.vue";
 import FormGroup from "Components/Form/FormGroup.vue";
 import Switch from "Components/Form/Switch.vue";
@@ -9,13 +11,12 @@ import Icon from "Components/UI/Icon.vue";
 import LoadingSpinner from "Components/UI/LoadingSpinner.vue";
 import Paragraph from "Components/UI/Paragraph.vue";
 import { useDeckSearch } from "Composables/useDeckSearch.ts";
-import type { DeckCardRow, DeckMeta, DeckSearchResult } from "Types/deckPage.ts";
+import { useToast } from "Composables/useToast.ts";
+import type { DeckMeta, DeckSearchResult } from "Types/deckPage.ts";
 import CardAddModalResults from "./CardAddModalResults.vue";
 const props = defineProps<{
-    /** Deck metadata — used to scope card search by format and color identity. */
+    /** Deck metadata — scopes card search by format and color identity, and carries the zone counts. */
     deck: DeckMeta;
-    /** All cards currently in the deck — used to derive zone counts. */
-    cards: DeckCardRow[];
 }>();
 /** @emits close — Fired when the modal finishes its close animation. */
 const emit = defineEmits<{ close: [] }>();
@@ -30,14 +31,17 @@ const includeNonLegal = ref(false);
  */
 const onlyAvailable = ref(false);
 const page = usePage();
+const { t } = useI18n();
+const { addToast } = useToast();
 /**
  * Whether to offer the availability filter at all. The whole notion of
  * "available" comes from collection integration, so with the master switch
  * off the toggle would promise a filter the backend refuses to apply.
  */
 const collectionIntegrationEnabled = computed<boolean>(
-    () => (page.props.auth as { user?: { collection_integration_enabled?: boolean } } | undefined)?.user
-        ?.collection_integration_enabled === true
+    () =>
+        (page.props.auth as { user?: { collection_integration_enabled?: boolean } } | undefined)?.user
+            ?.collection_integration_enabled === true
 );
 /** True while a card-add POST is in flight. */
 const adding = ref(false);
@@ -45,10 +49,14 @@ const adding = ref(false);
 const feedback = ref<{ name: string; zone: string } | null>(null);
 /** Timer for auto-clearing the feedback message. */
 let feedbackTimer: ReturnType<typeof setTimeout> | null = null;
-/** Current main deck count. */
-const mainCount = computed(() => props.cards.filter(c => c.zone === "main").length);
-/** Current sideboard count. */
-const sideCount = computed(() => props.cards.filter(c => c.zone === "side").length);
+/**
+ * Current deck size — mainboard + command zone, copies not rows, the same
+ * count the server enforces. Counting rows let a deck of 85 rows holding 100
+ * cards look like it had room.
+ */
+const mainCount = computed(() => props.deck.card_count.main);
+/** Current sideboard size, in copies. */
+const sideCount = computed(() => props.deck.card_count.side);
 /** Whether the sideboard zone is available and has room. */
 const canAddToSide = computed(
     () => props.deck.max_sideboard_size > 0 && sideCount.value < props.deck.max_sideboard_size
@@ -68,7 +76,8 @@ async function addCard(result: DeckSearchResult, zone: string): Promise<void> {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
-                "X-CSRF-TOKEN": page.props.csrfToken as string
+                "X-CSRF-TOKEN": page.props.csrfToken as string,
+                Accept: "application/json"
             },
             body: JSON.stringify({
                 default_card_id: result.printing.id,
@@ -90,6 +99,8 @@ async function addCard(result: DeckSearchResult, zone: string): Promise<void> {
                 searchInput.value?.select();
             });
             router.reload({ only: ["cards", "deck", "violations", "tokens"] });
+        } else if (response.status === 422) {
+            addToast(t(await refusalMessageKey(response), { max: props.deck.max_deck_size ?? "" }), "error");
         }
     } finally {
         adding.value = false;

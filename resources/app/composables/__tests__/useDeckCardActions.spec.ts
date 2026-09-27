@@ -217,7 +217,7 @@ describe("useDeckCardActions — refusal toast", () => {
         const { actions } = setup({ params: { maxDeckSize: () => 100 } });
         // After `setup` — it builds the i18n instance these messages land on.
         setTestMessages({
-            de: { pages: { deck: { card_quantity: { errors: { exceeds_deck_size: "Deck voll ({max})" } } } } }
+            de: { pages: { deck: { add_refused: { exceeds_deck_size: "Deck voll ({max})" } } } }
         });
 
         actions.increment();
@@ -233,7 +233,7 @@ describe("useDeckCardActions — refusal toast", () => {
         actions.increment();
         await flush();
 
-        expect(toastMessages()).toEqual(["pages.deck.card_quantity.errors.violates_singleton"]);
+        expect(toastMessages()).toEqual(["pages.deck.add_refused.violates_singleton"]);
     });
 
     it("falls back to a generic message for a reason it does not know", async () => {
@@ -243,7 +243,7 @@ describe("useDeckCardActions — refusal toast", () => {
         actions.increment();
         await flush();
 
-        expect(toastMessages()).toEqual(["pages.deck.card_quantity.errors.generic"]);
+        expect(toastMessages()).toEqual(["pages.deck.add_refused.generic"]);
     });
 
     it("falls back to a generic message for a 422 without a JSON body", async () => {
@@ -253,7 +253,7 @@ describe("useDeckCardActions — refusal toast", () => {
         actions.increment();
         await flush();
 
-        expect(toastMessages()).toEqual(["pages.deck.card_quantity.errors.generic"]);
+        expect(toastMessages()).toEqual(["pages.deck.add_refused.generic"]);
     });
 
     it("stays quiet on a failure that is not a refusal", async () => {

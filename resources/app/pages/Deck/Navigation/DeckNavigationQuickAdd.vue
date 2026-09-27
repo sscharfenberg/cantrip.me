@@ -1,12 +1,15 @@
 <script setup lang="ts">
 import { router, usePage } from "@inertiajs/vue3";
 import { computed, nextTick, onMounted, onUnmounted, reactive, ref, useTemplateRef, watch } from "vue";
+import { useI18n } from "vue-i18n";
+import { refusalMessageKey } from "@/utils/deckCardRefusal.ts";
 import ColorIdentity from "Components/Card/ColorIdentity.vue";
 import ManaCost from "Components/Card/ManaCost.vue";
 import Icon from "Components/UI/Icon.vue";
 import LoadingSpinner from "Components/UI/LoadingSpinner.vue";
 import { markRecentlyAdded } from "Composables/useRecentlyAdded.ts";
-import type { DeckCardRow, QuickAddCardResult } from "Types/deckPage.ts";
+import { useToast } from "Composables/useToast.ts";
+import type { DeckCardRow, DeckMeta, QuickAddCardResult } from "Types/deckPage.ts";
 const props = defineProps<{
     /** Deck UUID — used to build the search endpoint URL. */
     deckId: string;
@@ -38,6 +41,8 @@ const isOpen = ref(false);
 /** Per-row UI state for the add-card flow, keyed by oracle_card_id. */
 const rowState = reactive<Record<string, "adding" | "added">>({});
 const page = usePage();
+const { t } = useI18n();
+const { addToast } = useToast();
 let quickAddDebounce: ReturnType<typeof setTimeout> | null = null;
 /** Cancels stale in-flight requests when a new search fires. */
 let abortController: AbortController | null = null;
@@ -127,7 +132,8 @@ async function addCard(card: QuickAddCardResult): Promise<void> {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
-                "X-CSRF-TOKEN": page.props.csrfToken as string
+                "X-CSRF-TOKEN": page.props.csrfToken as string,
+                Accept: "application/json"
             },
             body: JSON.stringify({
                 default_card_id: card.default_card_id,
@@ -136,6 +142,10 @@ async function addCard(card: QuickAddCardResult): Promise<void> {
         });
         if (!response.ok) {
             delete rowState[card.id];
+            if (response.status === 422) {
+                const maxDeckSize = (page.props.deck as DeckMeta | undefined)?.max_deck_size ?? "";
+                addToast(t(await refusalMessageKey(response), { max: maxDeckSize }), "error");
+            }
             return;
         }
         rowState[card.id] = "added";

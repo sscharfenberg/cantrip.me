@@ -2,6 +2,7 @@ import { router, usePage } from "@inertiajs/vue3";
 import type { ComputedRef } from "vue";
 import { computed, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
+import { refusalMessageKey } from "@/utils/deckCardRefusal.ts";
 import { useToast } from "Composables/useToast";
 import type { DeckCardDefaultCard, DeckCardRow } from "Types/deckPage";
 import type { DeckPrinting } from "Types/defaultCardImage";
@@ -43,20 +44,6 @@ export interface DeckCardActionParams {
      */
     countsTowardDeckSize: boolean;
 }
-
-/**
- * Refusal reasons the quantity endpoint sends as `reason` on a 422 —
- * `App\Formats\Capabilities\AddCopyFailure`. Each has a toast message
- * under `pages.deck.card_quantity.errors`.
- */
-const REFUSAL_REASONS = [
-    "exceeds_max_copies",
-    "violates_singleton",
-    "not_in_pool",
-    "exceeds_deck_size",
-    "violates_color_identity"
-] as const;
-type RefusalReason = (typeof REFUSAL_REASONS)[number];
 
 /** Return type of {@link useDeckCardActions}. */
 export type UseDeckCardActionsReturn = {
@@ -181,7 +168,9 @@ export function useDeckCardActions(params: DeckCardActionParams, closePopover: (
 
         if (!response.ok) {
             effectiveQty.value = params.quantity();
-            if (response.status === 422) addToast(await refusalMessage(response), "error");
+            if (response.status === 422) {
+                addToast(t(await refusalMessageKey(response), { max: params.maxDeckSize() ?? "" }), "error");
+            }
             return;
         }
 
@@ -199,18 +188,6 @@ export function useDeckCardActions(params: DeckCardActionParams, closePopover: (
         }
 
         router.reload({ only: ["deck", "cards", "violations", "tokens"] });
-    }
-
-    /**
-     * Toast text for a refused quantity change, from the 422's `reason`.
-     * Falls back to a generic message for a body that is missing, not JSON,
-     * or names a reason this client does not know.
-     */
-    async function refusalMessage(response: Response): Promise<string> {
-        const data = (await response.json().catch(() => ({}))) as { reason?: string };
-        const reason = REFUSAL_REASONS.find((r): r is RefusalReason => r === data.reason);
-        if (reason === undefined) return t("pages.deck.card_quantity.errors.generic");
-        return t(`pages.deck.card_quantity.errors.${reason}`, { max: params.maxDeckSize() ?? "" });
     }
 
     /** Add one copy (debounced). */
