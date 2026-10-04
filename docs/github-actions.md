@@ -18,13 +18,29 @@ On the next deploy `php artisan config:cache` re-reads `package.json` and the ne
 
 **Trigger:** every push to `main`, every pull request.
 
-**Purpose:** quality gate. Runs three independent jobs in parallel:
+**Purpose:** quality gate. Runs independent jobs in parallel:
 
 - **PHP tests** — PHPUnit against in-memory SQLite (the `Local` testsuite from `phpunit.xml`).
 - **Pint** — `composer pint` for PHP code style.
-- **Frontend** — ESLint, Stylelint, `vue-tsc`, and a production Vite build to catch type errors and broken imports before merge.
+- **Frontend build** — ESLint, Stylelint, the translation-key check, `vue-tsc`, and a production Vite build to catch type errors and broken imports before merge.
+- **Frontend tests** — the Vitest suite.
+- **End-to-end tests** — the Playwright suite (`npm run e2e`), with its own MariaDB, build and server.
+- **Publish test badges** — refreshes the README badges; runs on `main` only and is skipped on pull requests.
 
 CI must pass before deploying. Nothing in this workflow touches any server.
+
+## Branch rules on `main`
+
+Two repository rulesets apply to `main` (Settings → Rules → Rulesets):
+
+- **`main`** — `main` cannot be deleted or force-pushed, and every commit must be signed. **No bypass**, for anyone.
+- **`main: required CI checks`** — a change to `main` needs the five CI checks above to pass: `PHP tests`, `Pint`, `Frontend build`, `Frontend tests`, `End-to-end tests`. A pull request's merge button stays blocked until they are green. `Publish test badges` is deliberately not required, since pull requests skip it. Branches do *not* have to be up to date with `main` before merging — requiring that would force a rebase of every open Dependabot PR after each merge.
+
+  **Repository admins may bypass this ruleset.** That keeps direct pushes to `main` possible for small changes and version bumps, and lets an admin merge a red PR — but only by ticking an explicit bypass. Dependabot and contributor PRs are fully gated.
+
+The admin bypass lives on its own ruleset on purpose: bypass is granted per ruleset, not per rule, so adding it to `main` would have let admins skip signatures and force-push protection too.
+
+Changes that touch shared code are best done on a branch with a pull request: CI then runs *before* anything reaches `main`, so a failure never leaves `main` (and therefore the next deploy) broken.
 
 ## `deploy-staging.yml` — Deploy to staging
 
@@ -51,7 +67,7 @@ CI must pass before deploying. Nothing in this workflow touches any server.
 ## End-to-end release flow
 
 1. (Optional) Bump `package.json` `version` if the release is user-visible (see [Versioning](#versioning) above).
-2. Commit + push to `main`. CI runs.
+2. Commit + push to `main` (admin bypass), or merge a pull request once its CI is green — see [Branch rules on `main`](#branch-rules-on-main). CI runs.
 3. (Optional) Trigger **Deploy to staging** manually to verify `main` works on a real environment before deploying to prod.
 4. Trigger **Deploy to production** manually. Approve in the Actions tab when prompted.
 
