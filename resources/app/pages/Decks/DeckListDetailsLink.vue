@@ -27,9 +27,13 @@ const { formatDateTime, formatPrice } = useFormatting();
         <badge v-tooltip="formatDateTime(deck.last_activity)" class="decklist__timestamp" type="info">
             <icon name="calendar" :size="1" />
         </badge>
-        <badge v-if="deck.bracket" v-tooltip="t('form.fields.deck_bracket_hint')" class="deck-bracket" type="info">
+        <badge
+            v-tooltip="t(deck.bracket ? `form.fields.deck_bracket_${deck.bracket}` : 'form.fields.deck_bracket_unset')"
+            class="deck-bracket"
+            type="info"
+        >
             <icon name="swords" :size="1" />
-            <span>{{ deck.bracket }}</span>
+            <span>{{ deck.bracket ?? "–" }}</span>
         </badge>
         <badge v-tooltip="t('pages.deck.total_worth')" class="decklist__worth" type="info">
             <icon name="money" :size="1" />
