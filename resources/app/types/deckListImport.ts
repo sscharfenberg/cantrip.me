@@ -70,6 +70,8 @@ export interface DeckListCommandZone {
     /** Partner-type card — sent as `companion_id`, like the create form. */
     partner: CommanderResult | null;
     signature_spell: CommanderResult | null;
+    /** Oracle id → printing for the pre-filled cards — the paste's printing, or the collection's. */
+    printings: Record<string, string>;
 }
 
 /** The parse endpoint's response. */

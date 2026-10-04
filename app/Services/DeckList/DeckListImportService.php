@@ -2,7 +2,9 @@
 
 namespace App\Services\DeckList;
 
+use App\Enums\DeckZone;
 use App\Models\Deck;
+use App\Models\DeckCard;
 use App\Models\User;
 use App\Services\DeckCardService;
 use App\Services\DeckCardWriter;
@@ -21,7 +23,7 @@ use Illuminate\Support\Facades\DB;
 final class DeckListImportService
 {
     /**
-     * @param  array{format: string, deck_name: string, commander_id?: string|null, companion_id?: string|null, signature_spell_id?: string|null, rows: list<array{oracle_card_id: string, default_card_id: string, quantity: int, zone: string, category?: string|null}>}  $data
+     * @param  array{format: string, deck_name: string, commander_id?: string|null, companion_id?: string|null, signature_spell_id?: string|null, command_zone_printings?: array<string, string>|null, rows: list<array{oracle_card_id: string, default_card_id: string, quantity: int, zone: string, category?: string|null}>}  $data
      */
     public static function import(User $user, array $data): Deck
     {
@@ -33,6 +35,16 @@ final class DeckListImportService
                 'companion_id' => $data['companion_id'] ?? null,
                 'signature_spell_id' => $data['signature_spell_id'] ?? null,
             ]);
+
+            // The create form's command zone takes the newest printing; the
+            // paste may have named another, or the collection offered one.
+            foreach ($data['command_zone_printings'] ?? [] as $oracleId => $printingId) {
+                DeckCard::query()
+                    ->where('deck_id', $deck->id)
+                    ->where('zone', DeckZone::Command->value)
+                    ->where('oracle_card_id', $oracleId)
+                    ->update(['default_card_id' => $printingId]);
+            }
 
             DeckCardWriter::write($deck, self::mergeRows($data['rows']));
 

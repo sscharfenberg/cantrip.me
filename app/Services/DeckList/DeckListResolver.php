@@ -65,7 +65,7 @@ final class DeckListResolver
      *     sections: list<array>,
      *     lines: list<array>,
      *     dropped: int,
-     *     command_zone: array{commander: array|null, partner: array|null, signature_spell: array|null},
+     *     command_zone: array{commander: array|null, partner: array|null, signature_spell: array|null, printings: array<string, string>},
      *     rules: array<string, mixed>,
      *     collection: bool,
      * }
@@ -529,72 +529,75 @@ final class DeckListResolver
      * Pre-fill the command zone from the lines the paste put there.
      *
      * Only for formats with a command zone, and only with cards the picker
-     * itself would offer: a legal commander (then a partner it pairs with),
-     * or an Oathbreaker (then a signature spell inside its colours). The
-     * cards used leave the line list — they live in the command zone block
-     * now. Every other command-zone line moves to the main deck with a
+     * itself would offer: a legal commander and a partner it pairs with, or
+     * an Oathbreaker and a signature spell inside its colours. The cards used
+     * leave the line list — they live in the command zone block now — and
+     * their printing is kept in `printings`, so the deck gets the printing
+     * the paste named (or the collection offers) instead of the newest.
+     * Every other command-zone line moves to the main deck with a
      * `not_commander` notice, so nothing the user pasted silently vanishes.
+     *
+     * Two passes, never paste order: sites sort the command zone by name, so
+     * a Background is as likely to come before its commander as after it.
+     * The head of the zone is chosen first, preferring a commander whose
+     * pairing card is also in the paste; the second slot is matched to it.
      *
      * @param  list<array>  $lines
      * @param  Collection<string, OracleCard>  $oracles
-     * @return array{0: array{commander: array|null, partner: array|null, signature_spell: array|null}, 1: list<array>}
+     * @return array{0: array{commander: array|null, partner: array|null, signature_spell: array|null, printings: array<string, string>}, 1: list<array>}
      */
     private static function commandZone(array $lines, Collection $oracles, FormatProfile $profile, CardFormat $format): array
     {
-        $zone = ['commander' => null, 'partner' => null, 'signature_spell' => null];
-        $used = [];
+        $zone = ['commander' => null, 'partner' => null, 'signature_spell' => null, 'printings' => []];
 
+        /** @var array<int, OracleCard> $eligible Legal, resolved command-zone lines, by line index. */
+        $eligible = [];
         if ($profile->requiresCommander()) {
-            $eligible = function (array $line) use ($oracles): ?OracleCard {
-                if ($line['zone'] !== DeckListParser::ZONE_COMMAND || $line['card'] === null || ! $line['card']['is_legal']) {
-                    return null;
-                }
-
-                return $oracles->get($line['card']['oracle_card_id']);
-            };
-
             foreach ($lines as $i => $line) {
-                $card = $eligible($line);
-                if ($card === null) {
-                    continue;
-                }
-                $primary = $zone['commander'] === null ? null : $oracles->get($zone['commander']['id']);
-
-                if ($profile->hasSignatureSpell()) {
-                    if ($primary === null && CommandZoneService::isOathbreakerCandidate($card)) {
-                        $zone['commander'] = CommandZoneService::mapCommanderCard($card);
-                        $used[$i] = true;
-                    } elseif ($zone['signature_spell'] === null && CommandZoneService::isSignatureSpellCandidate($card, $primary === null ? 'WUBRG' : $primary->color_identity)) {
-                        // A spell listed before its Oathbreaker is taken on
-                        // type alone and matched against the colours below.
-                        $zone['signature_spell'] = CommandZoneService::mapCommanderCard($card);
-                        $used[$i] = true;
+                if ($line['zone'] === DeckListParser::ZONE_COMMAND && $line['card'] !== null && $line['card']['is_legal']) {
+                    $card = $oracles->get($line['card']['oracle_card_id']);
+                    if ($card !== null) {
+                        $eligible[$i] = $card;
                     }
-                } elseif ($primary === null && CommandZoneService::isCommanderCandidate($card, $format)) {
-                    $zone['commander'] = CommandZoneService::mapCommanderCard($card);
-                    $used[$i] = true;
-                } elseif ($primary !== null && $zone['partner'] === null && CommandZoneService::pairsWithCommander($primary, $card, $format)) {
-                    $zone['partner'] = CommandZoneService::mapCommanderCard($card);
-                    $used[$i] = true;
                 }
             }
+        }
 
-            // A spell taken before its Oathbreaker was known is kept only if
-            // it fits the Oathbreaker's colours — or dropped back into the
-            // line list when there is no Oathbreaker at all.
-            if ($zone['signature_spell'] !== null) {
-                $oathbreaker = $zone['commander'] === null ? null : $oracles->get($zone['commander']['id']);
-                $spell = $oracles->get($zone['signature_spell']['id']);
-                if ($oathbreaker === null || ! CommandZoneService::isSignatureSpellCandidate($spell, $oathbreaker->color_identity)) {
-                    foreach ($lines as $i => $line) {
-                        if (isset($used[$i]) && $line['card']['oracle_card_id'] === $spell->id) {
-                            unset($used[$i]);
-                            break;
-                        }
-                    }
-                    $zone['signature_spell'] = null;
+        $head = null;
+        $second = null;
+        if ($profile->hasSignatureSpell()) {
+            $head = array_key_first(array_filter($eligible, fn (OracleCard $card): bool => CommandZoneService::isOathbreakerCandidate($card)));
+            if ($head !== null) {
+                $second = array_key_first(array_filter(
+                    $eligible,
+                    fn (OracleCard $card, int $i): bool => $i !== $head && CommandZoneService::isSignatureSpellCandidate($card, $eligible[$head]->color_identity),
+                    ARRAY_FILTER_USE_BOTH,
+                ));
+            }
+        } else {
+            $candidates = array_filter($eligible, fn (OracleCard $card): bool => CommandZoneService::isCommanderCandidate($card, $format));
+            foreach ($candidates as $i => $commander) {
+                $partner = array_key_first(array_filter(
+                    $eligible,
+                    fn (OracleCard $card, int $j): bool => $j !== $i && CommandZoneService::pairsWithCommander($commander, $card, $format),
+                    ARRAY_FILTER_USE_BOTH,
+                ));
+                if ($partner !== null) {
+                    [$head, $second] = [$i, $partner];
+                    break;
                 }
             }
+            $head ??= array_key_first($candidates);
+        }
+
+        $used = [];
+        foreach ([['commander', $head], [$profile->hasSignatureSpell() ? 'signature_spell' : 'partner', $second]] as [$slot, $i]) {
+            if ($i === null) {
+                continue;
+            }
+            $zone[$slot] = CommandZoneService::mapCommanderCard($eligible[$i]);
+            $zone['printings'][$eligible[$i]->id] = $lines[$i]['card']['default_card_id'];
+            $used[$i] = true;
         }
 
         $rest = [];

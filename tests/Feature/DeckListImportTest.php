@@ -565,6 +565,47 @@ class DeckListImportTest extends TestCase
     }
 
     #[Test]
+    public function the_pairing_is_found_whatever_order_the_paste_lists_it_in(): void
+    {
+        // Sites sort the command zone by name, so the second card often comes
+        // first: a Background before its commander, a companion before its
+        // Doctor. Neither may push the pair apart.
+        $user = $this->user();
+        $set = $this->set('clb', '2022-06-10');
+        $wilson = $this->legendaryCreature('Wilson, Refined Grizzly', 'G', 'Choose a Background');
+        $artisan = $this->oracle('Guild Artisan', 'R', [['type_line' => 'Legendary Enchantment — Background']]);
+        $doctor = $this->oracle('The Tenth Doctor', 'URW', [[
+            'type_line' => 'Legendary Creature — Time Lord Doctor', 'power' => '3', 'toughness' => '3',
+        ]]);
+        $rose = $this->legendaryCreature('Rose Tyler', 'W', "Doctor's companion");
+        foreach ([$wilson, $artisan, $doctor, $rose] as $n => $card) {
+            $this->printing($card, $set, (string) ($n + 1));
+        }
+
+        $background = $this->parse($user, "Commander\n1 Guild Artisan\n1 Wilson, Refined Grizzly", CardFormat::Commander)->assertOk();
+        $companion = $this->parse($user, "Commander\n1 Rose Tyler\n1 The Tenth Doctor", CardFormat::Commander)->assertOk();
+
+        $this->assertSame([$wilson->id, $artisan->id], [$background->json('command_zone.commander.id'), $background->json('command_zone.partner.id')]);
+        $this->assertSame([$doctor->id, $rose->id], [$companion->json('command_zone.commander.id'), $companion->json('command_zone.partner.id')]);
+        $this->assertSame([], $background->json('lines'));
+        $this->assertSame([], $companion->json('lines'));
+    }
+
+    #[Test]
+    public function the_prefilled_command_zone_keeps_the_pasted_printing(): void
+    {
+        $user = $this->user();
+        $krenko = $this->legendaryCreature('Krenko, Mob Boss');
+        $ddt = $this->printing($krenko, $this->set('ddt', '2017-11-10'), '52');
+        $this->printing($krenko, $this->set('m13', '2012-07-13'), '139');
+        $this->printing($krenko, $this->set('sld', '2024-01-01'), '9');
+
+        $response = $this->parse($user, "Commander\n1 Krenko, Mob Boss (DDT) 52", CardFormat::Commander)->assertOk();
+
+        $this->assertSame([$krenko->id => $ddt->id], $response->json('command_zone.printings'));
+    }
+
+    #[Test]
     public function an_ineligible_command_zone_card_falls_back_to_main(): void
     {
         $user = $this->user();
@@ -698,6 +739,69 @@ class DeckListImportTest extends TestCase
         // The two Mountain lines merged into one row.
         $this->assertSame([29, null], [$main[$mountain->id]->quantity, $main[$mountain->id]->category_id]);
         $this->assertCount(3, $main);
+    }
+
+    #[Test]
+    public function confirm_gives_the_command_zone_the_printing_the_paste_named(): void
+    {
+        $user = $this->user();
+        $krenko = $this->legendaryCreature('Krenko, Mob Boss');
+        $ddt = $this->printing($krenko, $this->set('ddt', '2017-11-10'), '52');
+        $this->printing($krenko, $this->set('sld', '2024-01-01'), '9');
+
+        $this->actingAs($user)->postJson('/decks/import-list', [
+            'format' => 'commander',
+            'deck_name' => 'Krenko',
+            'commander_id' => $krenko->id,
+            'command_zone_printings' => [$krenko->id => $ddt->id],
+            'rows' => [],
+        ])->assertOk();
+
+        $commander = DeckCard::query()->where('zone', DeckZone::Command->value)->sole();
+        $this->assertSame($ddt->id, $commander->default_card_id);
+    }
+
+    #[Test]
+    public function confirm_refuses_a_command_zone_printing_that_does_not_fit(): void
+    {
+        $user = $this->user();
+        $set = $this->set('ddt', '2017-11-10');
+        $krenko = $this->legendaryCreature('Krenko, Mob Boss');
+        $this->printing($krenko, $set, '52');
+        $other = $this->oracle('Sol Ring', 'C');
+        $otherPrint = $this->printing($other, $set, '1');
+        $payload = fn (array $printings): array => [
+            'format' => 'commander', 'deck_name' => 'X', 'commander_id' => $krenko->id,
+            'command_zone_printings' => $printings, 'rows' => [],
+        ];
+
+        // A printing of another card, and a card that is not in the zone.
+        $this->actingAs($user)->postJson('/decks/import-list', $payload([$krenko->id => $otherPrint->id]))
+            ->assertUnprocessable()->assertJsonValidationErrors(["command_zone_printings.{$krenko->id}"]);
+        $this->actingAs($user)->postJson('/decks/import-list', $payload([$other->id => $otherPrint->id]))
+            ->assertUnprocessable()->assertJsonValidationErrors(["command_zone_printings.{$other->id}"]);
+
+        $this->assertSame(0, Deck::query()->count());
+    }
+
+    #[Test]
+    public function a_long_category_is_cut_to_fit_and_imports(): void
+    {
+        $user = $this->user();
+        $ring = $this->oracle('Sol Ring', 'C');
+        $ringPrint = $this->printing($ring, $this->set('c21', '2021-04-23'), '263');
+        $header = str_repeat('Cards that win the game ', 4).':';
+
+        $line = $this->firstLine($user, "{$header}\n1 Sol Ring");
+
+        $this->assertLessThanOrEqual(DeckCategory::NAME_MAX, mb_strlen($line['category']));
+        $this->assertGreaterThan(DeckCategory::NAME_MAX, mb_strlen($header));
+        $this->assertStringStartsWith('Cards that win the game Cards', $line['category']);
+        $this->actingAs($user)->postJson('/decks/import-list', [
+            'format' => 'legacy',
+            'deck_name' => 'X',
+            'rows' => [['oracle_card_id' => $ring->id, 'default_card_id' => $ringPrint->id, 'quantity' => 1, 'zone' => 'main', 'category' => $line['category']]],
+        ])->assertOk();
     }
 
     #[Test]

@@ -2,6 +2,8 @@
 
 namespace App\Services\DeckList;
 
+use App\Models\DeckCategory;
+
 /**
  * Turns a pasted deck list into structured lines — no database access.
  *
@@ -323,7 +325,7 @@ final class DeckListParser
             self::KIND_DROP, self::KIND_IGNORE => [$kind, self::ZONE_MAIN, null],
             self::KIND_TYPE, self::ZONE_MAIN => [null, self::ZONE_MAIN, null],
             self::ZONE_SIDE, self::ZONE_COMPANION, self::ZONE_COMMAND => [null, $kind, null],
-            default => [null, self::ZONE_MAIN, $label],
+            default => [null, self::ZONE_MAIN, self::categoryName($label)],
         };
     }
 
@@ -404,7 +406,7 @@ final class DeckListParser
                 if ($noDeck) {
                     $drop = true;
                 } else {
-                    $category = $categories[0];
+                    $category = self::categoryName($categories[0]);
                 }
             }
         }
@@ -428,6 +430,17 @@ final class DeckListParser
     private static function categoryKind(string $category): ?string
     {
         return self::HEADER_WORDS[self::key($category)] ?? null;
+    }
+
+    /**
+     * A custom category name as the deck can store it: cut to
+     * `DeckCategory::NAME_MAX`. Done here, at the source, because the review
+     * page cannot edit categories — an over-long name reaching the confirm
+     * request would fail validation with no way to fix it but re-pasting.
+     */
+    private static function categoryName(string $name): string
+    {
+        return rtrim(mb_substr($name, 0, DeckCategory::NAME_MAX));
     }
 
     /** True for a line that begins with a quantity — `4 Bolt`, `4x Bolt`. */

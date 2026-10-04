@@ -128,13 +128,13 @@ describe("DeckListReview — what blocks the confirm", () => {
         const missing = render(
             makeParseResult([makeDeckListLine()], {
                 rules,
-                command_zone: { commander: walker, partner: null, signature_spell: null }
+                command_zone: { commander: walker, partner: null, signature_spell: null, printings: {} }
             })
         );
         const complete = render(
             makeParseResult([makeDeckListLine()], {
                 rules,
-                command_zone: { commander: walker, partner: null, signature_spell: spell }
+                command_zone: { commander: walker, partner: null, signature_spell: spell, printings: {} }
             })
         );
 
@@ -150,7 +150,7 @@ describe("DeckListReview — what blocks the confirm", () => {
     it("is not blocked when the paste pre-filled the commander", () => {
         const result = makeParseResult([makeDeckListLine()], {
             rules: commanderRules(),
-            command_zone: { commander: makeCommanderResult(), partner: null, signature_spell: null }
+            command_zone: { commander: makeCommanderResult(), partner: null, signature_spell: null, printings: {} }
         });
 
         expect(confirmButton(render(result)).attributes("disabled")).toBeUndefined();
@@ -172,7 +172,9 @@ describe("DeckListReview — confirm", () => {
                 command_zone: {
                     commander: makeCommanderResult("Krenko, Mob Boss"),
                     partner: makeCommanderResult("Partner"),
-                    signature_spell: null
+                    signature_spell: null,
+                    // The partner was picked, not pasted — it has no printing.
+                    printings: { "oracle-Krenko, Mob Boss": "printing-ddt-52", "oracle-Somebody Else": "printing-x" }
                 }
             }
         );
@@ -185,6 +187,7 @@ describe("DeckListReview — confirm", () => {
             commander_id: "oracle-Krenko, Mob Boss",
             companion_id: "oracle-Partner",
             signature_spell_id: null,
+            command_zone_printings: { "oracle-Krenko, Mob Boss": "printing-ddt-52" },
             rows: [
                 {
                     oracle_card_id: "oracle-Sol Ring",

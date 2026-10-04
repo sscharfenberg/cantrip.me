@@ -180,3 +180,19 @@ export function submissionRows(effective: EffectiveLine[]): Array<{
             category: line.category
         }));
 }
+
+/**
+ * Printings for the command-zone cards that are still the pre-filled ones.
+ * A card picked in the picker instead has no printing here and gets the
+ * newest, as on the create form.
+ */
+export function commandZonePrintings(
+    commandZone: ChosenCommandZone,
+    prefilled: Record<string, string>
+): Record<string, string> {
+    return Object.fromEntries(
+        commandZoneIds(commandZone)
+            .filter(id => prefilled[id] !== undefined)
+            .map(id => [id, prefilled[id]])
+    );
+}

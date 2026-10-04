@@ -83,7 +83,7 @@ export function makeParseResult(
         })),
         lines,
         dropped: 0,
-        command_zone: { commander: null, partner: null, signature_spell: null },
+        command_zone: { commander: null, partner: null, signature_spell: null, printings: {} },
         rules: {
             format: "legacy",
             minDeckSize: 60,

@@ -13,7 +13,14 @@ import { router, usePage } from "@inertiajs/vue3";
 import { computed, reactive, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import type { LineChoice } from "@/utils/deckListImport.ts";
-import { blockingLines, effectiveLines, lineWarnings, submissionRows, zoneTotals } from "@/utils/deckListImport.ts";
+import {
+    blockingLines,
+    commandZonePrintings,
+    effectiveLines,
+    lineWarnings,
+    submissionRows,
+    zoneTotals
+} from "@/utils/deckListImport.ts";
 import CommandZoneField from "Components/Deck/CommandZoneField.vue";
 import type { CommanderResult } from "Components/Deck/ShowCommanderOverview.vue";
 import FormGroup from "Components/Form/FormGroup.vue";
@@ -131,6 +138,7 @@ const confirm = async (): Promise<void> => {
                 commander_id: commander.value?.id ?? null,
                 companion_id: props.result.rules.hasSignatureSpell ? null : (partner.value?.id ?? null),
                 signature_spell_id: props.result.rules.hasSignatureSpell ? (signatureSpell.value?.id ?? null) : null,
+                command_zone_printings: commandZonePrintings(commandZone.value, props.result.command_zone.printings),
                 rows: submissionRows(effective.value)
             })
         });
