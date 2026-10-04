@@ -1,6 +1,6 @@
 # Deck list import — plan
 
-Status: planned, 2026-10-04. Not started.
+Status: implemented on branch `feature/deck-list-import`, 2026-10-04. See "As built" at the end for where the implementation departs from the plan.
 
 Create a new deck by pasting a deck list copied from another site (Moxfield, Archidekt, Draftsim, MTGA, MTGO, …) into a textarea. Complements the CSV import (`/decks/import`), which stays as it is.
 
@@ -279,3 +279,19 @@ Two PRs:
 - **Command zone reuses the existing pickers** behind a "Change command zone" button, shown like the create-deck page; pre-filled from the paste where it can be.
 - **Custom categories are imported in v1** — inline `[…]` / `#…` and custom section headers.
 - **Printings prefer the collection** (Quick Add's rule) when the paste does not pin one, and every line shows its availability.
+
+## As built
+
+Where the implementation differs from the plan above, and why.
+
+- **Fixtures are reconstructions.** `tests/Fixtures/deck-lists/` was written by hand from each site's known export format, not captured from the sites (no access from the build environment). Its README says so. Replace each file with a real export when one is at hand; the parser test then shows what to fix.
+- **The unsaved-`Deck` premise was wrong.** The query builder compiles `where('id', '!=', null)` to `IS NOT NULL`, so an unsaved `Deck` would *not* have made every copy read as free. `freeCopiesForUser(User, …)` was still added, because an explicit "no deck to except" is clearer than relying on that; its docblock gives the corrected reason.
+- **Command-zone printing is the newest**, as on the create form — `DeckService::setCommandZone` picks it. A printing the paste named for its commander is not carried over; switching it is one click on the deck page.
+- **Warnings that follow edits are client-side.** The parse response carries `is_legal`, `copy_limit` and `color_identity` per card; `resources/app/utils/deckListImport.ts` derives `not_legal`, `too_many_copies` and `color_identity` from the current exclusions, replacements and command zone. Notices the server alone knows (`printing_not_found`, `not_commander`) come with the line.
+- **No `CardFaceImage` ownership badge on review lines.** The availability badge's tooltip already states the owned and free counts; a card image per line would have added a 404 per line on machines without the image cache and little else.
+- **Deduped lines keep the availability computed for the pasted quantity.** It is one copy more conservative than the imported quantity; recomputing it client-side would have meant a second copy of the availability rule.
+- **The type-name table was not shared with `ArchidektDeckMapper`.** The parser needs a superset (plurals, German labels from the print view, zone words), and changing the CSV mapper to it would change CSV behaviour. The two lists are documented side by side in `DeckListParser::HEADER_WORDS`.
+- **Archidekt `{noDeck}` custom categories are dropped** like the maybeboard — they mark cards that are not in the deck (wishlists).
+- **Extras:** `SB:` line prefixes (MTGO / deckstats) put a line in the sideboard; `About` and `Tokens` sections are skipped silently; a second companion line, or a companion in a format without the mechanic, goes to the sideboard.
+- **Deck name**: optional on the paste form, editable on the review page, required to confirm; filled with the commander's name when empty, as the create form does.
+- **`CHAR_LENGTH` under SQLite**: `DeckListImportTest` registers it as a PDO function so the suggestion and search paths — which share the MariaDB-only name ranking — run in the fast suite.

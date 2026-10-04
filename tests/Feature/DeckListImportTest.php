@@ -196,7 +196,7 @@ class DeckListImportTest extends TestCase
         $this->actingAs($this->user())
             ->get('/decks/import-list')
             ->assertOk()
-            ->assertInertia(fn ($page) => $page->component('Deck/Import/DeckListImportPage', false)->has('formats')->where('maxLines', 500));
+            ->assertInertia(fn ($page) => $page->component('Deck/Import/DeckListImportPage')->has('formats')->where('maxLines', 500));
     }
 
     #[Test]
