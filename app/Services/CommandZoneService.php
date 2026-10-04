@@ -132,6 +132,78 @@ class CommandZoneService
     }
 
     /**
+     * Whether `$card` may head the command zone in `$format`, judged on its
+     * eager-loaded faces alone: the commander picker's own qualification and
+     * commander-ban rules, without its name search.
+     *
+     * Format-pool legality is the caller's to check — the deck list import
+     * already knows it for every card it resolved, and asking again here
+     * would be a query per card.
+     */
+    public static function isCommanderCandidate(OracleCard $card, CardFormat $format): bool
+    {
+        return self::qualifiesAsCommander($card)
+            && ! in_array($card->name, $format->rules()->bannedAsCommander(), true);
+    }
+
+    /**
+     * Whether `$candidate` may share the command zone with `$commander` — the
+     * pairing the picker offers after a commander with partner, friends
+     * forever, "Partner with", a Background choice or Doctor's companion.
+     *
+     * Same filters {@see DeckService::isLegalCompanion} applies, evaluated on
+     * eager-loaded faces instead of through a name search.
+     */
+    public static function pairsWithCommander(OracleCard $commander, OracleCard $candidate, CardFormat $format): bool
+    {
+        if ($candidate->id === $commander->id) {
+            return false;
+        }
+
+        $companion = self::resolveCompanionType(
+            $commander->faces->pluck('oracle_text')->implode("\n"),
+            $commander->faces->first()?->type_line ?? '',
+        );
+
+        if ($companion['type'] === null) {
+            return false;
+        }
+        if ($companion['type'] === 'partner_with') {
+            return $candidate->name === $companion['partner_with_name'];
+        }
+
+        return self::passesCommanderFilters($candidate, [
+            'rule0' => false,
+            'partner' => $companion['type'] === 'partner',
+            'friends_forever' => $companion['type'] === 'friends_forever',
+            'doctors_companion' => $companion['type'] === 'doctors_companion',
+            'background' => $companion['type'] === 'background',
+            'partner_type' => $companion['type'] === 'partner_type' ? $companion['partner_with_name'] : null,
+            'exclude' => null,
+        ], $format->rules()->bannedAsCommander());
+    }
+
+    /** Whether `$card` may be an Oathbreaker — the planeswalker picker's type rule. */
+    public static function isOathbreakerCandidate(OracleCard $card): bool
+    {
+        return self::isFrontFacePlaneswalker($card);
+    }
+
+    /**
+     * Whether `$card` may be the signature spell of a planeswalker with
+     * `$oathbreakerIdentity` — the spell picker's type and colour rules.
+     */
+    public static function isSignatureSpellCandidate(OracleCard $card, ?string $oathbreakerIdentity): bool
+    {
+        if (! self::isFrontFaceInstantOrSorcery($card)) {
+            return false;
+        }
+
+        // A colourless spell (null identity) splits to [] and always fits.
+        return array_diff(str_split((string) $card->color_identity), str_split((string) $oathbreakerIdentity)) === [];
+    }
+
+    /**
      * Front face is a legendary creature (has power+toughness) OR any face
      * carries the explicit "can be your commander" override.
      */

@@ -1,0 +1,9 @@
+Creatures (2)
+1 Krenko, Mob Boss
+1 Goblin Matron
+
+Instants (1)
+1 Lightning Bolt
+
+Lands (1)
+29 Mountain

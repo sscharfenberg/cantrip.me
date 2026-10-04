@@ -65,6 +65,10 @@ return [
             'required' => 'Bitte wähle ein Format aus.',
             'enum' => 'Bitte wähle ein gültiges Format aus.',
         ],
+        'deck_list' => [
+            'too_many_lines' => 'Die Deckliste darf nicht mehr als :max Zeilen haben.',
+            'printing_mismatch' => 'Diese Druckversion gehört nicht zur gewählten Karte.',
+        ],
         'file' => [
             'max' => 'Die Datei darf nicht größer als :max MB sein.',
             'csv_not_parseable' => 'Die Datei scheint keine gültige CSV-Datei zu sein.',
@@ -86,6 +90,7 @@ return [
     */
 
     'attributes' => [
+        'text' => 'Deckliste',
         'commander_id' => 'Commander',
         'signature_spell_id' => 'Signaturzauber',
         'companion_id' => 'Gefährte',

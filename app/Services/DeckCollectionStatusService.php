@@ -291,29 +291,75 @@ class DeckCollectionStatusService
 
         $oracleIds = $deckCardRows->pluck('oracle_card_id')->unique()->values()->all();
 
-        ['free' => $freeByOracle, 'held' => $heldByOracle] = self::partitionCopies($deck, $oracleIds);
+        ['free' => $freeByOracle, 'held' => $heldByOracle] = self::partitionCopies($deck->user_id, $deck->id, $oracleIds);
 
         $result = [];
         foreach ($deckCardRows as $dc) {
-            $free = $freeByOracle[$dc->oracle_card_id] ?? [];
-            $exact = $free[$dc->default_card_id] ?? 0;
-            $other = array_sum($free) - $exact;
-            $needed = (int) $dc->quantity;
-
-            $result[$dc->id] = [
-                'state' => match (true) {
-                    $exact >= $needed => self::AVAILABILITY_AVAILABLE,
-                    $exact + $other > 0 => self::AVAILABILITY_PARTIAL,
-                    default => self::AVAILABILITY_UNAVAILABLE,
-                },
-                'needed' => $needed,
-                'exact' => $exact,
-                'other' => $other,
-                'blocked' => $heldByOracle[$dc->oracle_card_id] ?? 0,
-            ];
+            $result[$dc->id] = self::availabilityFor(
+                $freeByOracle[$dc->oracle_card_id] ?? [],
+                $heldByOracle[$dc->oracle_card_id] ?? 0,
+                $dc->default_card_id,
+                (int) $dc->quantity,
+            );
         }
 
         return $result;
+    }
+
+    /**
+     * The availability of one slot — `$needed` copies of `$printingId` —
+     * against one oracle card's free copies.
+     *
+     * The rule {@see availabilityForDeck} documents, as a pure function so
+     * every caller reaches the same verdict: the deck page for its rows, the
+     * deck list import for lines of a deck that does not exist yet.
+     *
+     * @param  array<string, int>  $free  Printing id → free copies of this oracle card.
+     * @param  int  $blocked  Copies other decks hold, across every printing.
+     * @return array{state: string, needed: int, exact: int, other: int, blocked: int}
+     */
+    public static function availabilityFor(array $free, int $blocked, ?string $printingId, int $needed): array
+    {
+        $exact = $printingId === null ? 0 : ($free[$printingId] ?? 0);
+        $other = array_sum($free) - $exact;
+
+        return [
+            'state' => match (true) {
+                $exact >= $needed => self::AVAILABILITY_AVAILABLE,
+                $exact + $other > 0 => self::AVAILABILITY_PARTIAL,
+                default => self::AVAILABILITY_UNAVAILABLE,
+            },
+            'needed' => $needed,
+            'exact' => $exact,
+            'other' => $other,
+            'blocked' => $blocked,
+        ];
+    }
+
+    /**
+     * Free and held copies of the given oracle cards for a deck that does not
+     * exist yet — the deck list import's view of the collection.
+     *
+     * Same partition as {@see freeCopiesForOracles} with no deck of its own
+     * to except: every deck's claims and every deck's deckbox hold their
+     * copies. Takes the user rather than an unsaved `Deck` so "no deck to
+     * except" is an explicit null the partition branches on, not an accident
+     * of how a null id compares — the query builder happens to turn
+     * `id != null` into `IS NOT NULL`, which is right here only by luck.
+     *
+     * Honours the collection-integration master switch: with it off the
+     * collection is invisible, so both maps come back empty.
+     *
+     * @param  list<string>  $oracleIds
+     * @return array{free: array<string, array<string, int>>, held: array<string, int>}
+     */
+    public static function freeCopiesForUser(User $user, array $oracleIds): array
+    {
+        if ($oracleIds === [] || ! $user->collection_integration_enabled) {
+            return ['free' => [], 'held' => []];
+        }
+
+        return self::partitionCopies($user->id, null, $oracleIds);
     }
 
     /**
@@ -343,7 +389,7 @@ class DeckCollectionStatusService
             return [];
         }
 
-        return self::partitionCopies($deck, $oracleIds)['free'];
+        return self::partitionCopies($deck->user_id, $deck->id, $oracleIds)['free'];
     }
 
     /**
@@ -395,6 +441,10 @@ class DeckCollectionStatusService
      * Split the owner's copies of the given oracle cards into the ones this
      * deck may use and the ones another deck holds.
      *
+     * `$deckId` is the deck whose own claims and deckbox stay free. Null
+     * means no deck is excepted — every deck's holds count — which is what
+     * {@see freeCopiesForUser} asks for on behalf of a deck not yet created.
+     *
      * One batched read of every owned stack of those oracle cards,
      * left-joined through the pivot so explicit holds come back in the same
      * pass. A stack claimed by several deck_cards fans out into several
@@ -412,15 +462,15 @@ class DeckCollectionStatusService
      * @param  list<string>  $oracleIds
      * @return array{free: array<string, array<string, int>>, held: array<string, int>}
      */
-    private static function partitionCopies(Deck $deck, array $oracleIds): array
+    private static function partitionCopies(string $userId, ?string $deckId, array $oracleIds): array
     {
         // Containers designated as some *other* deck's deckbox. Flipped
         // to a lookup so the per-stack test below is an isset() rather
         // than an in_array() scan.
         $reservedContainerIds = array_flip(
             DB::table('decks')
-                ->where('user_id', $deck->user_id)
-                ->where('id', '!=', $deck->id)
+                ->where('user_id', $userId)
+                ->when($deckId !== null, fn (Builder $q) => $q->where('id', '!=', $deckId))
                 ->whereNotNull('container_id')
                 ->distinct()
                 ->pluck('container_id')
@@ -432,7 +482,7 @@ class DeckCollectionStatusService
             ->join('sets', 'sets.id', '=', 'default_cards.set_id')
             ->leftJoin('deck_card_card_stack', 'deck_card_card_stack.card_stack_id', '=', 'card_stacks.id')
             ->leftJoin('deck_cards', 'deck_cards.id', '=', 'deck_card_card_stack.deck_card_id')
-            ->where('card_stacks.user_id', $deck->user_id)
+            ->where('card_stacks.user_id', $userId)
             ->whereIn('default_cards.oracle_id', $oracleIds)
             ->orderByDesc('sets.released_at')
             ->orderByDesc('default_cards.id')
@@ -454,7 +504,7 @@ class DeckCollectionStatusService
                 'held' => $row->container_id !== null && isset($reservedContainerIds[$row->container_id]),
             ];
 
-            if ($row->claimed_by_deck_id !== null && $row->claimed_by_deck_id !== $deck->id) {
+            if ($row->claimed_by_deck_id !== null && $row->claimed_by_deck_id !== $deckId) {
                 $stacks[$row->stack_id]['held'] = true;
             }
         }
