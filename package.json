@@ -26,7 +26,8 @@
         "test:watch": "vitest",
         "test:coverage": "vitest run --coverage",
         "type-check": "vue-tsc --build",
-        "lint": "eslint 'resources/app/**/*.{js,ts,vue}' 'tests/e2e/**/*.ts' playwright.config.ts --fix && stylelint 'resources/app/**/*.{vue,scss}' --fix --quiet-deprecation-warnings",
+        "lint": "eslint 'resources/app/**/*.{js,ts,vue}' 'tests/e2e/**/*.ts' playwright.config.ts --fix && stylelint 'resources/app/**/*.{vue,scss}' --fix --quiet-deprecation-warnings && npm run i18n:check",
+        "i18n:check": "node ./resources/scripts/checkTranslations.ts",
         "icons": "node ./resources/build/icons.ts -v -i",
         "format": "prettier --write 'resources/app/**/*.{ts,vue,scss,json,md}'",
         "preinstall": "node ./resources/build/checkNodeVersion.ts"

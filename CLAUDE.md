@@ -15,7 +15,8 @@ composer dev          # Parallel: artisan serve + queue:listen + pail + npm run 
 # Frontend
 npm run dev           # Vite dev server
 npm run build         # lint + type-check + Vite build + icon processing
-npm run lint          # ESLint + Stylelint with auto-fix
+npm run lint          # ESLint + Stylelint with auto-fix, then i18n:check
+npm run i18n:check    # translation keys used in resources/app but missing from lang/*.json (-- -v lists dynamic keys)
 npm run format        # Prettier
 npm run type-check    # vue-tsc --build
 npm run icons         # Process SVG icons
