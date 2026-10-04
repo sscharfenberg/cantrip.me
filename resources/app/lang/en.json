@@ -819,6 +819,65 @@
                 "go_to_deck": "Open deck"
             }
         },
+        "deck_list_import": {
+            "title": "Import deck list",
+            "link": "Paste deck list",
+            "paste": {
+                "explanation": "Paste a deck list copied from Moxfield, Archidekt, Draftsim, MTG Arena, MTGO or from a cantrip.me deck's printable list. One card per line, e.g. \"4 Lightning Bolt (2X2) 117\" — set and collector number are optional.",
+                "explanation_review": "Nothing is saved yet: the next step shows what was recognised, lets you fix lines that were not, and creates the deck when you confirm.",
+                "format": "Format",
+                "deck_name_placeholder": "Optional here - defaults to the commander's name",
+                "text": "Deck list",
+                "placeholder": "Commander\n1 Krenko, Mob Boss\n\nDeck\n1 Sol Ring (C21) 263\n30 Mountain",
+                "counter": "{lines} / {maxLines} lines, {chars} / {maxChars} characters",
+                "submit": "Check deck list",
+                "parsing": "Checking…",
+                "failed": "The deck list could not be checked. Please try again."
+            },
+            "review": {
+                "back": "Edit deck list",
+                "summary": "Main deck: {main} cards, sideboard: {side} cards.",
+                "dropped": "{count} maybeboard card was skipped. | {count} maybeboard cards were skipped.",
+                "printing_hint": "Where the list names no printing, a printing from your collection is used, otherwise the newest one - you can switch printings on the deck page.",
+                "untitled_section": "Cards",
+                "zone_guessed": "Recognised as sideboard by a blank line - correct?",
+                "no_lines": "No cards were found in the deck list.",
+                "unresolved": "{count} line still needs a card or must be left out. | {count} lines still need a card or must be left out.",
+                "command_zone_missing": "This format needs a command zone - choose it above.",
+                "confirm": "Create deck",
+                "failed": "The deck could not be created. Please try again."
+            },
+            "zones": {
+                "main": "Main deck",
+                "side": "Sideboard"
+            },
+            "line": {
+                "include": "Import this line",
+                "undo": "Undo",
+                "number": "Line {line}",
+                "replaced": "Replaces \"{raw}\".",
+                "deduped": "One copy is in the command zone and is not imported twice."
+            },
+            "reasons": {
+                "unparseable": "This line could not be read.",
+                "not_found": "No card named \"{name}\" was found.",
+                "ambiguous": "\"{name}\" matches several cards - pick one."
+            },
+            "notices": {
+                "printing_not_found": "The printing named in the list was not found - another printing is used.",
+                "not_commander": "Cannot be in the command zone - imported into the main deck."
+            },
+            "warnings": {
+                "not_legal": "Not legal in this format.",
+                "too_many_copies": "More copies than the format allows.",
+                "color_identity": "Outside the command zone's color identity."
+            },
+            "search": {
+                "label": "Search for a card",
+                "placeholder": "Search card name…",
+                "no_results": "No cards found."
+            }
+        },
         "decks": {
             "title": "Your Decks",
             "link": "Decks",

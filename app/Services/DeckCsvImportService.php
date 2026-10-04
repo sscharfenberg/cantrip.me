@@ -3,22 +3,16 @@
 namespace App\Services;
 
 use App\Contracts\DeckCsvRowMapper;
-use App\Enums\DeckCardRole;
 use App\Enums\DeckImportSource;
-use App\Enums\DeckZone;
 use App\Jobs\CleanupTempUploads;
 use App\Models\CardStack;
 use App\Models\Deck;
-use App\Models\DeckCard;
-use App\Models\DeckCategory;
 use App\Models\DefaultCard;
 use App\Models\Set;
 use App\Models\User;
 use App\Services\DeckCsvMappers\ArchidektDeckMapper;
 use App\Services\DeckCsvMappers\CantripDeckMapper;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -134,101 +128,29 @@ class DeckCsvImportService
         // anyway, but skipping silently is friendlier than aborting.
         $ownedStackIds = self::resolveOwnedStackIds($user, $validRows);
 
-        $result = DB::transaction(function () use ($deck, $validRows, $oracleByDefault, $ownedStackIds) {
-            // Build a category-name → id map, creating any new ones.
-            $categoryMap = self::ensureCategories($deck, $validRows);
-
-            $imported = 0;
-            $commanders = 0;
-            $companion = 0;
-
-            foreach ($validRows as $row) {
-                $mapped = $row['mapped'];
-                $defaultCardId = $row['default_card_id'];
-                $oracleId = $oracleByDefault[$defaultCardId] ?? null;
-                if (! $oracleId) {
-                    continue;
-                }
-
-                if (in_array($mapped['role'], ['commander', 'partner', 'signature_spell'], true)) {
-                    // Three valid command-zone role strings:
-                    //  - `commander` (legacy or fresh): primary commander.
-                    //    For backward-compat with pre-consolidation CSVs
-                    //    that only had `Role=commander` + `Is Partner`,
-                    //    we still honour `is_partner=true` to derive
-                    //    `partner` (Commander format) or `signature_spell`
-                    //    (Oathbreaker).
-                    //  - `partner` / `signature_spell` (post-consolidation):
-                    //    explicit role string; used directly.
-                    if ($mapped['role'] === 'commander') {
-                        $role = $mapped['is_partner']
-                            ? ($deck->format->rules()->hasSignatureSpell()
-                                ? DeckCardRole::SignatureSpell->value
-                                : DeckCardRole::Partner->value)
-                            : DeckCardRole::Commander->value;
-                    } else {
-                        $role = $mapped['role'];
-                    }
-                    DeckCard::create([
-                        'deck_id' => $deck->id,
-                        'oracle_card_id' => $oracleId,
-                        'default_card_id' => $defaultCardId,
-                        'zone' => DeckZone::Command->value,
-                        'role' => $role,
-                        'quantity' => 1,
-                    ]);
-                    $commanders++;
-
-                    continue;
-                }
-
-                if ($mapped['role'] === 'companion') {
-                    // First companion row wins; duplicates silently
-                    // discarded — `UNIQUE(deck_id, role)` would reject
-                    // a second insert anyway.
-                    if ($companion > 0) {
-                        continue;
-                    }
-                    DeckCard::create([
-                        'deck_id' => $deck->id,
-                        'oracle_card_id' => $oracleId,
-                        'default_card_id' => $defaultCardId,
-                        'zone' => DeckZone::Companion->value,
-                        'role' => DeckCardRole::Companion->value,
-                        'quantity' => 1,
-                    ]);
-                    $companion++;
-
-                    continue;
-                }
-
-                $deckCard = DeckCard::create([
-                    'deck_id' => $deck->id,
-                    'oracle_card_id' => $oracleId,
-                    'default_card_id' => $defaultCardId,
-                    'category_id' => $mapped['category'] !== null
-                        ? ($categoryMap[$mapped['category']] ?? null)
-                        : null,
-                    'zone' => $mapped['zone'],
-                    'quantity' => $mapped['quantity'],
-                ]);
-                $imported += (int) $mapped['quantity'];
-
-                // Reattach pivot rows for stacks the importing user
+        $rows = [];
+        foreach ($validRows as $row) {
+            $oracleId = $oracleByDefault[$row['default_card_id']] ?? null;
+            if (! $oracleId) {
+                continue;
+            }
+            $mapped = $row['mapped'];
+            $rows[] = [
+                'oracle_card_id' => $oracleId,
+                'default_card_id' => $row['default_card_id'],
+                'role' => $mapped['role'],
+                'is_partner' => (bool) $mapped['is_partner'],
+                'zone' => $mapped['zone'],
+                'quantity' => (int) $mapped['quantity'],
+                'category' => $mapped['category'],
+                // Reattach pivot rows only for stacks the importing user
                 // owns. Stacks owned by someone else (or that no longer
                 // exist) are silently dropped.
-                $attachable = array_values(array_intersect($mapped['card_stack_ids'], $ownedStackIds));
-                if ($attachable !== []) {
-                    $deckCard->cardStacks()->attach($attachable);
-                }
-            }
-
-            return [
-                'imported' => $imported,
-                'commanders' => $commanders,
-                'companion' => $companion,
+                'card_stack_ids' => array_values(array_intersect($mapped['card_stack_ids'], $ownedStackIds)),
             ];
-        });
+        }
+
+        $result = DeckCardWriter::write($deck, $rows);
 
         DeckCardService::recalculateColors($deck);
         $deck->syncHeroImage();
@@ -387,50 +309,6 @@ class DeckCsvImportService
             ->whereIn('id', $referenced)
             ->pluck('id')
             ->all();
-    }
-
-    /**
-     * Ensure every distinct category name referenced in `card`-role
-     * rows exists on the deck and return a name → id map. Rows with
-     * a null category contribute nothing.
-     *
-     * @param  array<int, array{mapped: array}>  $rows
-     * @return array<string, string>
-     */
-    private static function ensureCategories(Deck $deck, array $rows): array
-    {
-        $names = [];
-        foreach ($rows as $row) {
-            if ($row['mapped']['role'] !== 'card') {
-                continue;
-            }
-            $name = $row['mapped']['category'];
-            if ($name !== null) {
-                $names[$name] = true;
-            }
-        }
-        if ($names === []) {
-            return [];
-        }
-
-        $existing = DeckCategory::query()
-            ->where('deck_id', $deck->id)
-            ->whereIn('name', array_keys($names))
-            ->pluck('id', 'name')
-            ->all();
-
-        $map = $existing;
-        foreach (array_keys($names) as $name) {
-            if (! isset($map[$name])) {
-                $created = DeckCategory::create([
-                    'deck_id' => $deck->id,
-                    'name' => Str::limit($name, DeckCategory::NAME_MAX, ''),
-                ]);
-                $map[$name] = $created->id;
-            }
-        }
-
-        return $map;
     }
 
     /**

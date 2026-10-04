@@ -131,6 +131,10 @@ function onFolderToggle(format: string, isOpen: boolean): void {
             <icon name="upload" />
             {{ $t("pages.deck_import.link") }}
         </Link>
+        <Link class="btn-primary" href="/decks/import-list">
+            <icon name="text" />
+            {{ $t("pages.deck_list_import.link") }}
+        </Link>
     </div>
     <div v-if="sortedFormats.length" class="deck-folders">
         <deck-format-folder

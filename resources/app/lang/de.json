@@ -819,6 +819,65 @@
                 "go_to_deck": "Deck öffnen"
             }
         },
+        "deck_list_import": {
+            "title": "Deckliste importieren",
+            "link": "Deckliste einfügen",
+            "paste": {
+                "explanation": "Füge eine Deckliste ein, die du aus Moxfield, Archidekt, Draftsim, MTG Arena, MTGO oder der Druckansicht eines cantrip.me-Decks kopiert hast. Eine Karte pro Zeile, z. B. \"4 Lightning Bolt (2X2) 117\" - Set und Sammlernummer sind optional.",
+                "explanation_review": "Noch wird nichts gespeichert: Der nächste Schritt zeigt, was erkannt wurde, lässt dich nicht erkannte Zeilen korrigieren und legt das Deck an, wenn du bestätigst.",
+                "format": "Format",
+                "deck_name_placeholder": "Hier optional - sonst der Name des Commanders",
+                "text": "Deckliste",
+                "placeholder": "Commander\n1 Krenko, Mob Boss\n\nDeck\n1 Sol Ring (C21) 263\n30 Mountain",
+                "counter": "{lines} / {maxLines} Zeilen, {chars} / {maxChars} Zeichen",
+                "submit": "Deckliste prüfen",
+                "parsing": "Wird geprüft…",
+                "failed": "Die Deckliste konnte nicht geprüft werden. Bitte versuche es erneut."
+            },
+            "review": {
+                "back": "Deckliste bearbeiten",
+                "summary": "Hauptdeck: {main} Karten, Sideboard: {side} Karten.",
+                "dropped": "{count} Maybeboard-Karte wurde übersprungen. | {count} Maybeboard-Karten wurden übersprungen.",
+                "printing_hint": "Wo die Liste keine Druckversion nennt, wird eine aus deiner Sammlung verwendet, sonst die neueste - die Druckversion kannst du auf der Deckseite ändern.",
+                "untitled_section": "Karten",
+                "zone_guessed": "Wegen einer Leerzeile als Sideboard erkannt - stimmt das?",
+                "no_lines": "In der Deckliste wurden keine Karten gefunden.",
+                "unresolved": "{count} Zeile braucht noch eine Karte oder muss ausgelassen werden. | {count} Zeilen brauchen noch eine Karte oder müssen ausgelassen werden.",
+                "command_zone_missing": "Dieses Format braucht eine Kommandozone - wähle sie oben aus.",
+                "confirm": "Deck anlegen",
+                "failed": "Das Deck konnte nicht angelegt werden. Bitte versuche es erneut."
+            },
+            "zones": {
+                "main": "Hauptdeck",
+                "side": "Sideboard"
+            },
+            "line": {
+                "include": "Diese Zeile importieren",
+                "undo": "Rückgängig",
+                "number": "Zeile {line}",
+                "replaced": "Ersetzt \"{raw}\".",
+                "deduped": "Ein Exemplar liegt in der Kommandozone und wird nicht doppelt importiert."
+            },
+            "reasons": {
+                "unparseable": "Diese Zeile konnte nicht gelesen werden.",
+                "not_found": "Keine Karte namens \"{name}\" gefunden.",
+                "ambiguous": "\"{name}\" passt auf mehrere Karten - wähle eine aus."
+            },
+            "notices": {
+                "printing_not_found": "Die in der Liste genannte Druckversion wurde nicht gefunden - eine andere wird verwendet.",
+                "not_commander": "Kann nicht in die Kommandozone - wird ins Hauptdeck importiert."
+            },
+            "warnings": {
+                "not_legal": "In diesem Format nicht legal.",
+                "too_many_copies": "Mehr Exemplare, als das Format erlaubt.",
+                "color_identity": "Außerhalb der Farbidentität der Kommandozone."
+            },
+            "search": {
+                "label": "Nach einer Karte suchen",
+                "placeholder": "Kartenname suchen…",
+                "no_results": "Keine Karten gefunden."
+            }
+        },
         "decks": {
             "title": "Deine Decks",
             "link": "Decks",

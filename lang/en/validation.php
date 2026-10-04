@@ -65,6 +65,10 @@ return [
             'required' => 'Please select a format.',
             'enum' => 'Please select a valid format.',
         ],
+        'deck_list' => [
+            'too_many_lines' => 'The deck list must not have more than :max lines.',
+            'printing_mismatch' => 'This printing does not belong to the selected card.',
+        ],
         'file' => [
             'max' => 'The file must not be larger than :max MB.',
             'csv_not_parseable' => 'The file does not appear to be a valid CSV file.',
@@ -87,6 +91,7 @@ return [
     */
 
     'attributes' => [
+        'text' => 'deck list',
         'commander_id' => 'commander',
         'signature_spell_id' => 'signature spell',
         'companion_id' => 'companion',

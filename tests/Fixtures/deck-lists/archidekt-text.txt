@@ -1,0 +1,7 @@
+1x Krenko, Mob Boss (ddt) 52 [Commander{top}]
+1x Sol Ring (c21) 263 [Ramp]
+1x Lightning Bolt (2x2) 117 [Removal,Instant] ^Have,#37d67a^
+29x Mountain (unf) 239 [Land]
+1x Goblin Bushwhacker (zen) 125 [Maybeboard{noDeck}{noPrice}]
+1x Pyroblast (ema) 142 [Sideboard{noDeck}]
+1x Goblin Lackey (ulg) 80 [Wishlist{noDeck}]

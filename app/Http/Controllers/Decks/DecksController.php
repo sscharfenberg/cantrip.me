@@ -16,6 +16,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Decks\AddAllToCollectionRequest;
 use App\Http\Requests\Decks\BulkClaimRequest;
 use App\Http\Requests\Decks\BuyUnclaimedCardsRequest;
+use App\Http\Requests\Decks\DeckCreationRules;
 use App\Http\Requests\Decks\DeckQrSvgRequest;
 use App\Http\Requests\Decks\DeleteDeckRequest;
 use App\Http\Requests\Decks\EditDeckRequest;
@@ -203,35 +204,9 @@ class DecksController extends Controller
     public function store(Request $request): RedirectResponse
     {
         precognitive(function () use ($request) {
-            // Resolve the format's profile once so "is a commander required?"
-            // stays centralised in the format rules rather than a hardcoded
-            // list of format names here. New commander-like formats added to
-            // CardFormat automatically inherit the required-field behavior.
-            $format = CardFormat::tryFrom((string) $request->input('format', ''));
-            $profile = $format?->rules();
-            $requiresCommander = $profile !== null && $profile->requiresCommander();
-            $requiresSignatureSpell = $requiresCommander && $profile->hasSignatureSpell();
-            $usesGameChangerList = $profile !== null && $profile->usesGameChangerList();
-
-            $request->validate([
-                'format' => ['required', 'string', Rule::enum(CardFormat::class)],
-                'deck_name' => ['required', 'string', 'max:'.Deck::NAME_MAX],
-                'deck_description' => ['nullable', 'string', 'max:'.Deck::DESCRIPTION_MAX],
-                'bracket' => $usesGameChangerList
-                    ? ['nullable', 'integer', 'between:1,5']
-                    : ['prohibited'],
-                'commander_id' => [
-                    $requiresCommander ? 'required' : 'nullable',
-                    'string',
-                    Rule::exists(OracleCard::class, 'id'),
-                ],
-                'companion_id' => ['nullable', 'string', Rule::exists(OracleCard::class, 'id')],
-                'signature_spell_id' => [
-                    $requiresSignatureSpell ? 'required' : 'nullable',
-                    'string',
-                    Rule::exists(OracleCard::class, 'id'),
-                ],
-            ]);
+            $request->validate(DeckCreationRules::for(
+                CardFormat::tryFrom((string) $request->input('format', '')),
+            ));
         });
 
         $deck = DeckService::createDeck($request->user(), $request->only([

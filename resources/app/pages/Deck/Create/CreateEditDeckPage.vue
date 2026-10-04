@@ -3,9 +3,9 @@ import { Form, Head } from "@inertiajs/vue3";
 import { computed, nextTick, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import type { DeckHeroCardOption } from "@/pages/Deck/Modals/DeckHeroImagePickerModal.vue";
+import CommandZoneField from "Components/Deck/CommandZoneField.vue";
 import DeckFormatCapabilities from "Components/Deck/DeckFormatCapabilities.vue";
 import type { CommanderResult } from "Components/Deck/ShowCommanderOverview.vue";
-import ShowCommanderOverview from "Components/Deck/ShowCommanderOverview.vue";
 import FormGroup from "Components/Form/FormGroup.vue";
 import FormLegend from "Components/Form/FormLegend.vue";
 import RadioButtonGroup from "Components/Form/Radio/RadioButtonGroup.vue";
@@ -14,9 +14,7 @@ import Headline from "Components/UI/Headline.vue";
 import Icon from "Components/UI/Icon.vue";
 import { useBreadcrumbs } from "Composables/useBreadcrumbs.ts";
 import type { FormatCapabilities } from "Types/formatCapabilities.ts";
-import CommanderCommandZonePickerModal from "./CommanderCommandZonePickerModal.vue";
 import DeckHeroImagePicker from "./DeckHeroImagePicker.vue";
-import OathbreakerCommandZonePickerModal from "./OathbreakerCommandZonePickerModal.vue";
 /** Server-rendered shape for "edit existing deck" mode. */
 export interface ExistingDeck {
     id: string;
@@ -96,10 +94,6 @@ const selectedFormat = ref(props.existingDeck?.format ?? "");
 const selectedCapabilities = computed<FormatCapabilities | null>(
     () => props.capabilities[selectedFormat.value] ?? null
 );
-/** Whether the commander picker modal is open. */
-const commanderPickerOpen = ref(false);
-/** Whether the oathbreaker picker modal is open. */
-const oathbreakerPickerOpen = ref(false);
 /** Confirmed commander — pre-filled from the existing deck in edit mode. */
 const commander = ref<CommanderResult | null>(props.existingDeck?.commander ?? null);
 /** Confirmed partner-type companion (partner / background / friends-forever / …). */
@@ -181,18 +175,6 @@ const prefillDeckName = (name: string) => {
         deckName.value = name;
     }
 };
-/** Store the confirmed commander and optional companion from the picker modal. */
-const onCommandZoneConfirmed = (cmd: CommanderResult, comp: CommanderResult | null) => {
-    commander.value = cmd;
-    companion.value = comp;
-    prefillDeckName(cmd.name);
-};
-/** Store the confirmed oathbreaker (planeswalker) and signature spell from the picker modal. */
-const onOathbreakerConfirmed = (pw: CommanderResult, spell: CommanderResult) => {
-    commander.value = pw;
-    signatureSpell.value = spell;
-    prefillDeckName(pw.name);
-};
 /**
  * Clear command zone when format changes — legality may differ. In edit
  * mode the format select is rendered as disabled, so this watcher won't
@@ -272,71 +254,16 @@ setBreadcrumbs(
                 <deck-format-capabilities :capabilities="selectedCapabilities" />
             </template>
         </form-group>
-        <!-- Oathbreaker: planeswalker + signature spell -->
-        <template v-if="selectedCapabilities?.requiresCommander && selectedCapabilities?.hasSignatureSpell">
-            <form-group
-                v-if="commander"
-                :label="$t('components.oathbreaker_picker.selected_planeswalker')"
-                :required="true"
-                :validated="true"
-            >
-                <div class="commander-picker__commander commander-picker__commander--selected">
-                    <show-commander-overview :card="commander" />
-                </div>
-                <input type="hidden" name="commander_id" :value="commander.id" />
-            </form-group>
-            <form-group
-                v-if="signatureSpell"
-                :label="$t('components.oathbreaker_picker.selected_spell')"
-                :required="true"
-                :validated="true"
-            >
-                <div class="commander-picker__commander commander-picker__commander--selected">
-                    <show-commander-overview :card="signatureSpell" />
-                </div>
-                <input type="hidden" name="signature_spell_id" :value="signatureSpell.id" />
-            </form-group>
-            <form-group
-                :error="errors.commander_id ?? errors.signature_spell_id ?? ''"
-                :invalid="!!errors.commander_id || !!errors.signature_spell_id"
-            >
-                <button type="button" class="btn-default" @click="oathbreakerPickerOpen = true">
-                    <icon name="register" />
-                    {{
-                        $t(commander ? "pages.create_deck.oathbreaker.change" : "pages.create_deck.oathbreaker.choose")
-                    }}
-                </button>
-            </form-group>
-        </template>
-        <!-- Commander-family formats: commander + optional companion -->
-        <template v-else-if="selectedCapabilities?.requiresCommander">
-            <form-group v-if="commander" :label="$t('form.fields.commander')" :required="true" :validated="true">
-                <div class="commander-picker__commander commander-picker__commander--selected">
-                    <show-commander-overview :card="commander" />
-                </div>
-                <input type="hidden" name="commander_id" :value="commander.id" />
-            </form-group>
-            <form-group
-                v-if="companion && commander?.companion_type"
-                :label="
-                    $t(
-                        `components.commander_picker.${commander.companion_type === 'partner_with' || commander.companion_type === 'partner_type' ? 'partner' : commander.companion_type}_selected`
-                    )
-                "
-                :validated="true"
-            >
-                <div class="commander-picker__commander commander-picker__commander--selected">
-                    <show-commander-overview :card="companion" />
-                </div>
-                <input type="hidden" name="companion_id" :value="companion.id" />
-            </form-group>
-            <form-group :error="errors.commander_id ?? ''" :invalid="!!errors.commander_id">
-                <button type="button" class="btn-default" @click="commanderPickerOpen = true">
-                    <icon name="register" />
-                    {{ $t(commander ? "pages.create_deck.commander.change" : "pages.create_deck.commander.choose") }}
-                </button>
-            </form-group>
-        </template>
+        <command-zone-field
+            v-if="selectedCapabilities?.requiresCommander"
+            v-model:commander="commander"
+            v-model:companion="companion"
+            v-model:signature-spell="signatureSpell"
+            :format="selectedFormat"
+            :with-signature-spell="!!selectedCapabilities?.hasSignatureSpell"
+            :errors="errors"
+            @confirmed="card => prefillDeckName(card.name)"
+        />
         <form-group
             for-id="deck_name"
             :label="$t('form.fields.deck_name')"
@@ -476,33 +403,12 @@ setBreadcrumbs(
             </button>
         </form-group>
     </Form>
-    <commander-command-zone-picker-modal
-        v-if="commanderPickerOpen"
-        :format="selectedFormat"
-        @close="commanderPickerOpen = false"
-        @confirm="onCommandZoneConfirmed"
-    />
-    <oathbreaker-command-zone-picker-modal
-        v-if="oathbreakerPickerOpen"
-        :format="selectedFormat"
-        @close="oathbreakerPickerOpen = false"
-        @confirm="onOathbreakerConfirmed"
-    />
 </template>
 
 <style lang="scss" scoped>
 @use "sass:map";
 @use "Abstracts/colors" as c;
-@use "Abstracts/mixins" as m;
 @use "Abstracts/sizes" as s;
-
-.commander-picker__commander--selected {
-    padding-right: calc(0.5rem + 20px + 0.5ch);
-
-    @include m.mq("landscape") {
-        padding-right: calc(1rem + 20px + 0.5ch);
-    }
-}
 
 .char-counter {
     padding: 0.5ex 1.5ch;

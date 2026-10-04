@@ -105,6 +105,8 @@ Each deck-owner pair resolves to one of three modes that drive UI gating and dat
 - `CardStackService::ownedAmountsFor(?User, array $printingIds)` — collection-side read: copies of each given printing in that user's collection, keyed by `default_card_id`. It is the single gate for the `CardFaceImage` panel ownership badge: empty map for a guest, empty while the master switch is off, and printings the user owns none of are absent rather than 0. Every payload producer that ships a `DefaultCardImage` (card search, deck card search, deck printings, deck tokens, card-stack edit, both preview endpoints) calls it and ships `owned => $map[$id] ?? null`.
 - `DeckFinalizeService` — persists submissions from the BulkClaim page (`/decks/{deck}/bulk-claim`, mode C, owner-only). Writes pivot rows, swaps `deck_cards.default_card_id` when the user picks an alternate printing, auto-splits deck cards on partial coverage, mints stacks for "bought new" rows, and sets `decks.container_id` when one was picked. Deck state transitions (planned/built/archived) are decoupled and go through `/decks/{deck}/state`, not this service.
 
+**Deck list import** (`/decks/import-list`): paste a list from any site → `DeckListParser` (pure, one forgiving line grammar, fixtures in `tests/Fixtures/deck-lists/`) → `DeckListResolver` (exact normalized-name match, Quick Add's printing preference via `DeckCollectionStatusService::freeCopiesForUser`, availability via the shared `availabilityFor`, command zone pre-filled with `CommandZoneService`'s eligibility helpers) → client-side review → `DeckListImportService` creates the deck. Confirm validates with `DeckCreationRules` (shared with `POST /decks/add`) and writes through `DeckCardWriter` (shared with the CSV import). The command-zone display + picker button is `Components/Deck/CommandZoneField.vue`, shared with the create-deck form.
+
 **Lifecycle guards:** a claimed stack cannot change container — `UpdateCardStackRequest` and `MoveSelectedCardStacksRequest` 422 with `collection.errors.cannot_move_claimed_stack`. The intended UX is: user lands on the stack edit page from the 422, sees the "Reserved for [deck]" badge, clicks "Unclaim" inline, retries the move. Pivot rows cascade-delete on either deck deletion or stack deletion (DB FKs).
 
 ## Key Conventions
@@ -181,6 +183,7 @@ The shared test kit in `resources/app/test/`:
 | `observers.ts` | Controllable `IntersectionObserver` / `ResizeObserver`; `resizeObservers.at(-1).trigger({ inlineSize })` drives the callback. `trigger()` throws on a disconnected or unobserved instance rather than firing into the void. |
 | `withSetup.ts` | Run a composable inside a component instance (needed for `provide`/`inject` and lifecycle hooks). Auto-unmounted after each test. |
 | `factories/deckCard.ts` | `makeDeckCard` / `makeCommander` / `makeCompanion` / `makeCategory`. |
+| `factories/deckList.ts` | Deck list import: `makeDeckListCard` / `makeDeckListLine` / `makeCommanderResult` / `makeParseResult` / `commanderRules`. |
 
 Conventions worth keeping:
 

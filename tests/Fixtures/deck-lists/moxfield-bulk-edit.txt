@@ -1,0 +1,5 @@
+1 Arcane Signet (CMM) 1009
+1 Command Tower (CMM) 1027 *F*
+1 Lightning Bolt (2X2) 117 #Removal
+1 Sol Ring (C21) 263 #Ramp #!Staple
+29 Mountain (UNF) 239

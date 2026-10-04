@@ -13,6 +13,7 @@ use App\Http\Controllers\Decks\DeckCardSearchController;
 use App\Http\Controllers\Decks\DeckCategoryController;
 use App\Http\Controllers\Decks\DeckCommanderController;
 use App\Http\Controllers\Decks\DeckCompanionController;
+use App\Http\Controllers\Decks\DeckListImportController;
 use App\Http\Controllers\Decks\DecksController;
 use App\Http\Controllers\Decks\ExportController as DeckExportController;
 use App\Http\Controllers\Decks\ImportController as DeckImportController;
@@ -145,6 +146,16 @@ Route::middleware(array_filter(['auth', Features::enabled(Features::emailVerific
         ->name('decks.import');
     Route::post('/decks/import', [DeckImportController::class, 'store'])
         ->name('decks.import.store');
+    Route::get('/decks/import-list', [DeckListImportController::class, 'show'])
+        ->name('decks.import-list');
+    Route::post('/decks/import-list', [DeckListImportController::class, 'store'])
+        ->name('decks.import-list.store');
+    Route::post('/api/decks/import-list/parse', [DeckListImportController::class, 'parse'])
+        ->middleware('throttle:30,1')
+        ->name('api.decks.import-list.parse');
+    Route::get('/api/decks/import-list/search', [DeckListImportController::class, 'search'])
+        ->middleware('throttle:60,1')
+        ->name('api.decks.import-list.search');
     Route::get('/decks/{deck}/qr', [DecksController::class, 'generateQr'])
         ->name('deck.qr');
     Route::post('/decks/{deck}/qr', [DecksController::class, 'qrSvg'])
