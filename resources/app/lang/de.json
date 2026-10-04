@@ -856,8 +856,7 @@
                 "undo": "Rückgängig",
                 "number": "Zeile {line}",
                 "replaced": "Ersetzt \"{raw}\".",
-                "deduped": "Ein Exemplar liegt in der Kommandozone und wird nicht doppelt importiert.",
-                "suggestions": "Meintest du:"
+                "deduped": "Ein Exemplar liegt in der Kommandozone und wird nicht doppelt importiert."
             },
             "reasons": {
                 "unparseable": "Diese Zeile konnte nicht gelesen werden.",

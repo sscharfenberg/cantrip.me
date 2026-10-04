@@ -27,8 +27,9 @@ import FormGroup from "Components/Form/FormGroup.vue";
 import MonoSelect from "Components/Form/Select/MonoSelect.vue";
 import Headline from "Components/UI/Headline.vue";
 import Icon from "Components/UI/Icon.vue";
+import LoadingSpinner from "Components/UI/LoadingSpinner.vue";
 import Paragraph from "Components/UI/Paragraph.vue";
-import type { DeckListCandidate, DeckListParseResult, DeckListZone } from "Types/deckListImport.ts";
+import type { DeckListCandidate, DeckListLine, DeckListParseResult, DeckListZone } from "Types/deckListImport.ts";
 import DeckListReviewLine from "./DeckListReviewLine.vue";
 const props = defineProps<{
     result: DeckListParseResult;
@@ -100,6 +101,9 @@ const sections = computed(() =>
         .filter(group => group.lines.length > 0)
 );
 
+/** Cards a section will import — what its headline counts. */
+const sectionCount = (lines: DeckListLine[]): number =>
+    lines.reduce((sum, line) => sum + (effectiveByLine.value[line.line]?.quantity ?? 0), 0);
 /** Exclude a line, or bring it back. */
 const setExcluded = (line: number, excluded: boolean) => {
     choices[line].excluded = excluded;
@@ -212,8 +216,9 @@ const confirm = async (): Promise<void> => {
         </form>
         <section v-for="group in sections" :key="group.section.index" class="deck-list-review__section">
             <div class="deck-list-review__section-head">
-                <headline :size="4">
+                <headline :size="3">
                     {{ group.section.label ?? $t("pages.deck_list_import.review.untitled_section") }}
+                    ({{ sectionCount(group.lines) }})
                 </headline>
                 <div v-if="group.section.zone_guessed" class="deck-list-review__zone">
                     <span>{{ $t("pages.deck_list_import.review.zone_guessed") }}</span>
@@ -244,18 +249,21 @@ const confirm = async (): Promise<void> => {
         <ul v-if="Object.keys(errors).length" class="deck-list-review__errors">
             <li v-for="(message, field) in errors" :key="field">{{ message }}</li>
         </ul>
-        <div class="deck-list-review__confirm">
-            <p v-if="blocking.length" class="deck-list-review__blocker">
+        <ul v-if="blocking.length || commandZoneMissing" class="deck-list-review__blockers">
+            <li v-if="blocking.length" class="deck-list-review__blocker">
                 <icon name="error" :size="1" />
                 {{ unresolvedText }}
-            </p>
-            <p v-if="commandZoneMissing" class="deck-list-review__blocker">
+            </li>
+            <li v-if="commandZoneMissing" class="deck-list-review__blocker">
                 <icon name="error" :size="1" />
                 {{ $t("pages.deck_list_import.review.command_zone_missing") }}
-            </p>
+            </li>
+        </ul>
+        <div class="deck-list-review__confirm">
             <button type="button" class="btn-primary" :disabled="!canConfirm" @click="confirm">
                 <icon name="save" />
                 {{ $t("pages.deck_list_import.review.confirm") }}
+                <loading-spinner v-if="submitting" :size="2" />
             </button>
         </div>
     </div>
@@ -264,6 +272,7 @@ const confirm = async (): Promise<void> => {
 <style lang="scss" scoped>
 @use "sass:map";
 @use "Abstracts/colors" as c;
+@use "Abstracts/sizes" as s;
 
 .deck-list-review {
     display: flex;
@@ -303,24 +312,35 @@ const confirm = async (): Promise<void> => {
 
     padding: 0;
     margin: 0;
-    gap: 0.25ex;
+    gap: map.get(s.$pages, "deck-list-import", "list", "gap");
 
     list-style: none;
 }
 
 .deck-list-review__errors,
-.deck-list-review__blocker {
+.deck-list-review__blockers {
+    display: flex;
+    flex-direction: column;
+
+    padding: 0;
+    margin: 0;
+    gap: 0.5ex;
+
+    list-style: none;
+}
+
+/* One full-width line per thing still missing, in the error colours. */
+.deck-list-review__blocker,
+.deck-list-review__errors li {
     display: flex;
     align-items: center;
 
-    margin: 0;
+    padding: map.get(s.$pages, "deck-list-import", "message", "padding");
+    border: map.get(s.$pages, "deck-list-import", "message", "border") solid map.get(c.$state, "error", "border");
     gap: 0.5ch;
 
+    background-color: map.get(c.$state, "error", "background");
     color: map.get(c.$state, "error", "surface");
-}
-
-.deck-list-review__errors {
-    align-items: flex-start;
-    flex-direction: column;
+    border-radius: map.get(s.$pages, "deck-list-import", "message", "radius");
 }
 </style>

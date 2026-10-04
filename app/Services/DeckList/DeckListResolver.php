@@ -32,8 +32,8 @@ use Illuminate\Support\Facades\DB;
  * tried against the English name, the front face's name, then the
  * translation tables — never the LIKE search, which would happily turn
  * "Bolt" into Lightning Bolt. A name that matches nothing, or several cards
- * none of which is legal in the format, is unresolved and gets suggestions
- * from the fuzzy name search instead.
+ * none of which is legal in the format, is unresolved; the review page then
+ * runs {@see search} with the pasted name already filled in.
  *
  * The printing, when the paste does not pin one, follows Quick Add: the one
  * the user has most free copies of, ties to the newest, the newest when
@@ -47,17 +47,8 @@ use Illuminate\Support\Facades\DB;
  */
 final class DeckListResolver
 {
-    /** Suggestions offered for one unresolved line. */
-    public const SUGGESTION_LIMIT = 5;
-
     /** Results of one replacement search on the review page. */
     public const SEARCH_LIMIT = 20;
-
-    /**
-     * Unresolved lines that get suggestions at all. Each costs one name
-     * search; a paste of 500 garbage lines must not cost 500 searches.
-     */
-    private const SUGGESTED_LINES_MAX = 50;
 
     /**
      * @param  array{sections: list<array>, lines: list<array>, dropped: int}  $parsed  {@see DeckListParser::parse()}
@@ -90,7 +81,6 @@ final class DeckListResolver
                 'printing_id' => null,
                 'card' => null,
                 'availability' => null,
-                'suggestions' => [],
             ];
 
             if ($line['name'] === null) {
@@ -122,27 +112,13 @@ final class DeckListResolver
                     $entry['oracle_card_id'] = $ids[0];
                 } else {
                     $entry['reason'] = $ids === [] ? 'not_found' : 'ambiguous';
-                    $entry['ambiguous_ids'] = $ids;
                 }
             }
 
             $resolved[] = $entry;
         }
 
-        // Suggestions for the unresolved, capped; ambiguous lines suggest
-        // their own candidates.
-        $suggested = 0;
-        foreach ($resolved as $i => $entry) {
-            if ($entry['oracle_card_id'] !== null || $entry['reason'] === 'unparseable' || $suggested >= self::SUGGESTED_LINES_MAX) {
-                continue;
-            }
-            $resolved[$i]['suggestion_ids'] = $entry['reason'] === 'ambiguous'
-                ? array_slice($entry['ambiguous_ids'], 0, self::SUGGESTION_LIMIT)
-                : self::suggestionIds($entry['name'], $format);
-            $suggested++;
-        }
-
-        // One batch for every card shown: resolved lines and suggestions.
+        // One batch for every resolved line's card.
         $requests = [];
         foreach ($resolved as $i => $entry) {
             if ($entry['oracle_card_id'] !== null) {
@@ -150,14 +126,6 @@ final class DeckListResolver
                     'oracle_card_id' => $entry['oracle_card_id'],
                     'printing_id' => $entry['printing_id'],
                     'set' => $entry['set'],
-                    'quantity' => $entry['quantity'],
-                ];
-            }
-            foreach ($entry['suggestion_ids'] ?? [] as $k => $oracleId) {
-                $requests["suggestion:{$i}:{$k}"] = [
-                    'oracle_card_id' => $oracleId,
-                    'printing_id' => null,
-                    'set' => null,
                     'quantity' => $entry['quantity'],
                 ];
             }
@@ -177,16 +145,6 @@ final class DeckListResolver
                 // something the user can fix by picking it again.
                 $resolved[$i]['reason'] = 'not_found';
             }
-            $suggestions = [];
-            foreach ($entry['suggestion_ids'] ?? [] as $k => $oracleId) {
-                if (isset($cards["suggestion:{$i}:{$k}"])) {
-                    $suggestions[] = [
-                        'card' => $cards["suggestion:{$i}:{$k}"]['card'],
-                        'availability' => $cards["suggestion:{$i}:{$k}"]['availability'],
-                    ];
-                }
-            }
-            $resolved[$i]['suggestions'] = $suggestions;
         }
 
         [$commandZone, $resolved] = self::commandZone($resolved, $oracles, $profile, $format);
@@ -203,10 +161,15 @@ final class DeckListResolver
     }
 
     /**
-     * Name search for the review page's "replace this line" field.
+     * Name search for the review page's "replace this line" field, which
+     * opens pre-filled with the pasted name.
      *
-     * Not limited to the format's pool — a user replacing a card knows what
-     * they want, and an illegal pick is flagged, not hidden.
+     * Every word must match, as in the other card searches. When that finds
+     * nothing it retries one word at a time, longest first — a typo in one
+     * word ("Lightnig Bolt") would otherwise sink the whole pre-filled query,
+     * while "bolt" alone still finds the card. Not limited to the format's
+     * pool: a user replacing a card knows what they want, and an illegal pick
+     * is flagged, not hidden.
      *
      * @return list<array{card: array, availability: array|null}>
      */
@@ -217,7 +180,17 @@ final class DeckListResolver
             return [];
         }
 
-        $ids = self::nameSearch($segments, null, self::SEARCH_LIMIT);
+        $ids = self::nameSearch($segments);
+        if ($ids === [] && count($segments) > 1) {
+            $words = array_filter(array_unique($segments), fn (string $word): bool => strlen($word) >= 3);
+            usort($words, fn (string $a, string $b): int => strlen($b) <=> strlen($a));
+            foreach ($words as $word) {
+                $ids = self::nameSearch([$word]);
+                if ($ids !== []) {
+                    break;
+                }
+            }
+        }
         $requests = [];
         foreach ($ids as $k => $id) {
             $requests[(string) $k] = ['oracle_card_id' => $id, 'printing_id' => null, 'set' => null, 'quantity' => $quantity];
@@ -366,42 +339,18 @@ final class DeckListResolver
     }
 
     /**
-     * Suggestions for a name that matched nothing: the fuzzy name search
-     * over the format's pool, retried on the longest word alone when the
-     * whole name finds nothing (a typo in one word sinks an AND of all).
+     * Oracle ids whose name matches every segment, best match first.
      *
-     * @return list<string>
-     */
-    private static function suggestionIds(string $name, CardFormat $format): array
-    {
-        $segments = self::segments($name);
-        if ($segments === []) {
-            return [];
-        }
-
-        $ids = self::nameSearch($segments, $format, self::SUGGESTION_LIMIT);
-        if ($ids === [] && count($segments) > 1) {
-            $longest = array_reduce($segments, fn (string $carry, string $s): string => strlen($s) > strlen($carry) ? $s : $carry, '');
-            $ids = self::nameSearch([$longest], $format, self::SUGGESTION_LIMIT);
-        }
-
-        return $ids;
-    }
-
-    /**
      * @param  list<string>  $segments
      * @return list<string>
      */
-    private static function nameSearch(array $segments, ?CardFormat $format, int $limit): array
+    private static function nameSearch(array $segments): array
     {
         $query = OracleCard::query()->select('oracle_cards.id');
         OracleNameSearch::applyMultiTableNameSegments($query, $segments);
-        if ($format !== null) {
-            $query->legalIn($format);
-        }
         OracleNameSearch::applyNameRanking($query, $segments);
 
-        return $query->limit($limit)->pluck('id')->all();
+        return $query->limit(self::SEARCH_LIMIT)->pluck('id')->all();
     }
 
     /** @return list<string> */
@@ -446,9 +395,15 @@ final class DeckListResolver
             ->whereIn('default_cards.oracle_id', $oracleIds)
             ->orderByDesc('sets.released_at')
             ->orderByDesc('default_cards.id')
-            ->get(['default_cards.id', 'default_cards.oracle_id', 'default_cards.collector_number', 'sets.code'])
+            ->get(['default_cards.id', 'default_cards.oracle_id', 'default_cards.collector_number', 'default_cards.card_image_0', 'sets.code', 'sets.name', 'sets.path'])
             ->each(function (object $row) use (&$printings): void {
-                $printings[$row->oracle_id][$row->id] = ['set' => strtolower((string) $row->code), 'number' => (string) $row->collector_number];
+                $printings[$row->oracle_id][$row->id] = [
+                    'set' => strtolower((string) $row->code),
+                    'number' => (string) $row->collector_number,
+                    'image' => $row->card_image_0,
+                    'set_name' => $row->name,
+                    'set_path' => $row->path,
+                ];
             });
 
         ['free' => $free, 'held' => $held] = DeckCollectionStatusService::freeCopiesForUser($user, $oracleIds);
@@ -496,8 +451,8 @@ final class DeckListResolver
      * chosen commander — are derived client-side from `is_legal`,
      * `copy_limit` and `color_identity`.
      *
-     * @param  array{set: string, number: string}  $printing
-     * @return array{oracle_card_id: string, name: string, color_identity: string|null, type_line: string|null, is_legal: bool, copy_limit: int|null, default_card_id: string, set_code: string, collector_number: string}
+     * @param  array{set: string, number: string, image: string|null, set_name: string|null, set_path: string|null}  $printing
+     * @return array{oracle_card_id: string, name: string, color_identity: string|null, type_line: string|null, is_legal: bool, copy_limit: int|null, default_card_id: string, set_code: string, set_name: string|null, set_path: string|null, collector_number: string, image: string|null}
      */
     private static function cardPayload(OracleCard $oracle, FormatProfile $profile, string $printingId, array $printing): array
     {
@@ -521,7 +476,11 @@ final class DeckListResolver
             'copy_limit' => $copyLimit,
             'default_card_id' => $printingId,
             'set_code' => $printing['set'],
+            'set_name' => $printing['set_name'],
+            'set_path' => $printing['set_path'],
             'collector_number' => $printing['number'],
+            // Front face, for the review row's thumbnail.
+            'image' => $printing['image'],
         ];
     }
 
@@ -664,7 +623,6 @@ final class DeckListResolver
             'notices' => array_values(array_unique($line['notices'])),
             'card' => $line['card'],
             'availability' => $line['availability'],
-            'suggestions' => $line['suggestions'],
         ];
     }
 }

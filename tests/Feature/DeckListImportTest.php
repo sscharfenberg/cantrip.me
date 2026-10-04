@@ -51,7 +51,7 @@ class DeckListImportTest extends TestCase
 
         // The name ranking every card search shares orders by CHAR_LENGTH,
         // which MariaDB has and SQLite lacks. Registering it here lets the
-        // suggestion and search paths run under the fast suite.
+        // replacement search runs under the fast suite.
         DB::connection()->getPdo()->sqliteCreateFunction('CHAR_LENGTH', fn ($value): int => mb_strlen((string) $value), 1);
     }
 
@@ -134,6 +134,7 @@ class DeckListImportTest extends TestCase
             'rarity' => 'common',
             'set_id' => $set->id,
             'oracle_id' => $oracle->id,
+            'card_image_0' => "/img/{$set->code}-{$number}.jpg",
         ]);
     }
 
@@ -180,6 +181,15 @@ class DeckListImportTest extends TestCase
             'format' => $format->value,
             'text' => $text,
         ]);
+    }
+
+    /** The replacement search, as the review page calls it. */
+    private function search(User $user, string $query): array
+    {
+        return $this->actingAs($user)
+            ->getJson('/api/decks/import-list/search?format=legacy&q='.rawurlencode($query))
+            ->assertOk()
+            ->json();
     }
 
     /** The first resolved line of a parse — most tests paste one card. */
@@ -251,6 +261,7 @@ class DeckListImportTest extends TestCase
         $this->assertSame('resolved', $line['status']);
         $this->assertSame($old->id, $line['card']['default_card_id']);
         $this->assertSame(['lea', '161'], [$line['card']['set_code'], $line['card']['collector_number']]);
+        $this->assertSame(['Set LEA', 'lea', '/img/lea-161.jpg'], [$line['card']['set_name'], $line['card']['set_path'], $line['card']['image']]);
         $this->assertSame([], $line['notices']);
     }
 
@@ -412,7 +423,7 @@ class DeckListImportTest extends TestCase
     }
 
     #[Test]
-    public function two_legal_cards_with_one_name_are_ambiguous(): void
+    public function two_legal_cards_with_one_name_are_ambiguous_and_the_search_offers_both(): void
     {
         $user = $this->user();
         $a = $this->oracle('Goblin Guide');
@@ -421,36 +432,49 @@ class DeckListImportTest extends TestCase
         $this->printing($b, $this->set('j22', '2022-12-02'), '1');
 
         $line = $this->firstLine($user, '1 Goblin Guide');
+        $results = $this->search($user, 'Goblin Guide');
 
         $this->assertSame(['unresolved', 'ambiguous'], [$line['status'], $line['reason']]);
-        $this->assertEqualsCanonicalizing([$a->id, $b->id], array_column(array_column($line['suggestions'], 'card'), 'oracle_card_id'));
+        $this->assertArrayNotHasKey('suggestions', $line);
+        $this->assertEqualsCanonicalizing([$a->id, $b->id], array_column(array_column($results, 'card'), 'oracle_card_id'));
     }
 
     #[Test]
-    public function an_unknown_name_gets_suggestions_from_the_name_search(): void
+    public function an_unknown_name_is_unresolved(): void
     {
-        $user = $this->user();
-        $bolt = $this->oracle('Lightning Bolt');
-        $this->printing($bolt, $this->set('lea', '1993-08-05'), '161');
-        $this->printing($this->oracle('Lightning Helix', 'RW'), $this->set('rav', '2005-10-07'), '213');
-        $banned = $this->oracle('Lightning Bargain', 'R', [], ['legacy' => 'banned']);
-        $this->printing($banned, $this->set('lea', '1993-08-05'), '999');
+        $this->printing($this->oracle('Lightning Bolt'), $this->set('lea', '1993-08-05'), '161');
 
-        // "Lightning Blot": the whole name matches nothing, so the longest
-        // word alone is tried — and the banned card is not suggested.
-        $line = $this->firstLine($user, '1 Lightning Blot');
+        $line = $this->firstLine($this->user(), '1 Lightning Blot');
 
-        $this->assertSame(['unresolved', 'not_found'], [$line['status'], $line['reason']]);
-        $this->assertSame(['Lightning Bolt', 'Lightning Helix'], array_column(array_column($line['suggestions'], 'card'), 'name'));
-        $this->assertNotNull($line['suggestions'][0]['card']['default_card_id']);
+        $this->assertSame(['unresolved', 'not_found', null], [$line['status'], $line['reason'], $line['card']]);
     }
 
     #[Test]
-    public function an_unparseable_line_is_unresolved_without_suggestions(): void
+    public function the_search_falls_back_to_single_words_longest_first(): void
+    {
+        // The review page pre-fills the search with the pasted name, typo and
+        // all. "Lightnig Bolt" matches nothing as a whole and "lightnig"
+        // matches nothing alone, so "bolt" has to carry it.
+        $user = $this->user();
+        $set = $this->set('lea', '1993-08-05');
+        $this->printing($this->oracle('Lightning Bolt'), $set, '161');
+        $this->printing($this->oracle('Bolt of Keranos'), $set, '200');
+        $this->printing($this->oracle('Lightning Helix', 'RW'), $set, '213');
+
+        // Ranked as every card search ranks: a prefix match ("Bolt of …") first.
+        $this->assertSame(['Bolt of Keranos', 'Lightning Bolt'], array_column(array_column($this->search($user, 'Lightnig Bolt'), 'card'), 'name'));
+        // A whole-query match is never widened: "lightning" alone would also find Helix.
+        $this->assertSame(['Lightning Bolt'], array_column(array_column($this->search($user, 'Lightning Bolt'), 'card'), 'name'));
+        // Words under three letters are not tried alone.
+        $this->assertSame([], $this->search($user, 'xx of'));
+    }
+
+    #[Test]
+    public function an_unparseable_line_is_unresolved(): void
     {
         $line = $this->firstLine($this->user(), '0 Lightning Bolt');
 
-        $this->assertSame(['unresolved', 'unparseable', []], [$line['status'], $line['reason'], $line['suggestions']]);
+        $this->assertSame(['unresolved', 'unparseable'], [$line['status'], $line['reason']]);
     }
 
     // ── availability and the master switch ───────────────────────────────

@@ -24,7 +24,12 @@ export interface DeckListCard {
     /** The printing that will be imported — pinned by the paste, or Quick Add's preference. */
     default_card_id: string;
     set_code: string;
+    set_name: string | null;
+    /** Set icon path. */
+    set_path: string | null;
     collector_number: string;
+    /** Front-face image of the printing, for the thumbnail. */
+    image: string | null;
 }
 
 /** A card offered for a line — a suggestion, a search result, or the line's own card. */
@@ -52,8 +57,6 @@ export interface DeckListLine {
     notices: Array<"printing_not_found" | "not_commander">;
     card: DeckListCard | null;
     availability: CollectionAvailability | null;
-    /** Offered for unresolved lines only. */
-    suggestions: DeckListCandidate[];
 }
 
 /** A header's block (or, without headers, a blank-line block). */

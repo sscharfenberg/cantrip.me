@@ -1,0 +1,36 @@
+@use "sass:map"; // https://sass-lang.com/documentation/modules/map
+@use "sass:color"; // https://sass-lang.com/documentation/modules/color
+@use "../../global-color-tokens" as c;
+
+/* The deck list import's review page: zebra-striped card rows (the review
+   lines and the suggestion / search result lists), mirroring the unclaimed
+   page's rows so the two card lists read alike. */
+$deck-list-import: (
+    "row": (
+        "border": light-dark(
+                color.adjust(map.get(c.$grey, "slate"), $alpha: -0.25),
+                color.adjust(map.get(c.$grey, "charcoal"), $alpha: -0.25)
+            ),
+        "background": (
+            "even": light-dark(
+                    color.adjust(map.get(c.$grey, "infra"), $alpha: -0.5),
+                    color.adjust(map.get(c.$grey, "bunker"), $alpha: -0.5)
+                ),
+            "odd": light-dark(
+                    color.adjust(map.get(c.$grey, "astral"), $alpha: -0.5),
+                    color.adjust(map.get(c.$grey, "ebony"), $alpha: -0.5)
+                ),
+            "hover": light-dark(map.get(c.$brand, "light2", "color"), map.get(c.$brand, "dark2", "color"))
+        ),
+        "surface": (
+            "default": light-dark(#000, #fff),
+            "hover": light-dark(map.get(c.$brand, "light2", "contrast"), map.get(c.$brand, "dark2", "contrast"))
+        )
+    ),
+    "thumb": (
+        "empty": light-dark(
+                color.adjust(map.get(c.$grey, "slate"), $alpha: -0.5),
+                color.adjust(map.get(c.$grey, "charcoal"), $alpha: -0.5)
+            )
+    )
+);

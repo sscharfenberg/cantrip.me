@@ -7,14 +7,17 @@
  * deck-scoped card search. Results come with the printing the import would
  * use and its availability, so picking one needs no second request.
  *****************************************************************************/
-import { onBeforeUnmount, ref } from "vue";
-import Icon from "Components/UI/Icon.vue";
+import { onBeforeUnmount, onMounted, ref } from "vue";
+import FormGroup from "Components/Form/FormGroup.vue";
 import type { DeckListCandidate } from "Types/deckListImport.ts";
+import DeckListCandidateList from "./DeckListCandidateList.vue";
 const props = defineProps<{
     /** The deck's format — results are flagged against it. */
     format: string;
     /** The line's quantity, for the availability of each result. */
     quantity: number;
+    /** Pre-filled query — the pasted name — searched right away. */
+    initialQuery?: string;
 }>();
 const emit = defineEmits<{
     /** The user picked a result. */
@@ -22,7 +25,7 @@ const emit = defineEmits<{
 }>();
 /** Wait after the last keystroke before searching. */
 const DEBOUNCE_MS = 500;
-const query = ref("");
+const query = ref(props.initialQuery ?? "");
 const results = ref<DeckListCandidate[]>([]);
 const searching = ref(false);
 /** True once a search has answered, so "no results" is not shown before the first one. */
@@ -59,6 +62,9 @@ const onInput = () => {
     if (timer) clearTimeout(timer);
     timer = setTimeout(search, DEBOUNCE_MS);
 };
+onMounted(() => {
+    if (query.value.trim() !== "") void search();
+});
 onBeforeUnmount(() => {
     if (timer) clearTimeout(timer);
     controller?.abort();
@@ -67,26 +73,17 @@ onBeforeUnmount(() => {
 
 <template>
     <div class="line-search">
-        <div class="form-input line-search__input">
-            <icon name="search" />
+        <form-group class="line-search__field" addon-icon="search" :validating="searching">
             <input
                 v-model="query"
                 type="search"
+                class="form-input"
                 :aria-label="$t('pages.deck_list_import.search.label')"
                 :placeholder="$t('pages.deck_list_import.search.placeholder')"
                 @input="onInput"
             />
-        </div>
-        <ul v-if="results.length" class="line-search__results">
-            <li v-for="result in results" :key="result.card.oracle_card_id">
-                <button type="button" class="btn-default line-search__result" @click="emit('pick', result)">
-                    {{ result.card.name }}
-                    <span class="line-search__printing">
-                        ({{ result.card.set_code.toUpperCase() }}) {{ result.card.collector_number }}
-                    </span>
-                </button>
-            </li>
-        </ul>
+        </form-group>
+        <deck-list-candidate-list v-if="results.length" :candidates="results" @pick="emit('pick', $event)" />
         <p v-else-if="searched && !searching" class="line-search__empty">
             {{ $t("pages.deck_list_import.search.no_results") }}
         </p>
@@ -94,37 +91,28 @@ onBeforeUnmount(() => {
 </template>
 
 <style lang="scss" scoped>
+@use "sass:map";
+@use "Abstracts/sizes" as s;
+
 .line-search {
     display: flex;
     flex-direction: column;
 
-    gap: 0.5ex;
+    gap: 0.75ex;
 }
 
-.line-search__input {
-    display: flex;
-    align-items: center;
+/* The shared search field — addon icon, spinner inside while searching —
+   without the form layout's label column. */
+.line-search__field {
+    max-width: map.get(s.$pages, "deck-list-import", "search", "max-width");
 
-    gap: 0.5ch;
-
-    input {
-        width: 100%;
+    :deep(> .label) {
+        display: none;
     }
-}
 
-.line-search__results {
-    display: flex;
-    flex-wrap: wrap;
-
-    padding: 0;
-    margin: 0;
-    gap: 0.5ex 0.5ch;
-
-    list-style: none;
-}
-
-.line-search__printing {
-    opacity: 0.75;
+    :deep(.form-group__input) {
+        flex: 1 1 auto;
+    }
 }
 
 .line-search__empty {

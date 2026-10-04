@@ -50,8 +50,37 @@ describe("DeckListReview — the lines", () => {
             .text();
 
         expect(text).toContain("Lightning Bolt");
-        expect(text).toContain("(2X2) 117");
-        expect(text).toContain("4");
+        expect(text).toContain("2X2 #117");
+        expect(text).toContain("4×");
+    });
+
+    it("shows a thumbnail of the printing, and a placeholder for an unresolved line", () => {
+        http.json("/api/decks/import-list/search", []);
+        const wrapper = render(makeParseResult([makeDeckListLine(), makeDeckListLine(null)]));
+        const [resolved, unresolved] = wrapper.findAll(".review-line");
+
+        expect(resolved.find(".review-line__main img.card-thumb").attributes("src")).toBe(
+            "/card-images/Lightning Bolt.jpg"
+        );
+        expect(unresolved.find(".review-line__main img").exists()).toBe(false);
+    });
+
+    it("previews the card image when the row is hovered", () => {
+        const row = render(makeParseResult([makeDeckListLine()])).find(".review-line .card-preview__trigger");
+
+        expect(row.find(".review-line__main").exists()).toBe(true);
+    });
+
+    it("heads each section with the cards it will import", () => {
+        http.json("/api/decks/import-list/search", []);
+        const result = makeParseResult([
+            makeDeckListLine(undefined, { quantity: 4 }),
+            makeDeckListLine(null, { quantity: 9 })
+        ]);
+
+        expect(render(result).find(".deck-list-review__section h3").text()).toBe(
+            "pages.deck_list_import.review.untitled_section (4)"
+        );
     });
 
     it("shows the availability badge only when the collection is visible", () => {
@@ -84,23 +113,41 @@ describe("DeckListReview — the lines", () => {
 });
 
 describe("DeckListReview — what blocks the confirm", () => {
-    it("is blocked by an unresolved line and released by picking a suggestion", async () => {
-        const unresolved = makeDeckListLine(null, {
-            raw: "4 Lightnig Bolt",
-            suggestions: [{ card: makeDeckListCard("Lightning Bolt"), availability: null }]
-        });
+    it("is blocked by an unresolved line and released by picking a search result", async () => {
+        http.json("/api/decks/import-list/search", [{ card: makeDeckListCard("Lightning Bolt"), availability: null }]);
+        const unresolved = makeDeckListLine(null, { raw: "4 Lightnig Bolt", name: "Lightnig Bolt", quantity: 4 });
         const wrapper = render(makeParseResult([unresolved]));
+        await flushPromises();
 
         expect(confirmButton(wrapper).attributes("disabled")).toBeDefined();
         expect(wrapper.text()).toContain("pages.deck_list_import.review.unresolved");
+        // The search opened pre-filled with the pasted name and already ran.
+        expect(http.lastCall("/api/decks/import-list/search")?.url).toBe(
+            "/api/decks/import-list/search?format=legacy&q=Lightnig+Bolt&quantity=4"
+        );
 
-        await wrapper.find(".review-line__suggestions button").trigger("click");
+        await wrapper.find(".review-line__fix .candidate-list__row").trigger("click");
 
         expect(confirmButton(wrapper).attributes("disabled")).toBeUndefined();
         expect(wrapper.find(".review-line").text()).toContain("Lightning Bolt");
     });
 
+    it("offers undo right beside the replacement notice, and undoing blocks again", async () => {
+        http.json("/api/decks/import-list/search", [{ card: makeDeckListCard("Lightning Bolt"), availability: null }]);
+        const wrapper = render(makeParseResult([makeDeckListLine(null)]));
+        await flushPromises();
+        await wrapper.find(".review-line__fix .candidate-list__row").trigger("click");
+
+        const replaced = wrapper.find(".review-line__replaced");
+        expect(replaced.find(".review-line__message--info").text()).toContain("pages.deck_list_import.line.replaced");
+        await replaced.find("button").trigger("click");
+
+        expect(wrapper.find(".review-line__replaced").exists()).toBe(false);
+        expect(confirmButton(wrapper).attributes("disabled")).toBeDefined();
+    });
+
     it("is released by leaving the unresolved line out", async () => {
+        http.json("/api/decks/import-list/search", []);
         const wrapper = render(makeParseResult([makeDeckListLine(null), makeDeckListLine()]));
 
         await wrapper.find(".review-line input[type=checkbox]").setValue(false);
@@ -224,6 +271,17 @@ describe("DeckListReview — confirm", () => {
 
         const rows = (http.lastCall("/decks/import-list")?.body as { rows: Array<{ zone: string }> }).rows;
         expect(rows.map(row => row.zone)).toEqual(["main", "main"]);
+    });
+
+    it("shows a spinner in the button while the deck is being created", async () => {
+        http.hang("/decks/import-list");
+        const wrapper = render(makeParseResult([makeDeckListLine()]));
+
+        await confirmButton(wrapper).trigger("click");
+        await flushPromises();
+
+        expect(confirmButton(wrapper).find(".loading-spinner").exists()).toBe(true);
+        expect(confirmButton(wrapper).attributes("disabled")).toBeDefined();
     });
 
     it("shows validation errors and stays on the page", async () => {

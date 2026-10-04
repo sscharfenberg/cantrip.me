@@ -40,8 +40,10 @@ test("a pasted list becomes a deck once its typo is fixed and its commander pick
     await expect(typo).toContainText('Keine Karte namens "Lightnig Bolt" gefunden.');
     await expect(confirm).toBeDisabled();
 
-    await typo.getByRole("searchbox", { name: "Nach einer Karte suchen" }).fill("Lightning");
-    await typo.locator(".line-search__result").filter({ hasText: "Lightning Bolt" }).click();
+    /* The search opens pre-filled with the pasted name; the typo sinks the
+       whole query, so it finds the card through the single word "bolt". */
+    await expect(typo.getByRole("searchbox", { name: "Nach einer Karte suchen" })).toHaveValue("Lightnig Bolt");
+    await typo.locator(".candidate-list__row").filter({ hasText: "Lightning Bolt" }).click();
     await expect(page.locator(".review-line").filter({ hasText: "Ersetzt" })).toContainText("Lightning Bolt");
 
     /* Still blocked: a Commander deck needs its command zone. */

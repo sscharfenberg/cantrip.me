@@ -16,7 +16,8 @@ afterEach(() => {
     vi.useRealTimers();
 });
 
-const render = () => mount(DeckListLineSearch, { props: { format: "legacy", quantity: 3 } });
+const render = (initialQuery?: string) =>
+    mount(DeckListLineSearch, { props: { format: "legacy", quantity: 3, initialQuery } });
 
 /** Type a query and let the debounce and the request run out. */
 const type = async (wrapper: ReturnType<typeof render>, query: string) => {
@@ -39,6 +40,23 @@ describe("DeckListLineSearch", () => {
         expect(http.lastCall()?.url).toBe("/api/decks/import-list/search?format=legacy&q=light&quantity=3");
     });
 
+    it("searches the pre-filled query straight away, without waiting for typing", async () => {
+        http.json("/api/decks/import-list/search", []);
+        const wrapper = render("Lightnig Bolt");
+        await flushPromises();
+
+        expect((wrapper.find("input").element as HTMLInputElement).value).toBe("Lightnig Bolt");
+        expect(http.lastCall()?.url).toBe("/api/decks/import-list/search?format=legacy&q=Lightnig+Bolt&quantity=3");
+    });
+
+    it("shows the spinner inside the search field", async () => {
+        http.hang("/api/decks/import-list/search");
+        const wrapper = render("Lightning");
+        await flushPromises();
+
+        expect(wrapper.find(".form-group__slot .form-group--validating").exists()).toBe(true);
+    });
+
     it("does not search for a single character", async () => {
         const wrapper = render();
 
@@ -53,10 +71,21 @@ describe("DeckListLineSearch", () => {
         const wrapper = render();
 
         await type(wrapper, "lightning");
-        await wrapper.find(".line-search__result").trigger("click");
+        const row = wrapper.find(".candidate-list__row");
+        await row.trigger("click");
 
-        expect(wrapper.find(".line-search__result").text()).toContain("(LEA) 161");
+        expect(row.text()).toContain("LEA #161");
+        expect(row.find("img.card-thumb").attributes("src")).toBe("/card-images/Lightning Bolt.jpg");
         expect(wrapper.emitted("pick")).toEqual([[result]]);
+    });
+
+    it("shows a spinner while the search is in flight", async () => {
+        http.hang("/api/decks/import-list/search");
+        const wrapper = render();
+
+        await type(wrapper, "lightning");
+
+        expect(wrapper.find(".loading-spinner").exists()).toBe(true);
     });
 
     it("says when nothing was found", async () => {

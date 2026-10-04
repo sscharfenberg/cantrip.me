@@ -82,6 +82,17 @@ describe("DeckListImportPage — parsing", () => {
         expect(wrapper.find("#deck_list").exists()).toBe(false);
     });
 
+    it("shows a spinner in the button while the paste is checked", async () => {
+        http.hang("/api/decks/import-list/parse");
+        const wrapper = render();
+
+        await fill(wrapper, "4 Lightning Bolt");
+        await parse(wrapper);
+
+        expect(submitButton(wrapper).find(".loading-spinner").exists()).toBe(true);
+        expect(submitButton(wrapper).text()).toContain("pages.deck_list_import.paste.parsing");
+    });
+
     it("names the deck after a pre-filled commander when no name was given", async () => {
         http.json(
             "/api/decks/import-list/parse",

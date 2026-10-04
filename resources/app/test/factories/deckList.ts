@@ -21,7 +21,10 @@ export function makeDeckListCard(name = "Lightning Bolt", overrides: Partial<Dec
         copy_limit: 4,
         default_card_id: `printing-${name}`,
         set_code: "lea",
+        set_name: "Limited Edition Alpha",
+        set_path: "/storage/set/lea.svg",
         collector_number: "161",
+        image: `/card-images/${name}.jpg`,
         ...overrides
     };
 }
@@ -46,7 +49,6 @@ export function makeDeckListLine(
         notices: [],
         card,
         availability: null,
-        suggestions: [],
         ...overrides
     };
 }

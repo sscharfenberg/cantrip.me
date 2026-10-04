@@ -15,6 +15,7 @@ import FormLegend from "Components/Form/FormLegend.vue";
 import MonoSelect from "Components/Form/Select/MonoSelect.vue";
 import Headline from "Components/UI/Headline.vue";
 import Icon from "Components/UI/Icon.vue";
+import LoadingSpinner from "Components/UI/LoadingSpinner.vue";
 import type { BreadcrumbItem } from "Composables/useBreadcrumbs.ts";
 import { useBreadcrumbs } from "Composables/useBreadcrumbs.ts";
 import type { DeckListParseResult } from "Types/deckListImport.ts";
@@ -195,6 +196,7 @@ const parse = async (): Promise<void> => {
             <button type="submit" class="btn-primary" :disabled="!canParse">
                 <icon name="search" />
                 {{ $t(parsing ? "pages.deck_list_import.paste.parsing" : "pages.deck_list_import.paste.submit") }}
+                <loading-spinner v-if="parsing" :size="2" />
             </button>
         </form-group>
     </form>

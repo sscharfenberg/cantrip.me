@@ -856,8 +856,7 @@
                 "undo": "Undo",
                 "number": "Line {line}",
                 "replaced": "Replaces \"{raw}\".",
-                "deduped": "One copy is in the command zone and is not imported twice.",
-                "suggestions": "Did you mean:"
+                "deduped": "One copy is in the command zone and is not imported twice."
             },
             "reasons": {
                 "unparseable": "This line could not be read.",
