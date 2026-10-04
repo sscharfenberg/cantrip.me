@@ -152,6 +152,11 @@ describe("harness: global directives", () => {
         });
 
         expect(mount(WithOptions).attributes("data-tooltip")).toBe("Gebannt");
+        expect(mount(WithOptions).attributes("data-tooltip-container")).toBe("#modal-body");
+    });
+
+    it("leaves the container attribute off when no container is given", () => {
+        expect(mount(TooltipComponent).attributes("data-tooltip-container")).toBeUndefined();
     });
 
     it("renders no attribute at all when the directive is disabled", () => {

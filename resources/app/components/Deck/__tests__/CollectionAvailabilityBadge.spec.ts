@@ -15,27 +15,40 @@ const availability = (
 const render = (value: CollectionAvailability, variant?: "inline" | "corner") =>
     mount(CollectionAvailabilityBadge, { props: { availability: value, variant } });
 
-const tooltipOf = (value: CollectionAvailability): string | undefined =>
-    render(value).attributes("data-tooltip");
+const tooltipOf = (value: CollectionAvailability): string | undefined => render(value).attributes("data-tooltip");
+
+describe("CollectionAvailabilityBadge — tooltip container", () => {
+    it("renders the tooltip where it is told to — above a modal, inside it", () => {
+        const wrapper = mount(CollectionAvailabilityBadge, {
+            props: { availability: availability("partial", 2, 1, 0), tooltipContainer: "#modal-body" }
+        });
+
+        expect(wrapper.attributes("data-tooltip-container")).toBe("#modal-body");
+        expect(wrapper.attributes("data-tooltip")).toContain("pages.deck.collection_availability.partial_printing");
+    });
+
+    it("keeps the default container when none is given", () => {
+        expect(render(availability("partial", 2, 1, 0)).attributes("data-tooltip-container")).toBeUndefined();
+    });
+});
 
 describe("CollectionAvailabilityBadge — icon and colour", () => {
     it.each([
         ["available", "#check", "collection-availability--available"],
         ["partial", "#planned", "collection-availability--partial"],
         ["unavailable", "#money", "collection-availability--unavailable"]
-    ] as [CollectionAvailability["state"], string, string][])(
-        "shows %s as %s",
-        (state, icon, colourClass) => {
-            const wrapper = render(availability(state, 1, 0, 0));
+    ] as [CollectionAvailability["state"], string, string][])("shows %s as %s", (state, icon, colourClass) => {
+        const wrapper = render(availability(state, 1, 0, 0));
 
-            expect(wrapper.find("use").attributes("href")).toBe(icon);
-            expect(wrapper.classes()).toContain(colourClass);
-        }
-    );
+        expect(wrapper.find("use").attributes("href")).toBe(icon);
+        expect(wrapper.classes()).toContain(colourClass);
+    });
 
     it("gives each state its own icon, so the three read apart at a glance", () => {
-        const icons = (["available", "partial", "unavailable"] as CollectionAvailability["state"][]).map(
-            state => render(availability(state, 1, 0, 0)).find("use").attributes("href")
+        const icons = (["available", "partial", "unavailable"] as CollectionAvailability["state"][]).map(state =>
+            render(availability(state, 1, 0, 0))
+                .find("use")
+                .attributes("href")
         );
 
         expect(new Set(icons).size).toBe(3);

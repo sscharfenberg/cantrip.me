@@ -208,7 +208,7 @@ if (!globalThis.matchMedia) {
  *****************************************************************************/
 
 /** The shapes `v-tooltip` accepts: content, an options object, or `false` to disable. */
-type TooltipValue = string | false | null | undefined | { content?: unknown };
+type TooltipValue = string | false | null | undefined | { content?: unknown; container?: unknown };
 
 /**
  * Resolve a `v-tooltip` binding to the text FloatingVue would show, or null
@@ -233,7 +233,8 @@ const tooltipContent = (value: TooltipValue): string | null => {
  *
  * Rather than rendering a floating element, the resolved content is written to
  * `data-tooltip` on the host element, and the attribute is absent when the
- * directive is disabled. Tooltip *content* is frequently real logic in this app
+ * directive is disabled. A `container` option lands in
+ * `data-tooltip-container`. Tooltip *content* is frequently real logic in this app
  * — see `Deck/DeckCardCount.vue`, which assembles a multi-line HTML tooltip —
  * so making it assertable is worth more than a bare no-op.
  */
@@ -252,6 +253,14 @@ const applyTooltip = (el: HTMLElement, value: TooltipValue): void => {
         delete el.dataset.tooltip;
     } else {
         el.dataset.tooltip = content;
+    }
+    // The container decides whether a tooltip inside a modal renders above
+    // it or underneath, so it is exposed too: `data-tooltip-container`.
+    const container = typeof value === "object" && value !== null ? value.container : undefined;
+    if (content !== null && typeof container === "string") {
+        el.dataset.tooltipContainer = container;
+    } else {
+        delete el.dataset.tooltipContainer;
     }
 };
 

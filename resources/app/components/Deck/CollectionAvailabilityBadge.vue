@@ -34,6 +34,12 @@ const props = defineProps<{
     availability: CollectionAvailability;
     /** Layout variant — text rows use `inline`, image grid uses `corner`. */
     variant?: "inline" | "corner";
+    /**
+     * Where the tooltip renders. Inside a modal pass `#modal-body`: the
+     * modal is a `<dialog>` in the top layer, and a tooltip attached to
+     * `body` (the default) renders underneath it.
+     */
+    tooltipContainer?: string;
 }>();
 const { t } = useI18n();
 const iconName = computed<string>(() => {
@@ -81,7 +87,7 @@ const tooltip = computed<string>(() => {
 
 <template>
     <icon
-        v-tooltip="tooltip"
+        v-tooltip="tooltipContainer ? { content: tooltip, container: tooltipContainer } : tooltip"
         :name="iconName"
         :size="1"
         :additional-classes="['collection-availability', colorClass, variantClass]"

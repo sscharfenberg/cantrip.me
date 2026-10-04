@@ -32,8 +32,7 @@ afterEach(() => {
 });
 
 /** Modal.vue teleports into <body>, so assertions go through `document`. */
-const open = (cards: UnavailableCard[] = [card()]) =>
-    mount(DeckUnavailableCardsModal, { props: { cards } });
+const open = (cards: UnavailableCard[] = [card()]) => mount(DeckUnavailableCardsModal, { props: { cards } });
 
 const rows = () => document.querySelectorAll(".unavailable-cards__row");
 
@@ -73,10 +72,23 @@ describe("DeckUnavailableCardsModal — the list", () => {
     it("carries each row's availability badge", () => {
         // Reused rather than re-derived, so the row inherits the tooltip that
         // already explains the counts.
-        open([card(), card({ id: "x", availability: { state: "unavailable", needed: 1, exact: 0, other: 0, blocked: 0 } })]);
+        open([
+            card(),
+            card({ id: "x", availability: { state: "unavailable", needed: 1, exact: 0, other: 0, blocked: 0 } })
+        ]);
 
         expect(document.querySelector(".collection-availability--partial")).not.toBeNull();
         expect(document.querySelector(".collection-availability--unavailable")).not.toBeNull();
+    });
+
+    it("renders the badges' tooltips inside the modal, not underneath it", () => {
+        // The modal is a <dialog> in the top layer; a tooltip attached to
+        // body would paint below it.
+        open([card()]);
+
+        expect(document.querySelector(".collection-availability")?.getAttribute("data-tooltip-container")).toBe(
+            "#modal-body"
+        );
     });
 });
 

@@ -62,7 +62,10 @@ const copyName = async (card: UnavailableCard): Promise<void> => {
                         :src="card.setPath"
                         :alt="`${card.setCode?.toUpperCase()} - ${card.setName}`"
                         class="unavailable-cards__set"
-                        v-tooltip="{ content: `${card.setCode?.toUpperCase()} - ${card.setName}`, container: '#modal-body' }"
+                        v-tooltip="{
+                            content: `${card.setCode?.toUpperCase()} - ${card.setName}`,
+                            container: '#modal-body'
+                        }"
                     />
                     <span class="unavailable-cards__code">
                         [{{ card.setCode?.toUpperCase() }}] #{{ card.collectorNumber }}
@@ -84,7 +87,11 @@ const copyName = async (card: UnavailableCard): Promise<void> => {
                         {{ t("pages.deck.unavailable.copied") }}
                     </span>
                 </span>
-                <collection-availability-badge :availability="card.availability" variant="inline" />
+                <collection-availability-badge
+                    :availability="card.availability"
+                    variant="inline"
+                    tooltip-container="#modal-body"
+                />
             </li>
         </ul>
     </modal>
