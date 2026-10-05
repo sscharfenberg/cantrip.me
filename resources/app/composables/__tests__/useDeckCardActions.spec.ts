@@ -703,7 +703,16 @@ describe("useDeckCardActions — switchPrinting", () => {
         expect(cards[0].default_card).toEqual(original);
     });
 
-    it("does not reload — only the artwork changed", async () => {
+    it("reloads the cards so the per-printing collection badges follow the swap", async () => {
+        const { actions } = setup();
+
+        await actions.switchPrinting(printing);
+
+        expect(routerMock.reload).toHaveBeenCalledWith({ only: ["cards", "tokens"] });
+    });
+
+    it("does not reload when the server refuses", async () => {
+        http.status(PRINTING_URL, 422);
         const { actions } = setup();
 
         await actions.switchPrinting(printing);

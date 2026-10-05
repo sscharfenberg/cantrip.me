@@ -321,8 +321,11 @@ export function useDeckCardActions(params: DeckCardActionParams, closePopover: (
     /**
      * Optimistically swap the deck card's printing: update the page's card
      * in place so the UI reflects the change immediately, then PATCH the
-     * server. On failure, restore the previous printing. No reload — color
-     * identity and legality are unchanged when only the printing shifts.
+     * server. On failure, restore the previous printing. On success, reload
+     * `cards` and `tokens`: color identity and legality are unchanged, but the
+     * collection badges (availability, mode B/C status) and the matching token
+     * printings are computed server-side per printing, so the optimistic swap
+     * alone would leave them describing the printing just replaced.
      */
     async function switchPrinting(printing: DeckPrinting): Promise<void> {
         const cards = page.props.cards as DeckCardRow[];
@@ -349,7 +352,9 @@ export function useDeckCardActions(params: DeckCardActionParams, closePopover: (
         if (!response.ok) {
             const target = cards.find(c => c.id === params.cardId);
             if (target !== undefined) target.default_card = previous;
+            return;
         }
+        router.reload({ only: ["cards", "tokens"] });
     }
 
     return { canIncrement, increment, decrement, destroy, moveZone, switchPrinting };
