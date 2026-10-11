@@ -66,14 +66,13 @@ lines if it's just another constructed pool (the `default` arm catches it).
 ## canAddCopy is stateless
 
 `FormatProfile::canAddCopy()` deliberately does not query the database. The
-caller passes in the current copy count and the current deck size:
+caller passes in the current copy count:
 
 ```php
 $profile = $deck->format->rules();
 $result = $profile->canAddCopy(
     card: $card,
     currentCopies: $existingCopies,
-    currentDeckSize: $deck->deckCards()->sum('count'),
 );
 
 if (! $result->allowed) {
@@ -85,6 +84,11 @@ This keeps the profile pure, easy to unit test, and lets the caller batch DB
 lookups once per request instead of once per card. Returns an immutable
 `AddCopyResult` value object — `allowed()` or `denied($reason)` where
 `$reason` is an `AddCopyFailure` enum case.
+
+The deck size is not checked at all. Building past `maxDeckSize()` and cutting
+down afterwards is a common way to build, so adding is never refused for it —
+`DeckValidator` reports the oversized deck as a `deck_size_max` violation
+instead.
 
 Color identity is not yet checked inside `canAddCopy()` — that needs the
 commander context and will be handled by the DeckService layer calling the

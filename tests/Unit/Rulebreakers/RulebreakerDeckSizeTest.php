@@ -8,7 +8,14 @@ use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 /**
- * Whtz, the Bibliophile's "no maximum deck size" reaching the ADD path.
+ * Whtz, the Bibliophile's "no maximum deck size" and the ADD path.
+ *
+ * `canAddCopy()` used to take the deck size plus a `$maxDeckSizeLifted` flag,
+ * which is how Whtz got past the 100-card ceiling there. The ceiling has since
+ * left the add path for every deck — building past the maximum and cutting
+ * down is allowed, and DeckValidator reports the oversized deck — so Whtz needs
+ * no lift at the add path any more. What it must still not do is relax the copy
+ * rules.
  *
  * Separate from {@see RulebreakerProfilesTest} because `canAddCopy()` calls
  * `OracleCard::hasUnlimitedCopiesRule()`, whose `loadMissing()` resolves a
@@ -21,38 +28,30 @@ class RulebreakerDeckSizeTest extends TestCase
     use BuildsRulebreakerDecks;
 
     /**
-     * Suppressing the `deck_size_max` VIOLATION was not enough on its own. The
-     * deck read as legal while the add endpoint went on refusing the 101st
-     * card and quick-add filtered it out of the results, which left the card's
-     * only ability unreachable.
+     * Commander keeps its 100-card maximum as a legality rule, yet the add
+     * check never asks about it: there is no deck size for it to compare.
      */
     #[Test]
-    public function the_deck_size_lift_reaches_can_add_copy(): void
+    public function the_maximum_deck_size_is_not_an_add_rule(): void
     {
         $profile = CardFormat::Commander->rules();
         $card = $this->makeOracleCard('Filler', 'Creature — Human', 'W');
         $card->setRelation('faces', new Collection);
 
-        $this->assertFalse(
-            $profile->canAddCopy($card, 0, 100)->allowed,
-            'an ordinary Commander deck is capped at 100',
-        );
-        $this->assertTrue(
-            $profile->canAddCopy($card, 0, 100, maxDeckSizeLifted: true)->allowed,
-            'Whtz lifts that cap at the add path too',
-        );
+        $this->assertSame(100, $profile->maxDeckSize(), 'Commander still has a ceiling to validate against');
+        $this->assertTrue($profile->canAddCopy($card, 0)->allowed, 'adding is never refused for it');
     }
 
-    /** The lift is about size only — singleton is untouched. */
+    /** Lifting the size ceiling never touched singleton, and still does not. */
     #[Test]
-    public function the_deck_size_lift_does_not_relax_singleton(): void
+    public function singleton_still_refuses_a_second_copy(): void
     {
         $profile = CardFormat::Commander->rules();
         $card = $this->makeOracleCard('Filler', 'Creature — Human', 'W');
         $card->setRelation('faces', new Collection);
 
         $this->assertFalse(
-            $profile->canAddCopy($card, 1, 100, maxDeckSizeLifted: true)->allowed,
+            $profile->canAddCopy($card, 1)->allowed,
             'a second copy is still a singleton violation',
         );
     }

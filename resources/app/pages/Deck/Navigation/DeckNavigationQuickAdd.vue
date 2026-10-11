@@ -9,7 +9,7 @@ import Icon from "Components/UI/Icon.vue";
 import LoadingSpinner from "Components/UI/LoadingSpinner.vue";
 import { markRecentlyAdded } from "Composables/useRecentlyAdded.ts";
 import { useToast } from "Composables/useToast.ts";
-import type { DeckCardRow, DeckMeta, QuickAddCardResult } from "Types/deckPage.ts";
+import type { DeckCardRow, QuickAddCardResult } from "Types/deckPage.ts";
 const props = defineProps<{
     /** Deck UUID — used to build the search endpoint URL. */
     deckId: string;
@@ -143,8 +143,7 @@ async function addCard(card: QuickAddCardResult): Promise<void> {
         if (!response.ok) {
             delete rowState[card.id];
             if (response.status === 422) {
-                const maxDeckSize = (page.props.deck as DeckMeta | undefined)?.max_deck_size ?? "";
-                addToast(t(await refusalMessageKey(response), { max: maxDeckSize }), "error");
+                addToast(t(await refusalMessageKey(response)), "error");
             }
             return;
         }

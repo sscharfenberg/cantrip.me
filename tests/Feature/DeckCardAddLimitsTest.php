@@ -12,6 +12,7 @@ use App\Models\DefaultCard;
 use App\Models\OracleCard;
 use App\Models\Set;
 use App\Models\User;
+use App\Services\DeckValidator;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -25,11 +26,11 @@ use Tests\TestCase;
  * POST /api/decks/{deck}/cards (Add Cards, Quick Add). Both go through one
  * check, so the same deck must get the same answer from either.
  *
- * The deck-size cap counts mainboard + command zone only — the same count
- * DeckValidator and the deck header use. It used to sum every zone, so a
- * Commander deck with a maybeboard refused a basic land it had room for.
- * Adding a card used to skip the check entirely, so a full deck took a
- * 101st card through Add Cards while "+" refused it.
+ * The format's maximum deck size is NOT one of those rules any more. Players
+ * build by piling far more cards into a deck than it may hold and cutting
+ * down afterwards, so both endpoints take the 101st card — the oversized deck
+ * is reported by DeckValidator's `deck_size_max` violation instead. Copy
+ * limits and singleton still refuse, oversized deck or not.
  * A refusal ships the AddCopyFailure as `reason` so the UI can explain it.
  *
  * The Local PHPUnit suite uses SQLite. The defensive `mysql` skip keeps
@@ -161,14 +162,49 @@ class DeckCardAddLimitsTest extends TestCase
     }
 
     #[Test]
-    public function it_refuses_a_basic_land_on_a_full_deck_and_says_why(): void
+    public function it_takes_a_basic_land_past_the_maximum_deck_size(): void
     {
         [$user, $deck, $swamp] = $this->commanderDeck(100);
 
-        $this->increment($user, $deck, $swamp)
+        $this->increment($user, $deck, $swamp)->assertOk()->assertJson(['quantity' => 2]);
+        $this->assertSame(2, $swamp->fresh()->quantity);
+    }
+
+    /**
+     * A deck well past its maximum still answers to the copy limit — and says
+     * so, rather than blaming the size. Under the old cap this deck refused
+     * with `exceeds_deck_size` before singleton was ever consulted.
+     */
+    #[Test]
+    public function an_oversized_deck_still_enforces_singleton(): void
+    {
+        [$user, $deck] = $this->commanderDeck(120);
+        $nonBasic = $this->makeDeckCard($deck, 'Sol Ring', 1);
+
+        $this->increment($user, $deck, $nonBasic)
             ->assertUnprocessable()
-            ->assertExactJson(['reason' => 'exceeds_deck_size']);
-        $this->assertSame(1, $swamp->fresh()->quantity);
+            ->assertExactJson(['reason' => 'violates_singleton']);
+    }
+
+    /**
+     * The other half of allowing the add: the deck the legality panel is
+     * built from reports how far over the maximum it now is.
+     */
+    #[Test]
+    public function a_deck_taken_past_its_maximum_reports_the_size_violation(): void
+    {
+        [$user, $deck, $swamp] = $this->commanderDeck(100);
+
+        $this->add($user, $deck, $swamp)->assertCreated();
+
+        $deck->load([
+            'deckCards.oracleCard.faces',
+            'deckCards.oracleCard.legalities' => fn ($q) => $q->where('format', $deck->format->value),
+            'commanders.oracleCard',
+        ]);
+        $sizeViolation = collect(DeckValidator::validate($deck))->firstWhere('type', 'deck_size_max');
+
+        $this->assertSame(['type' => 'deck_size_max', 'current' => 101, 'max' => 100], $sizeViolation);
     }
 
     /**
@@ -195,7 +231,9 @@ class DeckCardAddLimitsTest extends TestCase
 
     /**
      * Whtz, the Bibliophile: "a deck with this commander has no maximum
-     * deck size". The Rulebreaker lifts the ceiling, not the copy limit.
+     * deck size". Adding no longer tells it apart from any other deck — no
+     * deck is capped at the add path — but its deck must keep taking cards
+     * past 100, and the Rulebreaker lifts the ceiling, not the copy limit.
      */
     #[Test]
     public function a_whtz_deck_takes_a_basic_land_past_one_hundred(): void
@@ -236,19 +274,14 @@ class DeckCardAddLimitsTest extends TestCase
         $this->assertSame(2, (int) $deck->deckCards()->where('oracle_card_id', $swamp->oracle_card_id)->sum('quantity'));
     }
 
-    /**
-     * Regression: store() had no format check, so Add Cards took a 101st
-     * card that "+" refused.
-     */
+    /** Add Cards and Quick Add take the 101st card exactly as "+" does. */
     #[Test]
-    public function adding_a_card_to_a_full_deck_is_refused_like_the_plus_button(): void
+    public function adding_a_card_past_the_maximum_deck_size_creates_the_row(): void
     {
         [$user, $deck, $swamp] = $this->commanderDeck(100);
 
-        $this->add($user, $deck, $swamp)
-            ->assertUnprocessable()
-            ->assertExactJson(['reason' => 'exceeds_deck_size']);
-        $this->assertSame(1, $deck->deckCards()->where('oracle_card_id', $swamp->oracle_card_id)->count());
+        $this->add($user, $deck, $swamp)->assertCreated();
+        $this->assertSame(2, $deck->deckCards()->where('oracle_card_id', $swamp->oracle_card_id)->count());
     }
 
     #[Test]
@@ -276,5 +309,35 @@ class DeckCardAddLimitsTest extends TestCase
         [$user, $deck, $swamp] = $this->commanderDeck(100, 'Whtz, the Bibliophile');
 
         $this->add($user, $deck, $swamp)->assertCreated();
+    }
+
+    /**
+     * The sideboard was never capped here — only the Add Cards modal stopped
+     * offering it at 15. Now that the modal offers it past the maximum too,
+     * both endpoints must keep taking cards, and the deck must report it.
+     */
+    #[Test]
+    public function a_sideboard_takes_cards_past_its_maximum_and_reports_the_excess(): void
+    {
+        $user = User::factory()->create();
+        $deck = Deck::create([
+            'user_id' => $user->id,
+            'name' => 'Test Deck',
+            'format' => CardFormat::Legacy->value,
+            'state' => DeckState::Built->value,
+        ]);
+        $island = $this->makeDeckCard($deck, 'Island', 15, DeckZone::Side);
+
+        $this->add($user, $deck, $island, DeckZone::Side)->assertCreated();
+        $this->increment($user, $deck, $island)->assertOk()->assertJson(['quantity' => 16]);
+
+        $deck->load([
+            'deckCards.oracleCard.faces',
+            'deckCards.oracleCard.legalities' => fn ($q) => $q->where('format', $deck->format->value),
+            'commanders.oracleCard',
+        ]);
+        $sizeViolation = collect(DeckValidator::validate($deck))->firstWhere('type', 'sideboard_size_max');
+
+        $this->assertSame(['type' => 'sideboard_size_max', 'current' => 17, 'max' => 15], $sizeViolation);
     }
 }

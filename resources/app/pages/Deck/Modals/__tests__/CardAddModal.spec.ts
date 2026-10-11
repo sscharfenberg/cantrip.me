@@ -12,7 +12,7 @@ vi.mock("@inertiajs/vue3", async () => (await import("@/test/inertia.ts")).inert
 const SEARCH = "/api/decks/deck-1/card-search/printings";
 const ADD = "/api/decks/deck-1/cards";
 
-const deck = (cardCount: DeckCardCount = { main: 0, companion: 0, side: 0 }): DeckMeta =>
+const deck = (cardCount: DeckCardCount = { main: 0, companion: 0, side: 0 }, maxSideboardSize = 15): DeckMeta =>
     ({
         id: "deck-1",
         name: "Test Deck",
@@ -24,8 +24,7 @@ const deck = (cardCount: DeckCardCount = { main: 0, companion: 0, side: 0 }): De
         bracket: null,
         card_count: cardCount,
         total_worth: 0,
-        max_deck_size: 60,
-        max_sideboard_size: 15,
+        max_sideboard_size: maxSideboardSize,
         max_copies: 4,
         is_singleton: false,
         enforces_color_identity: false,
@@ -48,13 +47,13 @@ afterEach(() => {
 });
 
 /** Modal.vue teleports into <body>, so assertions go through `document`. */
-const open = (collectionIntegrationEnabled: boolean, cardCount?: DeckCardCount) => {
+const open = (collectionIntegrationEnabled: boolean, cardCount?: DeckCardCount, maxSideboardSize?: number) => {
     setPageProps({
         csrfToken: "token",
         auth: { user: { id: "u1", collection_integration_enabled: collectionIntegrationEnabled } }
     });
 
-    return mount(CardAddModal, { props: { deck: deck(cardCount) } });
+    return mount(CardAddModal, { props: { deck: deck(cardCount, maxSideboardSize) } });
 };
 
 /** One search hit, with a printing so it can be clicked and added. */
@@ -186,7 +185,7 @@ describe("CardAddModal — adding a card", () => {
         await flushPromises();
     };
 
-    it("offers both zones while the main deck has room", async () => {
+    it("offers both zones in a format with a sideboard", async () => {
         const wrapper = open(false, { main: 59, companion: 0, side: 0 });
         await search(wrapper);
 
@@ -196,26 +195,56 @@ describe("CardAddModal — adding a card", () => {
         expect(http.callsTo(ADD)).toHaveLength(0);
     });
 
-    it("counts copies, not rows — a full main deck sends the card to the sideboard", async () => {
-        // No rows are passed at all: the old row count read this deck as empty.
+    /**
+     * Building past the format's maximum and cutting down is allowed, so a
+     * main deck far beyond any format's size keeps the main zone on offer.
+     * It used to drop out of the picker at the ceiling, sending the card to
+     * the sideboard instead.
+     */
+    it("keeps offering the main deck past the format's maximum", async () => {
+        const wrapper = open(false, { main: 250, companion: 0, side: 0 });
+        await search(wrapper);
+
+        await clickHit();
+
+        expect(document.querySelector(".card-add-results__zone-picker")).not.toBeNull();
+        expect(http.callsTo(ADD)).toHaveLength(0);
+    });
+
+    /**
+     * The sideboard is no different: past its maximum it stays on offer, and
+     * the legality panel says how many to cut. A full sideboard used to drop
+     * out of the picker, sending every card to the main deck.
+     */
+    it("keeps offering the sideboard past its maximum", async () => {
+        const wrapper = open(false, { main: 59, companion: 0, side: 40 });
+        await search(wrapper);
+
+        await clickHit();
+
+        expect(document.querySelector(".card-add-results__zone-picker")).not.toBeNull();
+        expect(http.callsTo(ADD)).toHaveLength(0);
+    });
+
+    it("adds straight to the main deck in a format without a sideboard, however big the deck is", async () => {
         http.json(ADD, { id: "new" }, 201);
-        const wrapper = open(false, { main: 60, companion: 0, side: 0 });
+        const wrapper = open(false, { main: 250, companion: 0, side: 0 }, 0);
         await search(wrapper);
 
         await clickHit();
 
         expect(document.querySelector(".card-add-results__zone-picker")).toBeNull();
-        expect(http.lastCall(ADD)?.body).toMatchObject({ zone: "side" });
+        expect(http.lastCall(ADD)?.body).toMatchObject({ zone: "main" });
     });
 
     it("explains a refused add in a toast", async () => {
-        http.json(ADD, { reason: "exceeds_deck_size" }, 422);
-        const wrapper = open(false, { main: 59, companion: 0, side: 15 });
-        setTestMessages({ de: { pages: { deck: { add_refused: { exceeds_deck_size: "Deck voll ({max})" } } } } });
+        http.json(ADD, { reason: "exceeds_max_copies" }, 422);
+        const wrapper = open(false, { main: 59, companion: 0, side: 0 }, 0);
+        setTestMessages({ de: { pages: { deck: { add_refused: { exceeds_max_copies: "Schon 4 Exemplare" } } } } });
         await search(wrapper);
 
         await clickHit();
 
-        expect(toastMessages()).toEqual(["Deck voll (60)"]);
+        expect(toastMessages()).toEqual(["Schon 4 Exemplare"]);
     });
 });

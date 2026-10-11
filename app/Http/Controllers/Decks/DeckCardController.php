@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Decks;
 
-use App\Enums\DeckZone;
 use App\Formats\Capabilities\AddCopyFailure;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Decks\ModifyDeckCardRequest;
@@ -19,7 +18,6 @@ use App\Models\Deck;
 use App\Models\DeckCard;
 use App\Models\DefaultCard;
 use App\Models\OracleCard;
-use App\Rulebreakers\RulebreakerRegistry;
 use App\Services\DeckCardAssignmentService;
 use App\Services\DeckCardService;
 use App\Services\DeckPrintingsService;
@@ -44,7 +42,7 @@ class DeckCardController extends Controller
 
         $defaultCard = DefaultCard::with('oracle')->findOrFail($validated['default_card_id']);
 
-        $refusal = $this->refuseAddingCopies($deck, $defaultCard->oracle, DeckZone::from($validated['zone']), 1);
+        $refusal = $this->refuseAddingCopies($deck, $defaultCard->oracle, 1);
         if ($refusal !== null) {
             return $refusal;
         }
@@ -82,7 +80,7 @@ class DeckCardController extends Controller
         }
 
         if ($delta > 0) {
-            $refusal = $this->refuseAddingCopies($deck, $deckCard->oracleCard, $deckCard->zone, $delta);
+            $refusal = $this->refuseAddingCopies($deck, $deckCard->oracleCard, $delta);
             if ($refusal !== null) {
                 return $refusal;
             }
@@ -95,33 +93,23 @@ class DeckCardController extends Controller
 
     /**
      * Ask the deck's format whether `$delta` more copies of `$oracleCard` may
-     * go into `$zone`. Shared by {@see store()} and {@see updateQuantity()}
-     * so adding a card and pressing "+" enforce exactly the same rules.
+     * be added. Shared by {@see store()} and {@see updateQuantity()} so adding
+     * a card and pressing "+" enforce exactly the same rules.
      *
      * Copy limits sum every row of the oracle card in the deck (other
      * printings, other zones), so a singleton cannot slip past 1 by being
-     * split across printings. Deck size is mainboard + command zone, the same
-     * count DeckValidator and the deck header use; rows in any other zone are
-     * neither counted nor capped by it, and a Rulebreaker such as Whtz can
-     * lift the ceiling altogether.
+     * split across printings. The deck size is not checked: building past the
+     * format's maximum and cutting down afterwards is allowed, and DeckValidator
+     * reports the oversized deck instead.
      *
      * Returns the refusal as a 422 carrying the {@see AddCopyFailure} value
      * as `reason`, so the frontend can say why — or null when allowed.
      */
-    private function refuseAddingCopies(Deck $deck, OracleCard $oracleCard, DeckZone $zone, int $delta): ?JsonResponse
+    private function refuseAddingCopies(Deck $deck, OracleCard $oracleCard, int $delta): ?JsonResponse
     {
-        $deckSizeZones = [DeckZone::Main, DeckZone::Command];
         $copiesAfter = (int) $deck->deckCards()->where('oracle_card_id', $oracleCard->id)->sum('quantity') + $delta;
-        $deckSizeAfter = (int) $deck->deckCards()->whereIn('zone', $deckSizeZones)->sum('quantity') + $delta;
-        $maxDeckSizeLifted = ! in_array($zone, $deckSizeZones, true)
-            || (RulebreakerRegistry::forDeck($deck)?->removesMaxDeckSize() ?? false);
 
-        $result = $deck->format->rules()->canAddCopy(
-            $oracleCard,
-            $copiesAfter - 1,
-            $deckSizeAfter - 1,
-            $maxDeckSizeLifted,
-        );
+        $result = $deck->format->rules()->canAddCopy($oracleCard, $copiesAfter - 1);
 
         return $result->allowed ? null : response()->json(['reason' => $result->reason?->value], 422);
     }

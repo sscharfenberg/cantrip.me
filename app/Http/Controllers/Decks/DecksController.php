@@ -640,11 +640,6 @@ class DecksController extends Controller
                 'bracket' => $deck->bracket,
                 'card_count' => $cardCount,
                 'total_worth' => $totalWorth,
-                // Null when a Rulebreaker lifts it, so the add modal stops
-                // gating on a ceiling the backend no longer enforces.
-                'max_deck_size' => $rulebreakerProfile?->removesMaxDeckSize()
-                    ? null
-                    : $profile->maxDeckSize(),
                 'max_sideboard_size' => $profile->maxSideboardSize(),
                 'max_copies' => $profile->maxCopies(),
                 'is_singleton' => $profile->maxCopies() === 1,

@@ -275,8 +275,6 @@ const openPreview = (id: string | null, quantity?: number): void => {
                                 :category-name-max="props.categoryNameMax"
                                 :max-copies="props.maxCopies"
                                 :is-singleton="props.isSingleton"
-                                :deck-size="props.deck.card_count.main"
-                                :max-deck-size="props.deck.max_deck_size"
                                 :has-sideboard="props.deck.max_sideboard_size > 0"
                                 :hero-card-id="props.deck.hero_card?.id ?? null"
                                 :collection-mode="collectionMode"

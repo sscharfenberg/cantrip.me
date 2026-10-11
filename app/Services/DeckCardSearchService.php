@@ -276,9 +276,8 @@ final class DeckCardSearchService
 
         // Drop cards the deck already has at the format's per-card maximum:
         // singleton (already in the deck) for commander-likes, max-copies
-        // (4 of any non-basic, non-unlimited card) for constructed. Pass `0`
-        // for current deck size so a full deck doesn't blank the results —
-        // deck-full feedback comes from the actual add flow.
+        // (4 of any non-basic, non-unlimited card) for constructed. The deck
+        // size plays no part — adding past the format's maximum is allowed.
         $copiesByOracleId = $deck->deckCards()
             ->whereIn('oracle_card_id', $candidates->pluck('id'))
             ->selectRaw('oracle_card_id, SUM(quantity) as total')
@@ -286,14 +285,11 @@ final class DeckCardSearchService
             ->pluck('total', 'oracle_card_id');
 
         $profile = $deck->format->rules();
-        $maxDeckSizeLifted = RulebreakerRegistry::forDeck($deck)?->removesMaxDeckSize() ?? false;
 
         $survivors = $candidates
             ->filter(fn (OracleCard $card): bool => $profile->canAddCopy(
                 $card,
                 (int) ($copiesByOracleId[$card->id] ?? 0),
-                0,
-                $maxDeckSizeLifted,
             )->allowed)
             ->take($limit)
             ->values();

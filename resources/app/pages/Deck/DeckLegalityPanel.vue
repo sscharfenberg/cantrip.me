@@ -114,6 +114,17 @@ const violationNames = (cardIds: string[]): string => {
                                     ><strong>{{ violation.max }}</strong></template
                                 >
                             </i18n-t>
+                            <i18n-t
+                                keypath="pages.deck.legality.deck_size_max_hint"
+                                scope="global"
+                                tag="span"
+                                class="legality-panel__hint"
+                                :plural="violation.current - violation.max"
+                            >
+                                <template #count
+                                    ><strong>{{ violation.current - violation.max }}</strong></template
+                                >
+                            </i18n-t>
                         </template>
                         <template v-else-if="violation.type === 'sideboard_size_max'">
                             <i18n-t keypath="pages.deck.legality.sideboard_size_max" scope="global">
@@ -122,6 +133,17 @@ const violationNames = (cardIds: string[]): string => {
                                 >
                                 <template #max
                                     ><strong>{{ violation.max }}</strong></template
+                                >
+                            </i18n-t>
+                            <i18n-t
+                                keypath="pages.deck.legality.sideboard_size_max_hint"
+                                scope="global"
+                                tag="span"
+                                class="legality-panel__hint"
+                                :plural="violation.current - violation.max"
+                            >
+                                <template #count
+                                    ><strong>{{ violation.current - violation.max }}</strong></template
                                 >
                             </i18n-t>
                         </template>
@@ -175,6 +197,12 @@ const violationNames = (cardIds: string[]): string => {
         margin-left: map.get(s.$pages, "deck", "legality", "padding");
 
         font-style: italic;
+    }
+
+    &__hint {
+        opacity: 0.8;
+
+        margin-left: map.get(s.$pages, "deck", "legality", "padding");
     }
 }
 </style>

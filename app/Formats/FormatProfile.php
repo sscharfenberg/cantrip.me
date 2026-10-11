@@ -35,7 +35,10 @@ abstract class FormatProfile
         return 60;
     }
 
-    /** Maximum cards in the main deck (null = unlimited). */
+    /**
+     * Maximum cards in the main deck (null = unlimited). A legality rule only —
+     * adding past it is allowed, see {@see canAddCopy()}.
+     */
     public function maxDeckSize(): ?int
     {
         return null;
@@ -137,29 +140,19 @@ abstract class FormatProfile
     /**
      * Stateless check whether one more copy of `$card` may be added.
      *
-     * Caller supplies the current copy count of this card and the current main
-     * deck size so the profile does not need to touch the database.
+     * Caller supplies the current copy count of this card so the profile does
+     * not need to touch the database.
      *
-     * `$maxDeckSizeLifted` is how a Rulebreaker commander reaches this check.
-     * Whtz, the Bibliophile has "no maximum deck size", and suppressing the
-     * VIOLATION alone was not enough: the deck would report as legal while the
-     * add endpoint went on refusing the 101st card and quick-add filtered it
-     * out of the results, leaving the card's only ability unreachable. Passed
-     * in rather than resolved here because this method deliberately never
-     * touches the database — see the class docblock.
+     * The deck size is deliberately NOT checked. Plenty of players build by
+     * piling far more cards than the format allows into the deck and cutting
+     * down from there, so {@see maxDeckSize()} never refuses an add — an
+     * oversized deck is reported by DeckValidator's `deck_size_max` violation
+     * instead, which the legality panel turns into a "cut N cards" hint.
      */
-    public function canAddCopy(
-        OracleCard $card,
-        int $currentCopies,
-        int $currentDeckSize,
-        bool $maxDeckSizeLifted = false,
-    ): AddCopyResult {
+    public function canAddCopy(OracleCard $card, int $currentCopies): AddCopyResult
+    {
         if (! $this->isInPool($card)) {
             return AddCopyResult::denied(AddCopyFailure::NotInPool);
-        }
-
-        if (! $maxDeckSizeLifted && $this->maxDeckSize() !== null && $currentDeckSize >= $this->maxDeckSize()) {
-            return AddCopyResult::denied(AddCopyFailure::ExceedsDeckSize);
         }
 
         if ($this->isBasicLand($card)) {

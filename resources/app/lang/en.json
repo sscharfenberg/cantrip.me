@@ -1083,7 +1083,9 @@
                 "color_identity": "{count} card violates the commander's color identity. | {count} cards violate the commander's color identity.",
                 "deck_size_min": "Main deck has {current} cards - minimum is {min}.",
                 "deck_size_max": "Main deck has {current} cards - maximum is {max}.",
+                "deck_size_max_hint": "Cut {count} card to make it legal. | Cut {count} cards to make it legal.",
                 "sideboard_size_max": "Sideboard has {current} cards - maximum is {max}.",
+                "sideboard_size_max_hint": "Cut {count} card from the sideboard to make it legal. | Cut {count} cards from the sideboard to make it legal.",
                 "commander_banned": "{count} commander is banned in this format. | {count} commanders are banned in this format.",
                 "companion_restriction": {
                     "gyruda": "{count} card violates Gyruda's restriction (even mana value or land). | {count} cards violate Gyruda's restriction (even mana value or land).",
@@ -1228,7 +1230,6 @@
                 "destroy": "Remove all"
             },
             "add_refused": {
-                "exceeds_deck_size": "The deck is full ({max} cards). Remove a card before adding another.",
                 "violates_singleton": "This format allows only one copy of this card.",
                 "exceeds_max_copies": "The deck already has the maximum number of copies of this card.",
                 "not_in_pool": "This card is not legal in this format.",

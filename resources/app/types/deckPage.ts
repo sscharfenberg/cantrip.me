@@ -173,7 +173,6 @@ export interface DeckMeta {
     card_count: DeckCardCount;
     /** Sum of (deck_cards.quantity × default_card price) + commanders + companion, in the request user's currency (eur/usd). */
     total_worth: number;
-    max_deck_size: number | null;
     max_sideboard_size: number;
     max_copies: number;
     is_singleton: boolean;

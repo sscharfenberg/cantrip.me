@@ -1083,7 +1083,9 @@
                 "color_identity": "{count} Karte verletzt die Farbidentität des Commanders. | {count} Karten verletzen die Farbidentität des Commanders.",
                 "deck_size_min": "Das Hauptdeck hat {current} Karten - mindestens erforderlich sind {min}.",
                 "deck_size_max": "Das Hauptdeck hat {current} Karten - maximal erlaubt sind {max}.",
+                "deck_size_max_hint": "Streiche {count} Karte, damit das Deck legal wird. | Streiche {count} Karten, damit das Deck legal wird.",
                 "sideboard_size_max": "Das Sideboard hat {current} Karten - maximal erlaubt sind {max}.",
+                "sideboard_size_max_hint": "Streiche {count} Karte aus dem Sideboard, damit das Deck legal wird. | Streiche {count} Karten aus dem Sideboard, damit das Deck legal wird.",
                 "commander_banned": "{count} Commander ist in diesem Format gebannt. | {count} Commander sind in diesem Format gebannt.",
                 "companion_restriction": {
                     "gyruda": "{count} Karte verletzt Gyrudas Einschränkung (gerade Manakosten oder Land). | {count} Karten verletzen Gyrudas Einschränkung (gerade Manakosten oder Land).",
@@ -1228,7 +1230,6 @@
                 "destroy": "Alle entfernen"
             },
             "add_refused": {
-                "exceeds_deck_size": "Das Deck ist voll ({max} Karten). Entferne zuerst eine Karte.",
                 "violates_singleton": "Dieses Format erlaubt nur ein Exemplar dieser Karte.",
                 "exceeds_max_copies": "Das Deck enthält bereits die maximale Anzahl dieser Karte.",
                 "not_in_pool": "Diese Karte ist in diesem Format nicht legal.",

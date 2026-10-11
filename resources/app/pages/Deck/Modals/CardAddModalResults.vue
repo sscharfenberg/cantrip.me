@@ -10,8 +10,8 @@ const { t } = useI18n();
 
 const props = defineProps<{
     results: DeckSearchResult[];
-    canAddToMain: boolean;
-    canAddToSide: boolean;
+    /** Whether the format has a sideboard — decides between the zone picker and a straight add to main. */
+    hasSideboard: boolean;
     adding: boolean;
 }>();
 
@@ -23,18 +23,17 @@ const emit = defineEmits<{
 const pickingZoneFor = ref<string | null>(null);
 
 /**
- * Handle a click on a result card. When both zones have room we show the
- * inline zone picker overlay; otherwise we add directly to whichever zone
- * still accepts cards. No-ops while a prior add is still in flight.
+ * Handle a click on a result card. In a format with a sideboard we show the
+ * inline zone picker overlay; otherwise the card goes straight to the main
+ * deck. Neither zone is ever full — both take cards past the format's
+ * maximum. No-ops while a prior add is still in flight.
  */
 function onCardClick(result: DeckSearchResult) {
     if (props.adding || !result.printing) return;
-    if (props.canAddToMain && props.canAddToSide) {
+    if (props.hasSideboard) {
         pickingZoneFor.value = result.printing.id;
-    } else if (props.canAddToMain) {
+    } else {
         emit("add", result, "main");
-    } else if (props.canAddToSide) {
-        emit("add", result, "side");
     }
 }
 

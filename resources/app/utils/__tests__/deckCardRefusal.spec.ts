@@ -7,14 +7,24 @@ const refused = (body: string): Response =>
     new Response(body, { status: 422, headers: { "Content-Type": "application/json" } });
 
 describe("refusalMessageKey", () => {
-    it.each([
-        "exceeds_max_copies",
-        "violates_singleton",
-        "not_in_pool",
-        "exceeds_deck_size",
-        "violates_color_identity"
-    ])("names the message for %s", async reason => {
-        expect(await refusalMessageKey(refused(JSON.stringify({ reason })))).toBe(`pages.deck.add_refused.${reason}`);
+    it.each(["exceeds_max_copies", "violates_singleton", "not_in_pool", "violates_color_identity"])(
+        "names the message for %s",
+        async reason => {
+            expect(await refusalMessageKey(refused(JSON.stringify({ reason })))).toBe(
+                `pages.deck.add_refused.${reason}`
+            );
+        }
+    );
+
+    /**
+     * Adding past the format's maximum deck size is allowed, so the server no
+     * longer refuses with it and its message is gone — a stale response
+     * carrying it must not resolve to a key with no translation behind it.
+     */
+    it("treats the retired exceeds_deck_size as a reason it does not know", async () => {
+        expect(await refusalMessageKey(refused(JSON.stringify({ reason: "exceeds_deck_size" })))).toBe(
+            "pages.deck.add_refused.generic"
+        );
     });
 
     it("falls back to the generic message for a reason it does not know", async () => {

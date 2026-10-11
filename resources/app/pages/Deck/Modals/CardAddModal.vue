@@ -50,19 +50,12 @@ const feedback = ref<{ name: string; zone: string } | null>(null);
 /** Timer for auto-clearing the feedback message. */
 let feedbackTimer: ReturnType<typeof setTimeout> | null = null;
 /**
- * Current deck size — mainboard + command zone, copies not rows, the same
- * count the server enforces. Counting rows let a deck of 85 rows holding 100
- * cards look like it had room.
+ * Whether the format has a sideboard at all (Commander-likes have none). Its
+ * size is not checked, and neither is the main deck's: both always take
+ * another card, even past the format's maximum — building big and cutting down
+ * is allowed, and the legality panel reports an oversized zone.
  */
-const mainCount = computed(() => props.deck.card_count.main);
-/** Current sideboard size, in copies. */
-const sideCount = computed(() => props.deck.card_count.side);
-/** Whether the sideboard zone is available and has room. */
-const canAddToSide = computed(
-    () => props.deck.max_sideboard_size > 0 && sideCount.value < props.deck.max_sideboard_size
-);
-/** Whether the main deck has room (null max = unlimited). */
-const canAddToMain = computed(() => props.deck.max_deck_size === null || mainCount.value < props.deck.max_deck_size);
+const hasSideboard = computed(() => props.deck.max_sideboard_size > 0);
 /**
  * Add a card to the deck via the API.
  * Clears results and shows inline feedback on success.
@@ -100,7 +93,7 @@ async function addCard(result: DeckSearchResult, zone: string): Promise<void> {
             });
             router.reload({ only: ["cards", "deck", "violations", "tokens"] });
         } else if (response.status === 422) {
-            addToast(t(await refusalMessageKey(response), { max: props.deck.max_deck_size ?? "" }), "error");
+            addToast(t(await refusalMessageKey(response)), "error");
         }
     } finally {
         adding.value = false;
@@ -207,8 +200,7 @@ onMounted(() => searchInput.value?.focus());
             <card-add-modal-results
                 v-if="results.length"
                 :results="results"
-                :can-add-to-main="canAddToMain"
-                :can-add-to-side="canAddToSide"
+                :has-sideboard="hasSideboard"
                 :adding="adding"
                 @add="addCard"
             />

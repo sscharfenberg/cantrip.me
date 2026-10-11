@@ -34,15 +34,6 @@ export interface DeckCardActionParams {
     maxCopies: number;
     /** Whether the format is singleton. */
     isSingleton: boolean;
-    /** Getter for the deck's current size — mainboard + command zone (`deck.card_count.main`). */
-    deckSize: () => number;
-    /** Getter for the format's deck-size ceiling; null when there is none or a Rulebreaker lifts it. */
-    maxDeckSize: () => number | null;
-    /**
-     * Whether this row counts toward the deck size (zone main or command).
-     * Sideboard, maybeboard and companion rows are never capped by it.
-     */
-    countsTowardDeckSize: boolean;
 }
 
 /** Return type of {@link useDeckCardActions}. */
@@ -102,20 +93,15 @@ export function useDeckCardActions(params: DeckCardActionParams, closePopover: (
     /**
      * Whether one more copy can be added.
      *
-     * The deck-size ceiling comes first because it binds basics and
-     * unlimited cards too. Pending clicks count toward it, as they do toward
-     * the copy limit.
+     * Only the copy limit can say no. The format's maximum deck size never
+     * does: building past it and cutting down afterwards is allowed, and the
+     * legality panel reports the oversized deck instead.
      *
      * Sums sibling rows with the same oracle card (split printings) so the
      * copy limit applies to the oracle card in aggregate, not to each row
      * independently.
      */
     const canIncrement = computed((): boolean => {
-        const maxDeckSize = params.maxDeckSize();
-        const pending = effectiveQty.value - params.quantity();
-        if (params.countsTowardDeckSize && maxDeckSize !== null && params.deckSize() + pending >= maxDeckSize) {
-            return false;
-        }
         if (params.isBasicLand) return true;
         if (params.isUnlimited) return true;
         if (params.isSingleton) return false;
@@ -169,7 +155,7 @@ export function useDeckCardActions(params: DeckCardActionParams, closePopover: (
         if (!response.ok) {
             effectiveQty.value = params.quantity();
             if (response.status === 422) {
-                addToast(t(await refusalMessageKey(response), { max: params.maxDeckSize() ?? "" }), "error");
+                addToast(t(await refusalMessageKey(response)), "error");
             }
             return;
         }

@@ -16,7 +16,6 @@ const deck = (state: string): DeckMeta => ({
     bracket: null,
     card_count: { main: 100, companion: 0, side: 0 },
     total_worth: 0,
-    max_deck_size: 100,
     max_sideboard_size: 0,
     max_copies: 1,
     is_singleton: true,

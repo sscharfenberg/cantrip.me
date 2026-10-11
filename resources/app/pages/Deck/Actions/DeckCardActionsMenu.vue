@@ -24,10 +24,6 @@ const props = defineProps<{
     maxCopies: number;
     /** Whether the format is singleton (max 1 copy of non-basic cards). */
     isSingleton: boolean;
-    /** Current deck size — mainboard + command zone (`deck.card_count.main`). */
-    deckSize: number;
-    /** Format's deck-size ceiling; null when there is none or a Rulebreaker lifts it. */
-    maxDeckSize: number | null;
     /** Whether the format has a sideboard — gates the "move to sideboard" entry. */
     hasSideboard: boolean;
     /** Current deck hero printing id, or null. Hides "Use as hero image" when this card already is the hero. */
@@ -114,10 +110,7 @@ const { canIncrement, increment, decrement, destroy, moveZone, switchPrinting } 
         isBasicLand: props.card.is_basic_land,
         isUnlimited: props.card.is_unlimited,
         maxCopies: props.maxCopies,
-        isSingleton: props.isSingleton,
-        deckSize: () => props.deckSize,
-        maxDeckSize: () => props.maxDeckSize,
-        countsTowardDeckSize: props.card.zone === "main" || props.card.zone === "command"
+        isSingleton: props.isSingleton
     },
     closePopover
 );

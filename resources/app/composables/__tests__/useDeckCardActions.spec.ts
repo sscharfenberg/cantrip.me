@@ -64,9 +64,6 @@ const setup = (
                     isUnlimited: false,
                     maxCopies: 4,
                     isSingleton: false,
-                    deckSize: () => 50,
-                    maxDeckSize: () => null,
-                    countsTowardDeckSize: true,
                     ...options.params
                 },
                 closePopover
@@ -170,60 +167,38 @@ describe("useDeckCardActions — canIncrement", () => {
     });
 });
 
-describe("useDeckCardActions — canIncrement at the deck-size ceiling", () => {
-    const full = { deckSize: () => 100, maxDeckSize: () => 100 };
+describe("useDeckCardActions — no deck-size ceiling", () => {
+    /**
+     * Building past the format's maximum and cutting down is allowed, so "+"
+     * on a basic land in a 100-card singleton deck keeps going, and every
+     * click reaches the server. It used to disable at the hundredth card.
+     */
+    it("keeps a basic land going past a Commander deck's hundred cards", async () => {
+        const { actions } = setup({ quantity: 99, params: { isBasicLand: true, isSingleton: true } });
 
-    it("refuses even a basic land once the deck is full", () => {
-        expect(setup({ params: { ...full, isBasicLand: true } }).actions.canIncrement.value).toBe(false);
-    });
-
-    it("refuses an unlimited card once the deck is full", () => {
-        expect(setup({ params: { ...full, isUnlimited: true } }).actions.canIncrement.value).toBe(false);
-    });
-
-    it("allows a basic land one short of the ceiling", () => {
-        const params = { deckSize: () => 99, maxDeckSize: () => 100, isBasicLand: true };
-
-        expect(setup({ params }).actions.canIncrement.value).toBe(true);
-    });
-
-    it("counts clicks that have not been sent yet toward the ceiling", () => {
-        const params = { deckSize: () => 98, maxDeckSize: () => 100, isBasicLand: true };
-        const { actions } = setup({ params });
-
-        actions.increment();
+        for (let i = 0; i < 5; i++) {
+            actions.increment();
+        }
         expect(actions.canIncrement.value).toBe(true);
 
-        actions.increment();
-        expect(actions.canIncrement.value).toBe(false);
-    });
-
-    it("leaves rows outside the main deck uncapped", () => {
-        const params = { ...full, isBasicLand: true, countsTowardDeckSize: false };
-
-        expect(setup({ params }).actions.canIncrement.value).toBe(true);
-    });
-
-    it("has no ceiling when the format or a Rulebreaker sets none", () => {
-        const params = { deckSize: () => 250, maxDeckSize: () => null, isBasicLand: true };
-
-        expect(setup({ params }).actions.canIncrement.value).toBe(true);
+        await flush();
+        expect(http.lastCall(QUANTITY_URL)?.body).toEqual({ delta: 5 });
     });
 });
 
 describe("useDeckCardActions — refusal toast", () => {
-    it("explains a full deck, naming the ceiling", async () => {
-        http.json(QUANTITY_URL, { reason: "exceeds_deck_size" }, 422);
-        const { actions } = setup({ params: { maxDeckSize: () => 100 } });
+    it("shows the message as-is, with nothing left to interpolate", async () => {
+        http.json(QUANTITY_URL, { reason: "exceeds_max_copies" }, 422);
+        const { actions } = setup();
         // After `setup` — it builds the i18n instance these messages land on.
         setTestMessages({
-            de: { pages: { deck: { add_refused: { exceeds_deck_size: "Deck voll ({max})" } } } }
+            de: { pages: { deck: { add_refused: { exceeds_max_copies: "Schon 4 Exemplare" } } } }
         });
 
         actions.increment();
         await flush();
 
-        expect(toastMessages()).toEqual(["Deck voll (100)"]);
+        expect(toastMessages()).toEqual(["Schon 4 Exemplare"]);
     });
 
     it("names the rule the server refused on", async () => {
