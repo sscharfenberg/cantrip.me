@@ -33,7 +33,7 @@
         "preinstall": "node ./resources/build/checkNodeVersion.ts"
     },
     "dependencies": {
-        "@inertiajs/vue3": "^3.7.1",
+        "@inertiajs/vue3": "^3.8.0",
         "@sscharfenberg/progressbar": "^0.2.1",
         "floating-vue": "^5.4.0",
         "normalize.css": "^8.0.1",
