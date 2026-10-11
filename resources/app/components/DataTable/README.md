@@ -221,7 +221,7 @@ All live in `Components/DataTable/`. The parent only imports `DataTable.vue` —
 | Component               | Responsibility                                                                                                                                                                |
 | ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **DataTable.vue**       | Orchestrator. Selection state, slot forwarding, Inertia navigation, loading overlay, aria-live announcements.                                                                 |
-| **DataTableToolbar**    | Search input (350ms debounce), selection count badge, `#actions` slot.                                                                                                        |
+| **DataTableToolbar**    | Search input (750ms debounce, Enter searches at once, 2-character minimum; never overwritten by the echo of its own search), selection count badge, `#actions` slot.          |
 | **DataTableHead**       | Sticky `<thead>` with sort buttons, `aria-sort` attributes, header checkbox (three-state).                                                                                    |
 | **DataTableBody**       | `<tbody>` with cell slot rendering, row selection, clickable rows, three-dot action button.                                                                                   |
 | **DataTableCards**      | Mobile card layout via `@container` query (<640px). Renders `visibleInCard` columns.                                                                                          |
