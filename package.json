@@ -75,7 +75,7 @@
         "stylelint": "^17.15.0",
         "stylelint-config-standard-scss": "^17.0.0",
         "stylelint-config-standard-vue": "^2.0.0",
-        "stylelint-order": "^8.1.1",
+        "stylelint-order": "^8.1.2",
         "stylelint-scss": "^7.2.0",
         "svgo": "^4.1.0",
         "svgstore": "^3.0.1",
