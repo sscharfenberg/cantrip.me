@@ -76,7 +76,8 @@ function openAssignStack(): void {
 /**
  * PATCH the chosen stack id (or null to clear) and refresh the cards
  * payload so the per-row collection-status badge reflects the new pivot
- * state. Mode itself can't change here — the deck stays sticky-pinned to
+ * state, and `hasUnclaimedCards` so the "Unclaimed cards" menu entry does
+ * too. Mode itself can't change here — the deck stays sticky-pinned to
  * C even after a clear, by design.
  */
 async function assignStack(stackId: string | null): Promise<void> {
@@ -90,7 +91,7 @@ async function assignStack(stackId: string | null): Promise<void> {
         body: JSON.stringify({ card_stack_id: stackId })
     });
     if (!response.ok) return;
-    router.reload({ only: ["cards"] });
+    router.reload({ only: ["cards", "hasUnclaimedCards"] });
 }
 /**
  * True when the move-to-group modal would offer at least one real target —

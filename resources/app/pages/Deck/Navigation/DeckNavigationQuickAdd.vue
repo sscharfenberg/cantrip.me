@@ -156,7 +156,7 @@ async function addCard(card: QuickAddCardResult): Promise<void> {
             inputRef.value?.select();
         });
         router.reload({
-            only: ["cards", "deck", "violations", "tokens"],
+            only: ["cards", "deck", "violations", "tokens", "hasUnclaimedCards"],
             onSuccess: () => markRecentlyAdded(card.id)
         });
         setTimeout(() => {

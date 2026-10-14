@@ -302,7 +302,7 @@ describe("DeckCardSplitPrintingModal — submitting", () => {
         await press(submitButton() as HTMLButtonElement);
 
         expect(routerMock.reload).toHaveBeenCalledWith(
-            expect.objectContaining({ only: ["cards", "deck", "violations", "tokens"] })
+            expect.objectContaining({ only: ["cards", "deck", "violations", "tokens", "hasUnclaimedCards"] })
         );
     });
 

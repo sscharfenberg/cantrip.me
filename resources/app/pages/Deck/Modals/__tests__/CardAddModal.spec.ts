@@ -2,7 +2,7 @@ import { flushPromises, mount } from "@vue/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { installFetchMock, type FetchMock } from "@/test/http.ts";
 import { setTestMessages } from "@/test/i18n.ts";
-import { setPageProps } from "@/test/inertia.ts";
+import { routerMock, setPageProps } from "@/test/inertia.ts";
 import { useToast } from "Composables/useToast.ts";
 import type { DeckCardCount, DeckMeta, DeckSearchResult } from "Types/deckPage.ts";
 import CardAddModal from "../CardAddModal.vue";
@@ -235,6 +235,22 @@ describe("CardAddModal — adding a card", () => {
 
         expect(document.querySelector(".card-add-results__zone-picker")).toBeNull();
         expect(http.lastCall(ADD)?.body).toMatchObject({ zone: "main" });
+    });
+
+    /**
+     * The new row changes the header's count and worth, the legality panel,
+     * the tokens, and — in modes B/C — whether the deck has unclaimed cards.
+     */
+    it("refreshes everything an added card changes", async () => {
+        http.json(ADD, { id: "new" }, 201);
+        const wrapper = open(false, { main: 59, companion: 0, side: 0 }, 0);
+        await search(wrapper);
+
+        await clickHit();
+
+        expect(routerMock.reload).toHaveBeenCalledExactlyOnceWith({
+            only: ["cards", "deck", "violations", "tokens", "hasUnclaimedCards"]
+        });
     });
 
     it("explains a refused add in a toast", async () => {

@@ -57,7 +57,15 @@ function submit(): void {
             // an explicit reload of the relevant props fixes the
             // partial-update without a hard refresh.
             router.reload({
-                only: ["commanders", "companion", "cards", "deck", "collectionMode", "collectionBadgeMode"]
+                only: [
+                    "commanders",
+                    "companion",
+                    "cards",
+                    "deck",
+                    "collectionMode",
+                    "collectionBadgeMode",
+                    "hasUnclaimedCards"
+                ]
             });
         }
     });

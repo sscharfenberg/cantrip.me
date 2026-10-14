@@ -72,7 +72,7 @@ const pickCompanion = async (card: DeckCompanion): Promise<void> => {
         return;
     }
     router.reload({
-        only: ["deck", "companion", "cards", "violations", "tokens"],
+        only: ["deck", "companion", "cards", "violations", "tokens", "hasUnclaimedCards"],
         onFinish: () => emit("close")
     });
 };

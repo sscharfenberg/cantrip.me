@@ -64,7 +64,8 @@ function openAssignStack(): void {
 /**
  * PATCH the chosen stack id (or null to clear) and refresh the
  * `commanders` payload so the per-row collection-status badge reflects
- * the new pivot state. Reuses the deck_card-keyed endpoints because
+ * the new pivot state, and `hasUnclaimedCards` so the "Unclaimed cards"
+ * menu entry does too. Reuses the deck_card-keyed endpoints because
  * commanders are deck_cards too post-consolidation.
  */
 async function assignStack(stackId: string | null): Promise<void> {
@@ -78,12 +79,13 @@ async function assignStack(stackId: string | null): Promise<void> {
         body: JSON.stringify({ card_stack_id: stackId })
     });
     if (!response.ok) return;
-    router.reload({ only: ["commanders"] });
+    router.reload({ only: ["commanders", "hasUnclaimedCards"] });
 }
 /**
- * Swap this commander's display printing (the `commanders` pivot row's
- * `default_card_id`). Reload only `deck` and `commanders` so the new image
- * shows without dragging the rest of the page through a full refresh.
+ * Swap this commander's display printing (its command-zone deck_card's
+ * `default_card_id`). Reload only what the server derives from the printing:
+ * `deck` (worth, and the hero image when it follows the swap), `commanders`,
+ * `tokens`, and `hasUnclaimedCards` (mode B counts coverage per printing).
  */
 async function switchPrinting(printing: DeckPrinting): Promise<void> {
     const response = await fetch(`/api/decks/${props.deckId}/commander/${props.oracleCardId}/printing`, {
@@ -96,7 +98,7 @@ async function switchPrinting(printing: DeckPrinting): Promise<void> {
         body: JSON.stringify({ default_card_id: printing.id })
     });
     if (response.ok) {
-        router.reload({ only: ["deck", "commanders", "tokens"] });
+        router.reload({ only: ["deck", "commanders", "tokens", "hasUnclaimedCards"] });
     }
 }
 /**
@@ -122,7 +124,7 @@ async function changeCommander(commander: CommanderResult, second: CommanderResu
         body: JSON.stringify(body)
     });
     if (response.ok) {
-        router.reload({ only: ["deck", "commanders", "cards", "violations", "tokens"] });
+        router.reload({ only: ["deck", "commanders", "cards", "violations", "tokens", "hasUnclaimedCards"] });
     }
 }
 </script>

@@ -91,7 +91,7 @@ async function addCard(result: DeckSearchResult, zone: string): Promise<void> {
                 searchInput.value?.focus();
                 searchInput.value?.select();
             });
-            router.reload({ only: ["cards", "deck", "violations", "tokens"] });
+            router.reload({ only: ["cards", "deck", "violations", "tokens", "hasUnclaimedCards"] });
         } else if (response.status === 422) {
             addToast(t(await refusalMessageKey(response)), "error");
         }

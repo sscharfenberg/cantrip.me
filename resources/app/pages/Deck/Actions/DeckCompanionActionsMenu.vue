@@ -47,8 +47,9 @@ function openAssignStack(): void {
 }
 /**
  * PATCH the chosen stack id (or null to clear) for the companion's
- * deck_card row. Reuses the deck_card-keyed endpoints because companions
- * are deck_cards too post-consolidation.
+ * deck_card row, then refresh its badge and the "Unclaimed cards" menu
+ * entry. Reuses the deck_card-keyed endpoints because companions are
+ * deck_cards too post-consolidation.
  */
 async function assignStack(stackId: string | null): Promise<void> {
     const response = await fetch(`/api/decks/${props.deckId}/cards/${props.deckCardId}/assigned-stacks`, {
@@ -61,7 +62,7 @@ async function assignStack(stackId: string | null): Promise<void> {
         body: JSON.stringify({ card_stack_id: stackId })
     });
     if (!response.ok) return;
-    router.reload({ only: ["companion"] });
+    router.reload({ only: ["companion", "hasUnclaimedCards"] });
 }
 /**
  * Remove the companion from the deck. `removing` guards against double-
@@ -89,13 +90,18 @@ async function removeCompanion(): Promise<void> {
         return;
     }
     router.reload({
-        only: ["deck", "companion", "cards", "violations", "tokens"],
+        only: ["deck", "companion", "cards", "violations", "tokens", "hasUnclaimedCards"],
         onFinish: () => {
             removing.value = false;
         }
     });
 }
-/** Swap the companion's display printing (its `default_card_id`). */
+/**
+ * Swap the companion's display printing (its `default_card_id`). Reload only
+ * what the server derives from the printing: `deck` (worth, and the hero image
+ * when it follows the swap), `companion`, `tokens`, and `hasUnclaimedCards`
+ * (mode B counts coverage per printing).
+ */
 async function switchPrinting(printing: DeckPrinting): Promise<void> {
     const response = await fetch(`/api/decks/${props.deckId}/companion/printing`, {
         method: "PATCH",
@@ -107,7 +113,7 @@ async function switchPrinting(printing: DeckPrinting): Promise<void> {
         body: JSON.stringify({ default_card_id: printing.id })
     });
     if (response.ok) {
-        router.reload({ only: ["deck", "companion", "tokens"] });
+        router.reload({ only: ["deck", "companion", "tokens", "hasUnclaimedCards"] });
     }
 }
 </script>

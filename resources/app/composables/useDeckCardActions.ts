@@ -67,10 +67,11 @@ const DEBOUNCE_MS = 500;
  * props in place — mutating the same reactive `cards` array the
  * components reference — so the DOM patches without a full reload.
  * Every successful mutation then triggers a lightweight
- * `router.reload({ only: ["deck", "cards", "violations", "tokens"] })` so the
- * server-computed legality (per-card `is_illegal` and the legality panel)
- * stays in sync; the in-place mutation is what gives instant UI feedback,
- * and the reload catches up in the background.
+ * `router.reload({ only: ["deck", "cards", "violations", "tokens", "hasUnclaimedCards"] })`
+ * so the server-computed legality (per-card `is_illegal` and the legality
+ * panel) and the "Unclaimed cards" menu entry stay in sync; the in-place
+ * mutation is what gives instant UI feedback, and the reload catches up in
+ * the background.
  *
  * @param params — card identity, format rules, and a reactive quantity getter.
  * @param closePopover — callback to dismiss the host popover after destructive actions.
@@ -173,7 +174,7 @@ export function useDeckCardActions(params: DeckCardActionParams, closePopover: (
             if (card) card.quantity = data.quantity;
         }
 
-        router.reload({ only: ["deck", "cards", "violations", "tokens"] });
+        router.reload({ only: ["deck", "cards", "violations", "tokens", "hasUnclaimedCards"] });
     }
 
     /** Add one copy (debounced). */
@@ -213,7 +214,7 @@ export function useDeckCardActions(params: DeckCardActionParams, closePopover: (
 
         if (response.ok) {
             spliceCard();
-            router.reload({ only: ["deck", "cards", "violations", "tokens"] });
+            router.reload({ only: ["deck", "cards", "violations", "tokens", "hasUnclaimedCards"] });
         }
     }
 
@@ -228,7 +229,9 @@ export function useDeckCardActions(params: DeckCardActionParams, closePopover: (
      * carries the post-move identities, the target is mutated/synthesised
      * locally — synth rows clone the source's oracle/printing data, only
      * `id` / `zone` / `quantity` / `category_id` differ — and only
-     * `violations` is reloaded so the legality panel stays current. Per-
+     * `violations` and `hasUnclaimedCards` are reloaded, so the legality
+     * panel stays current and a moved copy that lands in an unclaimed row
+     * surfaces in the "Unclaimed cards" menu entry. Per-
      * card `is_illegal` flags may briefly lag for zone-sensitive rules
      * (companion restrictions); the next `cards`-reloading action catches
      * up.
@@ -301,17 +304,23 @@ export function useDeckCardActions(params: DeckCardActionParams, closePopover: (
             source.quantity = data.source_quantity;
         }
 
-        router.reload({ only: ["violations"] });
+        router.reload({ only: ["violations", "hasUnclaimedCards"] });
     }
 
     /**
      * Optimistically swap the deck card's printing: update the page's card
      * in place so the UI reflects the change immediately, then PATCH the
      * server. On failure, restore the previous printing. On success, reload
-     * `cards` and `tokens`: color identity and legality are unchanged, but the
-     * collection badges (availability, mode B/C status) and the matching token
-     * printings are computed server-side per printing, so the optimistic swap
-     * alone would leave them describing the printing just replaced.
+     * everything the server derives from the printing — color identity and
+     * legality are oracle-level and unchanged, so `violations` is not among
+     * them, but the optimistic swap alone would leave these describing the
+     * printing just replaced:
+     *
+     *  - `deck`: `total_worth` is priced per printing, and `hero_card`
+     *    follows the swap when this printing was the hero
+     *  - `cards`: the collection badges (availability, mode B/C status)
+     *  - `tokens`: the matching token printings
+     *  - `hasUnclaimedCards`: mode B counts deckbox coverage per printing
      */
     async function switchPrinting(printing: DeckPrinting): Promise<void> {
         const cards = page.props.cards as DeckCardRow[];
@@ -340,7 +349,7 @@ export function useDeckCardActions(params: DeckCardActionParams, closePopover: (
             if (target !== undefined) target.default_card = previous;
             return;
         }
-        router.reload({ only: ["cards", "tokens"] });
+        router.reload({ only: ["deck", "cards", "tokens", "hasUnclaimedCards"] });
     }
 
     return { canIncrement, increment, decrement, destroy, moveZone, switchPrinting };

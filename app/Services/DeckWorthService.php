@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Enums\Currency;
+use App\Enums\DeckZone;
 use App\Enums\Locale;
 use App\Models\Deck;
 use App\Models\User;
@@ -18,6 +19,9 @@ use Illuminate\Support\Facades\DB;
  * / merge-anomaly stack can't push the contribution negative).
  * Real-card claims, multi-claim, and unclaimed slots all keep their
  * full printing price.
+ *
+ * The maybeboard is left out: it's a scratch pile, not part of the
+ * deck — the same reason the deck list's card count skips it.
  *
  * The `?User` parameter accepts null so guests browsing a public deck
  * resolve to the locale's default currency.
@@ -52,6 +56,7 @@ class DeckWorthService
             ->join('default_cards', 'default_cards.id', '=', 'deck_cards.default_card_id')
             ->leftJoinSub($proxyClaims, 'proxy_claims', 'proxy_claims.deck_card_id', '=', 'deck_cards.id')
             ->whereIn('deck_cards.deck_id', $deckIds)
+            ->where('deck_cards.zone', '!=', DeckZone::Maybe->value)
             ->groupBy('deck_cards.deck_id')
             ->selectRaw(
                 'deck_cards.deck_id, COALESCE(SUM('

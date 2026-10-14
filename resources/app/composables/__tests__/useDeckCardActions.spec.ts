@@ -23,8 +23,8 @@ const CARD_URL = `/api/decks/${DECK_ID}/cards/${CARD_ID}`;
 const MOVE_ZONE_URL = `/api/decks/${DECK_ID}/cards/${CARD_ID}/move-zone`;
 const PRINTING_URL = `/api/decks/${DECK_ID}/cards/${CARD_ID}/printing`;
 
-/** The four props the reload after a mutation asks the server to refresh. */
-const RELOADED_PROPS = { only: ["deck", "cards", "violations", "tokens"] };
+/** The props the reload after a mutation asks the server to refresh. */
+const RELOADED_PROPS = { only: ["deck", "cards", "violations", "tokens", "hasUnclaimedCards"] };
 
 let http: FetchMock;
 let closePopover: Mock<() => void>;
@@ -587,12 +587,12 @@ describe("useDeckCardActions — moveZone", () => {
         expect(cards.map(c => c.id)).toContain("card-side-cat");
     });
 
-    it("reloads only the legality panel, avoiding a full card-list reflow", async () => {
+    it("reloads the legality panel and the unclaimed flag, avoiding a full card-list reflow", async () => {
         const { actions } = setup();
 
         await actions.moveZone("side");
 
-        expect(routerMock.reload).toHaveBeenCalledExactlyOnceWith({ only: ["violations"] });
+        expect(routerMock.reload).toHaveBeenCalledExactlyOnceWith({ only: ["violations", "hasUnclaimedCards"] });
     });
 
     it("changes nothing when the server refuses", async () => {
@@ -678,12 +678,19 @@ describe("useDeckCardActions — switchPrinting", () => {
         expect(cards[0].default_card).toEqual(original);
     });
 
-    it("reloads the cards so the per-printing collection badges follow the swap", async () => {
+    it("reloads every prop the server derives from the printing", async () => {
         const { actions } = setup();
 
         await actions.switchPrinting(printing);
 
-        expect(routerMock.reload).toHaveBeenCalledWith({ only: ["cards", "tokens"] });
+        /*
+         * `deck` carries the header's total worth, priced per printing — it was
+         * once left out, so the header kept the replaced printing's price.
+         * `violations` stays out: legality is oracle-level.
+         */
+        expect(routerMock.reload).toHaveBeenCalledExactlyOnceWith({
+            only: ["deck", "cards", "tokens", "hasUnclaimedCards"]
+        });
     });
 
     it("does not reload when the server refuses", async () => {
