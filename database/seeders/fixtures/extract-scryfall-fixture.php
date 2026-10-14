@@ -51,6 +51,11 @@ $wanted = [
     'Krenko, Mob Boss' => 1,
     'Yoshimaru, Ever Faithful' => 1,
     'Rograkh, Son of Rohgahh' => 1,
+    // A companion, and the one legendary creature with two printings: the
+    // refresh specs switch its printing both as a commander and as a
+    // companion, and the two cost different amounts. WB, so it fits under
+    // Atraxa; Commander bans only Lutri as a companion.
+    'Lurrus of the Dream-Den' => 2,
 
     // Staples, spread across all five colours plus colourless.
     'Sol Ring' => 3,

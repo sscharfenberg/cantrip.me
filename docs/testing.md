@@ -94,7 +94,7 @@ tests/e2e/
 │   ├── environment.ts     ports, the server environment, the DB/asset/hot-file plumbing
 │   ├── globalSetup.ts     container → assets → migrate → seed, in that order
 │   ├── globalTeardown.ts  puts a stashed public/hot back
-│   ├── auth.setup.ts      signs in once, parks the session for the `app` project
+│   ├── auth.setup.ts      signs in once per account, parks the sessions for the `app` project
 │   └── actions.ts         helpers shared across specs
 ├── guest/                 run with NO stored session
 │   ├── smoke.spec.ts         the harness itself: server, CSS, bundle, sprite, auth gate
@@ -106,6 +106,7 @@ tests/e2e/
     ├── smoke.spec.ts         the parked session really belongs to the seeded account
     ├── decks.spec.ts         the deck list: format folders, colour pips, opening a deck
     ├── deck.spec.ts          command zone, categories, quick-add colour identity
+    ├── deck-refresh.spec.ts  the deck page refreshes what each action changes, without a reload
     ├── deck-print.spec.ts    printable deck list: menu → page, real printings, download, print frame
     └── collection.spec.ts    stacks, container totals, filtering, container isolation
 ```
@@ -114,11 +115,13 @@ Guest and app specs are separated **by directory, not by clearing cookies per te
 
 **Writes need a lane of their own.** `fullyParallel` splits tests *within* a file as well as across files, and every worker shares one database, so a test that writes can land on a test that reads at any moment. The convention is: reads use the Atraxa deck, the one write uses the partner deck, and it adds a card **no reader searches for** — because `DeckCardSearchService` drops cards the deck already holds at the format's per-card maximum, so adding a searched-for card would make an unrelated test find nothing about half the time. If you add a mutating spec, say in a comment which readers you checked.
 
+**A spec that writes a lot gets an account of its own.** `deck-refresh.spec.ts` writes in every one of its fourteen tests, so it signs in as a third seeded account (`E2EDeckRefreshSeeder`, called from `E2ESeeder`) with its own containers, stacks and one deck per test, and opts into that account's session with `test.use({ storageState: REFRESH_STORAGE_STATE })`. Its decks could not have been more of the main account's: the readers pin that account's collection to exact numbers, and its decks' availability badges depend on which of its stacks are free. Its deck ids are fixed and mirrored in the spec, which opens each deck by URL.
+
 ### The fixture
 
 `database/seeders/E2ESeeder`, **not** `DatabaseSeeder`: that one chains `DeckSeeder`, which pins every slot to a specific Scryfall printing and so needs a full `scryfall:update` behind it. `E2ESeeder` is fixed and committed — same ids, names and printings every run, because a browser test names the thing it clicks.
 
-It seeds one verified user, a 22-card Scryfall snapshot, three containers with eight card stacks, and three decks:
+It seeds one verified user, a 23-card Scryfall snapshot, three containers with nine card stacks, and three decks — plus, through `E2EDeckRefreshSeeder`, a separate account for the refresh spec (above). The main account's decks:
 
 | Deck | Format | Identity | There to make this answerable |
 | --- | --- | --- | --- |

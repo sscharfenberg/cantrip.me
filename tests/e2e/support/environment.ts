@@ -367,6 +367,16 @@ export const SEED_USER = { name: "E2E Tester", password: "e2e-password" } as con
 export const LOGOUT_USER = { name: "E2E Logout", password: SEED_USER.password } as const;
 
 /**
+ * The third seeded account, owned by `app/deck-refresh.spec.ts`.
+ *
+ * It exists for its ROWS: that spec writes to every deck it opens, so it gets
+ * decks, containers and stacks that no reader looks at — `E2EDeckRefreshSeeder`
+ * explains why they could not be more of the first account's. Its session is
+ * parked by `auth.setup.ts` like the first account's, under its own file.
+ */
+export const REFRESH_USER = { name: "E2E Refresh", password: SEED_USER.password } as const;
+
+/**
  * Where `auth.setup.ts` parks the signed-in session for the `app` project.
  *
  * HERE RATHER THAN IN auth.setup.ts, where it is used, because playwright.config.ts
@@ -377,3 +387,6 @@ export const LOGOUT_USER = { name: "E2E Logout", password: SEED_USER.password } 
  * round it.
  */
 export const STORAGE_STATE = path.join(repoRoot, "tests/e2e/.auth/user.json");
+
+/** The same, for {@link REFRESH_USER}. A spec opts in with `test.use({ storageState })`. */
+export const REFRESH_STORAGE_STATE = path.join(repoRoot, "tests/e2e/.auth/refresh.json");

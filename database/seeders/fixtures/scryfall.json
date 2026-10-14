@@ -179,6 +179,21 @@
             "scryfall_uri": "https://scryfall.com/sets/sld",
             "path": "/set/sld--1786334400.svg",
             "released_at": "2019-12-02"
+        },
+        {
+            "id": "19feda43-15ab-427e-a0e4-148a4bf2b03a",
+            "code": "iko",
+            "name": "Ikoria: Lair of Behemoths",
+            "block_code": null,
+            "block": null,
+            "parent_set_code": null,
+            "card_count": 390,
+            "printed_size": 274,
+            "set_type": "expansion",
+            "digital": 0,
+            "scryfall_uri": "https://scryfall.com/sets/iko",
+            "path": "/set/iko--1786334400.svg",
+            "released_at": "2020-04-24"
         }
     ],
     "artists": [
@@ -245,6 +260,10 @@
         {
             "id": "15009484-8706-4cf6-8a32-1d094250a10d",
             "name": "Sandra Everingham"
+        },
+        {
+            "id": "cff98c4f-3ed0-4102-8591-9f1c718e0e7f",
+            "name": "Slawomir Maniak"
         },
         {
             "id": "f937f7cf-f9e1-4d32-923b-6a27dcf04ab9",
@@ -1845,6 +1864,23 @@
             "scryfall_uri": "https://scryfall.com/card/fdn/227/llanowar-elves?utm_source=api"
         },
         {
+            "id": "3bc757c1-3adb-4321-8832-8e1cc9e687f7",
+            "name": "Lurrus of the Dream-Den",
+            "searchable_name": "lurrus of the dream den",
+            "collector_number": "226",
+            "layout": "normal",
+            "lang": "en",
+            "cmc": "3.0",
+            "color_identity": "BW",
+            "type_line": "Legendary Creature — Cat Nightmare",
+            "produced_mana": null,
+            "reserved": 0,
+            "game_changer": 0,
+            "mld": 0,
+            "fetch_pattern": null,
+            "scryfall_uri": "https://scryfall.com/card/iko/226/lurrus-of-the-dream-den?utm_source=api"
+        },
+        {
             "id": "a3fb7228-e76b-4e96-a40e-20b5fed75685",
             "name": "Mountain",
             "searchable_name": "mountain",
@@ -1982,6 +2018,20 @@
         }
     ],
     "oracle_card_faces": [
+        {
+            "id": "7c3f8455-7f45-4c4d-ad9f-e9e286683dec",
+            "oracle_card_id": "3bc757c1-3adb-4321-8832-8e1cc9e687f7",
+            "face_index": 0,
+            "name": "Lurrus of the Dream-Den",
+            "mana_cost": "{1}{W/B}{W/B}",
+            "type_line": "Legendary Creature — Cat Nightmare",
+            "oracle_text": "Companion — Each permanent card in your starting deck has mana value 2 or less. (If this card is your chosen companion, you may put it into your hand from outside the game for {3} as a sorcery.)\nLifelink\nOnce during each of your turns, you may cast a permanent spell with mana value 2 or less from your graveyard.",
+            "colors": "BW",
+            "power": "3",
+            "toughness": "2",
+            "loyalty": null,
+            "defense": null
+        },
         {
             "id": "9baeaf8a-1662-4388-94c9-89862e1a8c54",
             "oracle_card_id": "c9ed8b01-959a-47d6-891e-0abbdccf6e4f",
@@ -2306,6 +2356,121 @@
         }
     ],
     "legalities": [
+        {
+            "oracle_card_id": "3bc757c1-3adb-4321-8832-8e1cc9e687f7",
+            "format": "alchemy",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "3bc757c1-3adb-4321-8832-8e1cc9e687f7",
+            "format": "brawl",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "3bc757c1-3adb-4321-8832-8e1cc9e687f7",
+            "format": "commander",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "3bc757c1-3adb-4321-8832-8e1cc9e687f7",
+            "format": "competitivebrawl",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "3bc757c1-3adb-4321-8832-8e1cc9e687f7",
+            "format": "duel",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "3bc757c1-3adb-4321-8832-8e1cc9e687f7",
+            "format": "future",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "3bc757c1-3adb-4321-8832-8e1cc9e687f7",
+            "format": "gladiator",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "3bc757c1-3adb-4321-8832-8e1cc9e687f7",
+            "format": "historic",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "3bc757c1-3adb-4321-8832-8e1cc9e687f7",
+            "format": "legacy",
+            "legality": "banned"
+        },
+        {
+            "oracle_card_id": "3bc757c1-3adb-4321-8832-8e1cc9e687f7",
+            "format": "modern",
+            "legality": "banned"
+        },
+        {
+            "oracle_card_id": "3bc757c1-3adb-4321-8832-8e1cc9e687f7",
+            "format": "oathbreaker",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "3bc757c1-3adb-4321-8832-8e1cc9e687f7",
+            "format": "oldschool",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "3bc757c1-3adb-4321-8832-8e1cc9e687f7",
+            "format": "pauper",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "3bc757c1-3adb-4321-8832-8e1cc9e687f7",
+            "format": "paupercommander",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "3bc757c1-3adb-4321-8832-8e1cc9e687f7",
+            "format": "penny",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "3bc757c1-3adb-4321-8832-8e1cc9e687f7",
+            "format": "pioneer",
+            "legality": "banned"
+        },
+        {
+            "oracle_card_id": "3bc757c1-3adb-4321-8832-8e1cc9e687f7",
+            "format": "predh",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "3bc757c1-3adb-4321-8832-8e1cc9e687f7",
+            "format": "premodern",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "3bc757c1-3adb-4321-8832-8e1cc9e687f7",
+            "format": "standard",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "3bc757c1-3adb-4321-8832-8e1cc9e687f7",
+            "format": "standardbrawl",
+            "legality": "not_legal"
+        },
+        {
+            "oracle_card_id": "3bc757c1-3adb-4321-8832-8e1cc9e687f7",
+            "format": "timeless",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "3bc757c1-3adb-4321-8832-8e1cc9e687f7",
+            "format": "tlr",
+            "legality": "legal"
+        },
+        {
+            "oracle_card_id": "3bc757c1-3adb-4321-8832-8e1cc9e687f7",
+            "format": "vintage",
+            "legality": "legal"
+        },
         {
             "oracle_card_id": "c9ed8b01-959a-47d6-891e-0abbdccf6e4f",
             "format": "alchemy",
@@ -5245,6 +5410,54 @@
             "artist_id": "adc96c42-f59a-472a-8595-44b9b695411b",
             "set_id": "288bd996-960e-448b-a187-9504c1930c2c",
             "oracle_id": "68954295-54e3-4303-a6bc-fc4547a4e3a3"
+        },
+        {
+            "id": "5ad36fb2-c44e-4085-ba0d-54277841ad3a",
+            "name": "Lurrus of the Dream-Den",
+            "searchable_name": "lurrus of the dream den",
+            "collector_number": "226",
+            "layout": "normal",
+            "lang": "en",
+            "card_image_0": "/card-images/iko/5ad36fb2-c44e-4085-ba0d-54277841ad3a--1783931010--0.jpg",
+            "card_image_1": null,
+            "art_crop": "/art-crops/iko/5ad36fb2-c44e-4085-ba0d-54277841ad3a--1783931010.jpg",
+            "finishes": 3,
+            "games": 7,
+            "price_usd": "2.43",
+            "price_usd_foil": "3.31",
+            "price_usd_etched": null,
+            "price_eur": "1.52",
+            "price_eur_foil": "2.52",
+            "price_eur_etched": null,
+            "digital": 0,
+            "rarity": "rare",
+            "artist_id": "cff98c4f-3ed0-4102-8591-9f1c718e0e7f",
+            "set_id": "19feda43-15ab-427e-a0e4-148a4bf2b03a",
+            "oracle_id": "3bc757c1-3adb-4321-8832-8e1cc9e687f7"
+        },
+        {
+            "id": "2c89beb2-3467-4be0-a066-919f54331942",
+            "name": "Lurrus of the Dream-Den",
+            "searchable_name": "lurrus of the dream den",
+            "collector_number": "355",
+            "layout": "normal",
+            "lang": "en",
+            "card_image_0": "/card-images/iko/2c89beb2-3467-4be0-a066-919f54331942--1783930961--0.jpg",
+            "card_image_1": null,
+            "art_crop": "/art-crops/iko/2c89beb2-3467-4be0-a066-919f54331942--1783930961.jpg",
+            "finishes": 3,
+            "games": 5,
+            "price_usd": "3.90",
+            "price_usd_foil": "7.14",
+            "price_usd_etched": null,
+            "price_eur": "3.50",
+            "price_eur_foil": "8.31",
+            "price_eur_etched": null,
+            "digital": 0,
+            "rarity": "rare",
+            "artist_id": "cff98c4f-3ed0-4102-8591-9f1c718e0e7f",
+            "set_id": "19feda43-15ab-427e-a0e4-148a4bf2b03a",
+            "oracle_id": "3bc757c1-3adb-4321-8832-8e1cc9e687f7"
         },
         {
             "id": "eace2c85-976c-425e-9800-5a6ccbd91b56",

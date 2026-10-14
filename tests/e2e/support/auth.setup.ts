@@ -1,6 +1,6 @@
 import { expect, test as setup } from "@playwright/test";
 import { signIn } from "./actions";
-import { STORAGE_STATE } from "./environment";
+import { REFRESH_STORAGE_STATE, REFRESH_USER, STORAGE_STATE } from "./environment";
 
 /**
  * Sign in once and save the session, so the authenticated specs do not each pay
@@ -30,4 +30,16 @@ setup("sign in as the seeded user", async ({ page }) => {
     await expect(page.getByRole("heading", { name: "Mein Benutzerkonto" })).toBeVisible();
 
     await page.context().storageState({ path: STORAGE_STATE });
+});
+
+/**
+ * The same for the account `app/deck-refresh.spec.ts` writes as. A separate
+ * name is a separate throttle bucket, so this costs the first account nothing.
+ */
+setup("sign in as the refresh user", async ({ page }) => {
+    await signIn(page, REFRESH_USER);
+
+    await expect(page.getByRole("heading", { name: "Mein Benutzerkonto" })).toBeVisible();
+
+    await page.context().storageState({ path: REFRESH_STORAGE_STATE });
 });

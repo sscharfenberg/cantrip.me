@@ -145,6 +145,9 @@ class E2ESeeder extends Seeder
         $this->seedContainers($user);
         $this->seedCardStacks($user);
         $this->seedDecks($user);
+
+        /* A second account with its own decks, for the specs that write. Needs the snapshot above. */
+        $this->call(E2EDeckRefreshSeeder::class);
     }
 
     /**
@@ -187,7 +190,7 @@ class E2ESeeder extends Seeder
     /**
      * Load the committed Scryfall snapshot.
      *
-     * 22 oracle cards and 27 printings, pulled from the real dataset on staging
+     * 23 oracle cards and 29 printings, pulled from the real dataset on staging
      * — real ids, real oracle text, real prices, real `color_identity` strings —
      * because the app reasons about all of it and a hand-written approximation
      * would be a fixture that agrees with the tests rather than with Magic.
