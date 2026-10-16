@@ -292,7 +292,8 @@ class UpdateEverything extends Command
         $this->runStep('scryfall:oracle', shadow: true);
         $waitTime += $this->sleep();
         // oracle-tags: hits the Scryfall search endpoint and UPDATEs
-        // oracle_cards__shadow (mld, fetch_pattern columns). 1s pacing
+        // oracle_cards__shadow (mld, fetch_pattern, land_search_pattern
+        // columns). 1s pacing
         // is enforced inside the service.
         $this->runStep('scryfall:oracle-tags', shadow: true);
         $waitTime += $this->sleep();
@@ -410,8 +411,10 @@ class UpdateEverything extends Command
         // Oracle-tag classifications.
         $mld = (int) DB::table('oracle_cards')->where('mld', true)->count();
         $fetch = (int) DB::table('oracle_cards')->whereNotNull('fetch_pattern')->count();
+        $landSearch = (int) DB::table('oracle_cards')->whereNotNull('land_search_pattern')->count();
         $this->pushSummary('Oracle tags', 'mass-land-denial (mld)', $this->fmtCount($mld).' cards');
         $this->pushSummary('Oracle tags', 'fetch_pattern', $this->fmtCount($fetch).' cards');
+        $this->pushSummary('Oracle tags', 'land_search_pattern', $this->fmtCount($landSearch).' cards');
 
         // Image download (cross-step counters from ImageDownloadService).
         $cardImagesProcessed = ScryfallRunStats::$cardImagesDownloaded + ScryfallRunStats::$cardImagesSkipped + ScryfallRunStats::$cardImagesFailed;

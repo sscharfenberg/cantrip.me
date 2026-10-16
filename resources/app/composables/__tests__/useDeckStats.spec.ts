@@ -38,9 +38,13 @@ const plains = (quantity: number) =>
         quantity
     });
 
-/** A card whose only interesting property is its cost and mana value. */
+/**
+ * A card whose only interesting property is its cost and mana value. Named
+ * after its cost, so a Karsten row naming the card it is priced for reads
+ * as the spell the test built (`"{1}{W}{W}"`).
+ */
 const spell = (mana_cost: string, cmc: number, overrides: Partial<DeckCardRow> = {}) =>
-    makeDeckCard({ type_line: "Instant", mana_cost: [mana_cost], cmc, ...overrides });
+    makeDeckCard({ name: mana_cost, type_line: "Instant", mana_cost: [mana_cost], cmc, ...overrides });
 
 /**
  * A mana rock with an explicitly colourless cost. The cost matters: a coloured
@@ -48,7 +52,7 @@ const spell = (mana_cost: string, cmc: number, overrides: Partial<DeckCardRow> =
  * what the production clamp is being measured against.
  */
 const manaRock = (produced_mana: string[]) =>
-    makeDeckCard({ type_line: "Artifact", mana_cost: ["{2}"], cmc: 2, produced_mana });
+    makeDeckCard({ type_line: "Artifact", mana_cost: ["{2}"], cmc: 2, produced_mana, mana_source: "ability" });
 
 describe("useDeckStats — totalNonCommanderCards", () => {
     it("sums quantity across the deck, not row count", () => {
@@ -266,12 +270,13 @@ describe("useDeckStats — productionPips", () => {
     });
 
     it("clamps production to the colours the deck actually asks for", () => {
-        // A five-colour rock in a mono-white deck can only usefully make white.
+        // A five-colour rock in a mono-white deck can only usefully make white
+        // (¾ of a source, toward the three-drop it is online for).
         const { productionPips } = setup({
-            cards: [spell("{W}", 1), manaRock(["W", "U", "B", "R", "G"])]
+            cards: [spell("{2}{W}", 3), manaRock(["W", "U", "B", "R", "G"])]
         });
 
-        expect(productionPips.value).toEqual({ ...NO_PIPS, W: 1 });
+        expect(productionPips.value).toEqual({ ...NO_PIPS, W: 0.75 });
     });
 
     it("also clamps to the commander colour identity", () => {
@@ -289,21 +294,23 @@ describe("useDeckStats — productionPips", () => {
         // alone would leave U and G; clamping by used colours alone would leave
         // nothing to test. The answer is the intersection: white only.
         const { productionPips } = setup({
-            cards: [spell("{W}", 1), manaRock(["W", "U", "B", "R", "G"])],
+            cards: [spell("{2}{W}", 3), manaRock(["W", "U", "B", "R", "G"])],
             commanders: [makeCommander({ color_identity: "GWU", mana_cost: ["{2}"], cmc: 2 })],
             format: "commander"
         });
 
-        expect(productionPips.value).toEqual({ ...NO_PIPS, W: 1 });
+        expect(productionPips.value).toEqual({ ...NO_PIPS, W: 0.75 });
     });
 
     it("falls back to hybrid colours when the deck has no forced pip at all", () => {
-        // A pure-hybrid build would otherwise collapse the donut to empty.
-        const { productionPips } = setup({
-            cards: [spell("{W/U}", 1), manaRock(["W", "U", "B", "R", "G"])]
+        // A pure-hybrid build would otherwise collapse the donut to empty. With
+        // no Karsten row to copy, each colour is priced toward its cheapest spell.
+        const { productionPips, productionBasis } = setup({
+            cards: [spell("{2}{W/U}", 3), manaRock(["W", "U", "B", "R", "G"])]
         });
 
-        expect(productionPips.value).toEqual({ ...NO_PIPS, W: 1, U: 1 });
+        expect(productionPips.value).toEqual({ ...NO_PIPS, W: 0.75, U: 0.75 });
+        expect(productionBasis.value).toEqual({ W: { card: "{2}{W/U}", mv: 3 }, U: { card: "{2}{W/U}", mv: 3 } });
     });
 
     it("resolves a fetchland against the deck's other lands", () => {
@@ -348,7 +355,7 @@ describe("useDeckStats — productionPips", () => {
         // A Thrasios + Tymna deck is four colours; clamping to one partner
         // would silently drop half the deck's production.
         const { productionPips } = setup({
-            cards: [spell("{W}", 1), spell("{U}", 1), manaRock(["W", "U", "B", "R", "G"])],
+            cards: [spell("{2}{W}", 3), spell("{2}{U}", 3), manaRock(["W", "U", "B", "R", "G"])],
             commanders: [
                 makeCommander({
                     name: "Thrasios, Triton Hero",
@@ -361,18 +368,49 @@ describe("useDeckStats — productionPips", () => {
             format: "commander"
         });
 
-        expect(productionPips.value).toEqual({ ...NO_PIPS, W: 1, U: 1 });
+        expect(productionPips.value).toEqual({ ...NO_PIPS, W: 0.75, U: 0.75 });
     });
 
     it("counts production from commanders and the companion", () => {
+        // Both are mana creatures — half a source each, toward the three-drop.
         const { productionPips } = setup({
-            cards: [spell("{G}", 1)],
-            commanders: [makeCommander({ color_identity: "G", produced_mana: ["G"], mana_cost: ["{G}"] })],
-            companion: makeCompanion({ produced_mana: ["G"] }),
+            cards: [spell("{2}{G}", 3)],
+            commanders: [
+                makeCommander({
+                    color_identity: "G",
+                    produced_mana: ["G"],
+                    mana_source: "ability",
+                    mana_cost: ["{2}"],
+                    cmc: 2
+                })
+            ],
+            companion: makeCompanion({ produced_mana: ["G"], mana_source: "ability", mana_cost: ["{2}"], cmc: 2 }),
             format: "commander"
         });
 
-        expect(productionPips.value).toEqual({ ...NO_PIPS, G: 2 });
+        expect(productionPips.value).toEqual({ ...NO_PIPS, G: 1 });
+    });
+
+    it("shows each colour exactly as its Karsten row does", () => {
+        // The ring and the "Mana sources" list read one number: rocks and ramp
+        // count only toward the spell the row is priced for.
+        const { productionPips, productionBasis, karstenAnalysis } = setup({
+            cards: [
+                plains(10),
+                bayou(),
+                threeVisits(2),
+                { ...manaRock(["W"]), quantity: 4 },
+                spell("{W}", 1),
+                spell("{3}{W}{W}", 5),
+                spell("{2}{B}", 3)
+            ]
+        });
+
+        for (const row of karstenAnalysis.value) {
+            expect(productionPips.value[row.color]).toBe(row.have);
+            expect(productionBasis.value[row.color]).toEqual({ card: row.card, mv: row.mv });
+        }
+        expect(productionPips.value).toEqual({ ...NO_PIPS, W: 10, B: 2.5, G: 1 });
     });
 });
 
@@ -390,13 +428,13 @@ describe("useDeckStats — karstenAnalysis", () => {
             ]
         });
 
-        expect(karstenAnalysis.value).toEqual([{ color: "W", have: 12, need: 18, short: 6 }]);
+        expect(karstenAnalysis.value).toEqual([{ color: "W", have: 12, need: 18, short: 6, card: "{1}{W}{W}", mv: 3 }]);
     });
 
     it("reports no shortfall once the deck has enough sources", () => {
         const { karstenAnalysis } = setup({ cards: [plains(20), spell("{W}", 1)] });
 
-        expect(karstenAnalysis.value).toEqual([{ color: "W", have: 20, need: 14, short: 0 }]);
+        expect(karstenAnalysis.value).toEqual([{ color: "W", have: 20, need: 14, short: 0, card: "{W}", mv: 1 }]);
     });
 
     it("adds Karsten's +1 for a gold card, which needs both colours on curve", () => {
@@ -404,8 +442,8 @@ describe("useDeckStats — karstenAnalysis", () => {
 
         // One pip each at MV 3 is 12; the gold hack makes it 13.
         expect(karstenAnalysis.value).toEqual([
-            { color: "W", have: 0, need: 13, short: 13 },
-            { color: "U", have: 0, need: 13, short: 13 }
+            { color: "W", have: 0, need: 13, short: 13, card: "{1}{W}{U}", mv: 3 },
+            { color: "U", have: 0, need: 13, short: 13, card: "{1}{W}{U}", mv: 3 }
         ]);
     });
 
@@ -464,14 +502,18 @@ describe("useDeckStats — karstenCombined", () => {
         const { karstenCombined } = setup({ cards: [spell("{1}{W}{U}", 3)] });
 
         // Two total forced pips at MV 3 is 18, plus the gold +1.
-        expect(karstenCombined.value).toEqual([{ colors: ["W", "U"], have: 0, need: 19, short: 19 }]);
+        expect(karstenCombined.value).toEqual([
+            { colors: ["W", "U"], have: 0, need: 19, short: 19, card: "{1}{W}{U}", mv: 3 }
+        ]);
     });
 
     it("adds a combined row for a hybrid card, with no +1", () => {
         const { karstenCombined } = setup({ cards: [spell("{3}{W/U}{W/U}", 5)] });
 
         // Two hybrid pips at MV 5 is 15 — only one colour is needed per pip.
-        expect(karstenCombined.value).toEqual([{ colors: ["W", "U"], have: 0, need: 15, short: 15 }]);
+        expect(karstenCombined.value).toEqual([
+            { colors: ["W", "U"], have: 0, need: 15, short: 15, card: "{3}{W/U}{W/U}", mv: 5 }
+        ]);
     });
 
     it("treats repeated hybrid symbols as one requirement of that density", () => {
@@ -528,7 +570,9 @@ describe("useDeckStats — karstenCombined", () => {
             companion: makeCompanion({ name: "Yorion, Sky Nomad", mana_cost: ["{3}{W/U}{W/U}"], cmc: 5 })
         });
 
-        expect(karstenCombined.value).toEqual([{ colors: ["W", "U"], have: 0, need: 15, short: 15 }]);
+        expect(karstenCombined.value).toEqual([
+            { colors: ["W", "U"], have: 0, need: 15, short: 15, card: "Yorion, Sky Nomad", mv: 5 }
+        ]);
     });
 
     it("sorts by combo size first, ahead of the alphabet", () => {
@@ -547,6 +591,198 @@ describe("useDeckStats — karstenCombined", () => {
         });
 
         expect(karstenCombined.value.map(r => r.colors.join(""))).toEqual(["UB", "WU"]);
+    });
+});
+
+/** A basic Forest — `basic` land-search patterns only see lands flagged basic. */
+const forest = (quantity: number) =>
+    makeDeckCard({
+        name: "Forest",
+        type_line: "Basic Land — Forest",
+        cmc: 0,
+        mana_cost: [null],
+        is_basic_land: true,
+        produced_mana: ["G"],
+        quantity
+    });
+
+const bayou = () =>
+    makeDeckCard({
+        name: "Bayou",
+        type_line: "Land — Swamp Forest",
+        cmc: 0,
+        mana_cost: [null],
+        produced_mana: ["B", "G"]
+    });
+
+const threeVisits = (quantity: number) =>
+    makeDeckCard({
+        name: "Three Visits",
+        type_line: "Sorcery",
+        cmc: 2,
+        mana_cost: ["{1}{G}"],
+        land_search_pattern: "typed:G",
+        quantity
+    });
+
+describe("useDeckStats — Karsten source weighting", () => {
+    it("counts two-mana ramp as ¾ of every colour its lands can bring, from MV 3", () => {
+        // Three Visits finds a Forest card; the deck's only one is a Bayou, so
+        // each copy is ¾ of a black source for the three-drop — and nothing
+        // toward its own two-mana cost.
+        const { karstenAnalysis } = setup({ cards: [bayou(), threeVisits(3), spell("{2}{B}", 3)] });
+
+        expect(karstenAnalysis.value).toEqual([
+            { color: "B", have: 3.25, need: 12, short: 8.75, card: "{2}{B}", mv: 3 },
+            { color: "G", have: 1, need: 13, short: 12, card: "Three Visits", mv: 2 }
+        ]);
+    });
+
+    it("counts three-mana ramp as ¼ at MV 4 and ½ from MV 5", () => {
+        const cultivate = makeDeckCard({
+            name: "Cultivate",
+            type_line: "Sorcery",
+            cmc: 3,
+            mana_cost: ["{2}{G}"],
+            land_search_pattern: "basic",
+            quantity: 2
+        });
+
+        const fiveDrop = setup({ cards: [forest(10), cultivate, spell("{3}{G}{G}", 5)] }).karstenAnalysis.value;
+        const fourDrop = setup({ cards: [forest(10), cultivate, spell("{2}{G}{G}", 4)] }).karstenAnalysis.value;
+
+        expect(fiveDrop).toEqual([{ color: "G", have: 11, need: 15, short: 4, card: "{3}{G}{G}", mv: 5 }]);
+        expect(fourDrop).toEqual([{ color: "G", have: 10.5, need: 16, short: 5.5, card: "{2}{G}{G}", mv: 4 }]);
+    });
+
+    it("counts a mana creature as ½ of a source", () => {
+        const elves = makeDeckCard({
+            name: "Llanowar Elves",
+            type_line: "Creature — Elf Druid",
+            cmc: 1,
+            mana_cost: ["{G}"],
+            produced_mana: ["G"],
+            mana_source: "ability",
+            quantity: 4
+        });
+        const { karstenAnalysis } = setup({ cards: [forest(10), elves, spell("{1}{G}{G}", 3)] });
+
+        expect(karstenAnalysis.value).toEqual([{ color: "G", have: 12, need: 18, short: 6, card: "{1}{G}{G}", mv: 3 }]);
+    });
+
+    it("counts a mana rock as ¾ of a source", () => {
+        const { karstenAnalysis } = setup({
+            cards: [plains(10), { ...manaRock(["W"]), quantity: 4 }, spell("{1}{W}{W}", 3)]
+        });
+
+        expect(karstenAnalysis.value).toEqual([{ color: "W", have: 13, need: 18, short: 5, card: "{1}{W}{W}", mv: 3 }]);
+    });
+
+    it("does not count a ritual as a source", () => {
+        const darkRitual = makeDeckCard({
+            name: "Dark Ritual",
+            type_line: "Instant",
+            cmc: 1,
+            mana_cost: ["{B}"],
+            produced_mana: ["B"],
+            mana_source: "ability",
+            quantity: 4
+        });
+        const swamps = makeDeckCard({
+            type_line: "Basic Land — Swamp",
+            cmc: 0,
+            mana_cost: [null],
+            produced_mana: ["B"],
+            quantity: 10
+        });
+        const { karstenAnalysis } = setup({ cards: [swamps, darkRitual, spell("{2}{B}{B}", 4)] });
+
+        expect(karstenAnalysis.value).toEqual([{ color: "B", have: 10, need: 16, short: 6, card: "{2}{B}{B}", mv: 4 }]);
+    });
+
+    it("counts a spell/land MDFC as a full land source", () => {
+        const balaGed = makeDeckCard({
+            name: "Bala Ged Recovery",
+            type_line: "Sorcery",
+            cmc: 3,
+            mana_cost: ["{2}{G}", null],
+            produced_mana: ["G"],
+            is_mdfc_land: true
+        });
+
+        expect(setup({ cards: [balaGed] }).karstenAnalysis.value).toEqual([
+            { color: "G", have: 1, need: 12, short: 11, card: "Bala Ged Recovery", mv: 3 }
+        ]);
+    });
+
+    it("counts a Treasure maker as ¼ of a source", () => {
+        const tithe = makeDeckCard({
+            name: "Smothering Tithe",
+            type_line: "Enchantment",
+            cmc: 4,
+            mana_cost: ["{3}{W}"],
+            produced_mana: ["W", "U", "B", "R", "G"],
+            mana_source: "token",
+            quantity: 2
+        });
+        const { karstenAnalysis } = setup({ cards: [plains(10), tithe, spell("{3}{W}{W}", 5)] });
+
+        expect(karstenAnalysis.value).toEqual([
+            { color: "W", have: 10.5, need: 15, short: 4.5, card: "{3}{W}{W}", mv: 5 }
+        ]);
+    });
+
+    it("breaks an equal shortfall toward the larger requirement", () => {
+        // Eight colourless-cost dorks (½ each, from MV 2) lift the three-drop
+        // to the same four-source gap the one-drop has; the larger need wins.
+        const dorks = makeDeckCard({
+            type_line: "Artifact Creature — Construct",
+            cmc: 1,
+            mana_cost: ["{1}"],
+            produced_mana: ["W"],
+            mana_source: "ability",
+            quantity: 8
+        });
+        const { karstenAnalysis } = setup({ cards: [spell("{W}", 1), plains(10), dorks, spell("{1}{W}{W}", 3)] });
+
+        expect(karstenAnalysis.value).toEqual([{ color: "W", have: 14, need: 18, short: 4, card: "{1}{W}{W}", mv: 3 }]);
+    });
+
+    it("shows the requirement the deck falls short on, not merely the largest one", () => {
+        // Eight rocks carry the five-drop (12 + 6 ≥ 15) but cannot help the
+        // one-drop, which only lands can cast on turn one (12 < 14).
+        const { karstenAnalysis } = setup({
+            cards: [plains(12), { ...manaRock(["W"]), quantity: 8 }, spell("{W}", 1), spell("{3}{W}{W}", 5)]
+        });
+
+        expect(karstenAnalysis.value).toEqual([{ color: "W", have: 12, need: 14, short: 2, card: "{W}", mv: 1 }]);
+    });
+
+    it("prices combined rows per card too", () => {
+        // The Signets reach the three-drop gold card but not the two-drop.
+        const signets = { ...manaRock(["W", "U"]), quantity: 4 };
+        const { karstenCombined } = setup({
+            cards: [plains(8), signets, spell("{1}{W}{U}", 3), spell("{W}{U}", 2)]
+        });
+
+        expect(karstenCombined.value).toEqual([
+            { colors: ["W", "U"], have: 8, need: 22, short: 14, card: "{W}{U}", mv: 2 }
+        ]);
+    });
+
+    it("clamps sources to the commander colour identity", () => {
+        // An off-identity black card still demands black; the deck's swamps
+        // cannot legally answer it in a mono-green commander deck.
+        const { karstenAnalysis } = setup({
+            cards: [
+                makeDeckCard({ type_line: "Basic Land — Swamp", cmc: 0, produced_mana: ["B"], quantity: 5 }),
+                spell("{B}", 1)
+            ],
+            commanders: [makeCommander({ color_identity: "G", mana_cost: ["{2}"], cmc: 2 })],
+            format: "commander"
+        });
+
+        expect(karstenAnalysis.value).toEqual([{ color: "B", have: 0, need: 19, short: 19, card: "{B}", mv: 1 }]);
     });
 });
 

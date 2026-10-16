@@ -1,6 +1,7 @@
 import { computed, inject, provide, reactive, type ComputedRef, type InjectionKey } from "vue";
 import { type LandCandidate, makeFetchResolver } from "@/utils/fetchlandResolver";
-import type { DeckHighlight, DeckStatsSelection } from "Types/deckPage.ts";
+import { bestRole, type SourceRole, sourceRoles } from "@/utils/karstenSources";
+import type { DeckHighlight, DeckStatsSelection, ManaSource } from "Types/deckPage.ts";
 
 /**
  * Single uppercase WUBRG letter accepted by the color highlight axes.
@@ -15,11 +16,12 @@ export type HighlightColor = "W" | "U" | "B" | "R" | "G";
  * companions omit `category_id`, so the matcher treats the `category`
  * axis as never matching them (they have no user category).
  *
- * `fetch_pattern` and `is_basic_land` are optional because commanders
- * / companions don't carry them — only `DeckCardRow` does. The
- * production-axis matcher uses `fetch_pattern` to resolve a
- * fetchland's effective colors against the deck's other lands; for
- * cards without it the matcher falls back to raw `produced_mana`.
+ * `fetch_pattern`, `land_search_pattern`, `is_basic_land` and
+ * `is_mdfc_land` are optional because commanders / companions don't
+ * carry them — only `DeckCardRow` does. The production-axis matcher
+ * classifies a card exactly as the stats do (`karstenSources.ts`),
+ * resolving both patterns against the deck's other lands (a fetchland,
+ * or a Three Visits finding a Bayou).
  */
 export interface HighlightableCard {
     cmc: number;
@@ -28,7 +30,27 @@ export interface HighlightableCard {
     mana_cost: (string | null)[];
     category_id?: string | null;
     fetch_pattern?: string | null;
+    land_search_pattern?: string | null;
     is_basic_land?: boolean;
+    is_mdfc_land?: boolean;
+    mana_source?: ManaSource | null;
+}
+
+/** From mana value `fromMv` on, a card counts as `weight` of a source of the selected color. */
+export interface ShareStep {
+    weight: number;
+    fromMv: number;
+}
+
+/**
+ * What a card is worth as a source of the selected production color:
+ * `weight` toward the spell the ring priced that color for — 0 for a
+ * card that only counts toward bigger spells — and every step of its
+ * worth, lightest first (Cultivate: ¼ from mana value 4, ½ from 5).
+ */
+export interface ProductionShare {
+    weight: number;
+    steps: ShareStep[];
 }
 
 /**
@@ -48,11 +70,31 @@ export interface DeckHighlightApi {
 
     setManaValue: (cmc: number | null) => void;
     setCategory: (sel: DeckStatsSelection | null) => void;
-    setColorProduction: (color: HighlightColor | null) => void;
+    /**
+     * Select a production color. `mv` is the mana value of the spell
+     * the production ring priced that color for; only cards that count
+     * toward it highlight. Omitted, any card that counts at all does.
+     */
+    setColorProduction: (color: HighlightColor | null, mv?: number | null) => void;
     setColorConsumption: (color: HighlightColor | null) => void;
     clear: () => void;
 
     isHighlighted: (card: HighlightableCard) => boolean;
+    /**
+     * True for a card the production axis leaves unhighlighted only
+     * because it comes online too late for the spell the ring priced
+     * the color for — a Cultivate against a three-drop. It does count
+     * toward bigger spells, so the card views mark it in a muted style
+     * instead of dimming it with the rest. Every other axis still has
+     * to match.
+     */
+    isLaterSource: (card: HighlightableCard) => boolean;
+    /**
+     * For a highlighted or later source, how much of a source it counts
+     * as (see {@link ProductionShare}) — null for full sources (lands),
+     * for cards that are neither, and when no production color is set.
+     */
+    productionShare: (card: HighlightableCard) => ProductionShare | null;
 }
 
 const KEY: InjectionKey<DeckHighlightApi> = Symbol("DeckHighlight");
@@ -93,6 +135,7 @@ const emptyHighlight = (): DeckHighlight => ({
     mv: null,
     category: null,
     colorProduction: null,
+    colorProductionMv: null,
     colorConsumption: null
 });
 
@@ -112,12 +155,12 @@ export const provideDeckHighlight = (getDeckCards?: () => HighlightableCard[]): 
     const highlight = reactive<DeckHighlight>(emptyHighlight());
 
     /**
-     * Per-deck fetchland resolver, rebuilt every time the deck's
-     * cards change. Returns null when there are no fetchlands so the
-     * production matcher can short-circuit. Closure cost is bounded
-     * by the deck's land count (one bucket build) plus the number
-     * of distinct fetch patterns the highlight axis ever asks
-     * about (memoized).
+     * Per-deck pattern resolver, rebuilt every time the deck's cards
+     * change. Returns null when there are no fetchlands or land-search
+     * spells so the production matcher can short-circuit. Closure cost
+     * is bounded by the deck's land count (one bucket build) plus the
+     * number of distinct patterns the highlight axis ever asks about
+     * (memoized).
      */
     const fetchResolver = computed<((pattern: string) => string[]) | null>(() => {
         if (!getDeckCards) return null;
@@ -133,16 +176,41 @@ export const provideDeckHighlight = (getDeckCards?: () => HighlightableCard[]): 
     });
 
     /**
-     * Effective produced colors for the highlight matcher. Returns
-     * the resolved fetch colors when the card is a fetchland with a
-     * registered resolver; otherwise the card's raw `produced_mana`.
+     * The card's source roles in the selected production color, by the
+     * same classification the production ring sums. Empty when the card
+     * supplies none of it, or no production color is set.
      */
-    const effectiveProduced = (card: HighlightableCard): string[] | null => {
-        if (card.fetch_pattern) {
-            const resolver = fetchResolver.value;
-            if (resolver) return resolver(card.fetch_pattern);
+    const colorRoles = (card: HighlightableCard): SourceRole[] => {
+        const color = highlight.colorProduction;
+        if (color === null) return [];
+        return sourceRoles({ ...card, mana_source: card.mana_source ?? null }, fetchResolver.value).filter(role =>
+            role.colors.includes(color)
+        );
+    };
+
+    /**
+     * The role a card counts through toward the spell the ring priced
+     * the color for — so a clicked segment highlights exactly the cards
+     * behind its number. Null when it does not count by then.
+     */
+    const pricedRole = (roles: SourceRole[]): SourceRole | null =>
+        highlight.colorProduction === null
+            ? null
+            : bestRole(roles, [highlight.colorProduction], highlight.colorProductionMv ?? Number.POSITIVE_INFINITY);
+
+    /** A card's worth over mana value, as rising steps: a later role only matters if it weighs more. */
+    const shareSteps = (roles: SourceRole[]): ShareStep[] => {
+        const steps: ShareStep[] = [];
+        for (const role of [...roles].sort((a, b) => a.minMv - b.minMv)) {
+            const last = steps[steps.length - 1] as ShareStep | undefined;
+            if (last !== undefined && role.weight <= last.weight) continue;
+            if (last !== undefined && role.minMv === last.fromMv) {
+                last.weight = role.weight;
+            } else {
+                steps.push({ weight: role.weight, fromMv: role.minMv });
+            }
         }
-        return card.produced_mana;
+        return steps;
     };
 
     const hasHighlight = computed(
@@ -164,8 +232,9 @@ export const provideDeckHighlight = (getDeckCards?: () => HighlightableCard[]): 
     const setCategory = (selection: DeckStatsSelection | null): void => {
         highlight.category = selection;
     };
-    const setColorProduction = (color: HighlightColor | null): void => {
+    const setColorProduction = (color: HighlightColor | null, mv: number | null = null): void => {
         highlight.colorProduction = color;
+        highlight.colorProductionMv = color === null ? null : mv;
     };
     const setColorConsumption = (color: HighlightColor | null): void => {
         highlight.colorConsumption = color;
@@ -174,7 +243,15 @@ export const provideDeckHighlight = (getDeckCards?: () => HighlightableCard[]): 
         highlight.mv = null;
         highlight.category = null;
         highlight.colorProduction = null;
+        highlight.colorProductionMv = null;
         highlight.colorConsumption = null;
+    };
+
+    /** Every set axis except production — the part the two production states share. */
+    const matchesOtherAxes = (card: HighlightableCard): boolean => {
+        if (highlight.mv !== null && !matchesManaValue(card, highlight.mv)) return false;
+        if (highlight.category !== null && !matchesCategory(card, highlight.category)) return false;
+        return !(highlight.colorConsumption !== null && !consumesColor(card.mana_cost, highlight.colorConsumption));
     };
 
     /**
@@ -183,15 +260,22 @@ export const provideDeckHighlight = (getDeckCards?: () => HighlightableCard[]): 
      * card views render their default (un-highlighted) state.
      */
     const isHighlighted = (card: HighlightableCard): boolean => {
-        if (!hasHighlight.value) return false;
-        if (highlight.mv !== null && !matchesManaValue(card, highlight.mv)) return false;
-        if (highlight.category !== null && !matchesCategory(card, highlight.category)) return false;
-        if (
-            highlight.colorProduction !== null &&
-            !(effectiveProduced(card)?.includes(highlight.colorProduction) ?? false)
-        )
-            return false;
-        return !(highlight.colorConsumption !== null && !consumesColor(card.mana_cost, highlight.colorConsumption));
+        if (!hasHighlight.value || !matchesOtherAxes(card)) return false;
+        return highlight.colorProduction === null || pricedRole(colorRoles(card)) !== null;
+    };
+
+    const isLaterSource = (card: HighlightableCard): boolean => {
+        if (highlight.colorProduction === null || !matchesOtherAxes(card)) return false;
+        const roles = colorRoles(card);
+        return roles.length > 0 && pricedRole(roles) === null;
+    };
+
+    const productionShare = (card: HighlightableCard): ProductionShare | null => {
+        if (highlight.colorProduction === null || !matchesOtherAxes(card)) return null;
+        const roles = colorRoles(card);
+        if (roles.length === 0) return null;
+        const weight = pricedRole(roles)?.weight ?? 0;
+        return weight >= 1 ? null : { weight, steps: shareSteps(roles) };
     };
 
     const api: DeckHighlightApi = {
@@ -199,6 +283,7 @@ export const provideDeckHighlight = (getDeckCards?: () => HighlightableCard[]): 
             mv: highlight.mv,
             category: highlight.category,
             colorProduction: highlight.colorProduction,
+            colorProductionMv: highlight.colorProductionMv,
             colorConsumption: highlight.colorConsumption
         })),
         hasHighlight,
@@ -211,7 +296,9 @@ export const provideDeckHighlight = (getDeckCards?: () => HighlightableCard[]): 
         setColorProduction,
         setColorConsumption,
         clear,
-        isHighlighted
+        isHighlighted,
+        isLaterSource,
+        productionShare
     };
 
     provide(KEY, api);

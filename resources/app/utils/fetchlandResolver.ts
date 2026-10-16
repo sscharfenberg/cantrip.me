@@ -6,6 +6,10 @@
  * deck — by walking the deck's other lands and unioning their
  * `produced_mana`.
  *
+ * The same grammar describes what a non-land land-search spell can
+ * find (`land_search_pattern`: Three Visits → `typed:G`), so both
+ * resolve here.
+ *
  * Called from both:
  *   - `useDeckStats` (donut production + Karsten "have" calculation)
  *   - `useDeckHighlight` (`.highlighted` class on the card views when
@@ -156,18 +160,20 @@ export function parsePatternColors(tail: string): ColorLetter[] {
 /**
  * Convenience builder that wraps {@link buildFetchBuckets} +
  * {@link resolveFetchPattern} in a memoized closure. Returns null
- * when the deck has zero fetchlands so callers can short-circuit
- * to the raw `produced_mana` path with no work.
+ * when the deck has neither a fetchland nor a land-search spell
+ * (Three Visits, Rampant Growth — `land_search_pattern`, same
+ * grammar) so callers can short-circuit to the raw `produced_mana`
+ * path with no work.
  *
  * The returned closure caches per pattern, so a deck with multiple
- * fetchlands sharing a pattern (e.g. Fabled Passage + Evolving Wilds,
+ * cards sharing a pattern (e.g. Fabled Passage + Rampant Growth,
  * both `basic`) only resolves once.
  */
 export function makeFetchResolver(
-    cards: { fetch_pattern?: string | null }[],
+    cards: { fetch_pattern?: string | null; land_search_pattern?: string | null }[],
     lands: LandCandidate[]
 ): ((pattern: string) => string[]) | null {
-    if (!cards.some(c => c.fetch_pattern)) return null;
+    if (!cards.some(c => c.fetch_pattern || c.land_search_pattern)) return null;
     const buckets = buildFetchBuckets(lands);
     const cache = new Map<string, string[]>();
     return (pattern: string): string[] => {

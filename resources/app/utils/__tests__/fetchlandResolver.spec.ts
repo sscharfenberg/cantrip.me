@@ -177,6 +177,14 @@ describe("makeFetchResolver", () => {
         expect(makeFetchResolver([{ fetch_pattern: "" }], lands)).toBeNull();
     });
 
+    it("returns a resolver for a land-search spell even without a fetchland", () => {
+        // Three Visits in a deck with no fetches still needs the deck's lands resolved.
+        const resolve = makeFetchResolver([{ fetch_pattern: null, land_search_pattern: "typed:W" }], lands);
+
+        expect(resolve).not.toBeNull();
+        expect(sorted(resolve!("typed:W"))).toEqual(["U", "W"]);
+    });
+
     it("returns a resolver as soon as one card carries a pattern", () => {
         const resolve = makeFetchResolver([{ fetch_pattern: null }, { fetch_pattern: "basic" }], lands);
 

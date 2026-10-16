@@ -22,7 +22,7 @@ class UpdateOracleTags extends Command
      *
      * @var string
      */
-    protected $description = 'Sync Scryfall oracle-tagger flags onto oracle_cards. Covers boolean tags (mass-land-denial → mld) and the fetch-pattern parse (fetchland → fetch_pattern). Tags are not in bulk data — only reachable via the search endpoint, so this command paginates the API with a ≥1s pacing held across every registered sync.';
+    protected $description = 'Sync Scryfall oracle-tagger flags onto oracle_cards. Covers boolean tags (mass-land-denial → mld) and the fetch-pattern parse (fetchland → fetch_pattern, non-land tutor-land → land_search_pattern). Tags are not in bulk data — only reachable via the search endpoint, so this command paginates the API with a ≥1s pacing held across every registered sync.';
 
     private FormatService $formatService;
 
@@ -50,9 +50,11 @@ class UpdateOracleTags extends Command
         $table = $shadow ? 'oracle_cards__shadow' : 'oracle_cards';
         $mld = number_format(DB::table($table)->where('mld', true)->count(), 0, ',', '.');
         $fetch = number_format(DB::table($table)->whereNotNull('fetch_pattern')->count(), 0, ',', '.');
+        $landSearch = number_format(DB::table($table)->whereNotNull('land_search_pattern')->count(), 0, ',', '.');
         $this->line("$mld cards classified mass-land-denial in $table.mld.");
         $this->line("$fetch cards classified as fetchlands in $table.fetch_pattern.");
-        Log::channel('scryfall')->notice("$mld cards classified mass-land-denial, $fetch cards classified as fetchlands in $table.");
+        $this->line("$landSearch cards classified as land-search spells in $table.land_search_pattern.");
+        Log::channel('scryfall')->notice("$mld cards classified mass-land-denial, $fetch cards classified as fetchlands, $landSearch cards classified as land-search spells in $table.");
         $ms = $start->diffInMilliseconds(now());
         Log::channel('scryfall')->info('=======================================================');
         Log::channel('scryfall')->info("artisan command 'scryfall:oracle-tags' finished in ".$this->formatService->formatMs($ms).'.');

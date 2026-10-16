@@ -30,6 +30,7 @@ describe("provideDeckHighlight — initial state", () => {
             mv: null,
             category: null,
             colorProduction: null,
+            colorProductionMv: null,
             colorConsumption: null
         });
     });
@@ -79,6 +80,7 @@ describe("provideDeckHighlight — setters", () => {
             mv: null,
             category: null,
             colorProduction: null,
+            colorProductionMv: null,
             colorConsumption: null
         });
         expect(api.hasHighlight.value).toBe(false);
@@ -89,13 +91,14 @@ describe("provideDeckHighlight — setters", () => {
 
         api.setManaValue(3);
         api.setCategory({ kind: "category", id: "category-ramp" });
-        api.setColorProduction("W");
+        api.setColorProduction("W", 4);
         api.setColorConsumption("U");
 
         expect(api.highlight.value).toEqual({
             mv: 3,
             category: { kind: "category", id: "category-ramp" },
             colorProduction: "W",
+            colorProductionMv: 4,
             colorConsumption: "U"
         });
     });
@@ -237,13 +240,47 @@ describe("provideDeckHighlight — colour consumption axis", () => {
 });
 
 describe("provideDeckHighlight — colour production axis", () => {
-    it("matches on produced_mana", () => {
+    it("matches a card that counts as a source of the colour", () => {
         const api = provide();
         api.setColorProduction("W");
 
-        expect(api.isHighlighted(card({ produced_mana: ["W", "U"] }))).toBe(true);
-        expect(api.isHighlighted(card({ produced_mana: ["U"] }))).toBe(false);
+        expect(api.isHighlighted(card({ produced_mana: ["W", "U"], mana_source: "ability" }))).toBe(true);
+        expect(api.isHighlighted(card({ produced_mana: ["U"], mana_source: "ability" }))).toBe(false);
         expect(api.isHighlighted(card({ produced_mana: null }))).toBe(false);
+    });
+
+    it("leaves out what the stats do not count — a ritual, a card that must transform first", () => {
+        const api = provide();
+        api.setColorProduction("B");
+
+        const darkRitual = card({ type_line: "Instant", produced_mana: ["B"], mana_source: "ability" });
+        const flip = card({ type_line: "Legendary Enchantment", produced_mana: ["B"], mana_source: null });
+
+        expect(api.isHighlighted(darkRitual)).toBe(false);
+        expect(api.isHighlighted(flip)).toBe(false);
+    });
+
+    it("matches only the cards that count toward the spell the ring was priced for", () => {
+        // Priced for a two-drop, a two-mana Signet is not online yet; the land is.
+        const plains = card({ type_line: "Basic Land — Plains", produced_mana: ["W"], mana_cost: [null], cmc: 0 });
+        const signet = card({ type_line: "Artifact", produced_mana: ["W"], mana_source: "ability", cmc: 2 });
+        const api = provide();
+
+        api.setColorProduction("W", 2);
+        expect(api.isHighlighted(plains)).toBe(true);
+        expect(api.isHighlighted(signet)).toBe(false);
+
+        api.setColorProduction("W", 3);
+        expect(api.isHighlighted(signet)).toBe(true);
+    });
+
+    it("drops the priced-for mana value with the colour", () => {
+        const api = provide();
+        api.setColorProduction("W", 3);
+
+        api.setColorProduction(null, 5);
+
+        expect(api.highlight.value.colorProductionMv).toBeNull();
     });
 
     it("resolves a fetchland against the deck's other lands", () => {
@@ -267,6 +304,21 @@ describe("provideDeckHighlight — colour production axis", () => {
         expect(api.isHighlighted(fetchland)).toBe(true);
     });
 
+    it("resolves a land-search spell against the deck's lands", () => {
+        // Three Visits finds a Forest card; in a deck with a Bayou that is black too.
+        const bayou = card({ type_line: "Land — Swamp Forest", produced_mana: ["B", "G"], mana_cost: [null] });
+        const threeVisits = card({
+            type_line: "Sorcery",
+            produced_mana: null,
+            mana_cost: ["{1}{G}"],
+            land_search_pattern: "typed:G"
+        });
+        const api = provide(() => [bayou, threeVisits]);
+        api.setColorProduction("B");
+
+        expect(api.isHighlighted(threeVisits)).toBe(true);
+    });
+
     it("leaves a fetchland unmatched when no deck getter was supplied", () => {
         // The pre-fetchland behaviour — stats panels that don't pass the deck
         // still work, they just can't resolve fetches.
@@ -274,6 +326,129 @@ describe("provideDeckHighlight — colour production axis", () => {
         api.setColorProduction("U");
 
         expect(api.isHighlighted(card({ produced_mana: null, fetch_pattern: "typed:WU" }))).toBe(false);
+    });
+});
+
+describe("provideDeckHighlight — production share", () => {
+    const plains = card({ type_line: "Basic Land — Plains", produced_mana: ["W"], mana_cost: [null], cmc: 0 });
+    const signet = card({ type_line: "Artifact", produced_mana: ["W", "U"], mana_source: "ability", cmc: 2 });
+
+    it("reports how much a highlighted partial source counts, and from which mana value", () => {
+        const api = provide();
+        api.setColorProduction("W", 3);
+
+        expect(api.productionShare(signet)).toEqual({ weight: 0.75, steps: [{ weight: 0.75, fromMv: 3 }] });
+    });
+
+    it("says nothing about a full source — every land would carry a 1", () => {
+        const api = provide();
+        api.setColorProduction("W", 3);
+
+        expect(api.isHighlighted(plains)).toBe(true);
+        expect(api.productionShare(plains)).toBeNull();
+    });
+
+    it("says nothing about a card another axis keeps unhighlighted", () => {
+        const api = provide();
+        api.setColorProduction("W", 3);
+        api.setManaValue(5);
+
+        expect(api.productionShare(signet)).toBeNull();
+    });
+
+    it("says nothing while no production colour is selected", () => {
+        const api = provide();
+        api.setManaValue(2);
+
+        expect(api.isHighlighted(signet)).toBe(true);
+        expect(api.productionShare(signet)).toBeNull();
+    });
+});
+
+describe("provideDeckHighlight — later sources", () => {
+    const forest = card({
+        type_line: "Basic Land — Forest",
+        produced_mana: ["G"],
+        mana_cost: [null],
+        cmc: 0,
+        is_basic_land: true
+    });
+    const cultivate = card({
+        type_line: "Sorcery",
+        produced_mana: null,
+        mana_cost: ["{2}{G}"],
+        cmc: 3,
+        land_search_pattern: "basic"
+    });
+
+    it("marks a source that only counts toward bigger spells, without highlighting it", () => {
+        // Priced for a three-drop, a Cultivate cast on turn three is too late.
+        const api = provide(() => [forest, cultivate]);
+        api.setColorProduction("G", 3);
+
+        expect(api.isHighlighted(cultivate)).toBe(false);
+        expect(api.isLaterSource(cultivate)).toBe(true);
+        expect(api.isLaterSource(forest)).toBe(false);
+    });
+
+    it("highlights it once the priced spell is big enough", () => {
+        const api = provide(() => [forest, cultivate]);
+        api.setColorProduction("G", 5);
+
+        expect(api.isHighlighted(cultivate)).toBe(true);
+        expect(api.isLaterSource(cultivate)).toBe(false);
+    });
+
+    it("lists every step of its worth, counting nothing toward the priced spell", () => {
+        const api = provide(() => [forest, cultivate]);
+        api.setColorProduction("G", 3);
+
+        expect(api.productionShare(cultivate)).toEqual({
+            weight: 0,
+            steps: [
+                { weight: 0.25, fromMv: 4 },
+                { weight: 0.5, fromMv: 5 }
+            ]
+        });
+    });
+
+    it("reports the step that applies once it counts", () => {
+        const api = provide(() => [forest, cultivate]);
+        api.setColorProduction("G", 4);
+
+        expect(api.productionShare(cultivate)?.weight).toBe(0.25);
+    });
+
+    it("merges two roles that come online together into one step", () => {
+        // A mana creature (½) that also fetches a land (¾), both from MV 3.
+        const both = card({
+            type_line: "Creature — Elf",
+            produced_mana: ["G"],
+            mana_source: "ability",
+            mana_cost: ["{1}{G}"],
+            cmc: 2,
+            land_search_pattern: "basic"
+        });
+        const api = provide(() => [forest, both]);
+        api.setColorProduction("G", 3);
+
+        expect(api.productionShare(both)).toEqual({ weight: 0.75, steps: [{ weight: 0.75, fromMv: 3 }] });
+    });
+
+    it("leaves a later source alone when another axis rules it out", () => {
+        const api = provide(() => [forest, cultivate]);
+        api.setColorProduction("G", 3);
+        api.setManaValue(2);
+
+        expect(api.isLaterSource(cultivate)).toBe(false);
+        expect(api.productionShare(cultivate)).toBeNull();
+    });
+
+    it("has no later sources while no production colour is selected", () => {
+        const api = provide(() => [forest, cultivate]);
+        api.setManaValue(3);
+
+        expect(api.isLaterSource(cultivate)).toBe(false);
     });
 });
 

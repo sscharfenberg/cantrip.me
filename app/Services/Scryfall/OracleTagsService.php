@@ -4,6 +4,7 @@ namespace App\Services\Scryfall;
 
 use App\Services\Scryfall\OracleTagSyncs\BooleanOracleTagSync;
 use App\Services\Scryfall\OracleTagSyncs\FetchPatternOracleTagSync;
+use App\Services\Scryfall\OracleTagSyncs\LandSearchPatternOracleTagSync;
 use App\Services\Scryfall\OracleTagSyncs\OracleTagSync;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Response;
@@ -55,6 +56,8 @@ class OracleTagsService extends ScryfallService
      *   - `FetchPatternOracleTagSync` (or any future
      *     {@see OracleTagSync} subclass) for tags that need a
      *     per-card derivation step.
+     *   - `LandSearchPatternOracleTagSync` — the fetch-pattern parse
+     *     over `tutor-land` non-lands (~360 cards, three pages).
      *
      * @var list<OracleTagSync>
      */
@@ -76,6 +79,7 @@ class OracleTagsService extends ScryfallService
         $this->syncs = [
             new BooleanOracleTagSync(tag: 'mass-land-denial', column: 'mld'),
             new FetchPatternOracleTagSync,
+            new LandSearchPatternOracleTagSync,
         ];
     }
 
@@ -99,7 +103,7 @@ class OracleTagsService extends ScryfallService
     }
 
     /**
-     * Pull every card tagged with the sync's `otag:<tag>` and apply
+     * Pull every card matching the sync's query and apply
      * the derived values. Logs at info on success, warning on a tag
      * miss / parser miss, error on HTTP failure.
      *
@@ -107,10 +111,10 @@ class OracleTagsService extends ScryfallService
      */
     private function runSync(OracleTagSync $sync): void
     {
-        $cards = $this->fetchTaggedCards($sync->tag());
+        $cards = $this->fetchTaggedCards($sync->query());
         if ($cards === null) {
             Log::channel('scryfall')->warning(
-                "skipping update for column '".$sync->column()."' — Scryfall search for otag:".$sync->tag().' failed.'
+                "skipping update for column '".$sync->column()."' — Scryfall search for ".$sync->query().' failed.'
             );
 
             return;
@@ -122,7 +126,7 @@ class OracleTagsService extends ScryfallService
             // the tag slug, and zeroing the column would silently
             // break downstream features.
             Log::channel('scryfall')->warning(
-                "tag 'otag:".$sync->tag()."' returned zero cards — Scryfall taxonomy may have changed. Column '".$sync->column()."' left untouched."
+                "query '".$sync->query()."' returned zero cards — Scryfall taxonomy may have changed. Column '".$sync->column()."' left untouched."
             );
 
             return;
@@ -131,18 +135,19 @@ class OracleTagsService extends ScryfallService
         [$applied, $skipped] = $this->applySync($sync, $cards);
 
         Log::channel('scryfall')->info(
-            "tag 'otag:".$sync->tag()."' synced — $applied cards classified into column '".$sync->column()."'."
+            "query '".$sync->query()."' synced — $applied cards classified into column '".$sync->column()."'."
         );
 
         if ($skipped !== []) {
-            Log::channel('scryfall')->warning(
-                'deriveValue() returned null for '.count($skipped).' card(s) in otag:'.$sync->tag().': '.implode(', ', $skipped)
+            Log::channel('scryfall')->log(
+                $sync->expectsUnclassified() ? 'info' : 'warning',
+                'deriveValue() returned null for '.count($skipped).' card(s) in '.$sync->query().': '.implode(', ', $skipped)
             );
         }
     }
 
     /**
-     * Walk every page of `/cards/search?q=otag:<tag>&unique=cards`
+     * Walk every page of `/cards/search?q=<query>&unique=cards`
      * and return the full card payloads — strategies that need oracle
      * text or other per-card fields can read from the payload
      * directly without a follow-up lookup. `unique=cards` gives us
@@ -153,11 +158,11 @@ class OracleTagsService extends ScryfallService
      *
      * @return list<array<string, mixed>>|null
      */
-    private function fetchTaggedCards(string $tag): ?array
+    private function fetchTaggedCards(string $query): ?array
     {
         $url = sprintf(
             'https://api.scryfall.com/cards/search?q=%s&unique=cards',
-            rawurlencode("otag:$tag")
+            rawurlencode($query)
         );
         $cards = [];
 
@@ -166,14 +171,14 @@ class OracleTagsService extends ScryfallService
                 $response = $this->rateLimitedGet($url);
             } catch (ConnectionException $e) {
                 Log::channel('scryfall')->error(
-                    "connection error during otag:$tag search: ".$e->getMessage()
+                    "connection error during '$query' search: ".$e->getMessage()
                 );
 
                 return null;
             }
             if (! $response->successful()) {
                 Log::channel('scryfall')->error(
-                    "search request for otag:$tag failed: ".$response->body()
+                    "search request for '$query' failed: ".$response->body()
                 );
 
                 return null;

@@ -23,6 +23,7 @@ const {
     averageManaValue,
     costPips,
     productionPips,
+    productionBasis,
     karstenAnalysis,
     karstenCombined,
     typeCounts,
@@ -62,6 +63,7 @@ const showColors = computed(() => tallyTotal(costPips.value) > 0 && tallyTotal(p
                     v-if="showColors"
                     :cost="costPips"
                     :production="productionPips"
+                    :production-basis="productionBasis"
                     :karsten="karstenAnalysis"
                     :karsten-combined="karstenCombined"
                     :format="format"

@@ -80,7 +80,7 @@ class FetchPatternOracleTagSync extends OracleTagSync
      * to lowercase + single-space whitespace before pattern-matching
      * so reflow / line-break variations don't break the regexes.
      */
-    private function parsePattern(string $oracleText): ?string
+    protected function parsePattern(string $oracleText): ?string
     {
         $text = strtolower((string) preg_replace('/\s+/', ' ', $oracleText));
 

@@ -67,9 +67,11 @@ const SYMBOL_REGEX = /\{([^}]+)}/g;
 const COLORS: readonly HighlightColor[] = ["W", "U", "B", "R", "G"] as const;
 
 /**
- * One row of the per-color Karsten analysis: how many sources of this
- * color the deck has, how many Karsten recommends for the deck's most
- * demanding card of this color, and the shortfall (zero if sufficient).
+ * One row of the per-color Karsten analysis: the deck's binding
+ * requirement in this color — the card closest to failing — with the
+ * sources that count toward it (weighted by `karstenSources.ts`, so
+ * possibly fractional), Karsten's recommendation for it, and the
+ * shortfall (zero if sufficient).
  *
  * Karsten's gold-card +1 hack is baked into `need`: any card with ≥2
  * distinct *forced* colored pips (e.g. Teferi `{1}{W}{U}`) bumps each
@@ -83,6 +85,10 @@ export interface KarstenColorAnalysis {
     color: HighlightColor;
     have: number;
     need: number;
+    /** Name of the card this row is priced for. */
+    card: string;
+    /** That card's mana value — the sources counted are the ones online by then. */
+    mv: number;
     /** `max(0, need - have)`. Zero ⇒ sufficient. */
     short: number;
 }
@@ -97,15 +103,20 @@ export interface KarstenColorAnalysis {
  *    `{3}{W/U}{W/U}`) demands `(cmc, hybridPipCount)` lookup, NO +1
  *    — only one of the colors is needed per pip.
  *
- * `colors` is sorted in WUBRG order. A combo's `need` is the max
- * across every card in the deck that demands that exact color set
- * (whichever flavor wins). Only emitted for color combinations
- * actually demanded by a card in the deck.
+ * `colors` is sorted in WUBRG order. Of every card in the deck that
+ * demands that exact color set (either flavor), the row shows the
+ * binding one — the largest `need - have` — just as the per-color rows
+ * do. Only emitted for color combinations actually demanded by a card
+ * in the deck.
  */
 export interface KarstenCombinedAnalysis {
     colors: HighlightColor[];
     have: number;
     need: number;
+    /** Name of the card this row is priced for. */
+    card: string;
+    /** That card's mana value — the sources counted are the ones online by then. */
+    mv: number;
     /** `max(0, need - have)`. Zero ⇒ sufficient. */
     short: number;
 }

@@ -6,6 +6,7 @@ import {
     type KarstenCombinedAnalysis,
     sourcesNeeded
 } from "@/utils/frankKarstenAnalysis";
+import { type SourceCard, type SourceRole, sourceRoles, sourceValue } from "@/utils/karstenSources";
 import type { HighlightColor } from "Composables/useDeckHighlight.ts";
 import type { DeckCardRow, DeckCategoryRow, DeckCommander, DeckCompanion } from "Types/deckPage.ts";
 
@@ -40,6 +41,24 @@ export interface ColorPipTally {
     B: number;
     R: number;
     G: number;
+}
+
+/**
+ * The spell a production-ring color is priced for — the same one its
+ * Karsten row names. Drives the segment tooltip and tells the
+ * production highlight which cards count toward the number.
+ */
+export interface ProductionBasis {
+    card: string;
+    mv: number;
+}
+
+/** One card's demand on a color (or combo): `need` sources by the turn it is cast at mana value `cmc`. */
+interface KarstenRequirement {
+    colors: HighlightColor[];
+    need: number;
+    cmc: number;
+    card: string;
 }
 
 /**
@@ -104,27 +123,6 @@ function tallyManaCostInto(tally: ColorPipTally, cost: string | null, quantity: 
                 tally[part as Color] += quantity;
             }
         }
-    }
-}
-
-/**
- * Add a card's `produced_mana` array into the tally, weighted by quantity.
- * Filters out colorless (`C`) for symmetry with the cost side. When
- * `allowed` is provided (commander-like formats), also drops colors
- * outside the deck's commander color identity — a 5-color mana producer
- * in a Boros deck physically can't produce blue/black/green there.
- */
-function tallyProducedManaInto(
-    tally: ColorPipTally,
-    produced: string[] | null,
-    quantity: number,
-    allowed: Set<Color> | null = null
-): void {
-    if (!produced) return;
-    for (const color of produced) {
-        if (!(COLORS as readonly string[]).includes(color)) continue;
-        if (allowed !== null && !allowed.has(color as Color)) continue;
-        tally[color as Color] += quantity;
     }
 }
 
@@ -200,6 +198,11 @@ function isPermanent(typeLine: string): boolean {
  *     producer (Birds of Paradise) in a Boros deck only contributes to
  *     R and W production — it can't legally produce off-CI colors there.
  *   - Quantity-weighted everywhere.
+ *   - Production (the donut's inner ring) is the Karsten "have": cards
+ *     are weighed by Karsten's own rules — a Signet is ¾ of a source,
+ *     and only for spells it comes online in time for (see
+ *     `karstenSources.ts`) — and each color is priced for the same
+ *     spell its "Mana sources" row names, so the two always match.
  *   - Hybrid mana counts both colors. `{W/U}` = +1 W AND +1 U. So the
  *     pip total can exceed the deck's CMC sum — by design.
  *   - Type breakdown is additive (no priority). An Artifact Creature
@@ -221,7 +224,14 @@ export function useDeckStats(
      */
     averageManaValue: ComputedRef<number>;
     costPips: ComputedRef<ColorPipTally>;
+    /**
+     * The production ring: per color, the same weighted Karsten source
+     * count that color's "Mana sources" row shows (fractional once
+     * dorks, rocks or ramp count).
+     */
     productionPips: ComputedRef<ColorPipTally>;
+    /** The spell each production color is priced for — see {@link ProductionBasis}. */
+    productionBasis: ComputedRef<Partial<Record<HighlightColor, ProductionBasis>>>;
     /**
      * Per-color Karsten analysis. Only colors with a non-zero
      * requirement (i.e. at least one card consumes them) appear. Empty
@@ -316,10 +326,10 @@ export function useDeckStats(
     });
 
     /**
-     * Per-deck fetchland resolver. Delegates to
-     * {@link makeFetchResolver}, which short-circuits to null when
-     * the deck has no fetchlands so `effectiveProduced` can fall
-     * straight back to raw `produced_mana`.
+     * Per-deck pattern resolver for fetchlands and land-search spells.
+     * Delegates to {@link makeFetchResolver}, which short-circuits to
+     * null when the deck has neither, so {@link sources} classifies by
+     * raw `produced_mana` alone.
      */
     const fetchResolver = computed<((pattern: string) => string[]) | null>(() => {
         const all = cards();
@@ -334,15 +344,74 @@ export function useDeckStats(
     });
 
     /**
-     * Effective produced_mana for a single deck card. Non-fetchlands
-     * pass through with no work. Fetchlands route through
-     * {@link fetchResolver}, which itself short-circuits to null
-     * when the deck has no fetchlands at all.
+     * Every card that supplies colored mana, with the roles Karsten
+     * counts it in (see `karstenSources.ts`). Shared by both Karsten
+     * tables and the production ring; commanders and the companion
+     * count like any other card.
      */
-    const effectiveProduced = (card: DeckCardRow): string[] | null => {
-        if (!card.fetch_pattern) return card.produced_mana;
-        const resolver = fetchResolver.value;
-        return resolver === null ? card.produced_mana : resolver(card.fetch_pattern);
+    const sources = computed<{ roles: SourceRole[]; quantity: number }[]>(() => {
+        const resolve = fetchResolver.value;
+        const out: { roles: SourceRole[]; quantity: number }[] = [];
+        const push = (card: SourceCard, quantity: number): void => {
+            const roles = sourceRoles(card, resolve);
+            if (roles.length > 0) out.push({ roles, quantity });
+        };
+        for (const card of cards()) push(card, card.quantity);
+        for (const cmd of commanders()) push(cmd, 1);
+        const cmp = companion();
+        if (cmp !== null) push(cmp, 1);
+        return out;
+    });
+
+    /**
+     * Weighted sources of any of `colors` toward a spell of mana value
+     * `mv`, clamped to the commander color identity — the one "have"
+     * both Karsten tables and the production ring read.
+     */
+    const haveFor = (colors: readonly HighlightColor[], mv: number): number => {
+        const ci = commanderColorIdentity.value;
+        const usable = ci === null ? colors : colors.filter(c => ci.has(c));
+        if (usable.length === 0) return 0;
+        let have = 0;
+        for (const source of sources.value) {
+            have += source.quantity * sourceValue(source.roles, usable, mv);
+        }
+        return have;
+    };
+
+    /**
+     * Pick the row a Karsten table shows for one color (or combo) out
+     * of every card demanding it, and price each against the sources
+     * that count by that card's mana value. A mana rock or ramp spell
+     * helps a five-drop but not a two-drop, so "have" is per
+     * requirement, and the most demanding card is not necessarily the
+     * one the deck falls short on: twelve Plains and eight Signets
+     * cover a `{3}{W}{W}` but not a `{W}` one-drop.
+     *
+     * The row shown is the one closest to failing — the largest
+     * `need - have`, ties to the larger need — and it names that card
+     * and its mana value, so a "have" that leaves out the deck's ramp
+     * explains itself. With only lands in the deck "have" is the same
+     * for every card, so that is simply the most demanding card.
+     */
+    const bindingRequirement = (
+        requirements: KarstenRequirement[]
+    ): { have: number; need: number; short: number; card: string; mv: number } => {
+        let binding = { have: 0, need: 0, gap: Number.NEGATIVE_INFINITY, card: "", mv: 0 };
+        for (const { colors, need, cmc, card } of requirements) {
+            const have = haveFor(colors, cmc);
+            const gap = need - have;
+            if (gap > binding.gap || (gap === binding.gap && need > binding.need)) {
+                binding = { have, need, gap, card, mv: cmc };
+            }
+        }
+        return {
+            have: binding.have,
+            need: binding.need,
+            short: Math.max(0, binding.gap),
+            card: binding.card,
+            mv: binding.mv
+        };
     };
 
     /**
@@ -415,50 +484,86 @@ export function useDeckStats(
         return intersection;
     });
 
-    const productionPips = computed<ColorPipTally>(() => {
-        const tally = emptyTally();
-        const allowed = productionAllowed.value;
-        for (const card of cards()) {
-            tallyProducedManaInto(tally, effectiveProduced(card), card.quantity, allowed);
-        }
-        for (const cmd of commanders()) {
-            tallyProducedManaInto(tally, cmd.produced_mana, 1, allowed);
-        }
+    /**
+     * The cheapest non-land spell (commanders and companion included)
+     * whose cost asks for `color`, forced or hybrid. Prices a production
+     * color that has no Karsten row — its only demand sits in a cell
+     * Karsten left unpublished (`{6}{G}`), or the deck is pure hybrid.
+     */
+    const cheapestDemand = (color: HighlightColor): ProductionBasis | null => {
         const cmp = companion();
-        if (cmp !== null) {
-            tallyProducedManaInto(tally, cmp.produced_mana, 1, allowed);
+        const spells = [...cards(), ...commanders(), ...(cmp === null ? [] : [cmp])];
+        let cheapest: ProductionBasis | null = null;
+        for (const spell of spells) {
+            if (isLand(spell.type_line)) continue;
+            const { pips, hybridGroups } = breakdownCard(spell.mana_cost, spell.cmc);
+            if (pips[color] === 0 && !hybridGroups.some(group => group.includes(color))) continue;
+            if (cheapest === null || spell.cmc < cheapest.mv) cheapest = { card: spell.name, mv: spell.cmc };
         }
-        return tally;
+        return cheapest;
+    };
+
+    /**
+     * The production ring, priced exactly as the Karsten rows are: each
+     * color's weighted source count toward the spell its row names, so
+     * the ring and the "Mana sources" list can never disagree. A color
+     * with no Karsten row is priced toward its cheapest spell
+     * ({@link cheapestDemand}) by the same rules.
+     */
+    const production = computed<{
+        tally: ColorPipTally;
+        basis: Partial<Record<HighlightColor, ProductionBasis>>;
+    }>(() => {
+        const tally = emptyTally();
+        const basis: Partial<Record<HighlightColor, ProductionBasis>> = {};
+        const rows = new Map(karstenAnalysis.value.map(row => [row.color, row]));
+        for (const color of productionAllowed.value) {
+            const row = rows.get(color);
+            const priced = row === undefined ? cheapestDemand(color) : { card: row.card, mv: row.mv };
+            if (priced === null) continue;
+            tally[color] = row === undefined ? haveFor([color], priced.mv) : row.have;
+            basis[color] = priced;
+        }
+        return { tally, basis };
     });
+
+    const productionPips = computed<ColorPipTally>(() => production.value.tally);
+    const productionBasis = computed<Partial<Record<HighlightColor, ProductionBasis>>>(() => production.value.basis);
 
     /**
      * Per-color Karsten analysis. For each color X, scans every
      * non-land card (including commanders + companion), and for each
      * card with a forced (non-hybrid) X pip, looks up Karsten's
-     * recommended source count for `(cmc, forcedPipsForX)` — the
-     * deck's requirement is the max across all such cards.
+     * recommended source count for `(cmc, forcedPipsForX)` — one
+     * requirement per card, of which the row shows the binding one.
      *
      * Gold-card adjustment: when a card has ≥2 distinct *forced*
      * colors in its cost (e.g. `{W}{U}` Teferi), each per-color
-     * requirement is bumped by +1 before being maxed in (Karsten's
-     * hack for the conditional-probability hit when both colors must
-     * appear by the on-curve turn).
+     * requirement is bumped by +1 (Karsten's hack for the
+     * conditional-probability hit when both colors must appear by the
+     * on-curve turn).
      *
      * Pure hybrid cards (e.g. Yorion `{3}{W/U}{W/U}`) contribute
      * nothing here — they have no forced pips. Their requirement is
      * surfaced as a hybrid-combined row in `karstenCombined` instead.
      *
-     * The "have" side reuses `productionPips`, which already counts a
-     * card once per produced color × quantity (a 5-color dork in a
-     * Boros deck contributes only to W and R, since `allowed` clamps
-     * to the commander color identity — the same convention applies
-     * here).
+     * The "have" side is weighted by Karsten's own counting rules
+     * (`karstenSources.ts`) and priced per card by mana value, so the
+     * row shown is the binding requirement rather than simply the
+     * largest — see {@link bindingRequirement}. Sources are clamped to
+     * the commander color identity, as production is.
      */
     const karstenAnalysis = computed<KarstenColorAnalysis[]>(() => {
         const fmt = format();
-        const need: Record<HighlightColor, number> = { W: 0, U: 0, B: 0, R: 0, G: 0 };
+        const requirements: Record<HighlightColor, KarstenRequirement[]> = {
+            W: [],
+            U: [],
+            B: [],
+            R: [],
+            G: []
+        };
 
-        const considerCard = (faces: (string | null)[], cmc: number, typeLine: string): void => {
+        const considerCard = (faces: (string | null)[], cmc: number, typeLine: string, card: string): void => {
             if (isLand(typeLine)) return;
             const { pips } = breakdownCard(faces, cmc);
             const forcedColors = COLORS.filter(c => pips[c] > 0);
@@ -466,30 +571,24 @@ export function useDeckStats(
             for (const color of forcedColors) {
                 const base = sourcesNeeded(fmt, cmc, pips[color]);
                 if (base === null) continue;
-                const required = isGold ? base + 1 : base;
-                if (required > need[color]) {
-                    need[color] = required;
-                }
+                requirements[color].push({ colors: [color], need: isGold ? base + 1 : base, cmc, card });
             }
         };
 
         for (const card of cards()) {
-            considerCard(card.mana_cost, card.cmc, card.type_line);
+            considerCard(card.mana_cost, card.cmc, card.type_line, card.name);
         }
         for (const cmd of commanders()) {
-            considerCard(cmd.mana_cost, cmd.cmc, cmd.type_line);
+            considerCard(cmd.mana_cost, cmd.cmc, cmd.type_line, cmd.name);
         }
         const cmp = companion();
         if (cmp !== null) {
-            considerCard(cmp.mana_cost, cmp.cmc, cmp.type_line);
+            considerCard(cmp.mana_cost, cmp.cmc, cmp.type_line, cmp.name);
         }
 
-        const have = productionPips.value;
-        return COLORS.filter(color => need[color] > 0).map(color => ({
+        return COLORS.filter(color => requirements[color].length > 0).map(color => ({
             color,
-            have: have[color],
-            need: need[color],
-            short: Math.max(0, need[color] - have[color])
+            ...bindingRequirement(requirements[color])
         }));
     });
 
@@ -509,29 +608,31 @@ export function useDeckStats(
      *     (Karsten: "you need to have enough combined sources of
      *     either color in the hybrid cost").
      *
-     * Combos are merged across cards (same color set → one row, max
-     * `need` wins). The `have` side counts each producer × quantity
-     * once if its `produced_mana` (after CI clamping) intersects the
-     * combo. Sorted by combo size, then WUBRG-lexicographic.
+     * Combos are merged across cards (same color set → one row, the
+     * binding requirement wins — see {@link bindingRequirement}). The
+     * `have` side counts each source × quantity once, at its Karsten
+     * weight, if it can make any color of the combo (after CI
+     * clamping). Sorted by combo size, then WUBRG-lexicographic.
      *
      * Empty when the deck has neither gold nor hybrid demand.
      */
     const karstenCombined = computed<KarstenCombinedAnalysis[]>(() => {
         const fmt = format();
-        const allowed = commanderColorIdentity.value;
 
-        // Per-combo max requirement, keyed by the WUBRG-ordered combo string.
-        const reqByCombo = new Map<string, { colors: HighlightColor[]; need: number }>();
+        // Every card's requirement, grouped by the WUBRG-ordered combo string.
+        const reqByCombo = new Map<string, KarstenRequirement[]>();
 
-        const upsert = (colors: HighlightColor[], required: number): void => {
+        const addRequirement = (colors: HighlightColor[], required: number, cmc: number, card: string): void => {
             const key = colors.join("");
             const existing = reqByCombo.get(key);
-            if (!existing || required > existing.need) {
-                reqByCombo.set(key, { colors, need: required });
+            if (existing) {
+                existing.push({ colors, need: required, cmc, card });
+            } else {
+                reqByCombo.set(key, [{ colors, need: required, cmc, card }]);
             }
         };
 
-        const considerCard = (faces: (string | null)[], cmc: number, typeLine: string): void => {
+        const considerCard = (faces: (string | null)[], cmc: number, typeLine: string, card: string): void => {
             if (isLand(typeLine)) return;
             const { pips, hybridGroups } = breakdownCard(faces, cmc);
             const forcedColors = COLORS.filter(c => pips[c] > 0);
@@ -541,7 +642,7 @@ export function useDeckStats(
                 const totalForced = forcedColors.reduce((sum, c) => sum + pips[c], 0);
                 const base = sourcesNeeded(fmt, cmc, totalForced);
                 if (base !== null) {
-                    upsert(forcedColors, base + 1);
+                    addRequirement(forcedColors, base + 1, cmc, card);
                 }
             }
 
@@ -562,56 +663,23 @@ export function useDeckStats(
             for (const { colors, count } of groupedHybrid.values()) {
                 const base = sourcesNeeded(fmt, cmc, count);
                 if (base === null) continue;
-                upsert(colors, base);
+                addRequirement(colors, base, cmc, card);
             }
         };
 
         for (const card of cards()) {
-            considerCard(card.mana_cost, card.cmc, card.type_line);
+            considerCard(card.mana_cost, card.cmc, card.type_line, card.name);
         }
         for (const cmd of commanders()) {
-            considerCard(cmd.mana_cost, cmd.cmc, cmd.type_line);
+            considerCard(cmd.mana_cost, cmd.cmc, cmd.type_line, cmd.name);
         }
         const cmp = companion();
         if (cmp !== null) {
-            considerCard(cmp.mana_cost, cmp.cmc, cmp.type_line);
+            considerCard(cmp.mana_cost, cmp.cmc, cmp.type_line, cmp.name);
         }
 
-        if (reqByCombo.size === 0) return [];
-
-        // "Have" side: count each producer × quantity once if its
-        // produced_mana (after CI clamping) intersects the combo.
-        // Done as a nested loop because the combo count is tiny
-        // (rarely > 3) and the producer list is small.
-        const producers: { produced: string[]; qty: number }[] = [];
-        const pushProducer = (produced: string[] | null, qty: number) => {
-            if (!produced) return;
-            const filtered = produced.filter(
-                c => (COLORS as readonly string[]).includes(c) && (allowed === null || allowed.has(c as Color))
-            );
-            if (filtered.length === 0) return;
-            producers.push({ produced: filtered, qty });
-        };
-        for (const card of cards()) pushProducer(effectiveProduced(card), card.quantity);
-        for (const cmd of commanders()) pushProducer(cmd.produced_mana, 1);
-        if (cmp !== null) pushProducer(cmp.produced_mana, 1);
-
-        const haveFor = (combo: HighlightColor[]): number => {
-            const comboSet = new Set<string>(combo);
-            let have = 0;
-            for (const p of producers) {
-                if (p.produced.some(c => comboSet.has(c))) {
-                    have += p.qty;
-                }
-            }
-            return have;
-        };
-
         return [...reqByCombo.values()]
-            .map(({ colors, need }) => {
-                const have = haveFor(colors);
-                return { colors, have, need, short: Math.max(0, need - have) };
-            })
+            .map(requirements => ({ colors: requirements[0].colors, ...bindingRequirement(requirements) }))
             .sort((a, b) => {
                 if (a.colors.length !== b.colors.length) return a.colors.length - b.colors.length;
                 return a.colors.join("").localeCompare(b.colors.join(""));
@@ -737,6 +805,7 @@ export function useDeckStats(
         averageManaValue,
         costPips,
         productionPips,
+        productionBasis,
         karstenAnalysis,
         karstenCombined,
         typeCounts,

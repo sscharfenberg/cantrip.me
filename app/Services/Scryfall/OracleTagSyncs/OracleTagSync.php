@@ -11,12 +11,12 @@ use App\Services\Scryfall\OracleTagsService;
  * paginated search, rate-limiting, and the clear-then-apply
  * transaction. Concrete syncs only describe:
  *
- *   - which tag to pull (`tag()`),
+ *   - which tag to pull (`tag()`, optionally narrowed by `query()`),
  *   - which column to write (`column()`),
  *   - what value to reset non-matched rows to (`clearValue()`),
  *   - how to derive each matched card's value (`deriveValue()`).
  *
- * Two flavors ship today:
+ * Three flavors ship today:
  *
  *   - {@see BooleanOracleTagSync} — boolean column, presence in the
  *     tagger search means "true". Used for `mass-land-denial`
@@ -24,6 +24,8 @@ use App\Services\Scryfall\OracleTagsService;
  *   - {@see FetchPatternOracleTagSync} — string column, value derived
  *     by parsing each card's oracle text. Used for `fetchland`
  *     → `oracle_cards.fetch_pattern`.
+ *   - {@see LandSearchPatternOracleTagSync} — the same parse over
+ *     non-land cards. Used for `tutor-land` → `oracle_cards.land_search_pattern`.
  *
  * Add a new sync by implementing this class and registering an
  * instance in the orchestrator's constructor.
@@ -32,6 +34,28 @@ abstract class OracleTagSync
 {
     /** Scryfall otag slug (without the `otag:` prefix). */
     abstract public function tag(): string;
+
+    /**
+     * Full Scryfall search query the orchestrator paginates. Defaults
+     * to the bare tag; override to narrow a broad tag with ordinary
+     * search syntax when only part of it maps onto the column.
+     */
+    public function query(): string
+    {
+        return 'otag:'.$this->tag();
+    }
+
+    /**
+     * Whether matched cards the derivation cannot classify are expected.
+     * When false (the default), every `deriveValue()` null is logged as
+     * a warning — for a curated tag it means the parser regressed. A
+     * sync over a deliberately broad tag returns true, so its routine
+     * remainder is logged at info and does not bury that signal.
+     */
+    public function expectsUnclassified(): bool
+    {
+        return false;
+    }
 
     /** Column on `oracle_cards` to write. */
     abstract public function column(): string;

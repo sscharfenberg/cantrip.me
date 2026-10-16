@@ -72,6 +72,7 @@ class OracleCard extends Model
         'game_changer',
         'mld',
         'fetch_pattern',
+        'land_search_pattern',
         'scryfall_uri',
     ];
 
@@ -175,6 +176,59 @@ class OracleCard extends Model
         return $this->faces->contains(fn (OracleCardFace $face): bool => $face->oracle_text !== null
             && str_contains(mb_strtolower($face->oracle_text), $needle)
         );
+    }
+
+    /**
+     * Whether this is a modal double-faced card whose back is a land — Bala
+     * Ged Recovery, Kazandu Mammoth — and so can be played as a land even
+     * though its front type line says sorcery or creature.
+     *
+     * Modal only: a transform card with a land back (Search for Azcanta) has
+     * to flip first and is not a land drop. Requires the `faces` relation to
+     * be loaded with the `type_line` column.
+     */
+    public function isModalLand(): bool
+    {
+        $this->loadMissing('faces');
+
+        return $this->layout === ScryfallCardLayout::ModalDfc
+            && $this->faces->contains(fn (OracleCardFace $face): bool => $face->face_index > 0
+                && str_contains((string) $face->type_line, 'Land')
+            );
+    }
+
+    /**
+     * Where this card's `produced_mana` comes from, which decides how much
+     * of a colour source the deck stats count it as:
+     *
+     *   - `ability` — the front face has its own mana ability (Llanowar
+     *     Elves, Arcane Signet, Utopia Sprawl, Dark Ritual).
+     *   - `token` — it only makes Treasure or Gold tokens (Smothering
+     *     Tithe, Dockside Extortionist), which Scryfall reports as
+     *     produced mana too.
+     *   - null — it produces nothing, or only from a face it has to
+     *     transform into first (Search for Azcanta).
+     *
+     * Reminder text is ignored: a Treasure's "(…Add one mana of any
+     * color.)" is the token's ability, not the card's. Requires the
+     * `faces` relation to be loaded with `face_index` and `oracle_text`.
+     *
+     * @return 'ability'|'token'|null
+     */
+    public function manaSource(): ?string
+    {
+        if ($this->produced_mana === null || $this->produced_mana === '') {
+            return null;
+        }
+
+        $this->loadMissing('faces');
+        $front = (string) preg_replace('/\([^)]*\)/', '', (string) $this->faces->firstWhere('face_index', 0)?->oracle_text);
+
+        if (preg_match('/\badds?\b[^.]*?(\{|\bmana\b)/i', $front)) {
+            return 'ability';
+        }
+
+        return preg_match('/\b(treasure|gold) tokens?\b/i', $front) ? 'token' : null;
     }
 
     /**

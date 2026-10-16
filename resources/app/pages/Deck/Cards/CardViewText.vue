@@ -5,6 +5,7 @@ import { useI18n } from "vue-i18n";
 import CollectionAvailabilityBadge from "@/components/Deck/CollectionAvailabilityBadge.vue";
 import CollectionImplicitBadge from "@/components/Deck/CollectionImplicitBadge.vue";
 import CollectionStatusBadge from "@/components/Deck/CollectionStatusBadge.vue";
+import SourceShareBadge from "@/components/Deck/SourceShareBadge.vue";
 import DeckCardActionsMenu from "@/pages/Deck/Actions/DeckCardActionsMenu.vue";
 import DeckCommanderActionsMenu from "@/pages/Deck/Actions/DeckCommanderActionsMenu.vue";
 import DeckAddGroupModal from "@/pages/Deck/Modals/DeckAddGroupModal.vue";
@@ -50,7 +51,7 @@ const props = defineProps<{
     collectionMode: "A" | "B" | "C";
 }>();
 const { t } = useI18n();
-const { isHighlighted } = useDeckHighlight();
+const { isHighlighted, isLaterSource } = useDeckHighlight();
 /** Oracle id of a card just added via quick-add — used to flash its row briefly. */
 const recentlyAddedId = useRecentlyAddedId();
 const {
@@ -125,7 +126,10 @@ const openPreview = (id: string | null, quantity?: number): void => {
                             v-for="commander in section.commanders"
                             :key="commander.oracle_card_id"
                             class="card"
-                            :class="{ highlighted: isHighlighted(commander) }"
+                            :class="{
+                                highlighted: isHighlighted(commander),
+                                'highlighted-later': isLaterSource(commander)
+                            }"
                         >
                             <card-image-preview
                                 :src="commander.default_card.card_image_0"
@@ -134,6 +138,7 @@ const openPreview = (id: string | null, quantity?: number): void => {
                             >
                                 <span class="card__qty">1x </span>{{ commander.name }}
                             </card-image-preview>
+                            <source-share-badge :card="commander" variant="inline" />
                             <icon
                                 v-if="commander.is_illegal"
                                 v-tooltip="$t('pages.deck.illegal')"
@@ -219,7 +224,8 @@ const openPreview = (id: string | null, quantity?: number): void => {
                             class="card"
                             :class="{
                                 'card--just-added': recentlyAddedId === card.oracle_card_id,
-                                highlighted: isHighlighted(card)
+                                highlighted: isHighlighted(card),
+                                'highlighted-later': isLaterSource(card)
                             }"
                         >
                             <span v-if="isOwner" class="card__drag-handle"><icon name="drag" :size="1" /></span>
@@ -230,6 +236,7 @@ const openPreview = (id: string | null, quantity?: number): void => {
                             >
                                 <span class="card__qty">{{ card.quantity }}x </span>{{ card.name }}
                             </card-image-preview>
+                            <source-share-badge :card="card" variant="inline" />
                             <icon
                                 v-if="card.is_illegal"
                                 v-tooltip="$t('pages.deck.illegal')"

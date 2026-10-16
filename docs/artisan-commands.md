@@ -66,9 +66,9 @@ Streams the gzipped `oracle_cards` bulk (~23 MB) directly from Scryfall — no o
 
 ### `php artisan scryfall:oracle-tags`
 
-Syncs every Scryfall oracle-tag → `oracle_cards` column mapping in one pass. Each mapping is a strategy under `App\Services\Scryfall\OracleTagSyncs\` — the orchestrator (`OracleTagsService`) handles the API call, pagination, ≥1s pacing, and transactional apply once; strategies just describe the tag, target column, clear value, and per-card value derivation.
+Syncs every Scryfall oracle-tag → `oracle_cards` column mapping in one pass. Each mapping is a strategy under `App\Services\Scryfall\OracleTagSyncs\` — the orchestrator (`OracleTagsService`) handles the API call, pagination, ≥1s pacing, and transactional apply once; strategies just describe the tag (and optionally a narrower search `query()`), target column, clear value, and per-card value derivation.
 
-Two strategies ship today:
+Three strategies ship today:
 
 - **`BooleanOracleTagSync`** — boolean column, presence in the search means `true`. Used for `mass-land-denial` → `oracle_cards.mld` (drives the bracket auto-suggest hint on the deck-edit page). Add a new boolean tag by registering one more `BooleanOracleTagSync(tag: '…', column: '…')` in the orchestrator's constructor.
 - **`FetchPatternOracleTagSync`** — string column, value derived by parsing each card's oracle text. Powers `otag:fetchland` → `oracle_cards.fetch_pattern`. Pattern format (always WUBRG-sorted):
@@ -76,6 +76,7 @@ Two strategies ship today:
   - `basic:<colors>` — basic of one or more specific land types (Bant Panorama → `basic:WUG`)
   - `typed:<colors>` — typed land (basic OR non-basic) with one of the listed land subtypes (Polluted Delta → `typed:UB`)
   - `any` — any land card, no type filter (Urza's Cave)
+- **`LandSearchPatternOracleTagSync`** — the same parse and grammar for non-land cards that search their own library for a land. Powers `otag:tutor-land -type:land o:"search your library"` → `oracle_cards.land_search_pattern` (Three Visits → `typed:G`, Farseek → `typed:WUBR`, Rampant Growth / Cultivate → `basic`). Lands stay on the curated `fetchland` tag because the wider `tutor-land` tag also holds Ghost Quarter and Flagstones of Trokair. `o:` skips reminder text, so landcyclers and opponent-search removal (Path to Exile) drop out of the query; reminder text is also stripped before parsing. Only searches that end onto the battlefield or in hand are parsed — a land that is exiled (Strata Scythe), put on top (Treefolk Harbinger) or milled supplies no colour. The ~40 cards the parser cannot classify are logged at info rather than warning (`expectsUnclassified()`), so the fetchland sync's warnings stay meaningful. Feeds the deck page's Karsten source weighting (two-mana ramp ¾ of a source from MV 3, three-mana ramp ¼ at MV 4 and ½ from MV 5).
 
 Tags are not in Scryfall's bulk data — only reachable via `/cards/search?q=otag:<slug>`. The orchestrator paginates with ≥1s delay between every Scryfall call (across pages AND across syncs in the same run) and applies in a single transaction per sync (clear column → bulk-update grouped values in 1 000-id chunks). Zero results from a tag are treated as a sync failure (taxonomy probably renamed) and the column is **left untouched** rather than zeroed.
 

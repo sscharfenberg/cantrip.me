@@ -18,6 +18,15 @@ export interface DeckCommanderDefaultCard {
     set: DeckCardSet | null;
 }
 
+/**
+ * Where a card's `produced_mana` comes from, as the deck stats weigh it
+ * (`OracleCard::manaSource()`): `"ability"` — its own mana ability (Llanowar
+ * Elves, Arcane Signet, Dark Ritual); `"token"` — it only makes Treasure or
+ * Gold tokens (Smothering Tithe). Null when the card produces nothing, or
+ * only after transforming (Search for Azcanta).
+ */
+export type ManaSource = "ability" | "token";
+
 /** A commander in the deck's command zone. */
 export interface DeckCommander {
     /** UUID of the underlying deck_card row — drives the unified hero-image endpoint and any per-row claim flows. */
@@ -27,6 +36,8 @@ export interface DeckCommander {
     color_identity: string | null;
     /** Mana this card can produce (W/U/B/R/G/C). Null when the card produces no mana. */
     produced_mana: string[] | null;
+    /** Where `produced_mana` comes from — see {@link ManaSource}. */
+    mana_source: ManaSource | null;
     cmc: number;
     /**
      * Front-face type line. Used by the deck-stats mana curve to bucket
@@ -56,6 +67,8 @@ export interface DeckCompanion {
     color_identity: string | null;
     /** Mana this card can produce (W/U/B/R/G/C). Null when the card produces no mana. */
     produced_mana: string[] | null;
+    /** Where `produced_mana` comes from — see {@link ManaSource}. */
+    mana_source: ManaSource | null;
     cmc: number;
     /** Front-face type line — used by deck-stats subtype/type breakdowns. */
     type_line: string;
@@ -254,6 +267,8 @@ export interface DeckCardRow {
     color_identity: string | null;
     /** Mana this card can produce (W/U/B/R/G/C). Null when the card produces no mana. */
     produced_mana: string[] | null;
+    /** Where `produced_mana` comes from — see {@link ManaSource}. */
+    mana_source: ManaSource | null;
     /**
      * Deck-independent fetchland classification, populated by
      * `scryfall:fetch-patterns` from `otag:fetchland` + an oracle-text
@@ -266,10 +281,20 @@ export interface DeckCardRow {
      *   - `'any'`           — any land card (Urza's Cave)
      */
     fetch_pattern: string | null;
+    /**
+     * What a non-land card can search the library for — Three Visits
+     * (`typed:G`), Rampant Growth (`basic`). Same grammar as
+     * `fetch_pattern`, synced from `otag:tutor-land`. Null for lands
+     * and for cards that find no land.
+     */
+    land_search_pattern: string | null;
     cmc: number;
+    /** Front face only — an MDFC's land back is flagged by `is_mdfc_land`. */
     type_line: string;
     mana_cost: (string | null)[];
     is_basic_land: boolean;
+    /** Modal double-faced card with a land back (Bala Ged Recovery): it can be played as a land. */
+    is_mdfc_land: boolean;
     is_unlimited: boolean;
     /** True when the card violates a per-card format rule (pool legality, copy limit, color identity). */
     is_illegal: boolean;
@@ -344,6 +369,12 @@ export type DeckHighlight = {
     mv: number | null;
     category: DeckStatsSelection | null;
     colorProduction: "W" | "U" | "B" | "R" | "G" | null;
+    /**
+     * Mana value of the spell the production ring priced `colorProduction`
+     * for — only cards that count as a source by then match. Null with no
+     * production color, or to match every card that counts at all.
+     */
+    colorProductionMv: number | null;
     colorConsumption: "W" | "U" | "B" | "R" | "G" | null;
 };
 

@@ -155,21 +155,32 @@
     }
 }
 
-.text-card-groups:has(.highlighted) {
+.text-card-groups:has(.highlighted, .highlighted-later) {
     .card.highlighted {
         background-color: map.get(c.$pages, "deck", "card", "selected-background");
         color: map.get(c.$pages, "deck", "card", "selected-surface");
         border-color: map.get(c.$pages, "deck", "card", "selected-border");
     }
+
+    // A source that only counts toward bigger spells than the one the
+    // production ring is priced for: marked, but outside the ring's number.
+    .card.highlighted-later {
+        border-style: dashed;
+        border-color: map.get(c.$pages, "deck", "card", "selected-border");
+    }
 }
 
-.image-card-groups:has(.highlighted) {
+.image-card-groups:has(.highlighted, .highlighted-later) {
     .face-image {
         opacity: 0.4;
     }
 
     .face-image.highlighted {
         opacity: 1;
+    }
+
+    .face-image.highlighted-later {
+        opacity: 0.75;
     }
 }
 

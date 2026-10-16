@@ -4,6 +4,7 @@ import { useI18n } from "vue-i18n";
 import CollectionAvailabilityBadge from "@/components/Deck/CollectionAvailabilityBadge.vue";
 import CollectionImplicitBadge from "@/components/Deck/CollectionImplicitBadge.vue";
 import CollectionStatusBadge from "@/components/Deck/CollectionStatusBadge.vue";
+import SourceShareBadge from "@/components/Deck/SourceShareBadge.vue";
 import DeckCardActionsMenu from "@/pages/Deck/Actions/DeckCardActionsMenu.vue";
 import DeckCommanderActionsMenu from "@/pages/Deck/Actions/DeckCommanderActionsMenu.vue";
 import FaceImageLazy from "@/pages/Deck/Cards/FaceImageLazy.vue";
@@ -46,7 +47,7 @@ const props = defineProps<{
     collectionMode: "A" | "B" | "C";
 }>();
 const { t } = useI18n();
-const { isHighlighted } = useDeckHighlight();
+const { isHighlighted, isLaterSource } = useDeckHighlight();
 /** Image view has no drag — category moves happen via the actions menu. */
 const draggedTypeGroup = ref<DeckCardGroup | null>(null);
 /** Oracle id of a card just added via quick-add — used to flash its row briefly. */
@@ -85,9 +86,13 @@ const { allGroups } = useDeckSections(
                     :card-image0="commander.default_card.card_image_0"
                     :card-image1="commander.default_card.card_image_1"
                     :name="commander.name"
-                    :class="{ highlighted: isHighlighted(commander) }"
+                    :class="{
+                        highlighted: isHighlighted(commander),
+                        'highlighted-later': isLaterSource(commander)
+                    }"
                     @preview="openPreview(commander.default_card.id)"
                 >
+                    <source-share-badge :card="commander" variant="corner" />
                     <icon
                         v-if="commander.is_illegal"
                         v-tooltip="$t('pages.deck.illegal')"
@@ -149,10 +154,12 @@ const { allGroups } = useDeckSections(
                     :name="card.name"
                     :class="{
                         'card--just-added': recentlyAddedId === card.oracle_card_id,
-                        highlighted: isHighlighted(card)
+                        highlighted: isHighlighted(card),
+                        'highlighted-later': isLaterSource(card)
                     }"
                     @preview="openPreview(card.default_card.id, card.quantity)"
                 >
+                    <source-share-badge :card="card" variant="corner" />
                     <icon
                         v-if="card.is_game_changer && deck.uses_game_changer_list"
                         v-tooltip="$t('pages.deck.game_changer')"

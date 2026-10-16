@@ -6,13 +6,21 @@ import { karstenArticleUrl } from "@/utils/frankKarstenAnalysis";
 import Headline from "Components/UI/Headline.vue";
 import LabelledLink from "Components/UI/LabelledLink.vue";
 import { useDeckHighlight, type HighlightColor } from "Composables/useDeckHighlight.ts";
-import type { ColorPipTally, KarstenColorAnalysis, KarstenCombinedAnalysis } from "Composables/useDeckStats.ts";
+import type {
+    ColorPipTally,
+    KarstenColorAnalysis,
+    KarstenCombinedAnalysis,
+    ProductionBasis
+} from "Composables/useDeckStats.ts";
+import { useFormatting } from "Composables/useFormatting.ts";
 
 const props = defineProps<{
     /** WUBRG pip totals across all non-land card costs (deck + commanders + companion). */
     cost: ColorPipTally;
-    /** WUBRG totals from `produced_mana × quantity`. */
+    /** Per color, the weighted Karsten source count its "Mana sources" row shows. */
     production: ColorPipTally;
+    /** The spell each production color is priced for (name + mana value). */
+    productionBasis: Partial<Record<HighlightColor, ProductionBasis>>;
     /** Per-color Karsten source recommendation for the deck's format. */
     karsten: KarstenColorAnalysis[];
     /**
@@ -26,6 +34,8 @@ const props = defineProps<{
 }>();
 
 const { t } = useI18n();
+/** Source counts are fractional once mana rocks, dorks and ramp count (Signet = ¾), so they go through the locale formatter. */
+const { formatDecimals } = useFormatting();
 const { selectedColorConsumption, selectedColorProduction, setColorConsumption, setColorProduction } =
     useDeckHighlight();
 
@@ -164,7 +174,7 @@ const onInnerClick = (color: HighlightColor): void => {
         setColorProduction(null);
         return;
     }
-    setColorProduction(color);
+    setColorProduction(color, props.productionBasis[color]?.mv ?? null);
     setColorConsumption(null);
 };
 
@@ -179,12 +189,14 @@ const ariaForCost = (seg: Segment): string =>
         percent: formatPercent(seg.percent)
     });
 
-/** Aria label for an inner-ring (production) segment — same shape as `ariaForCost`. */
+/** Aria label for an inner-ring (production) segment — names the spell the count is priced for. */
 const ariaForProduction = (seg: Segment): string =>
     t("pages.deck.stats.colors.production_aria", {
         color: t(`pages.deck.stats.colors.color.${seg.color}`),
-        count: seg.count,
-        percent: formatPercent(seg.percent)
+        count: formatDecimals(seg.count),
+        percent: formatPercent(seg.percent),
+        card: props.productionBasis[seg.color]?.card ?? "",
+        mv: props.productionBasis[seg.color]?.mv ?? 0
     });
 
 /**
@@ -198,6 +210,10 @@ const symbolImg = (color: HighlightColor): string => {
     return `<img src="/symbol/${color}.svg" alt="${alt}" style="width:1em;height:1em;vertical-align:-0.15em;margin:0 0.15em;" />`;
 };
 
+/** Escape a card name for the HTML tooltip strings below. */
+const escapeHtml = (text: string): string =>
+    text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+
 /**
  * Tooltip body for an outer-ring (cost) segment — "Cost: {count}
  * {symbol} pips" with the WUBRG symbol rendered inline. FloatingVue is
@@ -210,11 +226,16 @@ const tooltipForCost = (seg: Segment): string =>
         symbol: symbolImg(seg.color)
     });
 
-/** Tooltip body for an inner-ring (production) segment — same shape as `tooltipForCost`. */
+/**
+ * Tooltip body for an inner-ring (production) segment — the same count
+ * and spell the color's "Mana sources" row shows.
+ */
 const tooltipForProduction = (seg: Segment): string =>
     t("pages.deck.stats.colors.production_tooltip", {
-        count: seg.count,
-        symbol: symbolImg(seg.color)
+        count: formatDecimals(seg.count),
+        symbol: symbolImg(seg.color),
+        card: escapeHtml(props.productionBasis[seg.color]?.card ?? ""),
+        mv: props.productionBasis[seg.color]?.mv ?? 0
     });
 </script>
 
@@ -314,7 +335,7 @@ const tooltipForProduction = (seg: Segment): string =>
                     <h5 class="color-donut__heading">{{ t("pages.deck.stats.colors.inner") }}</h5>
                     <ul class="color-donut__rows">
                         <li v-for="row in productionRows" :key="row.color">
-                            <i18n-t keypath="pages.deck.stats.colors.row" scope="global">
+                            <i18n-t keypath="pages.deck.stats.colors.production_row" scope="global">
                                 <template #color>
                                     <img
                                         :src="`/symbol/${row.color}.svg`"
@@ -322,7 +343,7 @@ const tooltipForProduction = (seg: Segment): string =>
                                         class="color-donut__symbol"
                                     />
                                 </template>
-                                <template #count>{{ row.count }}</template>
+                                <template #count>{{ formatDecimals(row.count) }}</template>
                                 <template #percent>{{ Math.round(row.percent) }}</template>
                             </i18n-t>
                         </li>
@@ -352,9 +373,11 @@ const tooltipForProduction = (seg: Segment): string =>
                                     class="color-donut__symbol"
                                 />
                             </template>
-                            <template #have>{{ row.have }}</template>
+                            <template #have>{{ formatDecimals(row.have) }}</template>
                             <template #need>{{ row.need }}</template>
-                            <template #short>{{ row.short }}</template>
+                            <template #short>{{ formatDecimals(row.short) }}</template>
+                            <template #card>{{ row.card }}</template>
+                            <template #mv>{{ row.mv }}</template>
                         </i18n-t>
                     </li>
                 </ul>
@@ -387,13 +410,16 @@ const tooltipForProduction = (seg: Segment): string =>
                                         />
                                     </span>
                                 </template>
-                                <template #have>{{ row.have }}</template>
+                                <template #have>{{ formatDecimals(row.have) }}</template>
                                 <template #need>{{ row.need }}</template>
-                                <template #short>{{ row.short }}</template>
+                                <template #short>{{ formatDecimals(row.short) }}</template>
+                                <template #card>{{ row.card }}</template>
+                                <template #mv>{{ row.mv }}</template>
                             </i18n-t>
                         </li>
                     </ul>
                 </template>
+                <p class="color-donut__attribution">{{ t("pages.deck.stats.colors.karsten.weighting") }}</p>
                 <p class="color-donut__attribution">
                     <i18n-t keypath="pages.deck.stats.colors.karsten.attribution" scope="global" tag="span">
                         <template #link>
