@@ -121,10 +121,11 @@ const unavailableCards = computed(() => collectUnavailableCards(props.cards, pro
 const canEdit = computed(() => props.isOwner && !isArchived.value);
 /**
  * Provide the deck highlight api once at the page root. Stats panels
- * (manacurve, categories, color distribution) and card views (text /
- * image) inject it via `useDeckHighlight()`. Each axis (mana value,
- * category, color production, color consumption) is independent; a
- * card highlights only when it satisfies every active axis.
+ * (manacurve, categories, colored pips, mana sources) and card views
+ * (text / image) inject it via `useDeckHighlight()`. Each axis (mana
+ * value, category, color production — the donut's color or a picked
+ * spell's sources — and color consumption) is independent; a card
+ * highlights only when it satisfies every active axis.
  *
  * The cards getter feeds the production-axis matcher's fetchland
  * resolver — without it, fetchlands wouldn't highlight when the user
@@ -229,7 +230,7 @@ const cardNameByDefaultCardId = computed<Record<string, string>>(() => {
             :commanders="commanders"
             :companion="companion"
             :categories="categories"
-            :format="deck.format"
+            :deck="deck"
         />
     </div>
 </template>

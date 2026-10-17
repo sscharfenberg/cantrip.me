@@ -1,17 +1,16 @@
 <script setup lang="ts">
 /******************************************************************************
- * How much of a mana source a card counts as, shown while a production
- * color is selected for a spell of a given mana value — "¾" on a
- * Farseek, with a tooltip listing each step of its worth ("¼ from mana
- * value 4, ½ from mana value 5" for a Cultivate). Only for partial
- * sources: lands count fully and stay unmarked, so a selection doesn't
- * paint a "1" on every land. The donut's production ring selects
- * without a mana value — it counts every source as one — so it shows
- * no badges.
+ * How much of a mana source a card counts as, shown while the sources
+ * for a spell are highlighted (a spell picked on a "Mana sources" row) —
+ * "¾" on a Farseek, with a tooltip listing each step of its worth ("¼
+ * from mana value 4, ½ from mana value 5" for a Cultivate). Only for
+ * partial sources: lands count fully and stay unmarked, so a selection
+ * doesn't paint a "1" on every land. The donut's production ring counts
+ * every source as one, so its selection shows no badges.
  *
  * Two states, matching the card's own highlight:
- *   - counts toward the spell the selection is priced for — the badge
- *     shows that weight, its share of that spell's source count;
+ *   - counts toward the selected spell — the badge shows that weight,
+ *     its share of that spell's source count;
  *   - a later source (`useDeckHighlight().isLaterSource`) that only
  *     counts toward bigger spells — muted, showing the most it ever
  *     counts as, and the tooltip says it is not counted yet.
@@ -52,14 +51,15 @@ const label = computed(() => {
 
 /** HTML tooltip — FloatingVue runs with `html: true` (main.ts) — so the "not yet" note gets its own line. */
 const tooltip = computed(() => {
-    const color = highlight.value.colorProduction;
-    if (share.value === null || color === null) return "";
+    const spell = highlight.value.spellSources;
+    if (share.value === null || spell === null) return "";
     const steps = share.value.steps
         .map(step => t("pages.deck.source_share_step", { share: fraction(step.weight), mv: step.fromMv }))
         .join(", ");
-    const lines = [t("pages.deck.source_share", { color: t(`pages.deck.stats.colors.color.${color}`), steps })];
-    if (isLater.value && highlight.value.colorProductionMv !== null) {
-        lines.push(t("pages.deck.source_share_later", { mv: highlight.value.colorProductionMv }));
+    const color = spell.colors.map(c => t(`pages.deck.stats.colors.color.${c}`)).join(" / ");
+    const lines = [t("pages.deck.source_share", { color, steps })];
+    if (isLater.value) {
+        lines.push(t("pages.deck.source_share_later", { mv: spell.mv }));
     }
     return lines.join("<br />");
 });

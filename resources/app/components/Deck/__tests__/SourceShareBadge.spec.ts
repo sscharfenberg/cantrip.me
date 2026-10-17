@@ -34,16 +34,45 @@ const render = (card: HighlightableCard, variant?: "inline" | "corner") => {
 };
 
 describe("SourceShareBadge", () => {
-    it("renders nothing while no production colour is selected", () => {
+    it("renders nothing while no spell is selected", () => {
         const { wrapper } = render(signet);
 
         expect(wrapper.find(".source-share").exists()).toBe(false);
     });
 
+    it("renders nothing for the production ring, which counts every source as one", async () => {
+        const { wrapper, api } = render(signet);
+
+        api.setColorProduction("W");
+        await nextTick();
+
+        expect(wrapper.find(".source-share").exists()).toBe(false);
+    });
+
+    it("names every color of a multicolor spell", async () => {
+        setTestMessages({
+            de: {
+                pages: {
+                    deck: {
+                        source_share: "Zählt für {color}: {steps}.",
+                        source_share_step: "{share} ab {mv}",
+                        stats: { colors: { color: { W: "Weiß", U: "Blau" } } }
+                    }
+                }
+            }
+        });
+        const { wrapper, api } = render(signet);
+
+        api.setSpellSources({ colors: ["W", "U"], mv: 3 });
+        await nextTick();
+
+        expect(wrapper.get(".source-share").attributes("data-tooltip")).toBe("Zählt für Weiß / Blau: ¾ ab 3.");
+    });
+
     it("shows the share of a highlighted partial source", async () => {
         const { wrapper, api } = render(signet);
 
-        api.setColorProduction("W", 3);
+        api.setSpellSources({ colors: ["W"], mv: 3 });
         await nextTick();
 
         const badge = wrapper.get(".source-share");
@@ -65,7 +94,7 @@ describe("SourceShareBadge", () => {
         });
         const { wrapper, api } = render(signet);
 
-        api.setColorProduction("W", 3);
+        api.setSpellSources({ colors: ["W"], mv: 3 });
         await nextTick();
 
         expect(wrapper.get(".source-share").attributes("data-tooltip")).toBe("Zählt für Weiß: ¾ ab 3.");
@@ -74,7 +103,7 @@ describe("SourceShareBadge", () => {
     it("takes the image grid's corner when asked to", async () => {
         const { wrapper, api } = render(signet, "corner");
 
-        api.setColorProduction("W", 3);
+        api.setSpellSources({ colors: ["W"], mv: 3 });
         await nextTick();
 
         expect(wrapper.get(".source-share").classes()).toContain("source-share--corner");
@@ -83,7 +112,7 @@ describe("SourceShareBadge", () => {
     it("leaves a full source unmarked", async () => {
         const { wrapper, api } = render(plains);
 
-        api.setColorProduction("W", 3);
+        api.setSpellSources({ colors: ["W"], mv: 3 });
         await nextTick();
 
         expect(wrapper.find(".source-share").exists()).toBe(false);
@@ -104,7 +133,7 @@ describe("SourceShareBadge", () => {
         });
         const { wrapper, api } = render(signet);
 
-        api.setColorProduction("W", 2);
+        api.setSpellSources({ colors: ["W"], mv: 2 });
         await nextTick();
 
         const badge = wrapper.get(".source-share");
@@ -137,7 +166,7 @@ describe("SourceShareBadge", () => {
         });
         const wrapper = mount(Host);
 
-        api.setColorProduction("G", 3);
+        api.setSpellSources({ colors: ["G"], mv: 3 });
         await nextTick();
 
         expect(wrapper.get(".source-share").text()).toBe("½");

@@ -29,13 +29,14 @@ const render = (overrides: Partial<typeof props> = {}) => {
 };
 
 describe("DeckStatsColors — production ring", () => {
-    it("selects a production colour without a mana value, so every source highlights", async () => {
+    it("selects a production colour, not a spell's sources, so every source highlights", async () => {
         const { wrapper, api } = render();
+        api().setSpellSources({ colors: ["R"], mv: 3 });
 
         await wrapper.get(".color-donut__ring--inner .color-donut__segment--R").trigger("click");
 
         expect(api().highlight.value.colorProduction).toBe("R");
-        expect(api().highlight.value.colorProductionMv).toBeNull();
+        expect(api().highlight.value.spellSources).toBeNull();
     });
 
     it("clears a cost selection, the two rings acting as one group", async () => {

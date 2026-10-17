@@ -1,0 +1,9 @@
+@use "sass:map"; // https://sass-lang.com/documentation/modules/map
+@use "../../global-size-tokens" as s;
+
+$spell-link: (
+    "border": 1px,
+    "radius": map.get(s.$radius, "base"),
+    "padding": 0 0.35em,
+    "gap": 0.3em
+);
