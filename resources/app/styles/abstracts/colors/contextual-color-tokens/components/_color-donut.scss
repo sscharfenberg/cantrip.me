@@ -6,7 +6,11 @@
 // generic StatsDonut, which iterates 01..10, doesn't accidentally
 // render its first five slices in mana hues.
 $color-donut: (
-    "selected-stroke": light-dark(map.get(c.$grey, "black"), map.get(c.$grey, "white")),
+    // The selected / focused segment outline. Black or white would vanish
+    // on the B or W segment, and no single brightness stands out against
+    // all five fills, so it takes the one hue none of them use — magenta,
+    // lighter in dark mode where the page behind the ring is dark.
+    "selected-stroke": light-dark(#f0f, #f6f),
     "mana": (
         "W": (
             "fill": light-dark(

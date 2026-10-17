@@ -370,9 +370,10 @@ export type DeckHighlight = {
     category: DeckStatsSelection | null;
     colorProduction: "W" | "U" | "B" | "R" | "G" | null;
     /**
-     * Mana value of the spell the production ring priced `colorProduction`
+     * Mana value of the spell a `colorProduction` selection is priced
      * for — only cards that count as a source by then match. Null with no
-     * production color, or to match every card that counts at all.
+     * production color, or to match every card that counts at all (the
+     * donut's production ring, which counts every source as one).
      */
     colorProductionMv: number | null;
     colorConsumption: "W" | "U" | "B" | "R" | "G" | null;

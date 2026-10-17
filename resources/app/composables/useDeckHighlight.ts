@@ -44,9 +44,9 @@ export interface ShareStep {
 
 /**
  * What a card is worth as a source of the selected production color:
- * `weight` toward the spell the ring priced that color for — 0 for a
- * card that only counts toward bigger spells — and every step of its
- * worth, lightest first (Cultivate: ¼ from mana value 4, ½ from 5).
+ * `weight` toward the spell the selection is priced for — 0 for a card
+ * that only counts toward bigger spells — and every step of its worth,
+ * lightest first (Cultivate: ¼ from mana value 4, ½ from 5).
  */
 export interface ProductionShare {
     weight: number;
@@ -71,9 +71,12 @@ export interface DeckHighlightApi {
     setManaValue: (cmc: number | null) => void;
     setCategory: (sel: DeckStatsSelection | null) => void;
     /**
-     * Select a production color. `mv` is the mana value of the spell
-     * the production ring priced that color for; only cards that count
-     * toward it highlight. Omitted, any card that counts at all does.
+     * Select a production color. Without `mv` — the donut's production
+     * ring, where every source counts as one pip — any card that is a
+     * source of the color highlights. With `mv`, the selection is
+     * priced for a spell of that mana value by Karsten's weights: only
+     * cards that count toward it highlight, and partial and later
+     * sources report a {@link ProductionShare}.
      */
     setColorProduction: (color: HighlightColor | null, mv?: number | null) => void;
     setColorConsumption: (color: HighlightColor | null) => void;
@@ -82,17 +85,19 @@ export interface DeckHighlightApi {
     isHighlighted: (card: HighlightableCard) => boolean;
     /**
      * True for a card the production axis leaves unhighlighted only
-     * because it comes online too late for the spell the ring priced
-     * the color for — a Cultivate against a three-drop. It does count
+     * because it comes online too late for the spell the selection is
+     * priced for — a Cultivate against a three-drop. It does count
      * toward bigger spells, so the card views mark it in a muted style
      * instead of dimming it with the rest. Every other axis still has
-     * to match.
+     * to match. Never true for an unpriced selection.
      */
     isLaterSource: (card: HighlightableCard) => boolean;
     /**
      * For a highlighted or later source, how much of a source it counts
      * as (see {@link ProductionShare}) — null for full sources (lands),
-     * for cards that are neither, and when no production color is set.
+     * for cards that are neither, and when no production color is set
+     * or the selection carries no mana value: the production ring
+     * counts every source as one, so a "¾" there would contradict it.
      */
     productionShare: (card: HighlightableCard) => ProductionShare | null;
 }
@@ -189,9 +194,10 @@ export const provideDeckHighlight = (getDeckCards?: () => HighlightableCard[]): 
     };
 
     /**
-     * The role a card counts through toward the spell the ring priced
-     * the color for — so a clicked segment highlights exactly the cards
-     * behind its number. Null when it does not count by then.
+     * The role a card counts through toward the spell the selection is
+     * priced for — any role at all for an unpriced selection, so the
+     * production ring highlights every card behind its number. Null
+     * when it does not count by then.
      */
     const pricedRole = (roles: SourceRole[]): SourceRole | null =>
         highlight.colorProduction === null
@@ -271,7 +277,8 @@ export const provideDeckHighlight = (getDeckCards?: () => HighlightableCard[]): 
     };
 
     const productionShare = (card: HighlightableCard): ProductionShare | null => {
-        if (highlight.colorProduction === null || !matchesOtherAxes(card)) return null;
+        if (highlight.colorProduction === null || highlight.colorProductionMv === null) return null;
+        if (!matchesOtherAxes(card)) return null;
         const roles = colorRoles(card);
         if (roles.length === 0) return null;
         const weight = pricedRole(roles)?.weight ?? 0;

@@ -1,0 +1,15 @@
+@use "sass:map"; // https://sass-lang.com/documentation/modules/map
+@use "sass:color"; // https://sass-lang.com/documentation/modules/color
+@use "../../global-color-tokens" as c;
+
+// Info blue: the "pending" state color in light mode; the lighter brand
+// blue in dark mode, where the state blue is too dark for the icon to
+// stand out against the page.
+$-info-light: map.get(c.$state, "light", "pending", "color");
+$-info-dark: map.get(c.$brand, "light1", "color");
+$info-box: (
+    "background": light-dark(color.adjust($-info-light, $alpha: -0.94), color.adjust($-info-dark, $alpha: -0.92)),
+    "border": light-dark(color.adjust($-info-light, $alpha: -0.6), color.adjust($-info-dark, $alpha: -0.6)),
+    "surface": light-dark(map.get(c.$grey, "abbey"), map.get(c.$grey, "fog")),
+    "icon": light-dark($-info-light, $-info-dark)
+);

@@ -4,6 +4,7 @@ import { useI18n } from "vue-i18n";
 import DeckStatsCategories from "Components/Deck/DeckStats/DeckStatsCategories.vue";
 import DeckStatsColors from "Components/Deck/DeckStats/DeckStatsColors.vue";
 import DeckStatsManacurve from "Components/Deck/DeckStats/DeckStatsManacurve.vue";
+import DeckStatsManaSources from "Components/Deck/DeckStats/DeckStatsManaSources.vue";
 import Accordion from "Components/UI/Accordion.vue";
 import Icon from "Components/UI/Icon.vue";
 import { useDeckHighlight } from "Composables/useDeckHighlight.ts";
@@ -23,7 +24,6 @@ const {
     averageManaValue,
     costPips,
     productionPips,
-    productionBasis,
     karstenAnalysis,
     karstenCombined,
     typeCounts,
@@ -45,6 +45,11 @@ const { hasHighlight, clear } = useDeckHighlight();
  */
 const tallyTotal = (t: ColorPipTally): number => t.W + t.U + t.B + t.R + t.G;
 const showColors = computed(() => tallyTotal(costPips.value) > 0 && tallyTotal(productionPips.value) > 0);
+/**
+ * "Mana sources" stands on its own: a deck with no sources yet still
+ * gets told how many each color needs.
+ */
+const showSources = computed(() => karstenAnalysis.value.length > 0 || karstenCombined.value.length > 0);
 </script>
 
 <template>
@@ -59,15 +64,20 @@ const showColors = computed(() => tallyTotal(costPips.value) > 0 && tallyTotal(p
                     {{ t("pages.deck.clear_selection") }}
                 </button>
                 <deck-stats-manacurve :curve="manaCurve" :average="averageManaValue" />
-                <deck-stats-colors
-                    v-if="showColors"
-                    :cost="costPips"
-                    :production="productionPips"
-                    :production-basis="productionBasis"
-                    :karsten="karstenAnalysis"
-                    :karsten-combined="karstenCombined"
-                    :format="format"
-                />
+                <div v-if="showColors || showSources" class="stats__colors">
+                    <deck-stats-colors
+                        v-if="showColors"
+                        :cost="costPips"
+                        :production="productionPips"
+                        :sources-shown="showSources"
+                    />
+                    <deck-stats-mana-sources
+                        v-if="showSources"
+                        :karsten="karstenAnalysis"
+                        :karsten-combined="karstenCombined"
+                        :format="format"
+                    />
+                </div>
                 <deck-stats-categories
                     :types="typeCounts"
                     :categories="categoryCounts"
@@ -79,6 +89,8 @@ const showColors = computed(() => tallyTotal(costPips.value) > 0 && tallyTotal(p
 </template>
 
 <style lang="scss" scoped>
+@use "Abstracts/mixins" as m;
+
 .stats {
     &__hdl {
         display: flex;
@@ -93,8 +105,28 @@ const showColors = computed(() => tallyTotal(costPips.value) > 0 && tallyTotal(p
 
         gap: 1lh;
 
+        container-type: inline-size;
+
         .btn-default {
             align-self: flex-start;
+        }
+    }
+
+    // "Colored pips" and "Mana sources" stack, and sit side by side once
+    // the panel is wide enough for both. Column flow rather than a fixed
+    // two-column template, so a deck showing only one of them gives it
+    // the full width.
+    &__colors {
+        display: grid;
+        align-items: start;
+        grid-template-columns: minmax(0, 1fr);
+
+        gap: 1lh 2lh;
+
+        @include m.cq("desktop") {
+            grid-template-columns: none;
+            grid-auto-columns: minmax(0, 1fr);
+            grid-auto-flow: column;
         }
     }
 }

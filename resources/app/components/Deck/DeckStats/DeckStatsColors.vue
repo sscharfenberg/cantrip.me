@@ -2,70 +2,48 @@
 import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { annulusPath, arcPath } from "@/utils/donutPath";
-import { karstenArticleUrl } from "@/utils/frankKarstenAnalysis";
 import Headline from "Components/UI/Headline.vue";
-import LabelledLink from "Components/UI/LabelledLink.vue";
+import InfoBox from "Components/UI/InfoBox.vue";
 import { useDeckHighlight, type HighlightColor } from "Composables/useDeckHighlight.ts";
-import type {
-    ColorPipTally,
-    KarstenColorAnalysis,
-    KarstenCombinedAnalysis,
-    ProductionBasis
-} from "Composables/useDeckStats.ts";
-import { useFormatting } from "Composables/useFormatting.ts";
+import type { ColorPipTally } from "Composables/useDeckStats.ts";
 
 const props = defineProps<{
     /** WUBRG pip totals across all non-land card costs (deck + commanders + companion). */
     cost: ColorPipTally;
-    /** Per color, the weighted Karsten source count its "Mana sources" row shows. */
+    /** Per color, how many cards make it — one pip per copy, unweighted. */
     production: ColorPipTally;
-    /** The spell each production color is priced for (name + mana value). */
-    productionBasis: Partial<Record<HighlightColor, ProductionBasis>>;
-    /** Per-color Karsten source recommendation for the deck's format. */
-    karsten: KarstenColorAnalysis[];
     /**
-     * Karsten gold-card "combined" rows — one per unique color combo
-     * demanded by a gold card in the deck. Empty for monocolor decks
-     * or decks without gold cards.
+     * Whether the "Mana sources" section renders beside this one. The
+     * explanation only compares the two readings when there is one to
+     * compare against.
      */
-    karstenCombined: KarstenCombinedAnalysis[];
-    /** Deck format slug — drives which Karsten article the attribution links to. */
-    format: string;
+    sourcesShown: boolean;
 }>();
 
 const { t } = useI18n();
-/** Source counts are fractional once mana rocks, dorks and ramp count (Signet = ¾), so they go through the locale formatter. */
-const { formatDecimals } = useFormatting();
 const { selectedColorConsumption, selectedColorProduction, setColorConsumption, setColorProduction } =
     useDeckHighlight();
 
 const COLORS: readonly HighlightColor[] = ["W", "U", "B", "R", "G"] as const;
 
 /**
- * Karsten article URL the attribution links to, derived from the deck
- * format (so a Commander deck and a Modern deck can deep-link to
- * different editions of the analysis if they exist).
- */
-const karstenUrl = computed(() => karstenArticleUrl(props.format));
-
-/**
  * Geometry, in viewBox units. The SVG is `viewBox="-100 -100 200 200"`,
  * so 1 unit ≈ 1px when the figure renders at 12rem (192px) — close
  * enough that the visual stroke / gap thickness lines up with what the
  * design asked for. 4 units of margin around the outer ring make sure
- * the 2px stroke isn't clipped at the viewBox edges.
+ * even the 4px selected stroke isn't clipped at the viewBox edges.
  */
 const R_OUTER_OUT = 96;
 const R_OUTER_IN = 66;
 const R_INNER_OUT = 56;
 const R_INNER_IN = 30;
 /**
- * Radial cut between adjacent segments, in viewBox units. The 2-unit
- * stroke is centered on each segment's edge, so half of it (1 unit per
- * side) eats into the gap; SEGMENT_GAP = 4 leaves a visible 2-unit
+ * Radial cut between adjacent segments, in viewBox units. The 3-unit
+ * stroke is centered on each segment's edge, so half of it (1.5 units
+ * per side) eats into the gap; SEGMENT_GAP = 5 leaves a visible 2-unit
  * clear gap between strokes — matching what the design asked for.
  */
-const SEGMENT_GAP = 4;
+const SEGMENT_GAP = 5;
 const TWO_PI = Math.PI * 2;
 const HALF_PI = Math.PI / 2;
 
@@ -165,16 +143,15 @@ const onOuterClick = (color: HighlightColor): void => {
 };
 /**
  * Inner-ring (production) click handler — mirror of `onOuterClick`.
- * Toggles selection on the production color and clears any current
- * cost selection so the two rings act as one radio group split across
- * cost / production. See `onOuterClick`'s comment for the full rule.
+ * Selects without a mana value: the ring counts every source as one, so
+ * every card behind the segment's number highlights, at full strength.
  */
 const onInnerClick = (color: HighlightColor): void => {
     if (selectedColorProduction.value === color) {
         setColorProduction(null);
         return;
     }
-    setColorProduction(color, props.productionBasis[color]?.mv ?? null);
+    setColorProduction(color);
     setColorConsumption(null);
 };
 
@@ -189,14 +166,12 @@ const ariaForCost = (seg: Segment): string =>
         percent: formatPercent(seg.percent)
     });
 
-/** Aria label for an inner-ring (production) segment — names the spell the count is priced for. */
+/** Aria label for an inner-ring (production) segment — same shape as `ariaForCost`. */
 const ariaForProduction = (seg: Segment): string =>
     t("pages.deck.stats.colors.production_aria", {
         color: t(`pages.deck.stats.colors.color.${seg.color}`),
-        count: formatDecimals(seg.count),
-        percent: formatPercent(seg.percent),
-        card: props.productionBasis[seg.color]?.card ?? "",
-        mv: props.productionBasis[seg.color]?.mv ?? 0
+        count: seg.count,
+        percent: formatPercent(seg.percent)
     });
 
 /**
@@ -210,10 +185,6 @@ const symbolImg = (color: HighlightColor): string => {
     return `<img src="/symbol/${color}.svg" alt="${alt}" style="width:1em;height:1em;vertical-align:-0.15em;margin:0 0.15em;" />`;
 };
 
-/** Escape a card name for the HTML tooltip strings below. */
-const escapeHtml = (text: string): string =>
-    text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-
 /**
  * Tooltip body for an outer-ring (cost) segment — "Cost: {count}
  * {symbol} pips" with the WUBRG symbol rendered inline. FloatingVue is
@@ -226,16 +197,11 @@ const tooltipForCost = (seg: Segment): string =>
         symbol: symbolImg(seg.color)
     });
 
-/**
- * Tooltip body for an inner-ring (production) segment — the same count
- * and spell the color's "Mana sources" row shows.
- */
+/** Tooltip body for an inner-ring (production) segment — same shape as `tooltipForCost`. */
 const tooltipForProduction = (seg: Segment): string =>
     t("pages.deck.stats.colors.production_tooltip", {
-        count: formatDecimals(seg.count),
-        symbol: symbolImg(seg.color),
-        card: escapeHtml(props.productionBasis[seg.color]?.card ?? ""),
-        mv: props.productionBasis[seg.color]?.mv ?? 0
+        count: seg.count,
+        symbol: symbolImg(seg.color)
     });
 </script>
 
@@ -312,11 +278,11 @@ const tooltipForProduction = (seg: Segment): string =>
                     />
                 </g>
             </svg>
-            <div class="color-donut__text">
+            <div class="color-donut__legend">
                 <section class="color-donut__section">
                     <h5 class="color-donut__heading">{{ t("pages.deck.stats.colors.outer") }}</h5>
                     <ul class="color-donut__rows">
-                        <li v-for="row in costRows" :key="row.color">
+                        <li v-for="row in costRows" :key="row.color" class="color-donut__row">
                             <i18n-t keypath="pages.deck.stats.colors.row" scope="global">
                                 <template #color>
                                     <img
@@ -334,7 +300,7 @@ const tooltipForProduction = (seg: Segment): string =>
                 <section class="color-donut__section">
                     <h5 class="color-donut__heading">{{ t("pages.deck.stats.colors.inner") }}</h5>
                     <ul class="color-donut__rows">
-                        <li v-for="row in productionRows" :key="row.color">
+                        <li v-for="row in productionRows" :key="row.color" class="color-donut__row">
                             <i18n-t keypath="pages.deck.stats.colors.production_row" scope="global">
                                 <template #color>
                                     <img
@@ -343,94 +309,22 @@ const tooltipForProduction = (seg: Segment): string =>
                                         class="color-donut__symbol"
                                     />
                                 </template>
-                                <template #count>{{ formatDecimals(row.count) }}</template>
+                                <template #count>{{ row.count }}</template>
                                 <template #percent>{{ Math.round(row.percent) }}</template>
                             </i18n-t>
                         </li>
                     </ul>
                 </section>
             </div>
-            <section v-if="karsten.length" class="color-donut__section">
-                <h5 class="color-donut__heading">{{ t("pages.deck.stats.colors.karsten.title") }}</h5>
-                <ul class="color-donut__rows">
-                    <li
-                        v-for="row in karsten"
-                        :key="row.color"
-                        :class="{ 'color-donut__rows-item--short': row.short > 0 }"
-                    >
-                        <i18n-t
-                            :keypath="
-                                row.short > 0
-                                    ? 'pages.deck.stats.colors.karsten.short'
-                                    : 'pages.deck.stats.colors.karsten.sufficient'
-                            "
-                            scope="global"
-                        >
-                            <template #color>
-                                <img
-                                    :src="`/symbol/${row.color}.svg`"
-                                    :alt="t(`pages.deck.stats.colors.color.${row.color}`)"
-                                    class="color-donut__symbol"
-                                />
-                            </template>
-                            <template #have>{{ formatDecimals(row.have) }}</template>
-                            <template #need>{{ row.need }}</template>
-                            <template #short>{{ formatDecimals(row.short) }}</template>
-                            <template #card>{{ row.card }}</template>
-                            <template #mv>{{ row.mv }}</template>
-                        </i18n-t>
-                    </li>
-                </ul>
-                <template v-if="karstenCombined.length">
-                    <h6 class="color-donut__subheading">
-                        {{ t("pages.deck.stats.colors.karsten.combined_title") }}
-                    </h6>
-                    <ul class="color-donut__rows">
-                        <li
-                            v-for="row in karstenCombined"
-                            :key="row.colors.join('')"
-                            :class="{ 'color-donut__rows-item--short': row.short > 0 }"
-                        >
-                            <i18n-t
-                                :keypath="
-                                    row.short > 0
-                                        ? 'pages.deck.stats.colors.karsten.combined_short'
-                                        : 'pages.deck.stats.colors.karsten.combined_sufficient'
-                                "
-                                scope="global"
-                            >
-                                <template #colors>
-                                    <span class="color-donut__combined-colors">
-                                        <img
-                                            v-for="c in row.colors"
-                                            :key="c"
-                                            :src="`/symbol/${c}.svg`"
-                                            :alt="t(`pages.deck.stats.colors.color.${c}`)"
-                                            class="color-donut__symbol"
-                                        />
-                                    </span>
-                                </template>
-                                <template #have>{{ formatDecimals(row.have) }}</template>
-                                <template #need>{{ row.need }}</template>
-                                <template #short>{{ formatDecimals(row.short) }}</template>
-                                <template #card>{{ row.card }}</template>
-                                <template #mv>{{ row.mv }}</template>
-                            </i18n-t>
-                        </li>
-                    </ul>
-                </template>
-                <p class="color-donut__attribution">{{ t("pages.deck.stats.colors.karsten.weighting") }}</p>
-                <p class="color-donut__attribution">
-                    <i18n-t keypath="pages.deck.stats.colors.karsten.attribution" scope="global" tag="span">
-                        <template #link>
-                            <labelled-link :href="karstenUrl">{{
-                                t("pages.deck.stats.colors.karsten.attribution_link")
-                            }}</labelled-link>
-                        </template>
-                    </i18n-t>
-                </p>
-            </section>
         </div>
+        <figcaption>
+            <info-box class="color-donut__explanation">
+                <p class="color-donut__note">{{ t("pages.deck.stats.colors.explanation") }}</p>
+                <p v-if="sourcesShown" class="color-donut__note">
+                    {{ t("pages.deck.stats.colors.explanation_sources") }}
+                </p>
+            </info-box>
+        </figcaption>
     </figure>
 </template>
 
@@ -441,38 +335,34 @@ const tooltipForProduction = (seg: Segment): string =>
 @use "Abstracts/sizes" as s;
 @use "Abstracts/timings" as ti;
 
+// Laid out against the panel's own width, not the viewport: on wide
+// screens the deck stats put this section beside "Mana sources", so a
+// desktop viewport can still hand it a phone-sized column.
+//   - narrow: donut centered above the legend, the two lists stacked;
+//   - portrait+: donut beside the legend, the two lists stacked;
+//   - landscape+: donut beside the two lists, side by side.
+// The explanation always spans the full width underneath.
 .color-donut {
     display: flex;
     flex-direction: column;
 
     margin: 0;
+    gap: map.get(s.$components, "color-donut", "gap");
 
-    // Two-column grid on mobile (donut + text legend in row 1, Karsten
-    // section spans the full width of row 2), three columns at
-    // landscape+. The grid children, in DOM order, are: the SVG donut,
-    // the text block (cost + production legend stacked), and the
-    // Karsten recommendation section. `auto 1fr 1fr` keeps the donut at
-    // its intrinsic 12rem square and lets the two text columns share
-    // the remaining width.
+    container-type: inline-size;
+
     &__layout {
         display: grid;
-        align-items: start;
-        grid-template-columns: auto 1fr;
 
-        gap: map.get(s.$components, "color-donut", "gap-mobile");
+        grid-template-columns: minmax(0, 1fr);
+        place-items: center center;
 
-        > .color-donut__section {
-            grid-column: 1 / -1;
-        }
+        gap: map.get(s.$components, "color-donut", "gap");
 
-        @include m.mq("landscape") {
-            grid-template-columns: auto 1fr 1fr;
+        @include m.cq("portrait") {
+            justify-items: start;
 
-            gap: map.get(s.$components, "color-donut", "gap");
-
-            > .color-donut__section {
-                grid-column: auto;
-            }
+            grid-template-columns: auto minmax(0, 1fr);
         }
     }
 
@@ -481,26 +371,35 @@ const tooltipForProduction = (seg: Segment): string =>
 
         width: auto;
         height: map.get(s.$components, "color-donut", "height-mobile");
-        flex: none;
 
         aspect-ratio: 1;
 
-        @include m.mq("landscape") {
+        @include m.cq("landscape") {
             height: map.get(s.$components, "color-donut", "height");
         }
     }
 
-    // Cost + production legend, stacked vertically — sits in the
-    // middle grid column at portrait+ and as the second row on mobile.
-    &__text {
-        display: flex;
-        flex-direction: column;
+    // Cost + production lists — stacked until there is room for them
+    // side by side. `minmax(0, max-content)` keeps each column as wide
+    // as its longest row but lets it shrink and wrap rather than
+    // overflow the panel.
+    &__legend {
+        display: grid;
+        justify-self: stretch;
+
+        grid-template-columns: minmax(0, 1fr);
 
         gap: map.get(s.$components, "color-donut", "gap");
+
+        @include m.cq("landscape") {
+            grid-template-columns: repeat(2, minmax(0, max-content));
+
+            column-gap: #{map.get(s.$components, "color-donut", "gap") * 2};
+        }
     }
 
     &__segment {
-        stroke-width: 2;
+        stroke-width: 3;
         stroke-linejoin: round;
 
         cursor: pointer;
@@ -536,7 +435,7 @@ const tooltipForProduction = (seg: Segment): string =>
 
         &--selected {
             stroke: map.get(c.$components, "color-donut", "selected-stroke");
-            stroke-width: 3;
+            stroke-width: 4;
         }
 
         &:focus {
@@ -545,7 +444,7 @@ const tooltipForProduction = (seg: Segment): string =>
 
         &:focus-visible {
             stroke: map.get(c.$components, "color-donut", "selected-stroke");
-            stroke-width: 3;
+            stroke-width: 4;
         }
 
         @media (prefers-reduced-motion: reduce) {
@@ -565,7 +464,7 @@ const tooltipForProduction = (seg: Segment): string =>
         display: flex;
         flex-direction: column;
 
-        gap: map.get(s.$components, "color-donut", "gap");
+        gap: #{map.get(s.$components, "color-donut", "gap") * 0.5};
     }
 
     &__heading {
@@ -573,28 +472,6 @@ const tooltipForProduction = (seg: Segment): string =>
 
         font-size: 1rem;
         font-weight: 400;
-    }
-
-    &__subheading {
-        opacity: 0.8;
-
-        margin: #{map.get(s.$components, "color-donut", "gap") * 0.5} 0 0;
-
-        font-size: 0.9rem;
-        font-weight: 400;
-    }
-
-    &__combined-colors {
-        display: inline;
-
-        margin-right: 0.25em;
-
-        // Defeat the per-symbol right margin so multiple symbols sit
-        // tight together — only the trailing one needs spacing from the
-        // " {have} sources" text.
-        & .color-donut__symbol {
-            margin-right: 0;
-        }
     }
 
     &__rows {
@@ -611,6 +488,14 @@ const tooltipForProduction = (seg: Segment): string =>
         font-variant-numeric: tabular-nums;
     }
 
+    // Hanging indent: a row that wraps on a narrow panel continues
+    // under its text, not under the mana symbol.
+    &__row {
+        padding-left: map.get(s.$components, "color-donut", "indent");
+
+        text-indent: calc(-1 * #{map.get(s.$components, "color-donut", "indent")});
+    }
+
     &__symbol {
         width: 1em;
         height: 1em;
@@ -619,14 +504,11 @@ const tooltipForProduction = (seg: Segment): string =>
         vertical-align: -0.15em;
     }
 
-    &__rows-item--short {
-        opacity: 1;
-
-        font-weight: 600;
-    }
-
-    &__attribution {
-        margin: 0;
+    // Applies to the InfoBox root (a child component's root carries this
+    // component's scope id). Capped so a full-width panel doesn't stretch
+    // the text into unreadable lines.
+    &__explanation {
+        max-width: map.get(s.$components, "color-donut", "note-width");
 
         font-size: smaller;
     }

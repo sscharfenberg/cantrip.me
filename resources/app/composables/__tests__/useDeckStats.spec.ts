@@ -270,13 +270,12 @@ describe("useDeckStats — productionPips", () => {
     });
 
     it("clamps production to the colours the deck actually asks for", () => {
-        // A five-colour rock in a mono-white deck can only usefully make white
-        // (¾ of a source, toward the three-drop it is online for).
+        // A five-colour rock in a mono-white deck can only usefully make white.
         const { productionPips } = setup({
-            cards: [spell("{2}{W}", 3), manaRock(["W", "U", "B", "R", "G"])]
+            cards: [spell("{W}", 1), manaRock(["W", "U", "B", "R", "G"])]
         });
 
-        expect(productionPips.value).toEqual({ ...NO_PIPS, W: 0.75 });
+        expect(productionPips.value).toEqual({ ...NO_PIPS, W: 1 });
     });
 
     it("also clamps to the commander colour identity", () => {
@@ -294,23 +293,21 @@ describe("useDeckStats — productionPips", () => {
         // alone would leave U and G; clamping by used colours alone would leave
         // nothing to test. The answer is the intersection: white only.
         const { productionPips } = setup({
-            cards: [spell("{2}{W}", 3), manaRock(["W", "U", "B", "R", "G"])],
+            cards: [spell("{W}", 1), manaRock(["W", "U", "B", "R", "G"])],
             commanders: [makeCommander({ color_identity: "GWU", mana_cost: ["{2}"], cmc: 2 })],
             format: "commander"
         });
 
-        expect(productionPips.value).toEqual({ ...NO_PIPS, W: 0.75 });
+        expect(productionPips.value).toEqual({ ...NO_PIPS, W: 1 });
     });
 
     it("falls back to hybrid colours when the deck has no forced pip at all", () => {
-        // A pure-hybrid build would otherwise collapse the donut to empty. With
-        // no Karsten row to copy, each colour is priced toward its cheapest spell.
-        const { productionPips, productionBasis } = setup({
-            cards: [spell("{2}{W/U}", 3), manaRock(["W", "U", "B", "R", "G"])]
+        // A pure-hybrid build would otherwise collapse the donut to empty.
+        const { productionPips } = setup({
+            cards: [spell("{W/U}", 1), manaRock(["W", "U", "B", "R", "G"])]
         });
 
-        expect(productionPips.value).toEqual({ ...NO_PIPS, W: 0.75, U: 0.75 });
-        expect(productionBasis.value).toEqual({ W: { card: "{2}{W/U}", mv: 3 }, U: { card: "{2}{W/U}", mv: 3 } });
+        expect(productionPips.value).toEqual({ ...NO_PIPS, W: 1, U: 1 });
     });
 
     it("resolves a fetchland against the deck's other lands", () => {
@@ -355,7 +352,7 @@ describe("useDeckStats — productionPips", () => {
         // A Thrasios + Tymna deck is four colours; clamping to one partner
         // would silently drop half the deck's production.
         const { productionPips } = setup({
-            cards: [spell("{2}{W}", 3), spell("{2}{U}", 3), manaRock(["W", "U", "B", "R", "G"])],
+            cards: [spell("{W}", 1), spell("{U}", 1), manaRock(["W", "U", "B", "R", "G"])],
             commanders: [
                 makeCommander({
                     name: "Thrasios, Triton Hero",
@@ -368,33 +365,52 @@ describe("useDeckStats — productionPips", () => {
             format: "commander"
         });
 
-        expect(productionPips.value).toEqual({ ...NO_PIPS, W: 0.75, U: 0.75 });
+        expect(productionPips.value).toEqual({ ...NO_PIPS, W: 1, U: 1 });
     });
 
     it("counts production from commanders and the companion", () => {
-        // Both are mana creatures — half a source each, toward the three-drop.
+        // Both are mana creatures — Karsten's half a source, one pip each here.
         const { productionPips } = setup({
-            cards: [spell("{2}{G}", 3)],
+            cards: [spell("{G}", 1)],
             commanders: [
-                makeCommander({
-                    color_identity: "G",
-                    produced_mana: ["G"],
-                    mana_source: "ability",
-                    mana_cost: ["{2}"],
-                    cmc: 2
-                })
+                makeCommander({ color_identity: "G", produced_mana: ["G"], mana_source: "ability", mana_cost: ["{G}"] })
             ],
-            companion: makeCompanion({ produced_mana: ["G"], mana_source: "ability", mana_cost: ["{2}"], cmc: 2 }),
+            companion: makeCompanion({ produced_mana: ["G"], mana_source: "ability" }),
             format: "commander"
         });
 
-        expect(productionPips.value).toEqual({ ...NO_PIPS, G: 1 });
+        expect(productionPips.value).toEqual({ ...NO_PIPS, G: 2 });
     });
 
-    it("shows each colour exactly as its Karsten row does", () => {
-        // The ring and the "Mana sources" list read one number: rocks and ramp
-        // count only toward the spell the row is priced for.
-        const { productionPips, productionBasis, karstenAnalysis } = setup({
+    it("counts a land-search spell as a pip of every colour it can find", () => {
+        // Three Visits finds a Forest card; the deck's only one is a Bayou.
+        const { productionPips } = setup({ cards: [bayou(), threeVisits(2), spell("{2}{B}", 3)] });
+
+        expect(productionPips.value).toEqual({ ...NO_PIPS, B: 3, G: 3 });
+    });
+
+    it("leaves out the cards Karsten does not count as sources", () => {
+        // A ritual has produced_mana but fixes no later turn — the same cards
+        // count here as under "Mana sources", only unweighted.
+        const darkRitual = makeDeckCard({
+            name: "Dark Ritual",
+            type_line: "Instant",
+            cmc: 1,
+            mana_cost: ["{B}"],
+            produced_mana: ["B"],
+            mana_source: "ability",
+            quantity: 4
+        });
+        const { productionPips } = setup({ cards: [plains(1), darkRitual, spell("{B}", 1)] });
+
+        expect(productionPips.value).toEqual(NO_PIPS);
+    });
+
+    it("counts every source as one pip, however and whenever Karsten counts it", () => {
+        // The rocks count nothing toward the white one-drop and Three Visits
+        // only ¾ of a source toward the black three-drop, so the "Mana sources"
+        // rows read lower than the ring — never higher.
+        const { productionPips, karstenAnalysis } = setup({
             cards: [
                 plains(10),
                 bayou(),
@@ -406,11 +422,12 @@ describe("useDeckStats — productionPips", () => {
             ]
         });
 
-        for (const row of karstenAnalysis.value) {
-            expect(productionPips.value[row.color]).toBe(row.have);
-            expect(productionBasis.value[row.color]).toEqual({ card: row.card, mv: row.mv });
-        }
-        expect(productionPips.value).toEqual({ ...NO_PIPS, W: 10, B: 2.5, G: 1 });
+        expect(productionPips.value).toEqual({ ...NO_PIPS, W: 14, B: 3, G: 3 });
+        expect(karstenAnalysis.value.map(row => [row.color, row.have])).toEqual([
+            ["W", 10],
+            ["B", 2.5],
+            ["G", 1]
+        ]);
     });
 });
 

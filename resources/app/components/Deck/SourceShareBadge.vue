@@ -1,15 +1,17 @@
 <script setup lang="ts">
 /******************************************************************************
  * How much of a mana source a card counts as, shown while a production
- * color is selected on the deck-stats donut — "¾" on a Farseek, with a
- * tooltip listing each step of its worth ("¼ from mana value 4, ½ from
- * mana value 5" for a Cultivate). Only for partial sources: lands count
- * fully and stay unmarked, so a selection doesn't paint a "1" on every
- * land.
+ * color is selected for a spell of a given mana value — "¾" on a
+ * Farseek, with a tooltip listing each step of its worth ("¼ from mana
+ * value 4, ½ from mana value 5" for a Cultivate). Only for partial
+ * sources: lands count fully and stay unmarked, so a selection doesn't
+ * paint a "1" on every land. The donut's production ring selects
+ * without a mana value — it counts every source as one — so it shows
+ * no badges.
  *
  * Two states, matching the card's own highlight:
- *   - counts toward the spell the ring priced the color for — the badge
- *     shows that weight, the share inside the ring's number;
+ *   - counts toward the spell the selection is priced for — the badge
+ *     shows that weight, its share of that spell's source count;
  *   - a later source (`useDeckHighlight().isLaterSource`) that only
  *     counts toward bigger spells — muted, showing the most it ever
  *     counts as, and the tooltip says it is not counted yet.

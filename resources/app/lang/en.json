@@ -1129,15 +1129,17 @@
                     "bar_aria": "{label}: {count} cards ({percent}%)"
                 },
                 "colors": {
-                    "title": "Color distribution",
+                    "title": "Colored pips",
                     "outer": "Outer ring: cost",
-                    "inner": "Inner ring: mana sources",
+                    "inner": "Inner ring: production",
                     "row": "{color} {count} pips, {percent}% of all colored pips",
-                    "production_row": "{color} {count} sources, {percent}% of all sources",
+                    "production_row": "{color} {count} pips, {percent}% of all production",
                     "cost_aria": "Cost - {color}: {count} pips ({percent}%)",
-                    "production_aria": "Mana sources - {color}: {count} for {card} (mana value {mv}), {percent}%",
+                    "production_aria": "Production - {color}: {count} pips ({percent}%)",
                     "cost_tooltip": "Cost: {count} {symbol} pips",
-                    "production_tooltip": "Sources: {count} {symbol} for {card} (mana value {mv})",
+                    "production_tooltip": "Production: {count} {symbol} pips",
+                    "explanation": "The outer ring counts the colored mana symbols in your spells' costs; a hybrid symbol counts for both of its colors. The inner ring counts the cards that make each color, one pip per card and color — lands, mana creatures, mana rocks, Treasure makers and land-search spells alike, but only in colors your deck asks for. A color that takes a larger share of the costs than of the production may be short of sources.",
+                    "explanation_sources": "\"Mana sources\" can count fewer for the same deck: it weighs these cards by Frank Karsten's rules (a mana rock is ¾ of a source) and counts each only toward spells it comes online in time for, so each of its rows is priced for one particular spell. The rings compare your colors at a glance; \"Mana sources\" tells you whether you can cast your spells on curve.",
                     "karsten": {
                         "title": "Mana sources",
                         "sufficient": "{color} {have} sources for {card} (mana value {mv}), {need} recommended.",

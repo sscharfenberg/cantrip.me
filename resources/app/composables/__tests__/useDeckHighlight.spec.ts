@@ -356,6 +356,15 @@ describe("provideDeckHighlight — production share", () => {
         expect(api.productionShare(signet)).toBeNull();
     });
 
+    it("says nothing for a selection without a mana value — the production ring counts every source as one", () => {
+        const api = provide();
+        api.setColorProduction("W");
+
+        expect(api.isHighlighted(signet)).toBe(true);
+        expect(api.isLaterSource(signet)).toBe(false);
+        expect(api.productionShare(signet)).toBeNull();
+    });
+
     it("says nothing while no production colour is selected", () => {
         const api = provide();
         api.setManaValue(2);

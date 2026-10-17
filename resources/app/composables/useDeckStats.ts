@@ -43,16 +43,6 @@ export interface ColorPipTally {
     G: number;
 }
 
-/**
- * The spell a production-ring color is priced for — the same one its
- * Karsten row names. Drives the segment tooltip and tells the
- * production highlight which cards count toward the number.
- */
-export interface ProductionBasis {
-    card: string;
-    mv: number;
-}
-
 /** One card's demand on a color (or combo): `need` sources by the turn it is cast at mana value `cmc`. */
 interface KarstenRequirement {
     colors: HighlightColor[];
@@ -198,11 +188,12 @@ function isPermanent(typeLine: string): boolean {
  *     producer (Birds of Paradise) in a Boros deck only contributes to
  *     R and W production — it can't legally produce off-CI colors there.
  *   - Quantity-weighted everywhere.
- *   - Production (the donut's inner ring) is the Karsten "have": cards
- *     are weighed by Karsten's own rules — a Signet is ¾ of a source,
- *     and only for spells it comes online in time for (see
- *     `karstenSources.ts`) — and each color is priced for the same
- *     spell its "Mana sources" row names, so the two always match.
+ *   - Production (the donut's inner ring) counts every source card as
+ *     one pip per color it makes, whatever it is and whenever it comes
+ *     online. The Karsten "have" weighs the same cards by Karsten's own
+ *     rules instead — a Signet is ¾ of a source, and only for spells it
+ *     comes online in time for (see `karstenSources.ts`) — so the ring
+ *     reads at least as high as each color's "Mana sources" row.
  *   - Hybrid mana counts both colors. `{W/U}` = +1 W AND +1 U. So the
  *     pip total can exceed the deck's CMC sum — by design.
  *   - Type breakdown is additive (no priority). An Artifact Creature
@@ -225,13 +216,10 @@ export function useDeckStats(
     averageManaValue: ComputedRef<number>;
     costPips: ComputedRef<ColorPipTally>;
     /**
-     * The production ring: per color, the same weighted Karsten source
-     * count that color's "Mana sources" row shows (fractional once
-     * dorks, rocks or ramp count).
+     * The production ring: per color, how many cards make it — one pip
+     * per copy, unweighted, so always a whole number.
      */
     productionPips: ComputedRef<ColorPipTally>;
-    /** The spell each production color is priced for — see {@link ProductionBasis}. */
-    productionBasis: ComputedRef<Partial<Record<HighlightColor, ProductionBasis>>>;
     /**
      * Per-color Karsten analysis. Only colors with a non-zero
      * requirement (i.e. at least one card consumes them) appear. Empty
@@ -366,7 +354,7 @@ export function useDeckStats(
     /**
      * Weighted sources of any of `colors` toward a spell of mana value
      * `mv`, clamped to the commander color identity — the one "have"
-     * both Karsten tables and the production ring read.
+     * both Karsten tables read.
      */
     const haveFor = (colors: readonly HighlightColor[], mv: number): number => {
         const ci = commanderColorIdentity.value;
@@ -485,50 +473,21 @@ export function useDeckStats(
     });
 
     /**
-     * The cheapest non-land spell (commanders and companion included)
-     * whose cost asks for `color`, forced or hybrid. Prices a production
-     * color that has no Karsten row — its only demand sits in a cell
-     * Karsten left unpublished (`{6}{G}`), or the deck is pure hybrid.
+     * The production ring: each card that makes a color counts one pip
+     * per copy for it — a Plains, a Signet and a Cultivate alike. The
+     * cards are the ones the Karsten tables count ({@link sources}), so
+     * a production highlight and the "Mana sources" rows agree on which
+     * cards are sources; only the weighting differs.
      */
-    const cheapestDemand = (color: HighlightColor): ProductionBasis | null => {
-        const cmp = companion();
-        const spells = [...cards(), ...commanders(), ...(cmp === null ? [] : [cmp])];
-        let cheapest: ProductionBasis | null = null;
-        for (const spell of spells) {
-            if (isLand(spell.type_line)) continue;
-            const { pips, hybridGroups } = breakdownCard(spell.mana_cost, spell.cmc);
-            if (pips[color] === 0 && !hybridGroups.some(group => group.includes(color))) continue;
-            if (cheapest === null || spell.cmc < cheapest.mv) cheapest = { card: spell.name, mv: spell.cmc };
-        }
-        return cheapest;
-    };
-
-    /**
-     * The production ring, priced exactly as the Karsten rows are: each
-     * color's weighted source count toward the spell its row names, so
-     * the ring and the "Mana sources" list can never disagree. A color
-     * with no Karsten row is priced toward its cheapest spell
-     * ({@link cheapestDemand}) by the same rules.
-     */
-    const production = computed<{
-        tally: ColorPipTally;
-        basis: Partial<Record<HighlightColor, ProductionBasis>>;
-    }>(() => {
+    const productionPips = computed<ColorPipTally>(() => {
         const tally = emptyTally();
-        const basis: Partial<Record<HighlightColor, ProductionBasis>> = {};
-        const rows = new Map(karstenAnalysis.value.map(row => [row.color, row]));
         for (const color of productionAllowed.value) {
-            const row = rows.get(color);
-            const priced = row === undefined ? cheapestDemand(color) : { card: row.card, mv: row.mv };
-            if (priced === null) continue;
-            tally[color] = row === undefined ? haveFor([color], priced.mv) : row.have;
-            basis[color] = priced;
+            for (const source of sources.value) {
+                if (source.roles.some(role => role.colors.includes(color))) tally[color] += source.quantity;
+            }
         }
-        return { tally, basis };
+        return tally;
     });
-
-    const productionPips = computed<ColorPipTally>(() => production.value.tally);
-    const productionBasis = computed<Partial<Record<HighlightColor, ProductionBasis>>>(() => production.value.basis);
 
     /**
      * Per-color Karsten analysis. For each color X, scans every
@@ -805,7 +764,6 @@ export function useDeckStats(
         averageManaValue,
         costPips,
         productionPips,
-        productionBasis,
         karstenAnalysis,
         karstenCombined,
         typeCounts,

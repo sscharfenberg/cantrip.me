@@ -1129,15 +1129,17 @@
                     "bar_aria": "{label}: {count} Karten ({percent}%)"
                 },
                 "colors": {
-                    "title": "Farb Verteilung",
+                    "title": "Farbige Pips",
                     "outer": "Äußerer Ring: Kosten",
-                    "inner": "Innerer Ring: Manaquellen",
+                    "inner": "Innerer Ring: Produktion",
                     "row": "{color} {count} Pips, {percent}% aller farbigen Pips",
-                    "production_row": "{color} {count} Quellen, {percent}% aller Quellen",
+                    "production_row": "{color} {count} Pips, {percent}% der Produktion",
                     "cost_aria": "Kosten - {color}: {count} Pips ({percent}%)",
-                    "production_aria": "Manaquellen - {color}: {count} für {card} (Manawert {mv}), {percent}%",
+                    "production_aria": "Produktion - {color}: {count} Pips ({percent}%)",
                     "cost_tooltip": "Kosten: {count} {symbol} Pips",
-                    "production_tooltip": "Quellen: {count} {symbol} für {card} (Manawert {mv})",
+                    "production_tooltip": "Produktion: {count} {symbol} Pips",
+                    "explanation": "Der äußere Ring zählt die farbigen Manasymbole in den Kosten deiner Zauber; ein Hybridsymbol zählt für beide Farben. Der innere Ring zählt die Karten, die eine Farbe erzeugen, je Karte und Farbe ein Pip — Länder, Manakreaturen, Manasteine, Schatz-Erzeuger und Landsuch-Zauber gleichermaßen, aber nur in Farben, die dein Deck braucht. Nimmt eine Farbe bei den Kosten einen größeren Anteil ein als bei der Produktion, fehlen ihr womöglich Quellen.",
+                    "explanation_sources": "„Manaquellen“ kann für dasselbe Deck weniger zählen: Dort werden diese Karten nach Frank Karstens Regeln gewichtet (ein Manastein ist ¾ einer Quelle) und jede nur für Zauber gezählt, für die sie rechtzeitig bereitsteht; jede Zeile gilt deshalb für einen bestimmten Zauber. Die Ringe vergleichen deine Farben auf einen Blick, „Manaquellen“ zeigt, ob du deine Zauber rechtzeitig wirken kannst.",
                     "karsten": {
                         "title": "Manaquellen",
                         "sufficient": "{color} {have} Quellen für {card} (Manawert {mv}), {need} empfohlen.",
