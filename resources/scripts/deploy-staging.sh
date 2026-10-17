@@ -32,7 +32,17 @@ else
     was_down=0
 fi
 
-php artisan down
+# Pre-render the 503 page now, while the old release is still intact.
+# During maintenance public/index.php then serves this HTML straight from
+# storage/framework/down without booting Laravel, so the page survives
+# everything below: git reset rewriting the views, composer swapping
+# vendor/, the caches being rebuilt. A plain `down` rendered errors::503
+# live on every request, and once git reset had rewritten 503.blade.php
+# (new mtime, same content) Blade tried to touch() the deploy-owned
+# compiled view as www-data — only the owner may set a timestamp — so the
+# render failed and Laravel fell back to Symfony's generic "Oops! An Error
+# Occurred" page (prod, 2026-10-17).
+php artisan down --render="errors::503"
 
 git fetch origin
 git reset --hard origin/main
