@@ -9,7 +9,7 @@ import StatsItem from "Components/UI/Stats/StatsItem.vue";
 import { useFormatting } from "Composables/useFormatting.ts";
 import { usePersistedAccordion } from "Composables/usePersistedAccordion.ts";
 
-const { initialOpen, onToggle } = usePersistedAccordion("collection-page-stats-accordion-open");
+const { initialOpen, onToggle } = usePersistedAccordion("collection-page-stats-accordion-open", false);
 
 /** Mirrors `StatsService::OTHER_KEY`. */
 const OTHER_KEY = "other";
