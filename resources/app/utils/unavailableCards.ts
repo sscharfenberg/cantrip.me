@@ -1,9 +1,4 @@
-import type {
-    CollectionAvailability,
-    DeckCardRow,
-    DeckCommander,
-    DeckCompanion
-} from "Types/deckPage.ts";
+import type { CollectionAvailability, DeckCardRow, DeckCommander, DeckCompanion } from "Types/deckPage.ts";
 
 /**
  * One row of the "unavailable cards" list — a card the deck wants that the
@@ -36,12 +31,10 @@ export interface UnavailableCard {
 type AvailabilityBearing = DeckCardRow | DeckCommander | DeckCompanion;
 
 /** `DeckCardRow` carries its own id; the command zone calls it `deck_card_id`. */
-const idOf = (card: AvailabilityBearing): string =>
-    "id" in card ? card.id : card.deck_card_id;
+const idOf = (card: AvailabilityBearing): string => ("id" in card ? card.id : card.deck_card_id);
 
 /** Only `DeckCardRow` has a quantity; a commander or companion is one copy. */
-const quantityOf = (card: AvailabilityBearing): number =>
-    "quantity" in card ? card.quantity : 1;
+const quantityOf = (card: AvailabilityBearing): number => ("quantity" in card ? card.quantity : 1);
 
 /**
  * Collect every card the collection cannot fully cover, worst first.

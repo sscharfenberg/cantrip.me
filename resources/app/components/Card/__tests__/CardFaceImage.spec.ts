@@ -30,7 +30,11 @@ describe("CardFaceImage — collection ownership badge", () => {
     });
 
     it("uses the storage icon", () => {
-        expect(badge(render({ owned: 1 })).find("use").attributes("href")).toBe("#storage");
+        expect(
+            badge(render({ owned: 1 }))
+                .find("use")
+                .attributes("href")
+        ).toBe("#storage");
     });
 
     it.each([

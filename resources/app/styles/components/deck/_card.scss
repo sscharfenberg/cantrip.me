@@ -23,6 +23,20 @@
             font-weight: 600;
         }
 
+        // The name takes the row's free width and truncates. In the deck
+        // view the name is CardImagePreview's hover trigger, whose own
+        // scoped padding this layer cannot beat — CardViewText resets
+        // that one property itself.
+        &__name,
+        .card-preview__trigger {
+            flex-grow: 1;
+
+            overflow: hidden;
+
+            white-space: nowrap;
+            text-overflow: ellipsis;
+        }
+
         &__illegal {
             flex-basis: map.get(s.$pages, "deck", "flags", "size");
 

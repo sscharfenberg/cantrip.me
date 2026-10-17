@@ -368,15 +368,26 @@ export type DeckStatsSelection =
 export type DeckHighlight = {
     mv: number | null;
     category: DeckStatsSelection | null;
+    /** The donut's production ring: any card that is a source of this color. */
     colorProduction: "W" | "U" | "B" | "R" | "G" | null;
     /**
-     * Mana value of the spell the production ring priced `colorProduction`
-     * for — only cards that count as a source by then match. Null with no
-     * production color, or to match every card that counts at all.
+     * The sources for one spell, picked on a "Mana sources" row — only
+     * cards that count toward it by Karsten's weights match. Shares the
+     * production axis with `colorProduction`: at most one is set.
      */
-    colorProductionMv: number | null;
+    spellSources: SpellSources | null;
     colorConsumption: "W" | "U" | "B" | "R" | "G" | null;
 };
+
+/**
+ * A spell to count mana sources for: sources of any of `colors`, toward
+ * a spell of mana value `mv` — one color for a single-color "Mana
+ * sources" row, the combination for a multicolor one.
+ */
+export interface SpellSources {
+    colors: ("W" | "U" | "B" | "R" | "G")[];
+    mv: number;
+}
 
 /**
  * A token (or other related printing) created by one of the deck's

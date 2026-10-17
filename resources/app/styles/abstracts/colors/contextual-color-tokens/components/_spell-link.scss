@@ -1,0 +1,18 @@
+@use "sass:map"; // https://sass-lang.com/documentation/modules/map
+@use "sass:color"; // https://sass-lang.com/documentation/modules/color
+@use "../../global-color-tokens" as c;
+
+// The spell a "Mana sources" row is priced for, as a chip: a faint tint of
+// the text color, so it reads on the light page and the dark one alike.
+$spell-link: (
+    "background": light-dark(color.adjust(#000, $alpha: -0.95), color.adjust(#fff, $alpha: -0.93)),
+    "background-hover": light-dark(color.adjust(#000, $alpha: -0.9), color.adjust(#fff, $alpha: -0.86)),
+    "border": light-dark(
+            color.adjust(map.get(c.$grey, "slate"), $alpha: -0.4),
+            color.adjust(map.get(c.$grey, "charcoal"), $alpha: -0.2)
+        ),
+    // A spell the user picked: the border firms up, so the rows that no
+    // longer follow the automatic choice stand out.
+    "border-picked": light-dark(map.get(c.$grey, "abbey"), map.get(c.$grey, "infra")),
+    "surface": light-dark(map.get(c.$grey, "bunker"), map.get(c.$grey, "mystic"))
+);

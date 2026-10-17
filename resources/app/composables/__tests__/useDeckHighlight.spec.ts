@@ -30,7 +30,7 @@ describe("provideDeckHighlight — initial state", () => {
             mv: null,
             category: null,
             colorProduction: null,
-            colorProductionMv: null,
+            spellSources: null,
             colorConsumption: null
         });
     });
@@ -80,7 +80,7 @@ describe("provideDeckHighlight — setters", () => {
             mv: null,
             category: null,
             colorProduction: null,
-            colorProductionMv: null,
+            spellSources: null,
             colorConsumption: null
         });
         expect(api.hasHighlight.value).toBe(false);
@@ -91,16 +91,26 @@ describe("provideDeckHighlight — setters", () => {
 
         api.setManaValue(3);
         api.setCategory({ kind: "category", id: "category-ramp" });
-        api.setColorProduction("W", 4);
+        api.setColorProduction("W");
         api.setColorConsumption("U");
 
         expect(api.highlight.value).toEqual({
             mv: 3,
             category: { kind: "category", id: "category-ramp" },
             colorProduction: "W",
-            colorProductionMv: 4,
+            spellSources: null,
             colorConsumption: "U"
         });
+    });
+
+    it("reports a picked spell's sources, and counts them as a selection", () => {
+        const api = provide();
+
+        api.setSpellSources({ colors: ["W", "U"], mv: 4 });
+
+        expect(api.highlight.value.spellSources).toEqual({ colors: ["W", "U"], mv: 4 });
+        expect(api.selectedSpellSources.value).toEqual({ colors: ["W", "U"], mv: 4 });
+        expect(api.hasHighlight.value).toBe(true);
     });
 
     it("clears one axis without disturbing the others", () => {
@@ -260,29 +270,14 @@ describe("provideDeckHighlight — colour production axis", () => {
         expect(api.isHighlighted(flip)).toBe(false);
     });
 
-    it("matches only the cards that count toward the spell the ring was priced for", () => {
-        // Priced for a two-drop, a two-mana Signet is not online yet; the land is.
-        const plains = card({ type_line: "Basic Land — Plains", produced_mana: ["W"], mana_cost: [null], cmc: 0 });
+    it("matches every source for the ring, however late it comes online", () => {
         const signet = card({ type_line: "Artifact", produced_mana: ["W"], mana_source: "ability", cmc: 2 });
         const api = provide();
 
-        api.setColorProduction("W", 2);
-        expect(api.isHighlighted(plains)).toBe(true);
-        expect(api.isHighlighted(signet)).toBe(false);
+        api.setColorProduction("W");
 
-        api.setColorProduction("W", 3);
         expect(api.isHighlighted(signet)).toBe(true);
     });
-
-    it("drops the priced-for mana value with the colour", () => {
-        const api = provide();
-        api.setColorProduction("W", 3);
-
-        api.setColorProduction(null, 5);
-
-        expect(api.highlight.value.colorProductionMv).toBeNull();
-    });
-
     it("resolves a fetchland against the deck's other lands", () => {
         const shockland = card({
             type_line: "Land — Plains Island",
@@ -329,20 +324,107 @@ describe("provideDeckHighlight — colour production axis", () => {
     });
 });
 
+describe("provideDeckHighlight — a picked spell's sources", () => {
+    const plains = card({ type_line: "Basic Land — Plains", produced_mana: ["W"], mana_cost: [null], cmc: 0 });
+    const signet = card({ type_line: "Artifact", produced_mana: ["W"], mana_source: "ability", cmc: 2 });
+
+    it("matches only the cards that count toward the spell", () => {
+        // For a two-drop, a two-mana Signet is not online yet; the land is.
+        const api = provide();
+
+        api.setSpellSources({ colors: ["W"], mv: 2 });
+        expect(api.isHighlighted(plains)).toBe(true);
+        expect(api.isHighlighted(signet)).toBe(false);
+
+        api.setSpellSources({ colors: ["W"], mv: 3 });
+        expect(api.isHighlighted(signet)).toBe(true);
+    });
+
+    it("matches a source of any of a multicolor spell's colors", () => {
+        const island = card({ type_line: "Basic Land — Island", produced_mana: ["U"], mana_cost: [null], cmc: 0 });
+        const mountain = card({ type_line: "Basic Land — Mountain", produced_mana: ["R"], mana_cost: [null], cmc: 0 });
+        const api = provide();
+
+        api.setSpellSources({ colors: ["W", "U"], mv: 2 });
+
+        expect(api.isHighlighted(plains)).toBe(true);
+        expect(api.isHighlighted(island)).toBe(true);
+        expect(api.isHighlighted(mountain)).toBe(false);
+    });
+
+    it("leaves the sideboard out, as the Karsten tables do — the ring still counts it", () => {
+        const sidePlains = { ...plains, zone: "side" };
+        const api = provide();
+
+        api.setSpellSources({ colors: ["W"], mv: 2 });
+        expect(api.isHighlighted(sidePlains)).toBe(false);
+
+        api.setColorProduction("W");
+        expect(api.isHighlighted(sidePlains)).toBe(true);
+    });
+
+    it("resolves a fetchland only against main-deck lands", () => {
+        // The only land the fetch could find sits in the sideboard.
+        const sideShock = card({
+            type_line: "Land — Plains Island",
+            produced_mana: ["W", "U"],
+            mana_cost: [null],
+            zone: "side"
+        });
+        const fetchland = card({
+            type_line: "Land",
+            produced_mana: null,
+            mana_cost: [null],
+            fetch_pattern: "typed:WU",
+            zone: "main"
+        });
+        const api = provide(() => [sideShock, fetchland]);
+
+        api.setSpellSources({ colors: ["U"], mv: 1 });
+        expect(api.isHighlighted(fetchland)).toBe(false);
+
+        api.setColorProduction("U");
+        expect(api.isHighlighted(fetchland)).toBe(true);
+    });
+
+    it("shares one production axis with the ring: setting either clears the other", () => {
+        const api = provide();
+
+        api.setColorProduction("W");
+        api.setColorConsumption("U");
+        api.setSpellSources({ colors: ["W"], mv: 3 });
+        expect(api.highlight.value.colorProduction).toBeNull();
+        expect(api.highlight.value.colorConsumption).toBeNull();
+
+        api.setColorProduction("U");
+        expect(api.highlight.value.spellSources).toBeNull();
+    });
+
+    it("keeps its own copy of the colors", () => {
+        const colors: ("W" | "U")[] = ["W"];
+        const api = provide();
+
+        api.setSpellSources({ colors, mv: 3 });
+        colors.push("U");
+
+        expect(api.highlight.value.spellSources?.colors).toEqual(["W"]);
+    });
+});
+
 describe("provideDeckHighlight — production share", () => {
     const plains = card({ type_line: "Basic Land — Plains", produced_mana: ["W"], mana_cost: [null], cmc: 0 });
     const signet = card({ type_line: "Artifact", produced_mana: ["W", "U"], mana_source: "ability", cmc: 2 });
 
     it("reports how much a highlighted partial source counts, and from which mana value", () => {
         const api = provide();
-        api.setColorProduction("W", 3);
+        api.setSpellSources({ colors: ["W"], mv: 3 });
 
         expect(api.productionShare(signet)).toEqual({ weight: 0.75, steps: [{ weight: 0.75, fromMv: 3 }] });
     });
 
     it("says nothing about a full source — every land would carry a 1", () => {
         const api = provide();
-        api.setColorProduction("W", 3);
+        api.setSpellSources({ colors: ["W"], mv: 3 });
 
         expect(api.isHighlighted(plains)).toBe(true);
         expect(api.productionShare(plains)).toBeNull();
@@ -350,9 +432,18 @@ describe("provideDeckHighlight — production share", () => {
 
     it("says nothing about a card another axis keeps unhighlighted", () => {
         const api = provide();
-        api.setColorProduction("W", 3);
+        api.setSpellSources({ colors: ["W"], mv: 3 });
         api.setManaValue(5);
 
+        expect(api.productionShare(signet)).toBeNull();
+    });
+
+    it("says nothing for the production ring — it counts every source as one", () => {
+        const api = provide();
+        api.setColorProduction("W");
+
+        expect(api.isHighlighted(signet)).toBe(true);
+        expect(api.isLaterSource(signet)).toBe(false);
         expect(api.productionShare(signet)).toBeNull();
     });
 
@@ -384,7 +475,7 @@ describe("provideDeckHighlight — later sources", () => {
     it("marks a source that only counts toward bigger spells, without highlighting it", () => {
         // Priced for a three-drop, a Cultivate cast on turn three is too late.
         const api = provide(() => [forest, cultivate]);
-        api.setColorProduction("G", 3);
+        api.setSpellSources({ colors: ["G"], mv: 3 });
 
         expect(api.isHighlighted(cultivate)).toBe(false);
         expect(api.isLaterSource(cultivate)).toBe(true);
@@ -393,7 +484,7 @@ describe("provideDeckHighlight — later sources", () => {
 
     it("highlights it once the priced spell is big enough", () => {
         const api = provide(() => [forest, cultivate]);
-        api.setColorProduction("G", 5);
+        api.setSpellSources({ colors: ["G"], mv: 5 });
 
         expect(api.isHighlighted(cultivate)).toBe(true);
         expect(api.isLaterSource(cultivate)).toBe(false);
@@ -401,7 +492,7 @@ describe("provideDeckHighlight — later sources", () => {
 
     it("lists every step of its worth, counting nothing toward the priced spell", () => {
         const api = provide(() => [forest, cultivate]);
-        api.setColorProduction("G", 3);
+        api.setSpellSources({ colors: ["G"], mv: 3 });
 
         expect(api.productionShare(cultivate)).toEqual({
             weight: 0,
@@ -414,7 +505,7 @@ describe("provideDeckHighlight — later sources", () => {
 
     it("reports the step that applies once it counts", () => {
         const api = provide(() => [forest, cultivate]);
-        api.setColorProduction("G", 4);
+        api.setSpellSources({ colors: ["G"], mv: 4 });
 
         expect(api.productionShare(cultivate)?.weight).toBe(0.25);
     });
@@ -430,21 +521,21 @@ describe("provideDeckHighlight — later sources", () => {
             land_search_pattern: "basic"
         });
         const api = provide(() => [forest, both]);
-        api.setColorProduction("G", 3);
+        api.setSpellSources({ colors: ["G"], mv: 3 });
 
         expect(api.productionShare(both)).toEqual({ weight: 0.75, steps: [{ weight: 0.75, fromMv: 3 }] });
     });
 
     it("leaves a later source alone when another axis rules it out", () => {
         const api = provide(() => [forest, cultivate]);
-        api.setColorProduction("G", 3);
+        api.setSpellSources({ colors: ["G"], mv: 3 });
         api.setManaValue(2);
 
         expect(api.isLaterSource(cultivate)).toBe(false);
         expect(api.productionShare(cultivate)).toBeNull();
     });
 
-    it("has no later sources while no production colour is selected", () => {
+    it("has no later sources while no spell is selected", () => {
         const api = provide(() => [forest, cultivate]);
         api.setManaValue(3);
 

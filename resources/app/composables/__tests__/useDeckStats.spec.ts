@@ -3,11 +3,24 @@
 import { describe, expect, it } from "vitest";
 import { ref } from "vue";
 import { makeCategory, makeCommander, makeCompanion, makeDeckCard } from "@/test/factories/deckCard.ts";
+import type { KarstenRowPick } from "@/utils/frankKarstenAnalysis";
 import type { DeckCardRow, DeckCategoryRow, DeckCommander, DeckCompanion } from "Types/deckPage.ts";
 import { useDeckStats } from "../useDeckStats.ts";
 
 /** Zero pips in every colour — the baseline every tally assertion starts from. */
 const NO_PIPS = { W: 0, U: 0, B: 0, R: 0, G: 0 };
+
+/**
+ * A Karsten row without its pick fields (`key`, `picked`, `automatic`,
+ * `candidates`), for the tests about what a row is priced at. The pick
+ * fields have their own describe block.
+ */
+const priced = <T extends KarstenRowPick>(rows: T[]): Partial<T>[] =>
+    rows.map(row => {
+        const pricedRow: Partial<T> = { ...row };
+        for (const field of ["key", "picked", "automatic", "candidates"] as const) delete pricedRow[field];
+        return pricedRow;
+    });
 
 /** Call the composable with everything defaulted; pass only what a test needs. */
 const setup = (
@@ -17,6 +30,8 @@ const setup = (
         companion?: DeckCompanion | null;
         categories?: DeckCategoryRow[];
         format?: string;
+        picks?: Record<string, string>;
+        automaticSpell?: "hardest" | "easiest" | "cheapest";
     } = {}
 ) =>
     useDeckStats(
@@ -24,7 +39,9 @@ const setup = (
         () => options.commanders ?? [],
         () => options.companion ?? null,
         () => options.categories ?? [],
-        () => options.format ?? "modern"
+        () => options.format ?? "modern",
+        () => options.picks ?? {},
+        () => options.automaticSpell ?? "hardest"
     );
 
 const plains = (quantity: number) =>
@@ -270,13 +287,12 @@ describe("useDeckStats — productionPips", () => {
     });
 
     it("clamps production to the colours the deck actually asks for", () => {
-        // A five-colour rock in a mono-white deck can only usefully make white
-        // (¾ of a source, toward the three-drop it is online for).
+        // A five-colour rock in a mono-white deck can only usefully make white.
         const { productionPips } = setup({
-            cards: [spell("{2}{W}", 3), manaRock(["W", "U", "B", "R", "G"])]
+            cards: [spell("{W}", 1), manaRock(["W", "U", "B", "R", "G"])]
         });
 
-        expect(productionPips.value).toEqual({ ...NO_PIPS, W: 0.75 });
+        expect(productionPips.value).toEqual({ ...NO_PIPS, W: 1 });
     });
 
     it("also clamps to the commander colour identity", () => {
@@ -294,23 +310,21 @@ describe("useDeckStats — productionPips", () => {
         // alone would leave U and G; clamping by used colours alone would leave
         // nothing to test. The answer is the intersection: white only.
         const { productionPips } = setup({
-            cards: [spell("{2}{W}", 3), manaRock(["W", "U", "B", "R", "G"])],
+            cards: [spell("{W}", 1), manaRock(["W", "U", "B", "R", "G"])],
             commanders: [makeCommander({ color_identity: "GWU", mana_cost: ["{2}"], cmc: 2 })],
             format: "commander"
         });
 
-        expect(productionPips.value).toEqual({ ...NO_PIPS, W: 0.75 });
+        expect(productionPips.value).toEqual({ ...NO_PIPS, W: 1 });
     });
 
     it("falls back to hybrid colours when the deck has no forced pip at all", () => {
-        // A pure-hybrid build would otherwise collapse the donut to empty. With
-        // no Karsten row to copy, each colour is priced toward its cheapest spell.
-        const { productionPips, productionBasis } = setup({
-            cards: [spell("{2}{W/U}", 3), manaRock(["W", "U", "B", "R", "G"])]
+        // A pure-hybrid build would otherwise collapse the donut to empty.
+        const { productionPips } = setup({
+            cards: [spell("{W/U}", 1), manaRock(["W", "U", "B", "R", "G"])]
         });
 
-        expect(productionPips.value).toEqual({ ...NO_PIPS, W: 0.75, U: 0.75 });
-        expect(productionBasis.value).toEqual({ W: { card: "{2}{W/U}", mv: 3 }, U: { card: "{2}{W/U}", mv: 3 } });
+        expect(productionPips.value).toEqual({ ...NO_PIPS, W: 1, U: 1 });
     });
 
     it("resolves a fetchland against the deck's other lands", () => {
@@ -355,7 +369,7 @@ describe("useDeckStats — productionPips", () => {
         // A Thrasios + Tymna deck is four colours; clamping to one partner
         // would silently drop half the deck's production.
         const { productionPips } = setup({
-            cards: [spell("{2}{W}", 3), spell("{2}{U}", 3), manaRock(["W", "U", "B", "R", "G"])],
+            cards: [spell("{W}", 1), spell("{U}", 1), manaRock(["W", "U", "B", "R", "G"])],
             commanders: [
                 makeCommander({
                     name: "Thrasios, Triton Hero",
@@ -368,33 +382,52 @@ describe("useDeckStats — productionPips", () => {
             format: "commander"
         });
 
-        expect(productionPips.value).toEqual({ ...NO_PIPS, W: 0.75, U: 0.75 });
+        expect(productionPips.value).toEqual({ ...NO_PIPS, W: 1, U: 1 });
     });
 
     it("counts production from commanders and the companion", () => {
-        // Both are mana creatures — half a source each, toward the three-drop.
+        // Both are mana creatures — Karsten's half a source, one pip each here.
         const { productionPips } = setup({
-            cards: [spell("{2}{G}", 3)],
+            cards: [spell("{G}", 1)],
             commanders: [
-                makeCommander({
-                    color_identity: "G",
-                    produced_mana: ["G"],
-                    mana_source: "ability",
-                    mana_cost: ["{2}"],
-                    cmc: 2
-                })
+                makeCommander({ color_identity: "G", produced_mana: ["G"], mana_source: "ability", mana_cost: ["{G}"] })
             ],
-            companion: makeCompanion({ produced_mana: ["G"], mana_source: "ability", mana_cost: ["{2}"], cmc: 2 }),
+            companion: makeCompanion({ produced_mana: ["G"], mana_source: "ability" }),
             format: "commander"
         });
 
-        expect(productionPips.value).toEqual({ ...NO_PIPS, G: 1 });
+        expect(productionPips.value).toEqual({ ...NO_PIPS, G: 2 });
     });
 
-    it("shows each colour exactly as its Karsten row does", () => {
-        // The ring and the "Mana sources" list read one number: rocks and ramp
-        // count only toward the spell the row is priced for.
-        const { productionPips, productionBasis, karstenAnalysis } = setup({
+    it("counts a land-search spell as a pip of every colour it can find", () => {
+        // Three Visits finds a Forest card; the deck's only one is a Bayou.
+        const { productionPips } = setup({ cards: [bayou(), threeVisits(2), spell("{2}{B}", 3)] });
+
+        expect(productionPips.value).toEqual({ ...NO_PIPS, B: 3, G: 3 });
+    });
+
+    it("leaves out the cards Karsten does not count as sources", () => {
+        // A ritual has produced_mana but fixes no later turn — the same cards
+        // count here as under "Mana sources", only unweighted.
+        const darkRitual = makeDeckCard({
+            name: "Dark Ritual",
+            type_line: "Instant",
+            cmc: 1,
+            mana_cost: ["{B}"],
+            produced_mana: ["B"],
+            mana_source: "ability",
+            quantity: 4
+        });
+        const { productionPips } = setup({ cards: [plains(1), darkRitual, spell("{B}", 1)] });
+
+        expect(productionPips.value).toEqual(NO_PIPS);
+    });
+
+    it("counts every source as one pip, however and whenever Karsten counts it", () => {
+        // The rocks count nothing toward the white one-drop and Three Visits
+        // only ¾ of a source toward the black three-drop, so the "Mana sources"
+        // rows read lower than the ring — never higher.
+        const { productionPips, karstenAnalysis } = setup({
             cards: [
                 plains(10),
                 bayou(),
@@ -406,11 +439,12 @@ describe("useDeckStats — productionPips", () => {
             ]
         });
 
-        for (const row of karstenAnalysis.value) {
-            expect(productionPips.value[row.color]).toBe(row.have);
-            expect(productionBasis.value[row.color]).toEqual({ card: row.card, mv: row.mv });
-        }
-        expect(productionPips.value).toEqual({ ...NO_PIPS, W: 10, B: 2.5, G: 1 });
+        expect(productionPips.value).toEqual({ ...NO_PIPS, W: 14, B: 3, G: 3 });
+        expect(karstenAnalysis.value.map(row => [row.color, row.have])).toEqual([
+            ["W", 10],
+            ["B", 2.5],
+            ["G", 1]
+        ]);
     });
 });
 
@@ -428,20 +462,24 @@ describe("useDeckStats — karstenAnalysis", () => {
             ]
         });
 
-        expect(karstenAnalysis.value).toEqual([{ color: "W", have: 12, need: 18, short: 6, card: "{1}{W}{W}", mv: 3 }]);
+        expect(priced(karstenAnalysis.value)).toEqual([
+            { color: "W", have: 12, need: 18, short: 6, card: "{1}{W}{W}", mv: 3 }
+        ]);
     });
 
     it("reports no shortfall once the deck has enough sources", () => {
         const { karstenAnalysis } = setup({ cards: [plains(20), spell("{W}", 1)] });
 
-        expect(karstenAnalysis.value).toEqual([{ color: "W", have: 20, need: 14, short: 0, card: "{W}", mv: 1 }]);
+        expect(priced(karstenAnalysis.value)).toEqual([
+            { color: "W", have: 20, need: 14, short: 0, card: "{W}", mv: 1 }
+        ]);
     });
 
     it("adds Karsten's +1 for a gold card, which needs both colours on curve", () => {
         const { karstenAnalysis } = setup({ cards: [spell("{1}{W}{U}", 3)] });
 
         // One pip each at MV 3 is 12; the gold hack makes it 13.
-        expect(karstenAnalysis.value).toEqual([
+        expect(priced(karstenAnalysis.value)).toEqual([
             { color: "W", have: 0, need: 13, short: 13, card: "{1}{W}{U}", mv: 3 },
             { color: "U", have: 0, need: 13, short: 13, card: "{1}{W}{U}", mv: 3 }
         ]);
@@ -502,7 +540,7 @@ describe("useDeckStats — karstenCombined", () => {
         const { karstenCombined } = setup({ cards: [spell("{1}{W}{U}", 3)] });
 
         // Two total forced pips at MV 3 is 18, plus the gold +1.
-        expect(karstenCombined.value).toEqual([
+        expect(priced(karstenCombined.value)).toEqual([
             { colors: ["W", "U"], have: 0, need: 19, short: 19, card: "{1}{W}{U}", mv: 3 }
         ]);
     });
@@ -511,7 +549,7 @@ describe("useDeckStats — karstenCombined", () => {
         const { karstenCombined } = setup({ cards: [spell("{3}{W/U}{W/U}", 5)] });
 
         // Two hybrid pips at MV 5 is 15 — only one colour is needed per pip.
-        expect(karstenCombined.value).toEqual([
+        expect(priced(karstenCombined.value)).toEqual([
             { colors: ["W", "U"], have: 0, need: 15, short: 15, card: "{3}{W/U}{W/U}", mv: 5 }
         ]);
     });
@@ -570,7 +608,7 @@ describe("useDeckStats — karstenCombined", () => {
             companion: makeCompanion({ name: "Yorion, Sky Nomad", mana_cost: ["{3}{W/U}{W/U}"], cmc: 5 })
         });
 
-        expect(karstenCombined.value).toEqual([
+        expect(priced(karstenCombined.value)).toEqual([
             { colors: ["W", "U"], have: 0, need: 15, short: 15, card: "Yorion, Sky Nomad", mv: 5 }
         ]);
     });
@@ -632,7 +670,7 @@ describe("useDeckStats — Karsten source weighting", () => {
         // toward its own two-mana cost.
         const { karstenAnalysis } = setup({ cards: [bayou(), threeVisits(3), spell("{2}{B}", 3)] });
 
-        expect(karstenAnalysis.value).toEqual([
+        expect(priced(karstenAnalysis.value)).toEqual([
             { color: "B", have: 3.25, need: 12, short: 8.75, card: "{2}{B}", mv: 3 },
             { color: "G", have: 1, need: 13, short: 12, card: "Three Visits", mv: 2 }
         ]);
@@ -651,8 +689,8 @@ describe("useDeckStats — Karsten source weighting", () => {
         const fiveDrop = setup({ cards: [forest(10), cultivate, spell("{3}{G}{G}", 5)] }).karstenAnalysis.value;
         const fourDrop = setup({ cards: [forest(10), cultivate, spell("{2}{G}{G}", 4)] }).karstenAnalysis.value;
 
-        expect(fiveDrop).toEqual([{ color: "G", have: 11, need: 15, short: 4, card: "{3}{G}{G}", mv: 5 }]);
-        expect(fourDrop).toEqual([{ color: "G", have: 10.5, need: 16, short: 5.5, card: "{2}{G}{G}", mv: 4 }]);
+        expect(priced(fiveDrop)).toEqual([{ color: "G", have: 11, need: 15, short: 4, card: "{3}{G}{G}", mv: 5 }]);
+        expect(priced(fourDrop)).toEqual([{ color: "G", have: 10.5, need: 16, short: 5.5, card: "{2}{G}{G}", mv: 4 }]);
     });
 
     it("counts a mana creature as ½ of a source", () => {
@@ -667,7 +705,9 @@ describe("useDeckStats — Karsten source weighting", () => {
         });
         const { karstenAnalysis } = setup({ cards: [forest(10), elves, spell("{1}{G}{G}", 3)] });
 
-        expect(karstenAnalysis.value).toEqual([{ color: "G", have: 12, need: 18, short: 6, card: "{1}{G}{G}", mv: 3 }]);
+        expect(priced(karstenAnalysis.value)).toEqual([
+            { color: "G", have: 12, need: 18, short: 6, card: "{1}{G}{G}", mv: 3 }
+        ]);
     });
 
     it("counts a mana rock as ¾ of a source", () => {
@@ -675,7 +715,9 @@ describe("useDeckStats — Karsten source weighting", () => {
             cards: [plains(10), { ...manaRock(["W"]), quantity: 4 }, spell("{1}{W}{W}", 3)]
         });
 
-        expect(karstenAnalysis.value).toEqual([{ color: "W", have: 13, need: 18, short: 5, card: "{1}{W}{W}", mv: 3 }]);
+        expect(priced(karstenAnalysis.value)).toEqual([
+            { color: "W", have: 13, need: 18, short: 5, card: "{1}{W}{W}", mv: 3 }
+        ]);
     });
 
     it("does not count a ritual as a source", () => {
@@ -697,7 +739,9 @@ describe("useDeckStats — Karsten source weighting", () => {
         });
         const { karstenAnalysis } = setup({ cards: [swamps, darkRitual, spell("{2}{B}{B}", 4)] });
 
-        expect(karstenAnalysis.value).toEqual([{ color: "B", have: 10, need: 16, short: 6, card: "{2}{B}{B}", mv: 4 }]);
+        expect(priced(karstenAnalysis.value)).toEqual([
+            { color: "B", have: 10, need: 16, short: 6, card: "{2}{B}{B}", mv: 4 }
+        ]);
     });
 
     it("counts a spell/land MDFC as a full land source", () => {
@@ -710,7 +754,7 @@ describe("useDeckStats — Karsten source weighting", () => {
             is_mdfc_land: true
         });
 
-        expect(setup({ cards: [balaGed] }).karstenAnalysis.value).toEqual([
+        expect(priced(setup({ cards: [balaGed] }).karstenAnalysis.value)).toEqual([
             { color: "G", have: 1, need: 12, short: 11, card: "Bala Ged Recovery", mv: 3 }
         ]);
     });
@@ -727,7 +771,7 @@ describe("useDeckStats — Karsten source weighting", () => {
         });
         const { karstenAnalysis } = setup({ cards: [plains(10), tithe, spell("{3}{W}{W}", 5)] });
 
-        expect(karstenAnalysis.value).toEqual([
+        expect(priced(karstenAnalysis.value)).toEqual([
             { color: "W", have: 10.5, need: 15, short: 4.5, card: "{3}{W}{W}", mv: 5 }
         ]);
     });
@@ -745,7 +789,9 @@ describe("useDeckStats — Karsten source weighting", () => {
         });
         const { karstenAnalysis } = setup({ cards: [spell("{W}", 1), plains(10), dorks, spell("{1}{W}{W}", 3)] });
 
-        expect(karstenAnalysis.value).toEqual([{ color: "W", have: 14, need: 18, short: 4, card: "{1}{W}{W}", mv: 3 }]);
+        expect(priced(karstenAnalysis.value)).toEqual([
+            { color: "W", have: 14, need: 18, short: 4, card: "{1}{W}{W}", mv: 3 }
+        ]);
     });
 
     it("shows the requirement the deck falls short on, not merely the largest one", () => {
@@ -755,7 +801,9 @@ describe("useDeckStats — Karsten source weighting", () => {
             cards: [plains(12), { ...manaRock(["W"]), quantity: 8 }, spell("{W}", 1), spell("{3}{W}{W}", 5)]
         });
 
-        expect(karstenAnalysis.value).toEqual([{ color: "W", have: 12, need: 14, short: 2, card: "{W}", mv: 1 }]);
+        expect(priced(karstenAnalysis.value)).toEqual([
+            { color: "W", have: 12, need: 14, short: 2, card: "{W}", mv: 1 }
+        ]);
     });
 
     it("prices combined rows per card too", () => {
@@ -765,7 +813,7 @@ describe("useDeckStats — Karsten source weighting", () => {
             cards: [plains(8), signets, spell("{1}{W}{U}", 3), spell("{W}{U}", 2)]
         });
 
-        expect(karstenCombined.value).toEqual([
+        expect(priced(karstenCombined.value)).toEqual([
             { colors: ["W", "U"], have: 8, need: 22, short: 14, card: "{W}{U}", mv: 2 }
         ]);
     });
@@ -782,7 +830,9 @@ describe("useDeckStats — Karsten source weighting", () => {
             format: "commander"
         });
 
-        expect(karstenAnalysis.value).toEqual([{ color: "B", have: 0, need: 19, short: 19, card: "{B}", mv: 1 }]);
+        expect(priced(karstenAnalysis.value)).toEqual([
+            { color: "B", have: 0, need: 19, short: 19, card: "{B}", mv: 1 }
+        ]);
     });
 });
 
@@ -976,5 +1026,246 @@ describe("useDeckStats — reactivity", () => {
         format.value = "commander";
 
         expect(karstenAnalysis.value[0].need).toBe(19);
+    });
+});
+
+describe("useDeckStats — Karsten and the sideboard", () => {
+    const sidePlains = (quantity: number) => ({ ...plains(quantity), zone: "side" });
+
+    it("counts no sideboard card as a source — the donut still does", () => {
+        const { karstenAnalysis, productionPips } = setup({ cards: [plains(10), sidePlains(4), spell("{W}", 1)] });
+
+        expect(karstenAnalysis.value[0].have).toBe(10);
+        expect(productionPips.value.W).toBe(14);
+    });
+
+    it("never picks a sideboard spell automatically", () => {
+        // The sideboard's {W}{W} two-drop needs more white than the main deck's
+        // one-drop, but the automatic spell is a main-deck one.
+        const { karstenAnalysis } = setup({
+            cards: [plains(10), spell("{W}", 1), spell("{W}{W}", 2, { zone: "side" })]
+        });
+
+        expect(karstenAnalysis.value[0]).toMatchObject({ card: "{W}", mv: 1, picked: false });
+    });
+
+    it("gives a color only the sideboard asks for no row", () => {
+        const { karstenAnalysis } = setup({ cards: [plains(10), spell("{W}", 1), spell("{U}", 1, { zone: "side" })] });
+
+        expect(karstenAnalysis.value.map(row => row.color)).toEqual(["W"]);
+    });
+
+    it("resolves a fetchland for the Karsten sources against main-deck lands only", () => {
+        const fetchland = makeDeckCard({ type_line: "Land", cmc: 0, produced_mana: null, fetch_pattern: "typed:WU" });
+        const sideShock = makeDeckCard({
+            type_line: "Land — Plains Island",
+            cmc: 0,
+            produced_mana: ["W", "U"],
+            zone: "side"
+        });
+        const { karstenAnalysis } = setup({ cards: [fetchland, sideShock, spell("{U}", 1)] });
+
+        expect(karstenAnalysis.value[0].have).toBe(0);
+    });
+});
+
+describe("useDeckStats — picking the spell a Karsten row counts for", () => {
+    /** Ten Plains, four Signets, a white one-drop and a white three-drop. */
+    const deck = () => {
+        const oneDrop = spell("{W}", 1);
+        const threeDrop = spell("{1}{W}{W}", 3);
+        const sideboarded = spell("{2}{W}{W}", 4, { zone: "side" });
+        return {
+            oneDrop,
+            threeDrop,
+            sideboarded,
+            cards: [plains(10), { ...manaRock(["W"]), quantity: 4 }, oneDrop, threeDrop, sideboarded]
+        };
+    };
+
+    it("shows the automatic spell, and names it as such, while nothing is picked", () => {
+        const { cards, oneDrop, threeDrop, sideboarded } = deck();
+        const [row] = setup({ cards }).karstenAnalysis.value;
+
+        // The rocks help the three-drop, but not enough: 13 of 18 is short by
+        // five, the one-drop's 10 of 14 only by four.
+        expect(row).toMatchObject({ key: "W", card: "{1}{W}{W}", mv: 3, have: 13, picked: false });
+        expect(row.automatic).toEqual({ card: "{1}{W}{W}", mv: 3 });
+        expect(row.candidates).toEqual(
+            expect.arrayContaining([oneDrop.oracle_card_id, threeDrop.oracle_card_id, sideboarded.oracle_card_id])
+        );
+        expect(row.candidates).toHaveLength(3);
+    });
+
+    it("prices the row for a picked spell, keeping the automatic one on record", () => {
+        // The rocks are not online for the one-drop.
+        const { cards, oneDrop } = deck();
+        const [row] = setup({ cards, picks: { W: oneDrop.oracle_card_id } }).karstenAnalysis.value;
+
+        expect(row).toMatchObject({ card: "{W}", mv: 1, have: 10, need: 14, short: 4, picked: true });
+        expect(row.automatic).toEqual({ card: "{1}{W}{W}", mv: 3 });
+    });
+
+    it("checks a picked sideboard spell against the main deck's sources", () => {
+        const { cards, sideboarded } = deck();
+        const [row] = setup({ cards, picks: { W: sideboarded.oracle_card_id } }).karstenAnalysis.value;
+
+        expect(row).toMatchObject({ card: "{2}{W}{W}", mv: 4, have: 13, picked: true });
+    });
+
+    it("falls back to automatic when the picked card no longer demands the color", () => {
+        const { cards } = deck();
+        const [row] = setup({ cards, picks: { W: "oracle-card-gone" } }).karstenAnalysis.value;
+
+        expect(row).toMatchObject({ card: "{1}{W}{W}", picked: false });
+    });
+
+    it("keys a pick by row, so a pick for one color leaves the others alone", () => {
+        // Blue's automatic spell is the {1}{U}{U}; the pick names the {U}.
+        const blueOne = spell("{U}", 1);
+        const blueThree = spell("{1}{U}{U}", 3);
+        const { cards } = deck();
+        const rows = setup({ cards: [...cards, blueOne, blueThree], picks: { U: blueOne.oracle_card_id } })
+            .karstenAnalysis.value;
+
+        expect(rows.map(row => [row.key, row.card, row.picked])).toEqual([
+            ["W", "{1}{W}{W}", false],
+            ["U", "{U}", true]
+        ]);
+    });
+
+    it("lists a card once among the candidates however many rows it has", () => {
+        const { cards, threeDrop } = deck();
+        const second = { ...makeDeckCard(threeDrop), id: "deck-card-copy", zone: "side" };
+        const [row] = setup({ cards: [...cards, second] }).karstenAnalysis.value;
+
+        expect(row.candidates.filter(id => id === threeDrop.oracle_card_id)).toHaveLength(1);
+    });
+
+    it("prices a pick by the card's tightest requirement when it demands the combination twice", () => {
+        // {W}{U}{W/U} asks for W∪U twice: as a gold card (3 forced pips at
+        // MV 3, +1) and through its hybrid symbol (1 pip at MV 3, no +1).
+        // Picking it must show the gold requirement, the tighter one.
+        const both = spell("{W}{U}{W/U}", 3);
+        const other = spell("{W/U}", 1);
+        const [row] = setup({ cards: [plains(10), both, other], picks: { WU: both.oracle_card_id } }).karstenCombined
+            .value;
+
+        expect(row).toMatchObject({ key: "WU", card: "{W}{U}{W/U}", need: 19, picked: true });
+        expect(row.candidates).toHaveLength(2);
+    });
+
+    it("picks a multicolor row's spell by the combination's key", () => {
+        const gold = spell("{W}{U}", 2);
+        const goldFour = spell("{2}{W}{U}", 4);
+        const islands = makeDeckCard({
+            name: "Island",
+            type_line: "Basic Land — Island",
+            cmc: 0,
+            mana_cost: [null],
+            produced_mana: ["U"],
+            quantity: 10
+        });
+        const cards = [plains(10), islands, gold, goldFour];
+
+        const automatic = setup({ cards }).karstenCombined.value[0];
+        const picked = setup({ cards, picks: { WU: goldFour.oracle_card_id } }).karstenCombined.value[0];
+
+        expect(automatic).toMatchObject({ key: "WU", card: "{W}{U}", picked: false });
+        expect(picked).toMatchObject({ key: "WU", card: "{2}{W}{U}", mv: 4, picked: true });
+        expect(picked.automatic).toEqual({ card: "{W}{U}", mv: 2 });
+    });
+});
+
+describe("useDeckStats — the automatic spell: hardest or easiest", () => {
+    // Ten Plains and four Signets: the three-drop is short by five (13 of 18),
+    // the one-drop by four (10 of 14), the four-drop by three (13 of 16).
+    const cards = () => [
+        plains(10),
+        { ...manaRock(["W"]), quantity: 4 },
+        spell("{W}", 1),
+        spell("{1}{W}{W}", 3),
+        spell("{2}{W}{W}", 4)
+    ];
+
+    it("shows the spell the deck is closest to failing by default", () => {
+        expect(setup({ cards: cards() }).karstenAnalysis.value[0]).toMatchObject({ card: "{1}{W}{W}", short: 5 });
+    });
+
+    it("shows the spell with the most room to spare when asked for the easiest", () => {
+        // Not simply the cheapest: the rocks lift the four-drop past the one-drop.
+        const [row] = setup({ cards: cards(), automaticSpell: "easiest" }).karstenAnalysis.value;
+
+        expect(row).toMatchObject({ card: "{2}{W}{W}", need: 16, have: 13, short: 3, picked: false });
+        expect(row.automatic).toEqual({ card: "{2}{W}{W}", mv: 4 });
+    });
+
+    it("breaks a tie toward the smaller requirement for the easiest, the larger for the hardest", () => {
+        // Both spells are short by four: the one-drop has 10 of 14, the
+        // four-drop 12 of 16 — four mana creatures add ½ each from MV 2.
+        const dorks = makeDeckCard({
+            type_line: "Creature — Elf Druid",
+            mana_cost: ["{1}"],
+            cmc: 1,
+            produced_mana: ["W"],
+            mana_source: "ability",
+            quantity: 4
+        });
+        const deck = [plains(10), dorks, spell("{W}", 1), spell("{2}{W}{W}", 4)];
+
+        expect(setup({ cards: deck }).karstenAnalysis.value[0]).toMatchObject({ card: "{2}{W}{W}", short: 4 });
+        expect(setup({ cards: deck, automaticSpell: "easiest" }).karstenAnalysis.value[0]).toMatchObject({
+            card: "{W}",
+            short: 4
+        });
+    });
+
+    it("leaves a picked spell alone, whichever way the automatic one is chosen", () => {
+        const deck = cards();
+        const threeDrop = deck[3];
+        const [row] = setup({
+            cards: deck,
+            automaticSpell: "easiest",
+            picks: { W: threeDrop.oracle_card_id }
+        }).karstenAnalysis.value;
+
+        expect(row).toMatchObject({ card: "{1}{W}{W}", picked: true });
+        expect(row.automatic).toEqual({ card: "{2}{W}{W}", mv: 4 });
+    });
+
+    it("shows the cheapest spell when asked — a commander included, however short it falls", () => {
+        // The one-drop commander is the cheapest even though, with only ten
+        // white sources for turn 1, it is short by nine of Karsten's 19.
+        const yoshimaru = makeCommander({
+            name: "Yoshimaru, Ever Faithful",
+            color_identity: "W",
+            mana_cost: ["{W}"],
+            cmc: 1
+        });
+        const [row] = setup({
+            cards: [plains(10), spell("{4}{W}", 5), spell("{1}{W}", 2)],
+            commanders: [yoshimaru],
+            format: "commander",
+            automaticSpell: "cheapest"
+        }).karstenAnalysis.value;
+
+        expect(row).toMatchObject({ card: "Yoshimaru, Ever Faithful", mv: 1, need: 19, short: 9 });
+    });
+
+    it("breaks a tie on mana value toward fewer pips for the cheapest", () => {
+        const [row] = setup({
+            cards: [plains(10), spell("{W}{W}", 2), spell("{1}{W}", 2), spell("{3}{W}", 4)],
+            automaticSpell: "cheapest"
+        }).karstenAnalysis.value;
+
+        expect(row).toMatchObject({ card: "{1}{W}", mv: 2 });
+    });
+
+    it("chooses the multicolor rows the same way", () => {
+        const deck = [plains(10), spell("{W}{U}", 2), spell("{3}{W}{U}", 5)];
+
+        expect(setup({ cards: deck }).karstenCombined.value[0].card).toBe("{W}{U}");
+        expect(setup({ cards: deck, automaticSpell: "easiest" }).karstenCombined.value[0].card).toBe("{3}{W}{U}");
+        expect(setup({ cards: deck, automaticSpell: "cheapest" }).karstenCombined.value[0].card).toBe("{W}{U}");
     });
 });

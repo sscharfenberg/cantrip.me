@@ -339,18 +339,11 @@ const openPreview = (id: string | null, quantity?: number): void => {
 
 <style lang="scss" scoped>
 // Override CardImagePreview's own scoped padding default. Lives here (not in
-// _text-group.scss) because that partial is inside @layer components, which
-// always loses to CardImagePreview's own unlayered scoped style regardless of
-// specificity. :deep() reaches DeckCompanionSection too, which is rendered inside
-// this component.
+// _card.scss, which sizes and truncates the name) because that partial is
+// inside @layer components, which always loses to CardImagePreview's own
+// unlayered scoped style regardless of specificity. :deep() reaches
+// DeckCompanionSection too, which is rendered inside this component.
 :deep(.card-preview__trigger) {
-    flex-grow: 1;
-
-    overflow: hidden;
-
     padding: 0;
-
-    white-space: nowrap;
-    text-overflow: ellipsis;
 }
 </style>

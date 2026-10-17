@@ -90,9 +90,9 @@ $deck: (
          * See styles/components/deck/_card.scss.
          */
         "flash-from-background": (
-            "light": map.get(c.$brand, "light1", "contrast"),
-            "dark": map.get(c.$brand, "dark1", "contrast")
-        ),
+                "light": map.get(c.$brand, "light1", "contrast"),
+                "dark": map.get(c.$brand, "dark1", "contrast")
+            ),
         "flash-from-surface": (
             "light": map.get(c.$brand, "light1", "color"),
             "dark": map.get(c.$brand, "dark1", "color")

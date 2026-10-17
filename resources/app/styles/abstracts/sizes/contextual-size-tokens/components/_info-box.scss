@@ -1,0 +1,9 @@
+@use "sass:map"; // https://sass-lang.com/documentation/modules/map
+@use "../../global-size-tokens" as s;
+
+$info-box: (
+    "border": map.get(s.$border, "base"),
+    "padding": 0.5lh 1ch,
+    "radius": map.get(s.$radius, "base"),
+    "gap": 1ch
+);

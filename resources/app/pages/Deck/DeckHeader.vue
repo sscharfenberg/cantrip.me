@@ -97,9 +97,7 @@ const explainState = computed<boolean>(
  * the page would only mislead. The stored mode is untouched and the
  * picker comes back when the deck is set to finished.
  */
-const showCollectionModeBadge = computed<boolean>(
-    () => explainState.value && props.deck.state !== "planned"
-);
+const showCollectionModeBadge = computed<boolean>(() => explainState.value && props.deck.state !== "planned");
 const heroBackgroundStyle = computed<Record<string, string> | undefined>(() =>
     props.heroArtCrop ? { "--hero-art-crop": `url('${props.heroArtCrop}')` } : undefined
 );
@@ -158,11 +156,7 @@ const { formatPrice } = useFormatting();
                 :rulebreaker="rulebreaker"
                 :can-edit="isOwner"
             />
-            <collection-mode-badge
-                v-if="showCollectionModeBadge"
-                :deck-id="deck.id"
-                :mode="collectionBadgeMode"
-            />
+            <collection-mode-badge v-if="showCollectionModeBadge" :deck-id="deck.id" :mode="collectionBadgeMode" />
             <visibility-badge :visibility="deck.visibility" />
         </div>
         <paragraph v-if="deck.description">{{ deck.description }}</paragraph>

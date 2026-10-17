@@ -67,11 +67,41 @@ const SYMBOL_REGEX = /\{([^}]+)}/g;
 const COLORS: readonly HighlightColor[] = ["W", "U", "B", "R", "G"] as const;
 
 /**
+ * Which spell a Karsten row shows while the user has picked none:
+ *   - `hardest` — the one the deck is closest to failing (the largest
+ *     `need - have`);
+ *   - `easiest` — the one it covers with the most sources to spare
+ *     (the smallest `need - have`), often a late spell, since it has
+ *     more turns to find its color and ramp counts toward it;
+ *   - `cheapest` — the lowest mana value, then the fewest pips of the
+ *     color, whatever its sources.
+ */
+export type AutomaticSpell = "hardest" | "easiest" | "cheapest";
+
+/**
+ * What a Karsten row needs so the user can pick the spell it is priced
+ * for. Shared by the per-color and the combined rows.
+ */
+export interface KarstenRowPick {
+    /** The pick's key: the color letter, or the WUBRG-ordered combination ("WU"). */
+    key: string;
+    /** True when the row shows a spell the user picked instead of the automatic one. */
+    picked: boolean;
+    /** The spell the row shows when nothing is picked — see {@link AutomaticSpell}. */
+    automatic: { card: string; mv: number };
+    /**
+     * Oracle ids of every card that can be picked for the row — main
+     * deck, command zone, companion and sideboard alike.
+     */
+    candidates: string[];
+}
+
+/**
  * One row of the per-color Karsten analysis: the deck's binding
- * requirement in this color — the card closest to failing — with the
- * sources that count toward it (weighted by `karstenSources.ts`, so
- * possibly fractional), Karsten's recommendation for it, and the
- * shortfall (zero if sufficient).
+ * requirement in this color — the main-deck card closest to failing, or
+ * the spell the user picked — with the sources that count toward it
+ * (weighted by `karstenSources.ts`, so possibly fractional), Karsten's
+ * recommendation for it, and the shortfall (zero if sufficient).
  *
  * Karsten's gold-card +1 hack is baked into `need`: any card with ≥2
  * distinct *forced* colored pips (e.g. Teferi `{1}{W}{U}`) bumps each
@@ -81,7 +111,7 @@ const COLORS: readonly HighlightColor[] = ["W", "U", "B", "R", "G"] as const;
  * not contribute here at all; its requirement lives in
  * {@link KarstenCombinedAnalysis} instead.
  */
-export interface KarstenColorAnalysis {
+export interface KarstenColorAnalysis extends KarstenRowPick {
     color: HighlightColor;
     have: number;
     need: number;
@@ -103,13 +133,13 @@ export interface KarstenColorAnalysis {
  *    `{3}{W/U}{W/U}`) demands `(cmc, hybridPipCount)` lookup, NO +1
  *    — only one of the colors is needed per pip.
  *
- * `colors` is sorted in WUBRG order. Of every card in the deck that
+ * `colors` is sorted in WUBRG order. Of every main-deck card that
  * demands that exact color set (either flavor), the row shows the
- * binding one — the largest `need - have` — just as the per-color rows
- * do. Only emitted for color combinations actually demanded by a card
- * in the deck.
+ * binding one — the largest `need - have` — or the spell the user
+ * picked, just as the per-color rows do. Only emitted for color
+ * combinations a main-deck card actually demands.
  */
-export interface KarstenCombinedAnalysis {
+export interface KarstenCombinedAnalysis extends KarstenRowPick {
     colors: HighlightColor[];
     have: number;
     need: number;
