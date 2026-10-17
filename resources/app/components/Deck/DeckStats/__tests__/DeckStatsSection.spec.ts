@@ -115,7 +115,12 @@ const render = (
                 });
         }
     });
-    return { wrapper: mount(Host, { attachTo: document.body }), api: () => api, meta, deckCards };
+    const wrapper = mount(Host, { attachTo: document.body });
+    // Open the stats accordion, as a user has to before reaching any of this.
+    // Its body is `display: none` while closed, and jsdom — like a browser,
+    // since 30.1.3 — will not focus anything inside it.
+    (wrapper.get(".collapsible__head").element as HTMLButtonElement).click();
+    return { wrapper, api: () => api, meta, deckCards };
 };
 
 /** Open the white row's picker and pick the named card. */
