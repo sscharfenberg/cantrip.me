@@ -66,131 +66,133 @@ const hasPicks = computed(() => [...props.karsten, ...props.karstenCombined].som
 </script>
 
 <template>
-    <figure class="mana-sources">
+    <div class="mana-sources">
         <headline :size="4">{{ t("pages.deck.stats.colors.karsten.title") }}</headline>
-        <section class="mana-sources__group mana-sources__automatic">
-            <h5 class="mana-sources__subheading">{{ t("pages.deck.stats.colors.karsten.automatic.label") }}</h5>
-            <mono-select
-                :options="automaticOptions"
-                :selected="automaticSpell"
-                :placeholder="t('pages.deck.stats.colors.karsten.automatic.label')"
-                :sort="false"
-                :clearable="false"
-                @change="(choice: string) => emit('automatic-spell', choice as AutomaticSpell)"
-            />
-            <info-box class="mana-sources__hint">
-                <p>{{ t("pages.deck.stats.colors.karsten.automatic.hint") }}</p>
-                <p>{{ t("pages.deck.stats.colors.karsten.automatic.hint_one_drops") }}</p>
-            </info-box>
-            <button v-if="hasPicks" type="button" class="mana-sources__reset" @click="emit('reset-picks')">
-                <icon name="clear" :size="0" />{{ t("pages.deck.stats.colors.karsten.reset_picks") }}
-            </button>
-        </section>
-        <section v-if="karsten.length" class="mana-sources__group mana-sources__group--single">
-            <h5 class="mana-sources__subheading">
-                {{ t("pages.deck.stats.colors.karsten.single_title") }}
-            </h5>
-            <ul class="mana-sources__rows">
-                <li
-                    v-for="row in karsten"
-                    :key="row.key"
-                    class="mana-sources__row"
-                    :data-key="row.key"
-                    :class="{ 'mana-sources__row--short': row.short > 0 }"
-                >
-                    <i18n-t
-                        :keypath="
-                            row.short > 0
-                                ? 'pages.deck.stats.colors.karsten.short'
-                                : 'pages.deck.stats.colors.karsten.sufficient'
-                        "
-                        scope="global"
+        <figure class="mana-sources__figure">
+            <section class="mana-sources__group mana-sources__automatic">
+                <h5 class="mana-sources__subheading">{{ t("pages.deck.stats.colors.karsten.automatic.label") }}</h5>
+                <mono-select
+                    :options="automaticOptions"
+                    :selected="automaticSpell"
+                    :placeholder="t('pages.deck.stats.colors.karsten.automatic.label')"
+                    :sort="false"
+                    :clearable="false"
+                    @change="(choice: string) => emit('automatic-spell', choice as AutomaticSpell)"
+                />
+                <info-box class="mana-sources__hint">
+                    <p>{{ t("pages.deck.stats.colors.karsten.automatic.hint") }}</p>
+                    <p>{{ t("pages.deck.stats.colors.karsten.automatic.hint_one_drops") }}</p>
+                </info-box>
+                <button v-if="hasPicks" type="button" class="mana-sources__reset" @click="emit('reset-picks')">
+                    <icon name="clear" :size="0" />{{ t("pages.deck.stats.colors.karsten.reset_picks") }}
+                </button>
+            </section>
+            <section v-if="karsten.length" class="mana-sources__group mana-sources__group--single">
+                <h5 class="mana-sources__subheading">
+                    {{ t("pages.deck.stats.colors.karsten.single_title") }}
+                </h5>
+                <ul class="mana-sources__rows">
+                    <li
+                        v-for="row in karsten"
+                        :key="row.key"
+                        class="mana-sources__row"
+                        :data-key="row.key"
+                        :class="{ 'mana-sources__row--short': row.short > 0 }"
                     >
-                        <template #color>
-                            <img
-                                :src="`/symbol/${row.color}.svg`"
-                                :alt="t(`pages.deck.stats.colors.color.${row.color}`)"
-                                class="mana-sources__symbol"
-                            />
-                        </template>
-                        <template #have>{{ formatDecimals(row.have) }}</template>
-                        <template #need>{{ row.need }}</template>
-                        <template #short>{{ formatDecimals(row.short) }}</template>
-                        <template #spell>
-                            <deck-stats-spell-link
-                                :card="row.card"
-                                :mv="row.mv"
-                                :picked="row.picked"
-                                :color-label="colorLabel([row.color])"
-                                @pick="emit('pick', row.key)"
-                            />
-                        </template>
-                    </i18n-t>
-                </li>
-            </ul>
-        </section>
-        <section v-if="karstenCombined.length" class="mana-sources__group mana-sources__group--combined">
-            <h5 class="mana-sources__subheading">
-                {{ t("pages.deck.stats.colors.karsten.combined_title") }}
-            </h5>
-            <ul class="mana-sources__rows">
-                <li
-                    v-for="row in karstenCombined"
-                    :key="row.key"
-                    class="mana-sources__row"
-                    :data-key="row.key"
-                    :class="{ 'mana-sources__row--short': row.short > 0 }"
-                >
-                    <i18n-t
-                        :keypath="
-                            row.short > 0
-                                ? 'pages.deck.stats.colors.karsten.combined_short'
-                                : 'pages.deck.stats.colors.karsten.combined_sufficient'
-                        "
-                        scope="global"
-                    >
-                        <template #colors>
-                            <span class="mana-sources__combined-colors">
+                        <i18n-t
+                            :keypath="
+                                row.short > 0
+                                    ? 'pages.deck.stats.colors.karsten.short'
+                                    : 'pages.deck.stats.colors.karsten.sufficient'
+                            "
+                            scope="global"
+                        >
+                            <template #color>
                                 <img
-                                    v-for="c in row.colors"
-                                    :key="c"
-                                    :src="`/symbol/${c}.svg`"
-                                    :alt="t(`pages.deck.stats.colors.color.${c}`)"
+                                    :src="`/symbol/${row.color}.svg`"
+                                    :alt="t(`pages.deck.stats.colors.color.${row.color}`)"
                                     class="mana-sources__symbol"
                                 />
-                            </span>
-                        </template>
-                        <template #have>{{ formatDecimals(row.have) }}</template>
-                        <template #need>{{ row.need }}</template>
-                        <template #short>{{ formatDecimals(row.short) }}</template>
-                        <template #spell>
-                            <deck-stats-spell-link
-                                :card="row.card"
-                                :mv="row.mv"
-                                :picked="row.picked"
-                                :color-label="colorLabel(row.colors)"
-                                @pick="emit('pick', row.key)"
-                            />
-                        </template>
-                    </i18n-t>
-                </li>
-            </ul>
-        </section>
-        <figcaption>
-            <info-box class="mana-sources__explanation">
-                <p class="mana-sources__note">{{ t("pages.deck.stats.colors.karsten.weighting") }}</p>
-                <p class="mana-sources__note">
-                    <i18n-t keypath="pages.deck.stats.colors.karsten.attribution" scope="global" tag="span">
-                        <template #link>
-                            <labelled-link :href="karstenUrl">{{
-                                t("pages.deck.stats.colors.karsten.attribution_link")
-                            }}</labelled-link>
-                        </template>
-                    </i18n-t>
-                </p>
-            </info-box>
-        </figcaption>
-    </figure>
+                            </template>
+                            <template #have>{{ formatDecimals(row.have) }}</template>
+                            <template #need>{{ row.need }}</template>
+                            <template #short>{{ formatDecimals(row.short) }}</template>
+                            <template #spell>
+                                <deck-stats-spell-link
+                                    :card="row.card"
+                                    :mv="row.mv"
+                                    :picked="row.picked"
+                                    :color-label="colorLabel([row.color])"
+                                    @pick="emit('pick', row.key)"
+                                />
+                            </template>
+                        </i18n-t>
+                    </li>
+                </ul>
+            </section>
+            <section v-if="karstenCombined.length" class="mana-sources__group mana-sources__group--combined">
+                <h5 class="mana-sources__subheading">
+                    {{ t("pages.deck.stats.colors.karsten.combined_title") }}
+                </h5>
+                <ul class="mana-sources__rows">
+                    <li
+                        v-for="row in karstenCombined"
+                        :key="row.key"
+                        class="mana-sources__row"
+                        :data-key="row.key"
+                        :class="{ 'mana-sources__row--short': row.short > 0 }"
+                    >
+                        <i18n-t
+                            :keypath="
+                                row.short > 0
+                                    ? 'pages.deck.stats.colors.karsten.combined_short'
+                                    : 'pages.deck.stats.colors.karsten.combined_sufficient'
+                            "
+                            scope="global"
+                        >
+                            <template #colors>
+                                <span class="mana-sources__combined-colors">
+                                    <img
+                                        v-for="c in row.colors"
+                                        :key="c"
+                                        :src="`/symbol/${c}.svg`"
+                                        :alt="t(`pages.deck.stats.colors.color.${c}`)"
+                                        class="mana-sources__symbol"
+                                    />
+                                </span>
+                            </template>
+                            <template #have>{{ formatDecimals(row.have) }}</template>
+                            <template #need>{{ row.need }}</template>
+                            <template #short>{{ formatDecimals(row.short) }}</template>
+                            <template #spell>
+                                <deck-stats-spell-link
+                                    :card="row.card"
+                                    :mv="row.mv"
+                                    :picked="row.picked"
+                                    :color-label="colorLabel(row.colors)"
+                                    @pick="emit('pick', row.key)"
+                                />
+                            </template>
+                        </i18n-t>
+                    </li>
+                </ul>
+            </section>
+            <figcaption>
+                <info-box class="mana-sources__explanation">
+                    <p class="mana-sources__note">{{ t("pages.deck.stats.colors.karsten.weighting") }}</p>
+                    <p class="mana-sources__note">
+                        <i18n-t keypath="pages.deck.stats.colors.karsten.attribution" scope="global" tag="span">
+                            <template #link>
+                                <labelled-link :href="karstenUrl">{{
+                                    t("pages.deck.stats.colors.karsten.attribution_link")
+                                }}</labelled-link>
+                            </template>
+                        </i18n-t>
+                    </p>
+                </info-box>
+            </figcaption>
+        </figure>
+    </div>
 </template>
 
 <style lang="scss" scoped>
@@ -203,11 +205,15 @@ const hasPicks = computed(() => [...props.karsten, ...props.karstenCombined].som
 // it reads top to bottom and simply wraps — under its text, thanks to
 // the hanging indent — on a narrow panel.
 .mana-sources {
-    display: flex;
-    flex-direction: column;
+    // The headline sits outside the figure and brings its own bottom
+    // margin, so the gap only spaces the figure's own parts.
+    &__figure {
+        display: flex;
+        flex-direction: column;
 
-    margin: 0;
-    gap: map.get(s.$components, "mana-sources", "section-gap");
+        margin: 0;
+        gap: map.get(s.$components, "mana-sources", "section-gap");
+    }
 
     &__rows {
         display: flex;

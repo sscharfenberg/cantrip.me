@@ -206,126 +206,128 @@ const tooltipForProduction = (seg: Segment): string =>
 </script>
 
 <template>
-    <figure class="color-donut">
+    <div class="color-donut">
         <headline :size="4">{{ t("pages.deck.stats.colors.title") }}</headline>
-        <div class="color-donut__layout">
-            <svg
-                class="color-donut__svg"
-                viewBox="-100 -100 200 200"
-                role="img"
-                :aria-label="t('pages.deck.stats.colors.title')"
-            >
-                <g
-                    class="color-donut__ring color-donut__ring--outer"
-                    :class="{ 'color-donut__ring--hovered': hoveredOuter !== null }"
+        <figure class="color-donut__figure">
+            <div class="color-donut__layout">
+                <svg
+                    class="color-donut__svg"
+                    viewBox="-100 -100 200 200"
+                    role="img"
+                    :aria-label="t('pages.deck.stats.colors.title')"
                 >
-                    <path
-                        v-for="seg in outerSegments"
-                        :key="`outer-${seg.color}`"
-                        v-tooltip="{ content: tooltipForCost(seg), html: true }"
-                        class="color-donut__segment"
-                        :class="[
-                            `color-donut__segment--${seg.color}`,
-                            {
-                                'color-donut__segment--selected': selectedColorConsumption === seg.color,
-                                'color-donut__segment--active': hoveredOuter === seg.color
-                            }
-                        ]"
-                        :d="seg.path"
-                        fill-rule="evenodd"
-                        role="button"
-                        tabindex="0"
-                        :aria-label="ariaForCost(seg)"
-                        :aria-pressed="selectedColorConsumption === seg.color"
-                        @click="onOuterClick(seg.color)"
-                        @keydown.enter.prevent="onOuterClick(seg.color)"
-                        @keydown.space.prevent="onOuterClick(seg.color)"
-                        @mouseenter="hoveredOuter = seg.color"
-                        @mouseleave="hoveredOuter = null"
-                        @focus="hoveredOuter = seg.color"
-                        @blur="hoveredOuter = null"
-                    />
-                </g>
-                <g
-                    class="color-donut__ring color-donut__ring--inner"
-                    :class="{ 'color-donut__ring--hovered': hoveredInner !== null }"
-                >
-                    <path
-                        v-for="seg in innerSegments"
-                        :key="`inner-${seg.color}`"
-                        v-tooltip="{ content: tooltipForProduction(seg), html: true }"
-                        class="color-donut__segment"
-                        :class="[
-                            `color-donut__segment--${seg.color}`,
-                            {
-                                'color-donut__segment--selected': selectedColorProduction === seg.color,
-                                'color-donut__segment--active': hoveredInner === seg.color
-                            }
-                        ]"
-                        :d="seg.path"
-                        fill-rule="evenodd"
-                        role="button"
-                        tabindex="0"
-                        :aria-label="ariaForProduction(seg)"
-                        :aria-pressed="selectedColorProduction === seg.color"
-                        @click="onInnerClick(seg.color)"
-                        @keydown.enter.prevent="onInnerClick(seg.color)"
-                        @keydown.space.prevent="onInnerClick(seg.color)"
-                        @mouseenter="hoveredInner = seg.color"
-                        @mouseleave="hoveredInner = null"
-                        @focus="hoveredInner = seg.color"
-                        @blur="hoveredInner = null"
-                    />
-                </g>
-            </svg>
-            <div class="color-donut__legend">
-                <section class="color-donut__section">
-                    <h5 class="color-donut__heading">{{ t("pages.deck.stats.colors.outer") }}</h5>
-                    <ul class="color-donut__rows">
-                        <li v-for="row in costRows" :key="row.color" class="color-donut__row">
-                            <i18n-t keypath="pages.deck.stats.colors.row" scope="global">
-                                <template #color>
-                                    <img
-                                        :src="`/symbol/${row.color}.svg`"
-                                        :alt="t(`pages.deck.stats.colors.color.${row.color}`)"
-                                        class="color-donut__symbol"
-                                    />
-                                </template>
-                                <template #count>{{ row.count }}</template>
-                                <template #percent>{{ Math.round(row.percent) }}</template>
-                            </i18n-t>
-                        </li>
-                    </ul>
-                </section>
-                <section class="color-donut__section">
-                    <h5 class="color-donut__heading">{{ t("pages.deck.stats.colors.inner") }}</h5>
-                    <ul class="color-donut__rows">
-                        <li v-for="row in productionRows" :key="row.color" class="color-donut__row">
-                            <i18n-t keypath="pages.deck.stats.colors.production_row" scope="global">
-                                <template #color>
-                                    <img
-                                        :src="`/symbol/${row.color}.svg`"
-                                        :alt="t(`pages.deck.stats.colors.color.${row.color}`)"
-                                        class="color-donut__symbol"
-                                    />
-                                </template>
-                                <template #count>{{ row.count }}</template>
-                                <template #percent>{{ Math.round(row.percent) }}</template>
-                            </i18n-t>
-                        </li>
-                    </ul>
-                </section>
+                    <g
+                        class="color-donut__ring color-donut__ring--outer"
+                        :class="{ 'color-donut__ring--hovered': hoveredOuter !== null }"
+                    >
+                        <path
+                            v-for="seg in outerSegments"
+                            :key="`outer-${seg.color}`"
+                            v-tooltip="{ content: tooltipForCost(seg), html: true }"
+                            class="color-donut__segment"
+                            :class="[
+                                `color-donut__segment--${seg.color}`,
+                                {
+                                    'color-donut__segment--selected': selectedColorConsumption === seg.color,
+                                    'color-donut__segment--active': hoveredOuter === seg.color
+                                }
+                            ]"
+                            :d="seg.path"
+                            fill-rule="evenodd"
+                            role="button"
+                            tabindex="0"
+                            :aria-label="ariaForCost(seg)"
+                            :aria-pressed="selectedColorConsumption === seg.color"
+                            @click="onOuterClick(seg.color)"
+                            @keydown.enter.prevent="onOuterClick(seg.color)"
+                            @keydown.space.prevent="onOuterClick(seg.color)"
+                            @mouseenter="hoveredOuter = seg.color"
+                            @mouseleave="hoveredOuter = null"
+                            @focus="hoveredOuter = seg.color"
+                            @blur="hoveredOuter = null"
+                        />
+                    </g>
+                    <g
+                        class="color-donut__ring color-donut__ring--inner"
+                        :class="{ 'color-donut__ring--hovered': hoveredInner !== null }"
+                    >
+                        <path
+                            v-for="seg in innerSegments"
+                            :key="`inner-${seg.color}`"
+                            v-tooltip="{ content: tooltipForProduction(seg), html: true }"
+                            class="color-donut__segment"
+                            :class="[
+                                `color-donut__segment--${seg.color}`,
+                                {
+                                    'color-donut__segment--selected': selectedColorProduction === seg.color,
+                                    'color-donut__segment--active': hoveredInner === seg.color
+                                }
+                            ]"
+                            :d="seg.path"
+                            fill-rule="evenodd"
+                            role="button"
+                            tabindex="0"
+                            :aria-label="ariaForProduction(seg)"
+                            :aria-pressed="selectedColorProduction === seg.color"
+                            @click="onInnerClick(seg.color)"
+                            @keydown.enter.prevent="onInnerClick(seg.color)"
+                            @keydown.space.prevent="onInnerClick(seg.color)"
+                            @mouseenter="hoveredInner = seg.color"
+                            @mouseleave="hoveredInner = null"
+                            @focus="hoveredInner = seg.color"
+                            @blur="hoveredInner = null"
+                        />
+                    </g>
+                </svg>
+                <div class="color-donut__legend">
+                    <section class="color-donut__section">
+                        <h5 class="color-donut__heading">{{ t("pages.deck.stats.colors.outer") }}</h5>
+                        <ul class="color-donut__rows">
+                            <li v-for="row in costRows" :key="row.color" class="color-donut__row">
+                                <i18n-t keypath="pages.deck.stats.colors.row" scope="global">
+                                    <template #color>
+                                        <img
+                                            :src="`/symbol/${row.color}.svg`"
+                                            :alt="t(`pages.deck.stats.colors.color.${row.color}`)"
+                                            class="color-donut__symbol"
+                                        />
+                                    </template>
+                                    <template #count>{{ row.count }}</template>
+                                    <template #percent>{{ Math.round(row.percent) }}</template>
+                                </i18n-t>
+                            </li>
+                        </ul>
+                    </section>
+                    <section class="color-donut__section">
+                        <h5 class="color-donut__heading">{{ t("pages.deck.stats.colors.inner") }}</h5>
+                        <ul class="color-donut__rows">
+                            <li v-for="row in productionRows" :key="row.color" class="color-donut__row">
+                                <i18n-t keypath="pages.deck.stats.colors.production_row" scope="global">
+                                    <template #color>
+                                        <img
+                                            :src="`/symbol/${row.color}.svg`"
+                                            :alt="t(`pages.deck.stats.colors.color.${row.color}`)"
+                                            class="color-donut__symbol"
+                                        />
+                                    </template>
+                                    <template #count>{{ row.count }}</template>
+                                    <template #percent>{{ Math.round(row.percent) }}</template>
+                                </i18n-t>
+                            </li>
+                        </ul>
+                    </section>
+                </div>
             </div>
-        </div>
-        <figcaption>
-            <info-box class="color-donut__explanation">
-                <p class="color-donut__note">{{ t("pages.deck.stats.colors.explanation") }}</p>
-                <p v-if="sourcesShown" class="color-donut__note">
-                    {{ t("pages.deck.stats.colors.explanation_sources") }}
-                </p>
-            </info-box>
-        </figcaption>
-    </figure>
+            <figcaption>
+                <info-box class="color-donut__explanation">
+                    <p class="color-donut__note">{{ t("pages.deck.stats.colors.explanation") }}</p>
+                    <p v-if="sourcesShown" class="color-donut__note">
+                        {{ t("pages.deck.stats.colors.explanation_sources") }}
+                    </p>
+                </info-box>
+            </figcaption>
+        </figure>
+    </div>
 </template>
 
 <style lang="scss" scoped>
@@ -343,13 +345,17 @@ const tooltipForProduction = (seg: Segment): string =>
 //   - landscape+: donut beside the two lists, side by side.
 // The explanation always spans the full width underneath.
 .color-donut {
-    display: flex;
-    flex-direction: column;
-
-    margin: 0;
-    gap: map.get(s.$components, "color-donut", "gap");
-
     container-type: inline-size;
+
+    // The headline sits outside the figure and brings its own bottom
+    // margin, so the gap only spaces the figure's own parts.
+    &__figure {
+        display: flex;
+        flex-direction: column;
+
+        margin: 0;
+        gap: map.get(s.$components, "color-donut", "gap");
+    }
 
     &__layout {
         display: grid;
