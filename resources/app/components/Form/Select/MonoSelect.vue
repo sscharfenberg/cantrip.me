@@ -86,13 +86,33 @@ const toggleMenu = () => {
     menuOpen.value = !menuOpen.value;
 };
 /**
+ * Bring an option into view inside the list's own scroller, and nowhere
+ * else. `scrollIntoView` would also scroll every scrollable ancestor —
+ * the page included — and the listbox is a fixed-position popover
+ * anchored to the trigger, so the page scroll moves the list along with
+ * it and the browser chases it to the bottom of the page.
+ *
+ * @param option - The option button to reveal.
+ */
+const revealOption = (option: HTMLElement): void => {
+    const scroller = option.closest<HTMLElement>(".form-select__scroll");
+    if (scroller === null) return;
+    const top = option.offsetTop - scroller.offsetTop;
+    const bottom = top + option.offsetHeight;
+    if (top < scroller.scrollTop) {
+        scroller.scrollTop = top;
+    } else if (bottom > scroller.scrollTop + scroller.clientHeight) {
+        scroller.scrollTop = bottom - scroller.clientHeight;
+    }
+};
+/**
  * Scrolls the selected option into view after the enter transition completes.
  *
  * @param el - The transitioned element.
  */
 const onAfterEnter = (el: Element) => {
-    const _option = el.querySelector(`button[data-value="${selectedValue.value}"]`);
-    _option?.scrollIntoView();
+    const _option = el.querySelector<HTMLElement>(`button[data-value="${selectedValue.value}"]`);
+    if (_option) revealOption(_option);
 };
 /**
  * Closes the dropdown when a click occurs outside the component.
@@ -139,8 +159,10 @@ const onListboxKeydown = (event: KeyboardEvent) => {
     const buttons = listbox.value?.querySelectorAll<HTMLButtonElement>("button[data-value]");
     for (const btn of buttons ?? []) {
         if (btn.dataset.value === match.value) {
-            btn.scrollIntoView({ block: "nearest" });
-            btn.focus(); // gives a visible focus indicator; Enter also activates the button
+            revealOption(btn);
+            // A visible focus indicator; Enter also activates the button. The list is
+            // already scrolled to it, so the focus must not scroll the page.
+            btn.focus({ preventScroll: true });
             break;
         }
     }
