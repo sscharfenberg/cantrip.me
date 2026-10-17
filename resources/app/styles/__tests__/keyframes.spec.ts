@@ -78,7 +78,9 @@ describe("@keyframes", () => {
 
     /** Guards the scanner itself — a silent zero-file walk would pass vacuously. */
     it("scans the stylesheets it is meant to", () => {
-        const names = styleFiles(APP_ROOT).flatMap(path => keyframeBlocks(readFileSync(path, "utf8"))).map(b => b.name);
+        const names = styleFiles(APP_ROOT)
+            .flatMap(path => keyframeBlocks(readFileSync(path, "utf8")))
+            .map(b => b.name);
 
         // Two blocks from one .scss file, plus one from an SFC's scoped style:
         // proves the walk reaches both file types and doesn't stop at the first

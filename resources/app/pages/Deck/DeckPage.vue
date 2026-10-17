@@ -110,9 +110,7 @@ const isArchived = computed(() => props.deck.state === "archived");
  * is the only component holding all three sources — mainboard rows, the
  * command zone and the companion.
  */
-const unavailableCards = computed(() =>
-    collectUnavailableCards(props.cards, props.commanders, props.companion)
-);
+const unavailableCards = computed(() => collectUnavailableCards(props.cards, props.commanders, props.companion));
 /**
  * Effective owner-edit flag — false for non-owners *and* for archived
  * decks. Components that gate every editing affordance on `isOwner`

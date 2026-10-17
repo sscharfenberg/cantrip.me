@@ -75,9 +75,7 @@ describe("DeckHeader — the collection-mode picker", () => {
     });
 
     it("stays hidden while the collection master switch is off", () => {
-        expect(
-            hasModeBadge(render("built", { collectionModeContext: { master_switch_enabled: false } }))
-        ).toBe(false);
+        expect(hasModeBadge(render("built", { collectionModeContext: { master_switch_enabled: false } }))).toBe(false);
     });
 });
 
@@ -98,8 +96,6 @@ describe("DeckHeader — the state badge legend", () => {
 
     it("is off while the collection master switch is off", () => {
         // No per-card badge renders at all, so there is nothing to explain.
-        expect(explainsOn(render("planned", { collectionModeContext: { master_switch_enabled: false } }))).toBe(
-            false
-        );
+        expect(explainsOn(render("planned", { collectionModeContext: { master_switch_enabled: false } }))).toBe(false);
     });
 });
