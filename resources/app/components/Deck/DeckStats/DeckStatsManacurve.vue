@@ -60,56 +60,58 @@ const segmentsFor = (bucket: ManaCurveBucket): { kind: "permanents" | "spells"; 
 </script>
 
 <template>
-    <figure class="mana-curve">
+    <div class="mana-curve">
         <headline :size="4">{{ t("pages.deck.stats.curve.title") }}</headline>
-        <div class="mana-curve__avg">
-            <i18n-t keypath="pages.deck.stats.curve.average" scope="global">
-                <template #avg>
-                    <span class="mana-curve__avg-value">{{ formattedAverage }}</span>
-                </template>
-            </i18n-t>
-        </div>
-        <ol class="mana-curve__bars">
-            <li v-for="bucket in curve" :key="bucket.cmc" class="mana-curve__bar">
-                <span
-                    class="mana-curve__count"
-                    :class="{ 'mana-curve__count--zero': bucket.total === 0 }"
-                    aria-hidden="true"
-                    >{{ bucket.total }}</span
-                >
-                <button
-                    type="button"
-                    class="mana-curve__column"
-                    :class="{ 'mana-curve__column--selected': selectedManaValue === bucket.cmc }"
-                    :aria-label="ariaFor(bucket)"
-                    :aria-pressed="selectedManaValue === bucket.cmc"
-                    @click="onColumnClick(bucket.cmc)"
-                >
-                    <template v-for="seg in segmentsFor(bucket)" :key="seg.kind">
-                        <div
-                            v-if="seg.value > 0"
-                            class="mana-curve__segment"
-                            :class="`mana-curve__segment--${seg.kind}`"
-                            :style="{ height: `${pct(seg.value)}%` }"
-                        >
-                            {{ seg.value > 3 ? seg.value : null }}
-                        </div>
+        <figure class="mana-curve__figure">
+            <div class="mana-curve__avg">
+                <i18n-t keypath="pages.deck.stats.curve.average" scope="global">
+                    <template #avg>
+                        <span class="mana-curve__avg-value">{{ formattedAverage }}</span>
                     </template>
-                </button>
-                <span class="mana-curve__label" aria-hidden="true">{{ cmcLabel(bucket.cmc) }}</span>
-            </li>
-        </ol>
-        <ul class="mana-curve__legend" aria-hidden="true">
-            <li class="mana-curve__legend-item">
-                <span class="mana-curve__swatch mana-curve__swatch--permanents"></span>
-                {{ t("pages.deck.stats.curve.permanents") }}
-            </li>
-            <li class="mana-curve__legend-item">
-                <span class="mana-curve__swatch mana-curve__swatch--spells"></span>
-                {{ t("pages.deck.stats.curve.spells") }}
-            </li>
-        </ul>
-    </figure>
+                </i18n-t>
+            </div>
+            <ol class="mana-curve__bars">
+                <li v-for="bucket in curve" :key="bucket.cmc" class="mana-curve__bar">
+                    <span
+                        class="mana-curve__count"
+                        :class="{ 'mana-curve__count--zero': bucket.total === 0 }"
+                        aria-hidden="true"
+                        >{{ bucket.total }}</span
+                    >
+                    <button
+                        type="button"
+                        class="mana-curve__column"
+                        :class="{ 'mana-curve__column--selected': selectedManaValue === bucket.cmc }"
+                        :aria-label="ariaFor(bucket)"
+                        :aria-pressed="selectedManaValue === bucket.cmc"
+                        @click="onColumnClick(bucket.cmc)"
+                    >
+                        <template v-for="seg in segmentsFor(bucket)" :key="seg.kind">
+                            <div
+                                v-if="seg.value > 0"
+                                class="mana-curve__segment"
+                                :class="`mana-curve__segment--${seg.kind}`"
+                                :style="{ height: `${pct(seg.value)}%` }"
+                            >
+                                {{ seg.value > 3 ? seg.value : null }}
+                            </div>
+                        </template>
+                    </button>
+                    <span class="mana-curve__label" aria-hidden="true">{{ cmcLabel(bucket.cmc) }}</span>
+                </li>
+            </ol>
+            <ul class="mana-curve__legend" aria-hidden="true">
+                <li class="mana-curve__legend-item">
+                    <span class="mana-curve__swatch mana-curve__swatch--permanents"></span>
+                    {{ t("pages.deck.stats.curve.permanents") }}
+                </li>
+                <li class="mana-curve__legend-item">
+                    <span class="mana-curve__swatch mana-curve__swatch--spells"></span>
+                    {{ t("pages.deck.stats.curve.spells") }}
+                </li>
+            </ul>
+        </figure>
+    </div>
 </template>
 
 <style lang="scss" scoped>
@@ -120,14 +122,14 @@ const segmentsFor = (bucket: ManaCurveBucket): { kind: "permanents" | "spells"; 
 @use "Abstracts/timings" as ti;
 
 .mana-curve {
-    display: flex;
-    flex-direction: column;
+    // The headline sits outside the figure and brings its own bottom
+    // margin, so the gap only spaces the figure's own parts.
+    &__figure {
+        display: flex;
+        flex-direction: column;
 
-    margin: 0;
-    gap: map.get(s.$components, "mana-curve", "gap");
-
-    &__avg {
-        margin: 0 0 0.5lh;
+        margin: 0;
+        gap: map.get(s.$components, "mana-curve", "gap");
     }
 
     &__avg-value {
