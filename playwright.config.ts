@@ -88,7 +88,18 @@ export default defineConfig({
          * browser to match rather than leaving it to the machine's own locale.
          */
         locale: "de-DE",
-        timezoneId: "UTC"
+        timezoneId: "UTC",
+        /*
+         * Reduced motion, which the app supports: modals open without their
+         * slide-in. Playwright waits for an element to hold still before it
+         * clicks, but on a slow CI runner the dialog can stall for two frames
+         * mid-slide, pass that check and move on before the click lands — the
+         * click then hits the dialog's body ~130px above the button, and
+         * nothing happens. A spec that needs the motion (the hover preview
+         * does: it is off under reduced motion) asks for it back with
+         * `page.emulateMedia({ reducedMotion: "no-preference" })`.
+         */
+        reducedMotion: "reduce"
     },
 
     projects: [

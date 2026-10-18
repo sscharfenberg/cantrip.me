@@ -160,6 +160,10 @@ test("quick add reaches for the printing the collection has most of", async ({ p
 });
 
 test("the printing hover preview escapes the card modal", async ({ page }) => {
+    // Full motion, unlike the rest of the suite (see playwright.config.ts): the
+    // hover preview is off under reduced motion, and the containing-block check
+    // below needs the transform the modal's open animation leaves behind.
+    await page.emulateMedia({ reducedMotion: "no-preference" });
     await page.goto("/collection");
 
     // Counterspell is the card the fixture owns in two printings, so its
