@@ -894,6 +894,12 @@
             "state_planned": "{count} planned deck | {count} planned decks",
             "state_built": "{count} finished deck | {count} finished decks",
             "state_archived": "{count} archived deck | {count} archived decks",
+            "filters": {
+                "label": "Filter decks",
+                "state": "Deck state",
+                "shown": "{shown} of {total} decks shown",
+                "no_match": "No deck in this format matches the selected filters."
+            },
             "stats": {
                 "title": "Statistics of your decks",
                 "totalDecks": {

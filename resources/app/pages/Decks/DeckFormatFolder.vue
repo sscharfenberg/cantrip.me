@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { computed, useTemplateRef } from "vue";
+import { computed, ref, useTemplateRef } from "vue";
 import { useI18n } from "vue-i18n";
 import DeckListDetailsLink from "@/pages/Decks/DeckListDetailsLink.vue";
+import DeckListFilters from "@/pages/Decks/DeckListFilters.vue";
 import type { DeckRow } from "@/pages/Decks/DecksPage.vue";
+import { type DeckFilters, emptyDeckFilters, filterDecks } from "@/utils/deckListFilters.ts";
 // eslint-disable-next-line @typescript-eslint/no-unused-vars -- component used in template
 import Accordion from "Components/UI/Accordion.vue";
 import Badge from "Components/UI/Badge.vue";
@@ -28,6 +30,11 @@ const accordion = useTemplateRef<{ setOpen: (value: boolean) => void }>("accordi
 const plannedCount = computed(() => props.decks.filter(d => d.state === "planned").length);
 /** Number of decks in "built" state. */
 const builtCount = computed(() => props.decks.filter(d => d.state === "built").length);
+
+/** The folder's badge filters. Nothing selected shows every deck. */
+const filters = ref<DeckFilters>(emptyDeckFilters());
+/** The decks the filters let through. The header counts above stay unfiltered. */
+const visibleDecks = computed(() => filterDecks(props.decks, filters.value));
 
 /**
  * Handle toggle from user click.
@@ -64,9 +71,11 @@ defineExpose({ close });
             </span>
         </template>
         <template #body>
+            <deck-list-filters v-model="filters" :decks="decks" />
             <div class="decklist">
-                <deck-list-details-link v-for="deck in decks" :key="deck.id" :deck="deck" />
+                <deck-list-details-link v-for="deck in visibleDecks" :key="deck.id" :deck="deck" />
             </div>
+            <p v-if="visibleDecks.length === 0" class="decklist__no-match">{{ t("pages.decks.filters.no_match") }}</p>
         </template>
     </accordion>
 </template>
@@ -74,6 +83,12 @@ defineExpose({ close });
 <style lang="scss" scoped>
 @use "sass:map";
 @use "Abstracts/typography" as t;
+
+.decklist__no-match {
+    opacity: 0.8;
+
+    margin: 0;
+}
 
 :deep(.collapsible__head) {
     display: flex;

@@ -86,6 +86,41 @@ describe("DeckFormatFolder — the body", () => {
         expect(wrapper.findAllComponents({ name: "DeckListDetailsLink" })).toHaveLength(2);
     });
 
+    it("lists only the decks the badge filters let through, the header counts unchanged", async () => {
+        const wrapper = render({
+            decks: [deck("a", "built"), deck("b", "planned"), deck("c", "planned")],
+            initialOpen: true
+        });
+        const planned = wrapper
+            .findAll(".deck-filters button")
+            .find(button => button.text() === "enums.deck_state.planned")!;
+
+        await planned.trigger("click");
+
+        expect(
+            wrapper.findAllComponents({ name: "DeckListDetailsLink" }).map(link => link.props("deck").id)
+        ).toEqual(["b", "c"]);
+        expect(badges(wrapper).map(badge => badge.text())).toEqual(["2", "1"]);
+    });
+
+    it("says so when no deck matches", async () => {
+        const visible = { ...deck("b", "planned"), visibility: "public" };
+        const wrapper = render({ decks: [deck("a", "built"), visible], initialOpen: true });
+        const click = (text: string) =>
+            wrapper
+                .findAll(".deck-filters button")
+                .find(button => button.text() === text)!
+                .trigger("click");
+
+        expect(wrapper.find(".decklist__no-match").exists()).toBe(false);
+
+        await click("enums.deck_state.built");
+        await click("enums.visibility.public");
+
+        expect(wrapper.findAllComponents({ name: "DeckListDetailsLink" })).toHaveLength(0);
+        expect(wrapper.get(".decklist__no-match").text()).toBe("pages.decks.filters.no_match");
+    });
+
     it("starts collapsed by default", () => {
         expect(render().find(".collapsible__head").attributes("aria-expanded")).toBe("false");
     });
