@@ -654,6 +654,24 @@
                 "multi_label": "Reserviert für {deck} +{count} weitere",
                 "tooltip_multi": "Außerdem reserviert für: {decks}",
                 "unclaim": "Reservierung aufheben"
+            },
+            "amount": {
+                "increment": "Eine Karte hinzufügen",
+                "decrement": "Eine Karte entfernen",
+                "error": "Die Anzahl konnte nicht geändert werden.",
+                "announce": "{count} Karte | {count} Karten"
+            },
+            "unclaim": {
+                "title": "Reservierung aufheben?",
+                "question": "{description} ist für {decks} reserviert. Nach dem Aufheben stehen die Karten wieder anderen Decks zur Verfügung.",
+                "move_hint": "Du kannst sie dabei gleich woanders hinlegen – lässt du das Feld leer, bleiben sie, wo sie sind.",
+                "label": "Verschieben nach",
+                "keep": "In {container} lassen",
+                "keep_unsorted": "Unsortiert lassen",
+                "submit": "Reservierung aufheben",
+                "cancel": "Abbrechen",
+                "remove_from_decks": "Auch aus der Deckliste von {decks} entfernen",
+                "commander_warning": "{name} ist der Commander von {decks}. Wird die Karte aus der Deckliste entfernt, hat das Deck keinen Commander mehr."
             }
         },
         "containers": {

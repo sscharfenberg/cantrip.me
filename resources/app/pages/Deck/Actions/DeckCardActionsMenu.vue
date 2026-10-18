@@ -232,23 +232,3 @@ const { canIncrement, increment, decrement, destroy, moveZone, switchPrinting } 
         @close="showAssignStackModal = false"
     />
 </template>
-
-<style lang="scss" scoped>
-.popover-list-multi {
-    display: flex;
-
-    gap: 0.5rem;
-
-    > button {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-
-        &:disabled {
-            opacity: 0.35;
-
-            cursor: not-allowed;
-        }
-    }
-}
-</style>

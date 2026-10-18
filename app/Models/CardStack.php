@@ -14,6 +14,9 @@ class CardStack extends Model
 {
     use HasUuids;
 
+    /** The most cards one stack holds — `amount` is an unsigned smallint. */
+    public const MAX_AMOUNT = 65535;
+
     protected $keyType = 'string';
 
     public $incrementing = false;

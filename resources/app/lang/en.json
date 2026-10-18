@@ -654,6 +654,24 @@
                 "multi_label": "Reserved for {deck} +{count} more",
                 "tooltip_multi": "Also reserved for: {decks}",
                 "unclaim": "Unclaim"
+            },
+            "amount": {
+                "increment": "Add one card",
+                "decrement": "Remove one card",
+                "error": "The amount could not be changed.",
+                "announce": "{count} card | {count} cards"
+            },
+            "unclaim": {
+                "title": "Unclaim card?",
+                "question": "{description} is reserved for {decks}. Unclaiming makes the cards available to other decks again.",
+                "move_hint": "You can move them somewhere else at the same time — leave the field empty to keep them where they are.",
+                "label": "Move to",
+                "keep": "Keep in {container}",
+                "keep_unsorted": "Keep unsorted",
+                "submit": "Unclaim",
+                "cancel": "Cancel",
+                "remove_from_decks": "Remove from the deck list of {decks} as well",
+                "commander_warning": "{name} is the commander of {decks}. Removing it from the deck list leaves the deck without its commander."
             }
         },
         "containers": {

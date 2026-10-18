@@ -10,7 +10,9 @@ return [
     'cards_moved' => ':number card stacks successfully moved to :container.',
     'cards_deleted' => 'Deleted :stacks card stacks with :cards cards total.',
     'cards_mass_moved' => ':number cards moved from \':source\' to \':target\'.',
-    'cardstack_unclaimed' => '{1} Unclaimed :name from :count deck.|[2,*] Unclaimed :name from :count decks.',
+    'cardstack_unclaimed' => '{0} :name was not reserved by any deck.|{1} Unclaimed :name from :count deck.|[2,*] Unclaimed :name from :count decks.',
+    'cardstack_removed_from_decks' => '{1} Removed it from the deck list.|[2,*] Removed it from :count deck lists.',
+    'cardstack_moved_to' => 'Moved it to \':container\'.',
     'collection_deleted' => 'Your collection has been deleted.',
     'unsorted' => 'Unsorted',
     'container_created' => 'Container ":name" has been created.',
@@ -20,6 +22,8 @@ return [
 
     'errors' => [
         'cannot_move_claimed_stack' => 'This card stack is claimed by a deck and cannot be moved. Unclaim it first.',
+        'amount_out_of_range' => 'A card stack holds between 1 and :max cards.',
+        'container_not_found' => 'That container does not exist (any more).',
         'finish_not_available_for_card' => 'The selected finish is not available for this card. Available: :available.',
     ],
 

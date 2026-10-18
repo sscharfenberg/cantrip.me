@@ -89,6 +89,7 @@ setBreadcrumbs(
         :table="table"
         :filter-options="filterOptions"
         :base-url="`/containers/${container.id}`"
+        :container-id="container.id"
         :container-name="container.name"
         :containers="containers ?? []"
         :is-owner="isOwner"

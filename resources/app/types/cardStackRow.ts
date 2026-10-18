@@ -8,6 +8,12 @@
 export interface StackClaim {
     deck_id: string;
     deck_name: string;
+    /**
+     * Whether the stack backs that deck's commander (or partner). Sent with
+     * the collection and container tables' claims, where the unclaim dialog
+     * warns before taking one out of the deck.
+     */
+    is_commander?: boolean;
 }
 
 /** Row shape for card stacks in the DataTable, as returned by ContainerController::show. */

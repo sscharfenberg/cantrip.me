@@ -1,5 +1,6 @@
 import { flushPromises, mount } from "@vue/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { installFetchMock } from "@/test/http.ts";
 import { routerMock, setPageProps } from "@/test/inertia.ts";
 import type { CollectionCardStackRow } from "Types/collectionCardStackRow.ts";
 import CollectionCardStacks from "../CollectionCardStacks.vue";
@@ -30,11 +31,11 @@ const row: CollectionCardStackRow = {
     container_id: "c1"
 };
 
-const render = () =>
+const render = (overrides: Partial<CollectionCardStackRow> = {}) =>
     mount(CollectionCardStacks, {
         props: {
             table: {
-                rows: [row],
+                rows: [{ ...row, ...overrides }],
                 total: 16,
                 page: 2,
                 pageSize: 25,
@@ -65,17 +66,59 @@ afterEach(() => history.replaceState(null, "", "/"));
 describe("CollectionCardStacks — coming back to the search", () => {
     it("opens the edit form with this page — search, filters, sort and page — to come back to", async () => {
         await clickAction(render(), "pages.edit_card.link");
+        await flushPromises();
 
         const url = new URL(routerMock.visit.mock.calls[0][0] as string, "http://x");
         expect(url.pathname).toBe("/collection/cardstack/s1/edit");
         expect(url.searchParams.get("return")).toBe(SEARCH);
     });
 
-    it("unclaims and comes back to this page", async () => {
-        await clickAction(render(), "pages.collection.claim_badge.unclaim");
+    it("saves −/+ clicks still waiting before it opens the edit form", async () => {
+        const http = installFetchMock().json("/api/collection/cardstack/s1/amount", { amount: 2 }, 200, "PATCH");
+        const wrapper = render({ claims: [] });
+        await wrapper.find(".dt-body__actions button").trigger("click");
+        await flushPromises();
+        await wrapper.findAll(".popover-list-multi button")[1].trigger("click");
 
-        const url = new URL(routerMock.delete.mock.calls[0][0] as string, "http://x");
-        expect(url.pathname).toBe("/collection/cardstack/s1/claims");
-        expect(url.searchParams.get("return")).toBe(SEARCH);
+        await clickAction(wrapper, "pages.edit_card.link");
+
+        expect(routerMock.visit).not.toHaveBeenCalled();
+        await flushPromises();
+        expect(http.calls).toHaveLength(1);
+        expect(routerMock.visit).toHaveBeenCalledOnce();
+
+        // Let the menu's counting finish, so the next test starts afresh.
+        wrapper.unmount();
+        await flushPromises();
+    });
+
+    it("offers no −/+ for a stack a deck claims — its amount is the deck's business", async () => {
+        const wrapper = render();
+
+        await wrapper.find(".dt-body__actions button").trigger("click");
+        await flushPromises();
+
+        expect(wrapper.find(".popover-list-multi").exists()).toBe(false);
+    });
+
+    it("asks for the delete confirmation when − would take the last card", async () => {
+        const wrapper = render({ claims: [] });
+
+        await wrapper.find(".dt-body__actions button").trigger("click");
+        await flushPromises();
+        await wrapper.find(".popover-list-multi button").trigger("click");
+
+        expect(wrapper.findComponent({ name: "DeleteCardStackModal" }).exists()).toBe(true);
+    });
+
+    it("asks where the stack should go before it unclaims", async () => {
+        const wrapper = render();
+
+        await clickAction(wrapper, "pages.collection.claim_badge.unclaim");
+
+        expect(routerMock.delete).not.toHaveBeenCalled();
+        const modal = wrapper.findComponent({ name: "UnclaimCardStackModal" });
+        expect(modal.props("currentContainerId")).toBe("c1");
+        expect(modal.props("currentContainerName")).toBe("Binder");
     });
 });

@@ -28,11 +28,11 @@ const row: CardStackRow = {
     claims: [{ deck_id: "d1", deck_name: "Burn" }]
 };
 
-const render = () =>
+const render = (overrides: Partial<CardStackRow> = {}) =>
     mount(ContainerCardStacks, {
         props: {
             table: {
-                rows: [row],
+                rows: [{ ...row, ...overrides }],
                 total: 51,
                 page: 3,
                 pageSize: 25,
@@ -42,6 +42,7 @@ const render = () =>
             },
             filterOptions: { languages: ["en"], conditions: [], finishes: [], rarities: [], types: [], sets: [] },
             baseUrl: "/containers/c1",
+            containerId: "c1",
             containerName: "Binder",
             containers: [{ id: "c1", name: "Binder" }],
             isOwner: true
@@ -67,17 +68,40 @@ afterEach(() => history.replaceState(null, "", "/"));
 describe("ContainerCardStacks — coming back to the container", () => {
     it("opens the edit form with this page — search, sort and page — to come back to", async () => {
         await clickAction(render(), "pages.edit_card.link");
+        await flushPromises();
 
         const url = new URL(routerMock.visit.mock.calls[0][0] as string, "http://x");
         expect(url.pathname).toBe("/collection/cardstack/s1/edit");
         expect(url.searchParams.get("return")).toBe(CONTAINER);
     });
 
-    it("unclaims and comes back to this page", async () => {
-        await clickAction(render(), "pages.collection.claim_badge.unclaim");
+    it("offers no −/+ for a stack a deck claims — its amount is the deck's business", async () => {
+        const wrapper = render();
 
-        const url = new URL(routerMock.delete.mock.calls[0][0] as string, "http://x");
-        expect(url.pathname).toBe("/collection/cardstack/s1/claims");
-        expect(url.searchParams.get("return")).toBe(CONTAINER);
+        await wrapper.find(".dt-body__actions button").trigger("click");
+        await flushPromises();
+
+        expect(wrapper.find(".popover-list-multi").exists()).toBe(false);
+    });
+
+    it("asks for the delete confirmation when − would take the last card", async () => {
+        const wrapper = render({ claims: [] });
+
+        await wrapper.find(".dt-body__actions button").trigger("click");
+        await flushPromises();
+        await wrapper.find(".popover-list-multi button").trigger("click");
+
+        expect(wrapper.findComponent({ name: "DeleteCardStackModal" }).exists()).toBe(true);
+    });
+
+    it("asks where the stack should go before it unclaims", async () => {
+        const wrapper = render();
+
+        await clickAction(wrapper, "pages.collection.claim_badge.unclaim");
+
+        expect(routerMock.delete).not.toHaveBeenCalled();
+        const modal = wrapper.findComponent({ name: "UnclaimCardStackModal" });
+        expect(modal.props("currentContainerId")).toBe("c1");
+        expect(modal.props("currentContainerName")).toBe("Binder");
     });
 });

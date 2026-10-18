@@ -2,7 +2,9 @@
 import { router } from "@inertiajs/vue3";
 import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
+import CardStackAmountButtons from "@/pages/Collection/common/CardStackAmountButtons.vue";
 import DeleteCardStackModal from "@/pages/Collection/common/DeleteCardStackModal.vue";
+import UnclaimCardStackModal from "@/pages/Collection/common/UnclaimCardStackModal.vue";
 import { withReturn } from "@/utils/returnPath.ts";
 import ProxyBadge from "Components/Card/Badges/ProxyBadge.vue";
 import CardImagePreview from "Components/Card/CardImagePreview.vue";
@@ -12,6 +14,7 @@ import CardStackFilters from "Components/Collection/CardStackFilters.vue";
 import DataTable from "Components/DataTable/DataTable.vue";
 import Icon from "Components/UI/Icon.vue";
 import Paragraph from "Components/UI/Paragraph.vue";
+import { settleAmountChanges } from "Composables/useCardStackAmount.ts";
 import { useFormatting } from "Composables/useFormatting";
 import type { CardStackFilterOptions } from "Types/cardStackFilters";
 import type { CollectionCardStackRow } from "Types/collectionCardStackRow";
@@ -108,19 +111,21 @@ const openDeleteModal = (row: CollectionCardStackRow) => {
     deleteTarget.value = row;
 };
 /**
- * Phase 2.7 — fire the collection-side unclaim endpoint. Detaches
- * every deck claim against `row` (atomic for the rare multi-claim
- * case). Server flashes a success message and redirects back here,
- * search, filters and page included.
- * Closes the row-actions popover first; an in-place `router.delete`
- * doesn't light-dismiss it the way a modal-opening or page-navigating
- * action would.
+ * The claimed stack whose unclaim dialog is open, or null. The dialog
+ * unclaims it from every deck and can move it to another container in
+ * the same step; the server then redirects back here, search, filters
+ * and page included.
  */
-const unclaim = (row: CollectionCardStackRow, close: () => void) => {
-    close();
-    router.delete(withReturn(`/collection/cardstack/${row.id}/claims`), {
-        preserveScroll: true
-    });
+const unclaimTarget = ref<CollectionCardStackRow | null>(null);
+/** Page props holding the page's sums, reloaded after each −/+ change is saved. */
+const AMOUNT_TOTALS = ["stats"];
+/**
+ * Open the edit form for `id` — once any −/+ clicks still waiting are
+ * saved, or the form would show the old amount and saving it undo them.
+ */
+const openEdit = async (id: string): Promise<void> => {
+    await settleAmountChanges();
+    router.visit(withReturn(`/collection/cardstack/${id}/edit`));
 };
 /** The card stack ID currently shown in the preview modal, or null when hidden. */
 const previewId = ref<string | null>(null);
@@ -205,27 +210,37 @@ const getTimeStamps = (created: string, updated?: string | null) => {
             <card-stack-claim-badge :claims="row.claims" />
         </template>
         <template #actions="{ row, close }">
+            <!-- A claimed stack backs a deck card: its amount is the deck's business. -->
+            <card-stack-amount-buttons
+                v-if="row.claims.length === 0"
+                :key="row.id"
+                :row="row"
+                :rows="table.rows"
+                :totals="AMOUNT_TOTALS"
+                @delete="
+                    close();
+                    openDeleteModal(row);
+                "
+            />
             <li>
-                <button
-                    type="button"
-                    class="popover-list-item"
-                    @click="router.visit(withReturn(`/collection/cardstack/${row.id}/edit`))"
-                >
+                <button type="button" class="popover-list-item" @click="openEdit(row.id)">
                     <icon name="edit" :size="1" /> {{ $t("pages.edit_card.link") }}
                 </button>
             </li>
             <li v-if="row.claims.length > 0">
                 <!--
-                    Phase 2.7 — collection-side unclaim. Detaches every
-                    deck claim against the stack in one shot (rare
-                    multi-claim case included). Only renders when the
-                    stack is actually claimed; matches the badge column
-                    above. `return` tells the controller to redirect
-                    back here on success. The popover doesn't
-                    light-dismiss for an in-place `router.delete`, so
-                    we explicitly `close()` first.
+                    Collection-side unclaim, in a dialog that can also
+                    move the freed stack. Only renders when the stack is
+                    actually claimed; matches the badge column above.
                 -->
-                <button type="button" class="popover-list-item" @click="unclaim(row, close)">
+                <button
+                    type="button"
+                    class="popover-list-item"
+                    @click="
+                        close();
+                        unclaimTarget = row;
+                    "
+                >
                     <icon name="delete" :size="1" />
                     {{ $t("pages.collection.claim_badge.unclaim") }}
                 </button>
@@ -255,6 +270,14 @@ const getTimeStamps = (created: string, updated?: string | null) => {
         :card-stack="deleteTarget"
         :container-name="deleteTarget.container_name ?? $t('pages.collection.unsorted')"
         @close="deleteTarget = null"
+    />
+    <unclaim-card-stack-modal
+        v-if="unclaimTarget"
+        :card-stack="unclaimTarget"
+        :containers="filterOptions.containers ?? []"
+        :current-container-id="unclaimTarget.container_id"
+        :current-container-name="unclaimTarget.container_name"
+        @close="unclaimTarget = null"
     />
 </template>
 

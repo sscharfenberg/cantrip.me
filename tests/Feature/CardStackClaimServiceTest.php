@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Enums\CardFormat;
+use App\Enums\DeckCardRole;
 use App\Enums\DeckState;
 use App\Enums\DeckZone;
 use App\Models\CardStack;
@@ -98,13 +99,14 @@ class CardStackClaimServiceTest extends TestCase
         ]);
     }
 
-    private function makeDeckCard(Deck $deck, OracleCard $oracle, DefaultCard $default, int $quantity = 1): DeckCard
+    private function makeDeckCard(Deck $deck, OracleCard $oracle, DefaultCard $default, int $quantity = 1, ?DeckCardRole $role = null): DeckCard
     {
         return DeckCard::create([
             'deck_id' => $deck->id,
             'oracle_card_id' => $oracle->id,
             'default_card_id' => $default->id,
-            'zone' => DeckZone::Main->value,
+            'zone' => $role === null ? DeckZone::Main->value : DeckZone::Command->value,
+            'role' => $role?->value,
             'quantity' => $quantity,
         ]);
     }
@@ -155,8 +157,45 @@ class CardStackClaimServiceTest extends TestCase
 
         $this->assertArrayHasKey($stack->id, $result);
         $this->assertSame([
-            ['deck_id' => $deck->id, 'deck_name' => 'Mono-Red Burn'],
+            ['deck_id' => $deck->id, 'deck_name' => 'Mono-Red Burn', 'is_commander' => false],
         ], $result[$stack->id]);
+    }
+
+    #[Test]
+    public function marks_a_claim_that_backs_the_decks_commander_or_partner(): void
+    {
+        $user = User::factory()->create();
+        $marked = [];
+        foreach ([DeckCardRole::Commander, DeckCardRole::Partner, DeckCardRole::SignatureSpell, null] as $role) {
+            $deck = $this->makeDeck($user, $role?->value ?? 'main');
+            $oracle = $this->makeOracleCard();
+            $default = $this->makeDefaultCard($oracle);
+            $deckCard = $this->makeDeckCard($deck, $oracle, $default, role: $role);
+            $stack = $this->makeCardStack($user, $default);
+            $deckCard->cardStacks()->attach($stack->id);
+            $marked[$role?->value ?? 'main'] = CardStackClaimService::bulkClaimsForStacks([$stack->id])[$stack->id][0]['is_commander'];
+        }
+
+        $this->assertSame(['commander' => true, 'partner' => true, 'signature_spell' => false, 'main' => false], $marked);
+    }
+
+    #[Test]
+    public function a_commander_among_split_siblings_marks_the_deck(): void
+    {
+        $user = User::factory()->create();
+        $deck = $this->makeDeck($user, 'Krenko');
+        $oracle = $this->makeOracleCard();
+        $default = $this->makeDefaultCard($oracle);
+        $main = $this->makeDeckCard($deck, $oracle, $default);
+        $commander = $this->makeDeckCard($deck, $oracle, $default, role: DeckCardRole::Commander);
+        $stack = $this->makeCardStack($user, $default);
+        $main->cardStacks()->attach($stack->id);
+        $commander->cardStacks()->attach($stack->id);
+
+        $claims = CardStackClaimService::bulkClaimsForStacks([$stack->id])[$stack->id];
+
+        $this->assertCount(1, $claims);
+        $this->assertTrue($claims[0]['is_commander']);
     }
 
     #[Test]

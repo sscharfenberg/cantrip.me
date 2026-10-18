@@ -7,6 +7,7 @@ import FormLegend from "Components/Form/FormLegend.vue";
 import Modal from "Components/Modal/Modal.vue";
 import Icon from "Components/UI/Icon.vue";
 import LoadingSpinner from "Components/UI/LoadingSpinner.vue";
+import { settleAmountChanges } from "Composables/useCardStackAmount.ts";
 import type { CardStackRow } from "Types/cardStackRow.ts";
 
 /** @emits close — Fired when the modal should be dismissed (cancellation or successful deletion). */
@@ -40,8 +41,10 @@ const description = computed(() => {
  * page the delete was made from, search, filters and page included, with
  * a flash message.
  */
-const onDelete = () => {
+const onDelete = async () => {
     processing.value = true;
+    // −/+ clicks still on their way would land on a deleted stack.
+    await settleAmountChanges();
     router.delete(withReturn(`/collection/cardstack/${props.cardStack.id}`), {
         onSuccess: () => {
             emit("close");

@@ -85,3 +85,23 @@
         }
     }
 }
+
+// Several icon buttons on one row of a popover list — the −/+ pair of the
+// deck page's card actions and the collection tables' row actions.
+.popover-list-multi {
+    display: flex;
+
+    gap: 0.5rem;
+
+    > button {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        &:disabled {
+            opacity: 0.35;
+
+            cursor: not-allowed;
+        }
+    }
+}

@@ -14,6 +14,7 @@ use App\Http\Requests\Collection\MassMoveCardStacksRequest;
 use App\Http\Requests\Collection\MoveSelectedCardStacksRequest;
 use App\Http\Requests\Collection\ShowAddCardStackRequest;
 use App\Http\Requests\Collection\UnclaimCardStackRequest;
+use App\Http\Requests\Collection\UpdateCardStackAmountRequest;
 use App\Http\Requests\Collection\UpdateCardStackRequest;
 use App\Models\CardStack;
 use App\Models\Container;
@@ -24,7 +25,9 @@ use App\Services\CardStackService;
 use App\Services\ContainerService;
 use App\Services\OracleNameSearch;
 use App\Traits\ReturnsToPage;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -237,6 +240,20 @@ class CardStackController extends Controller
     }
 
     /**
+     * Change a stack's amount by `delta` — the +/- buttons in the
+     * collection and container tables' row actions. Answers with the new
+     * amount; the table reloads itself. Taking the last card is a delete,
+     * with its confirmation, so the amount never drops below 1 here (see
+     * {@see CardStackService::changeAmount}).
+     */
+    public function updateAmount(UpdateCardStackAmountRequest $request, CardStack $cardStack): JsonResponse
+    {
+        return response()->json([
+            'amount' => CardStackService::changeAmount($cardStack, (int) $request->validated('delta')),
+        ]);
+    }
+
+    /**
      * Move multiple card stacks to a different container.
      *
      * A null/empty container_id moves the stacks to "unsorted" (no container).
@@ -366,6 +383,14 @@ class CardStackController extends Controller
      * `decks.collection_mode = 'C'` pin; clearing the pin remains the
      * deck-header modal's "Clear all collection assignments" action.
      *
+     * The tables' unclaim dialog can do two more things in the same
+     * transaction: move the stack (`move_to`, see
+     * {@see UnclaimCardStackRequest::moveTarget}) — a claimed stack is locked
+     * to its container, so freeing it is the moment to put it back in a
+     * binder — and take its copies out of the claiming decks too
+     * (`remove_from_decks`, see
+     * {@see CardStackClaimService::removeClaimedCopiesFromDecks}).
+     *
      * Redirects to the page the unclaim came from (`return`, see
      * {@see ReturnsToPage}) — a collection or container table, or the
      * edit form itself, which passes its own URL so its own `return`
@@ -374,15 +399,34 @@ class CardStackController extends Controller
     public function unclaim(UnclaimCardStackRequest $request, CardStack $cardStack): RedirectResponse
     {
         $cardName = $cardStack->defaultCard->name;
-        $count = CardStackClaimService::unclaimAll($cardStack);
+        $target = $request->moveTarget();
+        $moves = $target !== false && $target !== $cardStack->container_id;
+        $removeFromDecks = $request->boolean('remove_from_decks');
 
-        $request->session()->flash(
-            'message',
-            trans_choice('collection.cardstack_unclaimed', $count, [
-                'name' => $cardName,
-                'count' => $count,
-            ]),
-        );
+        [$count, $decksChanged] = DB::transaction(function () use ($cardStack, $target, $moves, $removeFromDecks): array {
+            // Counted first: a deck card the removal deletes takes its claim along.
+            $count = $cardStack->deckCards()->count();
+            $decksChanged = $removeFromDecks ? CardStackClaimService::removeClaimedCopiesFromDecks($cardStack) : 0;
+            CardStackClaimService::unclaimAll($cardStack);
+            if ($moves) {
+                $cardStack->update(['container_id' => $target]);
+            }
+
+            return [$count, $decksChanged];
+        });
+
+        $message = trans_choice('collection.cardstack_unclaimed', $count, ['name' => $cardName, 'count' => $count]);
+        if ($decksChanged > 0) {
+            $message .= ' '.trans_choice('collection.cardstack_removed_from_decks', $decksChanged, ['count' => $decksChanged]);
+        }
+        if ($moves) {
+            $message .= ' '.__('collection.cardstack_moved_to', [
+                'container' => $target === null
+                    ? __('collection.unsorted')
+                    : Container::query()->whereKey($target)->value('name'),
+            ]);
+        }
+        $request->session()->flash('message', $message);
         $request->session()->flash('type', 'success');
 
         return redirect($request->returnPath() ?? route('cardstack.edit', $cardStack->id));

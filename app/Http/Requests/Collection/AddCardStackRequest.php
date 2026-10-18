@@ -5,6 +5,7 @@ namespace App\Http\Requests\Collection;
 use App\Enums\CardCondition;
 use App\Enums\CardLanguage;
 use App\Enums\Finish;
+use App\Models\CardStack;
 use App\Models\Container;
 use App\Models\DefaultCard;
 use Illuminate\Contracts\Validation\Validator;
@@ -34,7 +35,7 @@ class AddCardStackRequest extends FormRequest
     {
         return [
             'default_card_id' => ['required', Rule::exists(DefaultCard::class, 'id')],
-            'amount' => ['required', 'integer', 'min:1', 'max:65535'],
+            'amount' => ['required', 'integer', 'min:1', 'max:'.CardStack::MAX_AMOUNT],
             'language' => ['required', Rule::enum(CardLanguage::class)],
             'container_id' => ['nullable', Rule::exists(Container::class, 'id')],
             'condition' => ['nullable', Rule::enum(CardCondition::class)],

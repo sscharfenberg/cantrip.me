@@ -2,9 +2,11 @@
 import { router } from "@inertiajs/vue3";
 import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
+import CardStackAmountButtons from "@/pages/Collection/common/CardStackAmountButtons.vue";
 import DeleteCardStackModal from "@/pages/Collection/common/DeleteCardStackModal.vue";
 import DeleteSelectedCardStacksModal from "@/pages/Collection/common/DeleteSelectedCardStacksModal.vue";
 import MoveSelectedCardStacksModal from "@/pages/Collection/common/MoveSelectedCardStacksModal.vue";
+import UnclaimCardStackModal from "@/pages/Collection/common/UnclaimCardStackModal.vue";
 import { withReturn } from "@/utils/returnPath.ts";
 import ProxyBadge from "Components/Card/Badges/ProxyBadge.vue";
 import CardImagePreview from "Components/Card/CardImagePreview.vue";
@@ -15,6 +17,7 @@ import DataTable from "Components/DataTable/DataTable.vue";
 import Icon from "Components/UI/Icon.vue";
 import Paragraph from "Components/UI/Paragraph.vue";
 import PopOver from "Components/UI/PopOver.vue";
+import { settleAmountChanges } from "Composables/useCardStackAmount.ts";
 import { useFormatting } from "Composables/useFormatting";
 import type { CardStackFilterOptions } from "Types/cardStackFilters";
 import type { CardStackRow } from "Types/cardStackRow";
@@ -24,6 +27,8 @@ const props = defineProps<{
     table: TableResponse<CardStackRow>;
     filterOptions: CardStackFilterOptions;
     baseUrl: string;
+    /** The container this table lists. */
+    containerId: string;
     containerName: string;
     containers: ContainerListItem[];
     isOwner: boolean;
@@ -135,18 +140,21 @@ const openDeleteSelectedModal = (selectedIds: string[]) => {
     deleteSelectedIds.value = [...selectedIds];
 };
 /**
- * Phase 2.7 — fire the collection-side unclaim endpoint. Detaches
- * every deck claim against `row` (atomic for the rare multi-claim
- * case). Server flashes a success message and redirects back to this
- * container, search, filters and page included. Closes the row-actions popover first; an in-place
- * `router.delete` doesn't light-dismiss it the way a modal-opening
- * or page-navigating action would.
+ * The claimed stack whose unclaim dialog is open, or null. The dialog
+ * unclaims it from every deck and can move it out of this container in
+ * the same step; the server then redirects back here, search, filters
+ * and page included.
  */
-const unclaim = (row: CardStackRow, close: () => void) => {
-    close();
-    router.delete(withReturn(`/collection/cardstack/${row.id}/claims`), {
-        preserveScroll: true
-    });
+const unclaimTarget = ref<CardStackRow | null>(null);
+/** Page props holding the container's sums, reloaded after each −/+ change is saved. */
+const AMOUNT_TOTALS = ["container"];
+/**
+ * Open the edit form for `id` — once any −/+ clicks still waiting are
+ * saved, or the form would show the old amount and saving it undo them.
+ */
+const openEdit = async (id: string): Promise<void> => {
+    await settleAmountChanges();
+    router.visit(withReturn(`/collection/cardstack/${id}/edit`));
 };
 /** The card stack ID currently shown in the preview modal, or null when hidden. */
 const previewId = ref<string | null>(null);
@@ -250,27 +258,41 @@ const getTimeStamps = (created: string, updated?: string | null) => {
             <card-stack-claim-badge :claims="row.claims" />
         </template>
         <template v-if="isOwner" #actions="{ row, close }">
+            <!-- A claimed stack backs a deck card: its amount is the deck's business. -->
+            <card-stack-amount-buttons
+                v-if="row.claims.length === 0"
+                :key="row.id"
+                :row="row"
+                :rows="table.rows"
+                :totals="AMOUNT_TOTALS"
+                @delete="
+                    close();
+                    openDeleteModal(row);
+                "
+            />
             <li>
-                <button
-                    type="button"
-                    class="popover-list-item"
-                    @click="router.visit(withReturn(`/collection/cardstack/${row.id}/edit`))"
-                >
+                <button type="button" class="popover-list-item" @click="openEdit(row.id)">
                     <icon name="edit" :size="1" /> {{ $t("pages.edit_card.link") }}
                 </button>
             </li>
             <li v-if="row.claims.length > 0">
                 <!--
-                    Phase 2.7 — collection-side unclaim, owner-only by
-                    virtue of the wrapping `v-if="isOwner"`. The
-                    `claims` array is itself owner-only on the
-                    container payload (controller strips it for
-                    non-owners), so `row.claims.length > 0` only
-                    evaluates true for owners. The popover doesn't
-                    light-dismiss for an in-place `router.delete`, so
-                    we explicitly `close()` first.
+                    Collection-side unclaim, in a dialog that can also
+                    move the freed stack — owner-only by virtue of the
+                    wrapping `v-if="isOwner"`. The `claims` array is
+                    itself owner-only on the container payload
+                    (controller strips it for non-owners), so
+                    `row.claims.length > 0` only evaluates true for
+                    owners.
                 -->
-                <button type="button" class="popover-list-item" @click="unclaim(row, close)">
+                <button
+                    type="button"
+                    class="popover-list-item"
+                    @click="
+                        close();
+                        unclaimTarget = row;
+                    "
+                >
                     <icon name="delete" :size="1" />
                     {{ $t("pages.collection.claim_badge.unclaim") }}
                 </button>
@@ -314,6 +336,14 @@ const getTimeStamps = (created: string, updated?: string | null) => {
             :selected-ids="deleteSelectedIds"
             :container-name="containerName"
             @close="deleteSelectedIds = null"
+        />
+        <unclaim-card-stack-modal
+            v-if="unclaimTarget"
+            :card-stack="unclaimTarget"
+            :containers="containers"
+            :current-container-id="containerId"
+            :current-container-name="containerName"
+            @close="unclaimTarget = null"
         />
     </template>
 </template>

@@ -8,6 +8,7 @@ use App\Models\Container;
 use App\Models\User;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class CardStackService
 {
@@ -127,6 +128,37 @@ class CardStackService
             'container_id' => $data['container_id'] ?? null,
             'proxy' => (bool) ($data['proxy'] ?? false),
         ]);
+    }
+
+    /**
+     * Change a stack's amount by `$delta` and return the new amount — the
+     * +/- buttons in the collection and container tables.
+     *
+     * The row is re-read under a lock and the bounds are checked there, so
+     * two overlapping requests add up instead of the later one overwriting
+     * the earlier, and cannot together take the stack to 0. Taking the
+     * last card is a delete, with its confirmation, so the result has to
+     * stay within 1…{@see CardStack::MAX_AMOUNT}.
+     *
+     * Ownership is checked at the controller boundary by
+     * {@see UpdateCardStackAmountRequest::authorize}.
+     *
+     * @throws ValidationException when the result would leave those bounds.
+     */
+    public static function changeAmount(CardStack $cardStack, int $delta): int
+    {
+        return DB::transaction(function () use ($cardStack, $delta): int {
+            $locked = CardStack::query()->whereKey($cardStack->id)->lockForUpdate()->firstOrFail();
+            $amount = $locked->amount + $delta;
+            if ($amount < 1 || $amount > CardStack::MAX_AMOUNT) {
+                throw ValidationException::withMessages([
+                    'delta' => __('collection.errors.amount_out_of_range', ['max' => CardStack::MAX_AMOUNT]),
+                ]);
+            }
+            $locked->update(['amount' => $amount]);
+
+            return $amount;
+        });
     }
 
     /**

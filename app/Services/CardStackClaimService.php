@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\DeckCardRole;
 use App\Models\CardStack;
 use Illuminate\Support\Facades\DB;
 
@@ -28,8 +29,12 @@ class CardStackClaimService
      * claimers. Stacks with no claims are absent from the result —
      * callers should default to an empty array per id.
      *
+     * `is_commander` says whether the stack backs that deck's commander
+     * (or partner) — the unclaim dialog warns before it would take one
+     * out of the deck.
+     *
      * @param  array<int, string>  $stackIds
-     * @return array<string, array<int, array{deck_id: string, deck_name: string}>>
+     * @return array<string, array<int, array{deck_id: string, deck_name: string, is_commander: bool}>>
      */
     public static function bulkClaimsForStacks(array $stackIds): array
     {
@@ -46,6 +51,7 @@ class CardStackClaimService
                 'deck_card_card_stack.card_stack_id',
                 'decks.id as deck_id',
                 'decks.name as deck_name',
+                'deck_cards.role',
             ]);
 
         $result = [];
@@ -53,21 +59,27 @@ class CardStackClaimService
             $stackId = $row->card_stack_id;
             $result[$stackId] ??= [];
 
+            $isCommander = in_array($row->role, [DeckCardRole::Commander->value, DeckCardRole::Partner->value], true);
+
             // Dedupe per-deck: if this stack is pivoted to multiple
             // deck_card rows in the same deck (split coverage), it
-            // still surfaces as one badge, not several copies.
-            $alreadySeen = false;
-            foreach ($result[$stackId] as $existing) {
+            // still surfaces as one badge, not several copies — a
+            // commander among them is enough to mark the deck.
+            $seen = null;
+            foreach ($result[$stackId] as $index => $existing) {
                 if ($existing['deck_id'] === $row->deck_id) {
-                    $alreadySeen = true;
+                    $seen = $index;
                     break;
                 }
             }
-            if (! $alreadySeen) {
+            if ($seen === null) {
                 $result[$stackId][] = [
                     'deck_id' => $row->deck_id,
                     'deck_name' => $row->deck_name,
+                    'is_commander' => $isCommander,
                 ];
+            } elseif ($isCommander) {
+                $result[$stackId][$seen]['is_commander'] = true;
             }
         }
 
@@ -97,5 +109,40 @@ class CardStackClaimService
         return DB::table('deck_card_card_stack')
             ->where('card_stack_id', $stack->id)
             ->delete();
+    }
+
+    /**
+     * Take the copies `$stack` backs out of the decks claiming it — the
+     * unclaim dialog's "remove from the deck list as well". Each claiming
+     * deck card loses as many copies as the stack holds, at most all of
+     * them; one left with none is deleted, its claim with it. Usually the
+     * stack was split to match its deck card, so the card leaves the deck;
+     * a deck card several stacks back keeps the other stacks' copies.
+     *
+     * Every affected deck's colours and hero image are brought up to date,
+     * as deleting a card on the deck page does. Call before
+     * {@see unclaimAll}, which then drops the claims still left.
+     *
+     * @return int The number of decks changed.
+     */
+    public static function removeClaimedCopiesFromDecks(CardStack $stack): int
+    {
+        $decks = [];
+        foreach ($stack->deckCards()->with('deck')->get() as $deckCard) {
+            $remaining = $deckCard->quantity - min($stack->amount, $deckCard->quantity);
+            if ($remaining > 0) {
+                $deckCard->update(['quantity' => $remaining]);
+            } else {
+                $deckCard->delete();
+            }
+            $decks[$deckCard->deck_id] = $deckCard->deck;
+        }
+
+        foreach ($decks as $deck) {
+            DeckCardService::recalculateColors($deck);
+            $deck->syncHeroImage();
+        }
+
+        return count($decks);
     }
 }
