@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Collection;
 
 use App\Models\CardStack;
+use App\Traits\ReturnsToPage;
 use Illuminate\Foundation\Http\FormRequest;
 
 /**
@@ -15,6 +16,8 @@ use Illuminate\Foundation\Http\FormRequest;
  */
 class DestroySelectedCardStacksRequest extends FormRequest
 {
+    use ReturnsToPage;
+
     public function authorize(): bool
     {
         /** @var array<int, string> $ids */

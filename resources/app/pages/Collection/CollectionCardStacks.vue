@@ -3,6 +3,7 @@ import { router } from "@inertiajs/vue3";
 import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import DeleteCardStackModal from "@/pages/Collection/common/DeleteCardStackModal.vue";
+import { withReturn } from "@/utils/returnPath.ts";
 import ProxyBadge from "Components/Card/Badges/ProxyBadge.vue";
 import CardImagePreview from "Components/Card/CardImagePreview.vue";
 import CardPreviewModal from "Components/Card/CardPreviewModal.vue";
@@ -109,14 +110,15 @@ const openDeleteModal = (row: CollectionCardStackRow) => {
 /**
  * Phase 2.7 — fire the collection-side unclaim endpoint. Detaches
  * every deck claim against `row` (atomic for the rare multi-claim
- * case). Server flashes a success message and redirects back here.
+ * case). Server flashes a success message and redirects back here,
+ * search, filters and page included.
  * Closes the row-actions popover first; an in-place `router.delete`
  * doesn't light-dismiss it the way a modal-opening or page-navigating
  * action would.
  */
 const unclaim = (row: CollectionCardStackRow, close: () => void) => {
     close();
-    router.delete(`/collection/cardstack/${row.id}/claims?from=collection`, {
+    router.delete(withReturn(`/collection/cardstack/${row.id}/claims`), {
         preserveScroll: true
     });
 };
@@ -207,7 +209,7 @@ const getTimeStamps = (created: string, updated?: string | null) => {
                 <button
                     type="button"
                     class="popover-list-item"
-                    @click="router.visit(`/collection/cardstack/${row.id}/edit`)"
+                    @click="router.visit(withReturn(`/collection/cardstack/${row.id}/edit`))"
                 >
                     <icon name="edit" :size="1" /> {{ $t("pages.edit_card.link") }}
                 </button>
@@ -218,8 +220,8 @@ const getTimeStamps = (created: string, updated?: string | null) => {
                     deck claim against the stack in one shot (rare
                     multi-claim case included). Only renders when the
                     stack is actually claimed; matches the badge column
-                    above. `?from=collection` tells the controller to
-                    redirect back here on success. The popover doesn't
+                    above. `return` tells the controller to redirect
+                    back here on success. The popover doesn't
                     light-dismiss for an in-place `router.delete`, so
                     we explicitly `close()` first.
                 -->

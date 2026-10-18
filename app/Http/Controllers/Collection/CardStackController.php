@@ -23,6 +23,7 @@ use App\Services\CardStackClaimService;
 use App\Services\CardStackService;
 use App\Services\ContainerService;
 use App\Services\OracleNameSearch;
+use App\Traits\ReturnsToPage;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
@@ -135,6 +136,10 @@ class CardStackController extends Controller
      * Re-uses the CardStackPage component with the existing card stack data
      * pre-populated. The card is locked (not changeable) — only amount,
      * language, condition, finish and container can be edited.
+     *
+     * `?return=` names the page the edit was opened from (a collection
+     * search, a container); the form sends it back with the save, see
+     * {@see update()}.
      */
     public function edit(EditCardStackRequest $request, CardStack $cardStack): Response
     {
@@ -151,6 +156,7 @@ class CardStackController extends Controller
         $defaultCard = $cardStack->defaultCard;
 
         return Inertia::render('Collection/CardStack/CardStackPage', [
+            'returnTo' => $request->returnPath(),
             'container' => $cardStack->container
                 ? ContainerService::serializeContainer($cardStack->container->load('defaultCard.set', 'defaultCard.artist'))
                 : null,
@@ -200,6 +206,10 @@ class CardStackController extends Controller
      * stack itself is enforced by {@see UpdateCardStackRequest::authorize};
      * ownership of the target container_id form field is verified
      * separately via {@see CardStackService::resolveOwnedContainer}.
+     *
+     * Redirects to the page the edit was opened from (`return`, see
+     * {@see ReturnsToPage}), else to the stack's container, else to the
+     * collection.
      */
     public function update(UpdateCardStackRequest $request, CardStack $cardStack): RedirectResponse
     {
@@ -216,6 +226,9 @@ class CardStackController extends Controller
         $request->session()->flash('message', __('collection.card_updated', ['name' => $cardName]));
         $request->session()->flash('type', 'success');
 
+        if ($returnPath = $request->returnPath()) {
+            return redirect($returnPath);
+        }
         if ($cardStack->container_id) {
             return redirect(route('container.show', $cardStack->container_id));
         }
@@ -311,8 +324,9 @@ class CardStackController extends Controller
      * Delete an existing card stack from the user's collection.
      *
      * Ownership is enforced by {@see DeleteCardStackRequest::authorize}.
-     * Redirects to the container page when the card stack belonged to one,
-     * otherwise to the containers list.
+     * Redirects to the page the delete came from (`return`, see
+     * {@see ReturnsToPage}), else to the container page when the card
+     * stack belonged to one, otherwise to the collection.
      */
     public function destroy(DeleteCardStackRequest $request, CardStack $cardStack): RedirectResponse
     {
@@ -324,6 +338,9 @@ class CardStackController extends Controller
         ]));
         $request->session()->flash('type', 'success');
 
+        if ($returnPath = $request->returnPath()) {
+            return redirect($returnPath);
+        }
         if ($meta['container_id']) {
             return redirect(route('container.show', $meta['container_id']));
         }
@@ -331,15 +348,6 @@ class CardStackController extends Controller
         return redirect(route('collection'));
     }
 
-    /**
-     * Delete multiple selected card stacks from the user's collection.
-     *
-     * Stack ownership is enforced by
-     * {@see DestroySelectedCardStacksRequest::authorize}; the service
-     * still 404's on missing IDs (existence concern). Redirects back to
-     * the container page when the stacks belonged to one, otherwise to
-     * the containers list.
-     */
     /**
      * Detach every deck claim against this stack (Phase 2.7).
      *
@@ -358,9 +366,10 @@ class CardStackController extends Controller
      * `decks.collection_mode = 'C'` pin; clearing the pin remains the
      * deck-header modal's "Clear all collection assignments" action.
      *
-     * Redirect target follows `?from=container|collection`, defaulting
-     * to the stack's edit page so the user lands somewhere coherent
-     * regardless of where the click originated.
+     * Redirects to the page the unclaim came from (`return`, see
+     * {@see ReturnsToPage}) — a collection or container table, or the
+     * edit form itself, which passes its own URL so its own `return`
+     * survives — and to the stack's edit page without one.
      */
     public function unclaim(UnclaimCardStackRequest $request, CardStack $cardStack): RedirectResponse
     {
@@ -376,15 +385,19 @@ class CardStackController extends Controller
         );
         $request->session()->flash('type', 'success');
 
-        return match ($request->query('from')) {
-            'container' => $cardStack->container_id
-                ? redirect(route('container.show', $cardStack->container_id))
-                : redirect(route('collection')),
-            'collection' => redirect(route('collection')),
-            default => redirect(route('cardstack.edit', $cardStack->id)),
-        };
+        return redirect($request->returnPath() ?? route('cardstack.edit', $cardStack->id));
     }
 
+    /**
+     * Delete multiple selected card stacks from the user's collection.
+     *
+     * Stack ownership is enforced by
+     * {@see DestroySelectedCardStacksRequest::authorize}; the service
+     * still 404's on missing IDs (existence concern). Redirects to the
+     * page the delete came from (`return`, see {@see ReturnsToPage}), else
+     * to the container page when the stacks belonged to one, otherwise to
+     * the collection.
+     */
     public function destroySelected(DestroySelectedCardStacksRequest $request): RedirectResponse
     {
         $request->validate([
@@ -403,6 +416,9 @@ class CardStackController extends Controller
         ]));
         $request->session()->flash('type', 'success');
 
+        if ($returnPath = $request->returnPath()) {
+            return redirect($returnPath);
+        }
         if ($meta['container_id']) {
             return redirect(route('container.show', $meta['container_id']));
         }

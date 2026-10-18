@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { router } from "@inertiajs/vue3";
 import { ref } from "vue";
+import { withReturn } from "@/utils/returnPath.ts";
 import FormLegend from "Components/Form/FormLegend.vue";
 import Modal from "Components/Modal/Modal.vue";
 import Icon from "Components/UI/Icon.vue";
@@ -15,11 +16,13 @@ const props = defineProps<{
 const processing = ref(false);
 /**
  * Sends a DELETE request via Inertia router to remove the selected card stacks.
- * On success the modal is closed — the controller redirects back with a flash message.
+ * On success the modal is closed — the controller redirects back to the page
+ * the delete was made from, search, filters and page included, with a flash
+ * message.
  */
 const onDelete = () => {
     processing.value = true;
-    router.delete("/collection/cardstack/delete-selected", {
+    router.delete(withReturn("/collection/cardstack/delete-selected"), {
         data: { card_stack_ids: props.selectedIds },
         onSuccess: () => {
             emit("close");

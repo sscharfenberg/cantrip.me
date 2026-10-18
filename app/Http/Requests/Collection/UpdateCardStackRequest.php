@@ -7,6 +7,7 @@ use App\Enums\CardLanguage;
 use App\Enums\Finish;
 use App\Models\CardStack;
 use App\Models\Container;
+use App\Traits\ReturnsToPage;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -19,6 +20,8 @@ use Illuminate\Validation\Rule;
  */
 class UpdateCardStackRequest extends FormRequest
 {
+    use ReturnsToPage;
+
     public function authorize(): bool
     {
         $cardStack = $this->route('cardStack');

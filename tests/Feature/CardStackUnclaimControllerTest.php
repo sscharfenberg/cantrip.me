@@ -27,7 +27,7 @@ use Tests\TestCase;
  *  - Multi-claim case: every pivot row is removed in one shot.
  *  - The deck's `collection_mode` is preserved on the affected
  *    deck — clearing the pin is a separate action (deck-header modal).
- *  - Redirect target follows the `?from=` query parameter.
+ *  - Redirects to the page in `?return=`, else to the stack's edit page.
  */
 class CardStackUnclaimControllerTest extends TestCase
 {
@@ -220,22 +220,37 @@ class CardStackUnclaimControllerTest extends TestCase
     }
 
     #[Test]
-    public function from_query_redirects_to_the_originating_surface(): void
+    public function it_redirects_to_the_page_it_was_sent_from(): void
     {
         $user = User::factory()->create();
+        $stack = $this->claimedStack($user);
+
+        $this->actingAs($user)
+            ->delete("/collection/cardstack/{$stack->id}/claims?return=".urlencode('/collection?search=test+card&page=2'))
+            ->assertRedirect('/collection?search=test+card&page=2');
+    }
+
+    #[Test]
+    public function without_a_page_to_return_to_it_redirects_to_the_edit_form(): void
+    {
+        $user = User::factory()->create();
+        $stack = $this->claimedStack($user);
+
+        $this->actingAs($user)
+            ->delete("/collection/cardstack/{$stack->id}/claims?return=".urlencode('//evil.example/collection'))
+            ->assertRedirect("/collection/cardstack/{$stack->id}/edit");
+    }
+
+    /** A stack of the user's, claimed by one of their decks. */
+    private function claimedStack(User $user): CardStack
+    {
         $deck = $this->makeDeck($user);
         $oracle = $this->makeOracleCard();
         $default = $this->makeDefaultCard($oracle);
         $deckCard = $this->makeDeckCard($deck, $oracle, $default);
-        // Stack lives in a container so the `?from=container`
-        // redirect can target the container show route. The
-        // `?from=collection` branch redirects to the collection root
-        // unconditionally.
         $stack = $this->makeCardStack($user, $default);
         $deckCard->cardStacks()->attach($stack->id);
 
-        $this->actingAs($user)
-            ->delete("/collection/cardstack/{$stack->id}/claims?from=collection")
-            ->assertRedirect('/collection');
+        return $stack;
     }
 }

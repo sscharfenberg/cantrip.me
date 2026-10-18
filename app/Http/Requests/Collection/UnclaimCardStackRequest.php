@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Collection;
 
 use App\Models\CardStack;
+use App\Traits\ReturnsToPage;
 use Illuminate\Foundation\Http\FormRequest;
 
 /**
@@ -14,6 +15,8 @@ use Illuminate\Foundation\Http\FormRequest;
  */
 class UnclaimCardStackRequest extends FormRequest
 {
+    use ReturnsToPage;
+
     public function authorize(): bool
     {
         $cardStack = $this->route('cardStack');

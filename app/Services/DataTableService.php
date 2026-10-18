@@ -63,9 +63,14 @@ class DataTableService
 
         $sortColumn = $sortColumnMap[$sortKey] ?? $sortKey;
 
-        $paginator = $query
-            ->orderBy($sortColumn, $sortDir)
-            ->paginate($pageSize);
+        $query->orderBy($sortColumn, $sortDir);
+        $paginator = $query->paginate($pageSize);
+        // A page past the end — the last row of the last page was just
+        // deleted and the user sent back to it, or an old bookmark — shows
+        // the last page that exists instead of an empty table.
+        if ($paginator->isEmpty() && $paginator->currentPage() > $paginator->lastPage()) {
+            $paginator = $query->paginate($pageSize, page: $paginator->lastPage());
+        }
 
         return [
             'rows' => $paginator->map($rowMapper)->values()->all(),

@@ -8,6 +8,7 @@ import CardStackLanguage from "@/pages/Collection/CardStack/CardStackLanguage.vu
 import CardStackSearch from "@/pages/Collection/CardStack/CardStackSearch.vue";
 import type { Container } from "@/types/container";
 import type { ContainerListItem } from "@/types/containerListItem";
+import { withReturn } from "@/utils/returnPath.ts";
 import CardStackClaimBadge from "Components/Collection/CardStackClaimBadge.vue";
 import ButtonGroup from "Components/Form/ButtonGroup.vue";
 import FormGroup from "Components/Form/FormGroup.vue";
@@ -67,6 +68,12 @@ const props = defineProps<{
      * (the picker is rendered in both modes but only the search uses it).
      */
     sets?: SetRow[];
+    /**
+     * Edit mode: the page the edit was opened from (a collection search,
+     * a container), which the save redirects back to. Null when the edit
+     * was opened directly — the save then goes to the stack's container.
+     */
+    returnTo?: string | null;
 }>();
 
 const isEditMode = !!props.cardStack;
@@ -347,14 +354,15 @@ function onCardCleared() {
  * collection-side unclaim from the edit form. Detaches
  * every deck claim against this stack atomically (multi-claim case
  * included). Spins the button while the request is in-flight; the
- * controller redirects back to this same edit page on success and the
+ * controller redirects back to this same edit page on success — its own
+ * URL as `return`, so the page it was opened from survives — and the
  * claim form-group disappears via its `claims.length > 0` gate.
  */
 const processingUnclaim = ref(false);
 const unclaim = () => {
     if (!props.cardStack) return;
     processingUnclaim.value = true;
-    router.delete(`/collection/cardstack/${props.cardStack.id}/claims`, {
+    router.delete(withReturn(`/collection/cardstack/${props.cardStack.id}/claims`), {
         preserveScroll: true,
         onFinish: () => {
             processingUnclaim.value = false;
@@ -388,6 +396,8 @@ const unclaim = () => {
         @success="isEditMode ? undefined : onAddMoreSuccess()"
         #default="{ validate, processing, validating, errors, valid }"
     >
+        <!-- Where the save sends the user: the page the edit was opened from. -->
+        <input v-if="isEditMode && returnTo" type="hidden" name="return" :value="returnTo" />
         <card-stack-defaults
             v-if="!isEditMode"
             :amount="amount"

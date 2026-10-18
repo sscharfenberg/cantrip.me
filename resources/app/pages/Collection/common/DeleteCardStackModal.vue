@@ -2,6 +2,7 @@
 import { router } from "@inertiajs/vue3";
 import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
+import { withReturn } from "@/utils/returnPath.ts";
 import FormLegend from "Components/Form/FormLegend.vue";
 import Modal from "Components/Modal/Modal.vue";
 import Icon from "Components/UI/Icon.vue";
@@ -36,11 +37,12 @@ const description = computed(() => {
 /**
  * Sends a DELETE request via Inertia router to remove the card stack.
  * On success the modal is closed — the controller redirects back to the
- * container or collection page with a flash message.
+ * page the delete was made from, search, filters and page included, with
+ * a flash message.
  */
 const onDelete = () => {
     processing.value = true;
-    router.delete(`/collection/cardstack/${props.cardStack.id}`, {
+    router.delete(withReturn(`/collection/cardstack/${props.cardStack.id}`), {
         onSuccess: () => {
             emit("close");
         },
