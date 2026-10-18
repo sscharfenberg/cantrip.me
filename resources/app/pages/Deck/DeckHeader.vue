@@ -132,6 +132,7 @@ const { formatPrice } = useFormatting();
                 :has-unclaimed-cards="hasUnclaimedCards"
                 :unavailable-cards="unavailableCards"
                 :containers="isOwner ? containers : undefined"
+                status-in-badges
             />
         </header>
         <div class="deck-meta__badges">
@@ -145,7 +146,7 @@ const { formatPrice } = useFormatting();
             >
                 <icon name="swords" :size="1" />{{ deck.bracket }}
             </badge>
-            <deck-state :state="deck.state" :explain="explainState" />
+            <deck-state :state="deck.state" :explain="explainState" :deck-id="isOwner ? deck.id : undefined" />
             <deck-card-count :count="deck.card_count" />
             <badge type="info" v-tooltip="$t('pages.deck.total_worth')">
                 <icon name="money" :size="1" />{{ formatPrice(deck.total_worth) }}
@@ -157,7 +158,10 @@ const { formatPrice } = useFormatting();
                 :can-edit="isOwner"
             />
             <collection-mode-badge v-if="showCollectionModeBadge" :deck-id="deck.id" :mode="collectionBadgeMode" />
-            <visibility-badge :visibility="deck.visibility" />
+            <visibility-badge
+                :visibility="deck.visibility"
+                :endpoint="isOwner && !isArchived ? `/decks/${deck.id}/visibility` : undefined"
+            />
         </div>
         <paragraph v-if="deck.description">{{ deck.description }}</paragraph>
         <deck-legality-panel v-if="violations.length > 0" :violations="violations" :cards="cards" />

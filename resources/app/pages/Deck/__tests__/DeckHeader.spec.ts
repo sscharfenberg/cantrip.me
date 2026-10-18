@@ -100,3 +100,33 @@ describe("DeckHeader — the state badge legend", () => {
         expect(explainsOn(render("planned", { collectionModeContext: { master_switch_enabled: false } }))).toBe(false);
     });
 });
+
+describe("DeckHeader — the state and visibility badges change them", () => {
+    const stateBadge = (wrapper: ReturnType<typeof render>) => wrapper.findComponent({ name: "DeckState" });
+    const visibilityBadge = (wrapper: ReturnType<typeof render>) => wrapper.findComponent({ name: "VisibilityBadge" });
+
+    it("lets the owner change the state from its badge, and moves it out of the actions menu", () => {
+        const wrapper = render("built");
+
+        expect(stateBadge(wrapper).props("deckId")).toBe("deck-1");
+        expect(wrapper.findComponent({ name: "DeckActionsMenu" }).props("statusInBadges")).toBe(true);
+    });
+
+    it("lets the owner change the visibility from its badge", () => {
+        expect(visibilityBadge(render("built")).props("endpoint")).toBe("/decks/deck-1/visibility");
+    });
+
+    it("keeps an archived deck's visibility as it is, as the menu did", () => {
+        const wrapper = render("archived");
+
+        expect(visibilityBadge(wrapper).props("endpoint")).toBeUndefined();
+        expect(stateBadge(wrapper).props("deckId")).toBe("deck-1");
+    });
+
+    it("gives a visitor plain badges", () => {
+        const wrapper = render("built", { isOwner: false, collectionModeContext: null });
+
+        expect(stateBadge(wrapper).props("deckId")).toBeUndefined();
+        expect(visibilityBadge(wrapper).props("endpoint")).toBeUndefined();
+    });
+});

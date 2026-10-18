@@ -69,7 +69,13 @@
             color: map.get(c.$components, "popover", "item-surface-hover");
         }
 
-        &--selected {
+        // A picker's current choice: marked, and not a choice to make again.
+        &:disabled {
+            cursor: default;
+        }
+
+        &--selected,
+        &--selected:disabled:hover {
             background-color: map.get(c.$components, "popover", "item-background-selected");
             color: map.get(c.$components, "popover", "item-surface-selected");
         }

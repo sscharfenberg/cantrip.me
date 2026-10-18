@@ -97,8 +97,15 @@ const props = withDefaults(
          * missing" — none of which wants a menu item.
          */
         unavailableCards?: UnavailableCard[];
+        /**
+         * True on the deck page, where the state and visibility badges in
+         * the deck header are the controls that change them — so the menu
+         * leaves those entries out. The deck-list rows have no such
+         * badges and keep the entries.
+         */
+        statusInBadges?: boolean;
     }>(),
-    { isOwner: true, isArchived: false, hasUnclaimedCards: false }
+    { isOwner: true, isArchived: false, hasUnclaimedCards: false, statusInBadges: false }
 );
 const { t } = useI18n();
 const popoverId = useId();
@@ -119,7 +126,9 @@ const showGroupActions = computed(
  * Divider visibility = "previous group visible AND any following group visible";
  * since G4 always shows, the trailing-half always evaluates true for d1/d2/d3.
  */
-const showGroup1 = computed(() => props.isOwner);
+/** Whether the state and visibility entries belong in this menu — see `statusInBadges`. */
+const showStatusEntries = computed(() => props.isOwner && !props.statusInBadges);
+const showGroup1 = computed(() => props.isOwner && (!props.isArchived || showStatusEntries.value));
 const showGroup2 = computed(() => props.isOwner && !props.isArchived && showGroupActions.value);
 const showGroup3 = computed(
     () =>
@@ -255,7 +264,7 @@ function onDeleteClick(): void {
                     {{ $t("pages.create_deck.edit_link") }}
                 </button>
             </li>
-            <li v-if="isOwner && !isArchived">
+            <li v-if="showStatusEntries && !isArchived">
                 <button class="popover-list-item" @click.prevent="onToggleVisibility">
                     <icon :name="deck.visibility === 'private' ? 'visibility-on' : 'visibility-off'" :size="1" />
                     {{
@@ -267,19 +276,19 @@ function onDeleteClick(): void {
                     }}
                 </button>
             </li>
-            <li v-if="isOwner && deck.state !== 'planned'">
+            <li v-if="showStatusEntries && deck.state !== 'planned'">
                 <button class="popover-list-item" @click.prevent="onSetState('planned')">
                     <icon name="planned" :size="1" />
                     {{ $t("pages.decks.actions.set_planned") }}
                 </button>
             </li>
-            <li v-if="isOwner && deck.state !== 'built'">
+            <li v-if="showStatusEntries && deck.state !== 'built'">
                 <button class="popover-list-item" @click.prevent="onSetState('built')">
                     <icon name="finished" :size="1" />
                     {{ $t("pages.decks.actions.set_built") }}
                 </button>
             </li>
-            <li v-if="isOwner && deck.state !== 'archived'">
+            <li v-if="showStatusEntries && deck.state !== 'archived'">
                 <button class="popover-list-item" @click.prevent="onSetState('archived')">
                     <icon name="archived" :size="1" />
                     {{ $t("pages.decks.actions.set_archived") }}

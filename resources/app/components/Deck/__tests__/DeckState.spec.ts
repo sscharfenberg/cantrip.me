@@ -1,6 +1,9 @@
 import { mount } from "@vue/test-utils";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import { routerMock } from "@/test/inertia.ts";
 import DeckState from "../DeckState.vue";
+
+vi.mock("@inertiajs/vue3", async () => (await import("@/test/inertia.ts")).inertiaModuleMock());
 
 const render = (state: string, explain = false) => mount(DeckState, { props: { state, explain } });
 
@@ -69,5 +72,61 @@ describe("DeckState — badge legend", () => {
         const tooltip = render("planned", true).attributes("data-tooltip") ?? "";
 
         expect(tooltip.split("<br />")[0]).toBe("pages.deck.state_is enums.deck_state.planned");
+    });
+});
+
+describe("DeckState — changing the state", () => {
+    const picker = (state: string) => mount(DeckState, { props: { state, deckId: "d1" } });
+    const entries = (wrapper: ReturnType<typeof picker>) => wrapper.findAll(".popover-list-item");
+
+    it("is a plain badge without a deck to change", () => {
+        const wrapper = render("built");
+
+        expect(wrapper.find("button").exists()).toBe(false);
+        expect(wrapper.find("[popover]").exists()).toBe(false);
+    });
+
+    it("opens a menu of every state, each with its icon", () => {
+        const wrapper = picker("built");
+
+        expect(wrapper.find("button.deck-state").attributes("popovertarget")).toBe(
+            wrapper.find("[popover]").attributes("id")
+        );
+        expect(entries(wrapper).map(entry => entry.text())).toEqual([
+            "enums.deck_state.planned",
+            "enums.deck_state.built",
+            "enums.deck_state.archived"
+        ]);
+        expect(entries(wrapper).map(entry => entry.find("use").attributes("href"))).toEqual([
+            "#planned",
+            "#finished",
+            "#archived"
+        ]);
+    });
+
+    it("checks the current state and does not offer it", () => {
+        const current = entries(picker("built"))[1];
+
+        expect(current.attributes("disabled")).toBeDefined();
+        expect(current.attributes("aria-current")).toBe("true");
+        expect(current.classes()).toContain("popover-list-item--selected");
+        expect(current.findAll("use").map(use => use.attributes("href"))).toEqual(["#finished", "#check"]);
+    });
+
+    it("marks only the current state", () => {
+        const wrapper = picker("planned");
+
+        expect(entries(wrapper).map(entry => entry.attributes("disabled") !== undefined)).toEqual([true, false, false]);
+        expect(wrapper.findAll('use[href="#check"]')).toHaveLength(1);
+    });
+
+    it("sets another state", async () => {
+        await entries(picker("built"))[2].trigger("click");
+
+        expect(routerMock.patch).toHaveBeenCalledWith(
+            "/decks/d1/state",
+            { state: "archived" },
+            expect.objectContaining({ preserveScroll: true })
+        );
     });
 });

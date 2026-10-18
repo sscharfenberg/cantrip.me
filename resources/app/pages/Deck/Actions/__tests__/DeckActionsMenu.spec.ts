@@ -266,6 +266,21 @@ describe("DeckActionsMenu — navigation", () => {
     });
 });
 
+describe("DeckActionsMenu — on the deck page, where the badges change state and visibility", () => {
+    it("leaves the state and visibility entries to the badges", () => {
+        const labels = entries(render({ ...fullyEquipped, statusInBadges: true }));
+
+        for (const entry of [
+            "pages.decks.actions.set_planned",
+            "pages.decks.actions.set_archived",
+            "pages.decks.actions.set_public"
+        ]) {
+            expect(labels).not.toContain(entry);
+        }
+        expect(labels).toContain("pages.create_deck.edit_link");
+    });
+});
+
 describe("DeckActionsMenu — state and visibility changes", () => {
     it.each(["planned", "built", "archived"])("PATCHes the %s state", async state => {
         const wrapper = render({ ...fullyEquipped, deck: deck({ state: "planned" === state ? "built" : "planned" }) });
