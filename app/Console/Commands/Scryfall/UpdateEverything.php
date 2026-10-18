@@ -428,6 +428,9 @@ class UpdateEverything extends Command
         $this->pushSummary('Images downloaded — art crops', 'skipped (already cached)', $this->fmtCount(ScryfallRunStats::$artCropsSkipped));
         $this->pushSummary('Images downloaded — art crops', 'failed', $this->fmtCount(ScryfallRunStats::$artCropsFailed));
         $this->pushSummary('Images downloaded — art crops', 'stale files left undeleted', $this->fmtCount(ScryfallRunStats::$staleFilesUndeletable));
+        $this->pushSummary('WebP backfill', 'JPEGs replaced', $this->fmtCount(ScryfallRunStats::$webpUpgraded));
+        $this->pushSummary('WebP backfill', 'failed', $this->fmtCount(ScryfallRunStats::$webpFailed));
+        $this->pushSummary('WebP backfill', 'status', ScryfallRunStats::$webpBackfillComplete ? 'complete — no JPEGs left' : 'continues next run');
 
         // Image path resolution.
         $artLocal = (int) DB::table('default_cards')->whereNotNull('art_crop')->where('art_crop', 'not like', 'https://%')->count();

@@ -59,13 +59,12 @@ class ImageOrphanScanner
         $orphanCount = 0;
         $orphanBytes = 0;
         $files = Storage::disk($disk)->allFiles();
+        $imageService = new ScryfallImageService;
 
         foreach ($files as $file) {
-            $basename = basename($file);
-            // Filename: <uuid>(--<timestamp>)?(--<faceIndex>)?.jpg
-            // UUID is everything before the first "--" or ".jpg".
-            $uuid = preg_replace('/(--.*)$|\.jpg$/', '', $basename);
-            if ($uuid === null || $uuid === '' || isset($validIds[$uuid])) {
+            // Filename: <uuid>(--<timestamp>)?(--<faceIndex>)?.<ext>
+            $uuid = $imageService->uuidFromFilename(basename($file));
+            if ($uuid === '' || isset($validIds[$uuid])) {
                 continue;
             }
             $orphanCount++;

@@ -46,6 +46,20 @@ class ScryfallApiClientTest extends TestCase
         })->client();
     }
 
+    /**
+     * Scryfall enforces a User-Agent of the form `AppName/1.0.0` since
+     * 2026-10. The version comes from package.json without the "v" that
+     * `app.version` carries.
+     */
+    #[Test]
+    public function it_identifies_itself_as_name_slash_version(): void
+    {
+        $this->assertMatchesRegularExpression(
+            '~^cantrip\.me/\d+\.\d+\.\d+ \(\+https?://\S+; \S+\)$~',
+            $this->client()->getOptions()['headers']['User-Agent']
+        );
+    }
+
     #[Test]
     public function it_waits_longer_than_the_http_clients_default_for_a_response(): void
     {

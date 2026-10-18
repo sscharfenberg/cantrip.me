@@ -41,6 +41,15 @@ class ScryfallRunStats
      */
     public static int $staleFilesUndeletable = 0;
 
+    /** Cached JPEGs replaced by their WebP in this run's backfill. */
+    public static int $webpUpgraded = 0;
+
+    /** WebP downloads of the backfill that failed. */
+    public static int $webpFailed = 0;
+
+    /** True when the backfill looked at every row and found no JPEG left to replace. */
+    public static bool $webpBackfillComplete = false;
+
     public static function reset(): void
     {
         self::$relationsRetargeted = 0;
@@ -53,5 +62,8 @@ class ScryfallRunStats
         self::$artCropsSkipped = 0;
         self::$artCropsFailed = 0;
         self::$staleFilesUndeletable = 0;
+        self::$webpUpgraded = 0;
+        self::$webpFailed = 0;
+        self::$webpBackfillComplete = false;
     }
 }

@@ -182,6 +182,165 @@ class ImageDownloadServiceTest extends TestCase
     }
 
     /**
+     * The WebP switch must not re-download the library: Scryfall's WebP URL
+     * carries the same timestamp as the JPEG we cached, so the JPEG is the
+     * same image and stays. A genuinely new image arrives as WebP.
+     */
+    #[Test]
+    public function a_cached_jpeg_of_the_same_image_counts_as_current_when_scryfall_serves_webp(): void
+    {
+        $set = $this->makeSet();
+        $cached = $this->makeDefaultCard('Cached Before The Switch', $set, [
+            'card_image_0' => 'https://img.test/display/cached-0.webp?222',
+            'art_crop' => 'https://img.test/art/cached.webp?222',
+        ]);
+        Storage::disk('card-images')->put("{$set->code}/{$cached->id}--222--0.jpg", 'jpeg');
+        Storage::disk('art-crops')->put("{$set->code}/{$cached->id}--222.jpg", 'jpeg');
+        $new = $this->makeDefaultCard('New Card', $set, [
+            'card_image_0' => 'https://img.test/display/new-0.webp?333',
+            'art_crop' => 'https://img.test/art/new.webp?333',
+        ]);
+        Http::fake(['*' => Http::response('webp-bytes', 200)]);
+
+        $service = new ImageDownloadService;
+        $service->downloadCardImages();
+        $service->downloadArtCrops();
+
+        $this->assertSame(1, ScryfallRunStats::$cardImagesSkipped);
+        $this->assertSame(1, ScryfallRunStats::$artCropsSkipped);
+        Http::assertSentCount(2);
+        Storage::disk('card-images')->assertExists("{$set->code}/{$cached->id}--222--0.jpg");
+        Storage::disk('card-images')->assertExists("{$set->code}/{$new->id}--333--0.webp");
+        Storage::disk('art-crops')->assertExists("{$set->code}/{$new->id}--333.webp");
+    }
+
+    #[Test]
+    public function a_changed_image_replaces_the_cached_jpeg_with_the_new_webp(): void
+    {
+        $set = $this->makeSet();
+        $card = $this->makeDefaultCard('Rescanned', $set, [
+            'card_image_0' => 'https://img.test/display/rescanned-0.webp?999',
+            'art_crop' => 'https://img.test/art/rescanned.webp?999',
+        ]);
+        Storage::disk('card-images')->put("{$set->code}/{$card->id}--111--0.jpg", 'old');
+        Storage::disk('card-images')->put("{$set->code}/{$card->id}--111--1.jpg", 'other face');
+        Storage::disk('art-crops')->put("{$set->code}/{$card->id}--111.jpg", 'old');
+        Http::fake(['*' => Http::response('webp-bytes', 200)]);
+
+        $service = new ImageDownloadService;
+        $service->downloadCardImages();
+        $service->downloadArtCrops();
+
+        Storage::disk('card-images')->assertExists("{$set->code}/{$card->id}--999--0.webp");
+        Storage::disk('card-images')->assertMissing("{$set->code}/{$card->id}--111--0.jpg");
+        Storage::disk('card-images')->assertExists("{$set->code}/{$card->id}--111--1.jpg");
+        Storage::disk('art-crops')->assertExists("{$set->code}/{$card->id}--999.webp");
+        Storage::disk('art-crops')->assertMissing("{$set->code}/{$card->id}--111.jpg");
+    }
+
+    #[Test]
+    public function the_backfill_replaces_cached_jpegs_with_their_webp(): void
+    {
+        $set = $this->makeSet();
+        $card = $this->makeDefaultCard('Double Faced', $set, [
+            'card_image_0' => 'https://img.test/display/double-0.webp?222',
+            'card_image_1' => 'https://img.test/display/double-1.webp?222',
+            'art_crop' => 'https://img.test/art/double.webp?222',
+        ]);
+        foreach (['card-images' => ['--222--0', '--222--1'], 'art-crops' => ['--222']] as $disk => $suffixes) {
+            foreach ($suffixes as $suffix) {
+                Storage::disk($disk)->put("{$set->code}/{$card->id}{$suffix}.jpg", 'jpeg');
+            }
+        }
+        Http::fake(['*' => Http::response('webp-bytes', 200)]);
+
+        (new ImageDownloadService)->upgradeToWebp('live', 100);
+
+        $this->assertSame(3, ScryfallRunStats::$webpUpgraded);
+        $this->assertTrue(ScryfallRunStats::$webpBackfillComplete);
+        foreach (['card-images' => ['--222--0', '--222--1'], 'art-crops' => ['--222']] as $disk => $suffixes) {
+            foreach ($suffixes as $suffix) {
+                Storage::disk($disk)->assertMissing("{$set->code}/{$card->id}{$suffix}.jpg");
+                $this->assertSame('webp-bytes', Storage::disk($disk)->get("{$set->code}/{$card->id}{$suffix}.webp"));
+            }
+        }
+    }
+
+    #[Test]
+    public function the_backfill_stops_at_its_limit_and_says_it_is_not_done(): void
+    {
+        $set = $this->makeSet();
+        foreach (range(1, 5) as $n) {
+            $card = $this->makeDefaultCard("Crop $n", $set, ['art_crop' => "https://img.test/art/crop-$n.webp?222"]);
+            Storage::disk('art-crops')->put("{$set->code}/{$card->id}--222.jpg", 'jpeg');
+        }
+        Http::fake(['*' => Http::response('webp-bytes', 200)]);
+
+        (new ImageDownloadService)->upgradeToWebp('live', 3);
+
+        Http::assertSentCount(3);
+        $this->assertSame(3, ScryfallRunStats::$webpUpgraded);
+        $this->assertFalse(ScryfallRunStats::$webpBackfillComplete);
+        $this->assertCount(2, array_filter(Storage::disk('art-crops')->files($set->code), fn ($f) => str_ends_with($f, '.jpg')));
+    }
+
+    #[Test]
+    public function the_backfill_counts_a_failed_download_against_its_limit_and_keeps_the_jpeg(): void
+    {
+        $set = $this->makeSet();
+        $card = $this->makeDefaultCard('Unreachable', $set, ['art_crop' => 'https://img.test/art/unreachable.webp?222']);
+        Storage::disk('art-crops')->put("{$set->code}/{$card->id}--222.jpg", 'jpeg');
+        $other = $this->makeDefaultCard('Also Unreachable', $set, ['art_crop' => 'https://img.test/art/other.webp?222']);
+        Storage::disk('art-crops')->put("{$set->code}/{$other->id}--222.jpg", 'jpeg');
+        Http::fake(['*' => Http::response('', 503)]);
+
+        (new ImageDownloadService)->upgradeToWebp('live', 1);
+
+        // A failing Scryfall must not turn into one request per cached JPEG.
+        Http::assertSentCount(1);
+        $this->assertSame(1, ScryfallRunStats::$webpFailed);
+        $this->assertFalse(ScryfallRunStats::$webpBackfillComplete);
+        Storage::disk('art-crops')->assertExists("{$set->code}/{$card->id}--222.jpg");
+        Storage::disk('art-crops')->assertMissing("{$set->code}/{$card->id}--222.webp");
+    }
+
+    #[Test]
+    public function the_backfill_leaves_alone_what_it_cannot_or_need_not_upgrade(): void
+    {
+        $set = $this->makeSet();
+        // Already WebP.
+        $webp = $this->makeDefaultCard('Already WebP', $set, ['art_crop' => 'https://img.test/art/webp.webp?222']);
+        Storage::disk('art-crops')->put("{$set->code}/{$webp->id}--222.webp", 'webp');
+        // Not cached at all — the download pass's job, not the backfill's.
+        $this->makeDefaultCard('Not Cached', $set, ['art_crop' => 'https://img.test/art/missing.webp?222']);
+        // Scryfall still serves this one as JPEG only.
+        $jpegOnly = $this->makeDefaultCard('JPEG Only', $set, ['art_crop' => 'https://img.test/art_crop/old.jpg?222']);
+        Storage::disk('art-crops')->put("{$set->code}/{$jpegOnly->id}--222.jpg", 'jpeg');
+        Http::fake(['*' => Http::response('webp-bytes', 200)]);
+
+        (new ImageDownloadService)->upgradeToWebp('live', 100);
+
+        Http::assertNothingSent();
+        $this->assertSame(0, ScryfallRunStats::$webpUpgraded);
+        $this->assertTrue(ScryfallRunStats::$webpBackfillComplete);
+        Storage::disk('art-crops')->assertExists("{$set->code}/{$jpegOnly->id}--222.jpg");
+    }
+
+    #[Test]
+    public function a_backfill_limit_of_zero_does_nothing(): void
+    {
+        $set = $this->makeSet();
+        $card = $this->makeDefaultCard('Crop', $set, ['art_crop' => 'https://img.test/art/crop.webp?222']);
+        Storage::disk('art-crops')->put("{$set->code}/{$card->id}--222.jpg", 'jpeg');
+        Http::fake();
+
+        (new ImageDownloadService)->upgradeToWebp('live', 0);
+
+        Http::assertNothingSent();
+        Storage::disk('art-crops')->assertExists("{$set->code}/{$card->id}--222.jpg");
+    }
+
+    /**
      * Strip write permission from a directory so unlink() inside it fails.
      *
      * Skips the test when the permission bits have no effect — running as

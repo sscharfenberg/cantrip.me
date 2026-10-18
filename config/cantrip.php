@@ -30,10 +30,10 @@ return [
     */
     'scryfall' => [
         'header' => [
-            'User-Agent' => 'cantrip.me - MtG collection manager'
-                .' v'.config('app.version')
-                .config('app.url')
-                .' <'.config('app.contact').'>',
+            // Scryfall enforces a User-Agent naming the app as `Name/version`
+            // (blog post of 2026-10-14); the comment adds where to reach us.
+            'User-Agent' => 'cantrip.me/'.ltrim(config('app.version'), 'v')
+                .' (+'.config('app.url').'; '.config('app.contact').')',
             'Accept' => 'application/json',
         ],
     ],

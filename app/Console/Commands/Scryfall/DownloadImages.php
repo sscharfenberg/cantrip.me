@@ -14,7 +14,9 @@ class DownloadImages extends Command
      *
      * @var string
      */
-    protected $signature = 'scryfall:images {--target=live : Source table — `live` (default, reads default_cards / sets) or `shadow` (reads the __shadow siblings built by the orchestrator)}';
+    protected $signature = 'scryfall:images
+        {--target=live : Source table — `live` (default, reads default_cards / sets) or `shadow` (reads the __shadow siblings built by the orchestrator)}
+        {--webp-backfill=10000 : Most cached JPEGs to replace with their WebP in this run; 0 disables. Only finds work on `shadow`, where rows still carry Scryfall URLs}';
 
     /**
      * The console command description.
@@ -49,6 +51,8 @@ class DownloadImages extends Command
         $this->imageDownloadService->downloadArtCrops($target);
         // download missing card images (full scans) to disk
         $this->imageDownloadService->downloadCardImages($target);
+        // replace a capped number of pre-WebP JPEGs with their WebP
+        $this->imageDownloadService->upgradeToWebp($target, max(0, (int) $this->option('webp-backfill')));
         $ms = $start->diffInMilliseconds(now());
         Log::channel('scryfall')->info('=======================================================');
         Log::channel('scryfall')->info("artisan command 'scryfall:images' finished in ".$this->formatService->formatMs($ms).'.');

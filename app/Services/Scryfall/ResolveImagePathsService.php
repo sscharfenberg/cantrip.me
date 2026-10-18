@@ -29,6 +29,13 @@ class ResolveImagePathsService extends ScryfallService
 
     private string $setsTable = 'sets';
 
+    private ScryfallImageService $imageService;
+
+    public function __construct()
+    {
+        $this->imageService = new ScryfallImageService;
+    }
+
     /**
      * Switch the service into live or shadow mode. Subsequent calls to
      * {@see resolveArtCropPaths()} and {@see resolveCardImagePaths()}
@@ -72,10 +79,8 @@ class ResolveImagePathsService extends ScryfallService
 
         $index = [];
         foreach (Storage::disk($disk)->files($setCode) as $file) {
-            $basename = basename($file);
-            // Extract UUID: everything before the first "--" or ".jpg"
-            $uuid = preg_replace('/(--.*)$|\.jpg$/', '', $basename);
-            if ($uuid) {
+            $uuid = $this->imageService->uuidFromFilename(basename($file));
+            if ($uuid !== '') {
                 $index[$uuid][] = $file;
             }
         }
@@ -88,7 +93,7 @@ class ResolveImagePathsService extends ScryfallService
     /**
      * Find a file on disk matching a UUID prefix for an art crop.
      *
-     * Art crop filenames: {uuid}--{timestamp}.jpg or {uuid}.jpg
+     * Art crop filenames: {uuid}--{timestamp}.{ext} or {uuid}.{ext}
      * A card has exactly one art crop, so any file starting with the UUID is a match.
      *
      * @param  string  $disk  The Storage disk name.
@@ -106,7 +111,7 @@ class ResolveImagePathsService extends ScryfallService
     /**
      * Find a file on disk matching a UUID and face index for a card image.
      *
-     * Card image filenames: {uuid}--{timestamp}--{faceIndex}.jpg or {uuid}--{faceIndex}.jpg
+     * Card image filenames: {uuid}--{timestamp}--{faceIndex}.{ext} or {uuid}--{faceIndex}.{ext}
      * Must match the specific face index suffix to avoid returning face 0's
      * file when looking for face 1 (and vice versa).
      *
@@ -119,10 +124,8 @@ class ResolveImagePathsService extends ScryfallService
     private function findCardImageOnDisk(string $disk, string $setCode, string $uuid, int $faceIndex): ?string
     {
         $index = $this->getFileIndex($disk, $setCode);
-        $files = $index[$uuid] ?? [];
-        $suffix = "--$faceIndex.jpg";
-        foreach ($files as $file) {
-            if (str_ends_with(basename($file), $suffix)) {
+        foreach ($index[$uuid] ?? [] as $file) {
+            if ($this->imageService->isCardImageFace(basename($file), $uuid, $faceIndex)) {
                 return $file;
             }
         }
