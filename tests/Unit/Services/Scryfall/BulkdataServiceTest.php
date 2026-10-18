@@ -6,6 +6,7 @@ use App\Services\Scryfall\BulkdataService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Sleep;
 use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\Feature\DeckBulkClaimControllerTest;
@@ -107,6 +108,28 @@ class BulkdataServiceTest extends TestCase
             $row->download_uri
         );
         $this->assertSame('2026-07-28 21:00:37', (string) $row->updated_at);
+    }
+
+    /**
+     * The 2026-10-18 nightly failure: `/bulk-data` answered nothing within
+     * the HTTP client's default 30 s. One slow response must not fail the
+     * whole update any more.
+     */
+    #[Test]
+    public function it_retries_the_catalog_request_after_a_timeout(): void
+    {
+        Sleep::fake();
+        $this->createShadowTable();
+        Http::fake([
+            'api.scryfall.com/bulk-data' => Http::sequence()
+                ->pushFailedConnection('cURL error 28: Operation timed out after 30002 milliseconds with 0 bytes received')
+                ->push(['object' => 'list', 'has_more' => false, 'data' => [$this->currentApiEntry()]]),
+        ]);
+
+        (new BulkdataService)->getBulkMetadata(shadow: true);
+
+        Http::assertSentCount(2);
+        $this->assertSame(1, DB::table('bulk_data__shadow')->where('type', 'rulings')->count());
     }
 
     #[Test]

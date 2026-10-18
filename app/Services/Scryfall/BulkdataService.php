@@ -122,7 +122,7 @@ class BulkdataService extends ScryfallService
         $this->bulkDataTable = $this->tableName('bulk_data', $shadow);
         Log::channel('scryfall')->debug('Updating bulk metadata from scryfall.');
         $this->preRunCleanup();
-        $response = $this->http()
+        $response = $this->api()
             ->get('https://api.scryfall.com/bulk-data');
         if ($response->failed()) {
             Log::channel('scryfall')->error('Failed scryfall api request: '.$response->body());

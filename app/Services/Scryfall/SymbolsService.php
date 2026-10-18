@@ -124,7 +124,7 @@ class SymbolsService extends ScryfallService
         $this->shadow = $shadow;
         $this->symbolsTable = $this->tableName('symbols', $shadow);
         $this->setup();
-        $response = $this->http()
+        $response = $this->api()
             ->get('https://api.scryfall.com/symbology');
         if ($response->failed()) {
             Log::channel('scryfall')->error('Scryfall response failed: '.$response->body());

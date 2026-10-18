@@ -285,6 +285,6 @@ class OracleTagsService extends ScryfallService
         }
         $this->firstRequest = false;
 
-        return $this->http()->get($url);
+        return $this->api()->get($url);
     }
 }

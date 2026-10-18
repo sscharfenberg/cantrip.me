@@ -3,7 +3,9 @@
 namespace App\Services\Scryfall;
 
 use App\Services\Scryfall\Shadow\ShadowTableRegistry;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\PendingRequest;
+use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -24,11 +26,58 @@ class ScryfallService
     private const CHUNK_BYTES = 262144;
 
     /**
+     * Seconds to wait for one response from Scryfall's JSON API. The
+     * catalogs are small and normally answer in well under a second, but
+     * on a slow night they took 8–17 s, and over 30 s — the HTTP client's
+     * default — failed the 2026-10-18 nightly run at its first request.
+     */
+    private const API_TIMEOUT = 60;
+
+    /**
+     * Milliseconds to wait before each retry of a Scryfall API request:
+     * four attempts across two minutes of waiting, so a slow patch on
+     * Scryfall's side can pass before the step gives up and alerts.
+     */
+    private const API_RETRY_DELAYS_MS = [10_000, 30_000, 90_000];
+
+    /**
      * Create a pre-configured HTTP client with Scryfall's required headers.
      */
     protected function http(): PendingRequest
     {
         return Http::withHeaders(config('cantrip.scryfall.header'));
+    }
+
+    /**
+     * Client for Scryfall's JSON API — the bulk-data, sets and symbology
+     * catalogs and card search. File downloads (card images, set and
+     * symbol SVGs) keep {@see self::http()}: they already tolerate a failure
+     * per file.
+     *
+     * Retries what is plausibly transient (no connection, a timeout, 429,
+     * a 5xx) and nothing else; a 404 or 422 is an answer. A response that
+     * still fails after the last attempt is returned for the caller's own
+     * `failed()` check, and a connection that still fails is thrown — so
+     * a real outage fails the step and alerts as before.
+     */
+    protected function api(): PendingRequest
+    {
+        return $this->http()
+            ->timeout(self::API_TIMEOUT)
+            ->retry(self::API_RETRY_DELAYS_MS, when: self::isTransient(...), throw: false);
+    }
+
+    /**
+     * Whether a failed Scryfall API request is worth another attempt.
+     */
+    private static function isTransient(Throwable $exception): bool
+    {
+        if ($exception instanceof ConnectionException) {
+            return true;
+        }
+
+        return $exception instanceof RequestException
+            && ($exception->response->serverError() || $exception->response->status() === 429);
     }
 
     /**

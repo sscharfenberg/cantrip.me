@@ -183,7 +183,7 @@ class SetsService extends ScryfallService
         $this->setsTable = $this->tableName('sets', $shadow);
         $this->cachedSetIcons = null;
         $this->setup();
-        $response = $this->http()
+        $response = $this->api()
             ->get('https://api.scryfall.com/sets');
         if ($response->failed()) {
             Log::channel('scryfall')->error('Scryfall response failed: '.$response->body());
