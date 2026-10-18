@@ -1423,6 +1423,9 @@
                 "errors": {
                     "generic": "Diese Farbe konnte nicht gespeichert werden."
                 }
+            },
+            "command_zone": {
+                "label": "Kommandozone"
             }
         },
         "create_deck": {

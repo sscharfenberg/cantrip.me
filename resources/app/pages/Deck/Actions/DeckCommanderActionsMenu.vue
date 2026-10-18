@@ -1,14 +1,12 @@
 <script setup lang="ts">
 import { Link, router, usePage } from "@inertiajs/vue3";
-import { computed, ref, useId } from "vue";
-import CommanderCommandZonePickerModal from "@/pages/Deck/Create/CommanderCommandZonePickerModal.vue";
-import OathbreakerCommandZonePickerModal from "@/pages/Deck/Create/OathbreakerCommandZonePickerModal.vue";
-import type { CommanderResult } from "Components/Deck/ShowCommanderOverview.vue";
+import { ref, useId } from "vue";
 import Icon from "Components/UI/Icon.vue";
 import PopOver from "Components/UI/PopOver.vue";
 import type { DeckPrinting } from "Types/defaultCardImage.ts";
 import DeckCardAssignStackModal from "../Modals/DeckCardAssignStackModal.vue";
 import DeckCardSwitchPrintingModal from "../Modals/DeckCardSwitchPrintingModal.vue";
+import DeckCommandZoneModal from "../Modals/DeckCommandZoneModal.vue";
 const props = defineProps<{
     /** UUID of the deck. */
     deckId: string;
@@ -39,8 +37,6 @@ const page = usePage();
 const showSwitchPrintingModal = ref(false);
 const showChangeCommanderModal = ref(false);
 const showAssignStackModal = ref(false);
-/** Oathbreaker has its own picker (planeswalker + signature spell) — every other commander-family format uses the standard picker. */
-const isOathbreaker = computed(() => props.format === "oathbreaker");
 /** Dismiss the popover menu via the native popover API. */
 function closePopover(): void {
     const el = document.getElementById(popoverId);
@@ -101,32 +97,6 @@ async function switchPrinting(printing: DeckPrinting): Promise<void> {
         router.reload({ only: ["deck", "commanders", "tokens", "hasUnclaimedCards"] });
     }
 }
-/**
- * Replace the deck's command zone. Either picker emits two cards on confirm
- * (commander + companion / planeswalker + signature spell) — both shapes
- * map onto the same backend payload. The deck page is reloaded with the
- * full set of props that depend on the new color identity (`cards` for
- * `is_illegal` flags, `violations` for the legality panel, `deck` for the
- * combined colors badge, `commanders` for the command zone display).
- */
-async function changeCommander(commander: CommanderResult, second: CommanderResult | null): Promise<void> {
-    const body: Record<string, string> = { commander_id: commander.id };
-    if (second !== null) {
-        body[isOathbreaker.value ? "signature_spell_id" : "companion_id"] = second.id;
-    }
-    const response = await fetch(`/api/decks/${props.deckId}/commander`, {
-        method: "PATCH",
-        headers: {
-            "Content-Type": "application/json",
-            "X-CSRF-TOKEN": page.props.csrfToken as string,
-            Accept: "application/json"
-        },
-        body: JSON.stringify(body)
-    });
-    if (response.ok) {
-        router.reload({ only: ["deck", "commanders", "cards", "violations", "tokens", "hasUnclaimedCards"] });
-    }
-}
 </script>
 
 <template>
@@ -177,16 +147,10 @@ async function changeCommander(commander: CommanderResult, second: CommanderResu
         @select="switchPrinting"
         @close="showSwitchPrintingModal = false"
     />
-    <oathbreaker-command-zone-picker-modal
-        v-if="showChangeCommanderModal && isOathbreaker"
+    <deck-command-zone-modal
+        v-if="showChangeCommanderModal"
+        :deck-id="props.deckId"
         :format="props.format"
-        @confirm="changeCommander"
-        @close="showChangeCommanderModal = false"
-    />
-    <commander-command-zone-picker-modal
-        v-else-if="showChangeCommanderModal"
-        :format="props.format"
-        @confirm="changeCommander"
         @close="showChangeCommanderModal = false"
     />
     <deck-card-assign-stack-modal

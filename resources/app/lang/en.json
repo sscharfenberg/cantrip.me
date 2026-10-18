@@ -1423,6 +1423,9 @@
                 "errors": {
                     "generic": "That colour could not be saved."
                 }
+            },
+            "command_zone": {
+                "label": "Command zone"
             }
         },
         "create_deck": {

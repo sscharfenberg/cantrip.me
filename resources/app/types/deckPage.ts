@@ -191,6 +191,8 @@ export interface DeckMeta {
     is_singleton: boolean;
     enforces_color_identity: boolean;
     allows_companion: boolean;
+    /** Whether the format has a command zone — gates the "Command zone" button. */
+    requires_commander: boolean;
     /** Oracle names of companions banned in this format (e.g. Lutri in Commander). */
     banned_as_companion: string[];
     /** Whether the format uses the Game Changer list — gates the per-card GC badge in the UI. */

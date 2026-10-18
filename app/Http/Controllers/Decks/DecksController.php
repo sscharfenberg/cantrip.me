@@ -650,6 +650,7 @@ class DecksController extends Controller
                 'is_singleton' => $profile->maxCopies() === 1,
                 'enforces_color_identity' => $profile->enforcesColorIdentity(),
                 'allows_companion' => $allowsCompanion,
+                'requires_commander' => $profile->requiresCommander(),
                 'banned_as_companion' => $profile->bannedAsCompanion(),
                 'uses_game_changer_list' => $profile->usesGameChangerList(),
                 'last_activity' => $lastActivity,

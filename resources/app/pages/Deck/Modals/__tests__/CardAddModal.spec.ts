@@ -29,6 +29,7 @@ const deck = (cardCount: DeckCardCount = { main: 0, companion: 0, side: 0 }, max
         is_singleton: false,
         enforces_color_identity: false,
         allows_companion: false,
+        requires_commander: true,
         banned_as_companion: [],
         uses_game_changer_list: false,
         last_activity: "2026-09-20T00:00:00+00:00",

@@ -21,6 +21,7 @@ const deck = (state: string): DeckMeta => ({
     is_singleton: true,
     enforces_color_identity: true,
     allows_companion: false,
+    requires_commander: true,
     banned_as_companion: [],
     uses_game_changer_list: true,
     last_activity: "2026-09-20T00:00:00+00:00",

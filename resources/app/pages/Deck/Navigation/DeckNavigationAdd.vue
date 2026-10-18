@@ -4,6 +4,7 @@ import Icon from "Components/UI/Icon.vue";
 import type { DeckCardRow, DeckCompanion, DeckMeta } from "Types/deckPage.ts";
 import AddCompanionModal from "../Modals/AddCompanionModal.vue";
 import CardAddModal from "../Modals/CardAddModal.vue";
+import DeckCommandZoneModal from "../Modals/DeckCommandZoneModal.vue";
 import DeckNavigationQuickAdd from "./DeckNavigationQuickAdd.vue";
 defineProps<{
     /** Deck metadata (name, format, state, colors, etc.). */
@@ -21,6 +22,12 @@ defineProps<{
 const showAddModal = ref(false);
 /** Controls visibility of the companion picker. */
 const showCompanionModal = ref(false);
+/**
+ * Controls visibility of the command zone picker — the way to change the
+ * commander from the deck's controls, and the only way to give a deck one
+ * again once its commander is gone (the commander's own menu goes with it).
+ */
+const showCommandZoneModal = ref(false);
 </script>
 
 <template>
@@ -28,6 +35,15 @@ const showCompanionModal = ref(false);
         <button type="button" class="btn-default" @click="showAddModal = true">
             <icon name="add" />
             {{ $t("pages.deck.add.label") }}
+        </button>
+        <button
+            v-if="deck.requires_commander"
+            type="button"
+            class="btn-default"
+            @click="showCommandZoneModal = true"
+        >
+            <icon name="register" />
+            {{ $t("pages.deck.command_zone.label") }}
         </button>
         <button
             v-if="deck.allows_companion && !companion"
@@ -45,6 +61,12 @@ const showCompanionModal = ref(false);
             :cards="cards"
         />
         <card-add-modal v-if="showAddModal" :deck="deck" @close="showAddModal = false" />
+        <deck-command-zone-modal
+            v-if="showCommandZoneModal"
+            :deck-id="deck.id"
+            :format="deck.format"
+            @close="showCommandZoneModal = false"
+        />
         <add-companion-modal
             v-if="showCompanionModal"
             :deck-id="deck.id"

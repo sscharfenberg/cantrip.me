@@ -30,6 +30,7 @@ const deck = (): DeckMeta => ({
     is_singleton: false,
     enforces_color_identity: false,
     allows_companion: true,
+    requires_commander: true,
     banned_as_companion: [],
     uses_game_changer_list: false,
     last_activity: "2026-10-17T00:00:00+00:00",

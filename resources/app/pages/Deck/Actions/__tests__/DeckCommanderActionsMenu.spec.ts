@@ -94,3 +94,29 @@ describe("DeckCommanderActionsMenu — switch printing", () => {
         expect(routerMock.reload).not.toHaveBeenCalled();
     });
 });
+
+describe("DeckCommanderActionsMenu — change commander", () => {
+    it("opens the command zone picker for this deck", async () => {
+        const wrapper = mount(DeckCommanderActionsMenu, {
+            props: {
+                deckId: DECK_ID,
+                deckCardId: "deck-card-1",
+                oracleCardId: ORACLE_ID,
+                commanderName: "Atraxa, Praetors' Voice",
+                format: "oathbreaker",
+                defaultCardId: "p-current",
+                heroCardId: null,
+                collectionMode: "B"
+            },
+            global: { stubs: { DeckCommandZoneModal: true } }
+        });
+
+        const entry = wrapper.findAll(".popover-list-item").find(n => n.text().includes("change_commander.link"));
+        await entry!.trigger("click");
+
+        expect(wrapper.findComponent({ name: "DeckCommandZoneModal" }).props()).toEqual({
+            deckId: DECK_ID,
+            format: "oathbreaker"
+        });
+    });
+});
