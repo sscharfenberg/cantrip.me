@@ -3,6 +3,7 @@
 namespace App\Console\Commands\Scryfall;
 
 use App\Http\Controllers\WelcomeController;
+use App\Services\BannedRestrictedService;
 use App\Services\FormatService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Cache;
@@ -23,6 +24,10 @@ use Illuminate\Support\Facades\Log;
  * pay the cold cost. {@see UpdateEverything} runs it as the last step of
  * `scryfall:update`; you can also invoke it directly any time you want to
  * force a refresh.
+ *
+ * It also rebuilds the banned & restricted lists
+ * ({@see BannedRestrictedService::CACHE_KEY}), which change with the same
+ * dataset.
  */
 class WarmStatsCache extends Command
 {
@@ -38,7 +43,7 @@ class WarmStatsCache extends Command
      *
      * @var string
      */
-    protected $description = 'Pre-warm the welcome-page Scryfall stats cache (counts + image directory sizes).';
+    protected $description = 'Pre-warm the welcome-page Scryfall stats cache (counts + image directory sizes) and the banned & restricted lists.';
 
     private FormatService $formatService;
 
@@ -61,6 +66,7 @@ class WarmStatsCache extends Command
             WelcomeController::SCRYFALL_STATS_CACHE_KEY,
             WelcomeController::buildScryfallStats()
         );
+        BannedRestrictedService::warmCache();
 
         $ms = $start->diffInMilliseconds(now());
         $duration = $this->formatService->formatMs($ms);

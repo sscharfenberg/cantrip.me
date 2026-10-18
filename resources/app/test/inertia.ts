@@ -44,6 +44,7 @@ export const routerMock = {
     patch: vi.fn(),
     delete: vi.fn(),
     reload: vi.fn(),
+    replace: vi.fn(),
     on: vi.fn()
 };
 

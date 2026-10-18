@@ -278,6 +278,29 @@
                 "other": "Sonstige"
             }
         },
+        "banned_restricted": {
+            "title": "Banned- & Restricted-Listen",
+            "link": "Banned- & Restricted-Listen",
+            "intro": "Alle Karten, die in einem Format gebannt oder eingeschränkt sind, wie sie Scryfall veröffentlicht. Die Formate mit den meisten Decks auf cantrip.me stehen vorne. Fahre über eine Karte, um sie zu sehen, klicke sie für ihre Details an.",
+            "tabs": "Formate",
+            "empty": "In {format} sind keine Karten gebannt oder eingeschränkt.",
+            "groups": {
+                "W": "Weiß",
+                "U": "Blau",
+                "B": "Schwarz",
+                "R": "Rot",
+                "G": "Grün",
+                "multicolor": "Mehrfarbig",
+                "colorless": "Farblos",
+                "land": "Länder"
+            },
+            "categories": {
+                "conspiracy": "{count} Karte mit dem Kartentyp Verschwörung | {count} Karten mit dem Kartentyp Verschwörung",
+                "ante": "{count} Karte, die sich auf das Spielen um einen Einsatz bezieht | {count} Karten, die sich auf das Spielen um einen Einsatz beziehen",
+                "offensive": "{count} Karte mit rassistisch oder kulturell verletzender Illustration, Text oder Namen | {count} Karten mit rassistisch oder kulturell verletzenden Illustrationen, Texten oder Namen",
+                "sticker": "{count} Karte, die einen Sticker oder eine Attraktion ins Spiel bringt | {count} Karten, die einen Sticker oder eine Attraktion ins Spiel bringen"
+            }
+        },
         "register": {
             "title": "Registrierung",
             "link": "Registrierung",

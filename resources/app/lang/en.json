@@ -278,6 +278,29 @@
                 "other": "Other"
             }
         },
+        "banned_restricted": {
+            "title": "Banned & restricted lists",
+            "link": "Banned & restricted lists",
+            "intro": "Every card that is banned or restricted in a format, as published by Scryfall. The formats with the most decks on cantrip.me come first. Hover a card to see it, click it for its details.",
+            "tabs": "Formats",
+            "empty": "No cards are banned or restricted in {format}.",
+            "groups": {
+                "W": "White",
+                "U": "Blue",
+                "B": "Black",
+                "R": "Red",
+                "G": "Green",
+                "multicolor": "Multicolor",
+                "colorless": "Colorless",
+                "land": "Lands"
+            },
+            "categories": {
+                "conspiracy": "{count} card with the card type Conspiracy | {count} cards with the card type Conspiracy",
+                "ante": "{count} card that refers to playing for ante | {count} cards that refer to playing for ante",
+                "offensive": "{count} card with racially or culturally offensive art, text or name | {count} cards with racially or culturally offensive art, text or names",
+                "sticker": "{count} card that brings a sticker or an Attraction into the game | {count} cards that bring a sticker or an Attraction into the game"
+            }
+        },
         "register": {
             "title": "Registration",
             "link": "Registration",

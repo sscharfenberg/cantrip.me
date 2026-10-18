@@ -31,7 +31,7 @@ dropForeignKeys         → drop them so the RENAME doesn't auto-rotate referenc
 swap                    → atomic multi-table RENAME (12 lives → __retired, 12 shadows → live)
 dropRetired             → drop the 12 __retired tables
 addForeignKeys          → re-add the captured FKs to the new live tables
-scryfall:cache          → refresh welcome-page Scryfall stats cache
+scryfall:cache          → refresh welcome-page Scryfall stats cache + banned & restricted lists
 gc-images dry scan      → reports orphan files; warns with the --prune command if any (never deletes from this flow)
 end-of-run summary      → row counts per table, oracle-tag classifications, FK preservation, image-orphan totals, runtime
 ```
@@ -130,6 +130,8 @@ Walks `default_cards` looking for rows that still have Scryfall URLs in their im
 ### `php artisan scryfall:cache`
 
 Refreshes the welcome-page Scryfall stats cache (full-table COUNTs of `oracle_cards` / `default_cards` / `sets` / `artists`, plus recursive `find` + `du` over the on-disk art-crop and card-image directories). The result is keyed under `welcome.scryfallStats` and stored with `Cache::forever`, so it stays valid until the next sync explicitly replaces it.
+
+It also rebuilds the banned & restricted lists behind the public `/b+r` page (`BannedRestrictedService::CACHE_KEY`, a day-long TTL as a backstop). That key is versioned (`bannedRestricted.lists.v2`) because no deploy clears the cache — bump it whenever the cached shape changes.
 
 `scryfall:update` runs this as its final step. Run manually if you've wiped the cache table or otherwise need to repopulate the entry without doing a full sync — takes a few seconds at most.
 

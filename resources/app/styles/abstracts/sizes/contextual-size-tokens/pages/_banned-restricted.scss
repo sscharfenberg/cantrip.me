@@ -1,0 +1,28 @@
+@use "sass:map"; // https://sass-lang.com/documentation/modules/map
+@use "../../global-size-tokens" as s;
+
+$banned-restricted: (
+    "tabs": (
+        "gap": 0.5ex 1ch,
+        "margin": 1lh
+    ),
+    "tab": (
+        "padding": 0.5ex 1ch,
+        "radius": map.get(s.$radius, "base")
+    ),
+    "list": (
+        "margin": 1lh
+    ),
+    // The blanket-ban accordions below a list's colour groups, and the card
+    // grid inside each one.
+    "categories": (
+        "gap": 0.5rem,
+        "margin": 1rem,
+        "column": 17.5rem
+    ),
+    "thumb": (
+        "width": 2.25rem,
+        "height": 3.15rem,
+        "radius": 0.15rem
+    )
+);

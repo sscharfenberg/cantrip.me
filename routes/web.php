@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\CardStackPreviewController;
 use App\Http\Controllers\Api\DefaultCardPreviewController;
+use App\Http\Controllers\BannedRestrictedController;
 use App\Http\Controllers\Collection\CardStackController;
 use App\Http\Controllers\Collection\CollectionController;
 use App\Http\Controllers\Collection\ContainerController;
@@ -42,6 +43,8 @@ Route::get('/privacy', [GuestController::class, 'privacy'])
     ->name('privacy');
 Route::get('/imprint', [GuestController::class, 'imprint'])
     ->name('imprint');
+Route::get('/b+r', [BannedRestrictedController::class, 'show'])
+    ->name('banned_restricted');
 
 /******************************************************************************
  * Authed pages

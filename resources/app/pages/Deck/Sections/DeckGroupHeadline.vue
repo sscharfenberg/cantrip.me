@@ -1,5 +1,17 @@
+<script setup lang="ts">
+withDefaults(
+    defineProps<{
+        /** Heading level — 4 where the groups sit under a level-3 heading of their own. */
+        level?: 3 | 4;
+    }>(),
+    {
+        level: 3
+    }
+);
+</script>
+
 <template>
-    <h3><slot /></h3>
+    <component :is="`h${level}`" class="group-headline"><slot /></component>
 </template>
 
 <style scoped lang="scss">
@@ -7,7 +19,7 @@
 @use "Abstracts/colors" as c;
 @use "Abstracts/sizes" as s;
 
-h3 {
+.group-headline {
     padding: map.get(s.$pages, "deck", "group", "headline", "padding");
     border: map.get(s.$pages, "deck", "group", "headline", "border") solid
         map.get(c.$pages, "deck", "group", "headline", "border");

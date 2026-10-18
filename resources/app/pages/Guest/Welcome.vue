@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head } from "@inertiajs/vue3";
+import { Head, Link } from "@inertiajs/vue3";
 import WelcomeCollectionStats from "@/pages/Guest/WelcomeCollectionStats.vue";
 import WelcomeDecksStats from "@/pages/Guest/WelcomeDecksStats.vue";
 import Headline from "Components/UI/Headline.vue";
@@ -60,6 +60,12 @@ defineProps<{
         {{ $t("pages.welcome.claim") }}
     </headline>
     <paragraph>{{ $t("pages.welcome.intro") }}</paragraph>
+    <div class="welcome-actions">
+        <Link href="/b+r" class="btn-primary">
+            <icon name="flag" />
+            {{ $t("pages.banned_restricted.link") }}
+        </Link>
+    </div>
     <headline :size="3">{{ $t("pages.welcome.scryfall_stats.title") }}</headline>
     <stats>
         <stats-item v-if="scryfallStats.oracleCards.num > 0">
@@ -138,3 +144,13 @@ defineProps<{
         <welcome-decks-stats :stats="deckStats" />
     </template>
 </template>
+
+<style lang="scss" scoped>
+.welcome-actions {
+    display: flex;
+    flex-wrap: wrap;
+
+    margin-bottom: 1lh;
+    gap: 0.5rem;
+}
+</style>

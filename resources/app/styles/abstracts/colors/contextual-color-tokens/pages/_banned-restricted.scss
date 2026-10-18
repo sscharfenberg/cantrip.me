@@ -1,0 +1,34 @@
+@use "sass:map"; // https://sass-lang.com/documentation/modules/map
+@use "sass:color"; // https://sass-lang.com/documentation/modules/color
+@use "../../global-color-tokens" as c;
+
+/* The banned & restricted page: one tab per format above the lists, styled
+   like the sticky nav's links so the two read as the same kind of control. */
+$banned-restricted: (
+    "tab": (
+        "background": light-dark(map.get(c.$grey, "mystic"), map.get(c.$grey, "bunker")),
+        "surface": light-dark(map.get(c.$grey, "black"), map.get(c.$grey, "white")),
+        "background-hover": light-dark(map.get(c.$grey, "infra"), map.get(c.$grey, "abbey")),
+        "surface-hover": light-dark(map.get(c.$grey, "black"), map.get(c.$grey, "white")),
+        "background-active": light-dark(map.get(c.$brand, "light2", "color"), map.get(c.$brand, "dark1", "contrast")),
+        "surface-active": light-dark(map.get(c.$brand, "light2", "contrast"), map.get(c.$brand, "dark1", "color"))
+    ),
+    // Hovered card row: a faint wash and a firmer border in the blue brand
+    // colour, which is the same hex in both themes (light1 / dark1 contrast).
+    "card": (
+        "background-hover": light-dark(
+                color.adjust(map.get(c.$brand, "light1", "color"), $alpha: -0.85),
+                color.adjust(map.get(c.$brand, "dark1", "contrast"), $alpha: -0.85)
+            ),
+        "border-hover": light-dark(
+                color.adjust(map.get(c.$brand, "light1", "color"), $alpha: -0.3),
+                color.adjust(map.get(c.$brand, "dark1", "contrast"), $alpha: -0.3)
+            )
+    ),
+    "thumb": (
+        "empty": light-dark(
+                color.adjust(map.get(c.$grey, "slate"), $alpha: -0.5),
+                color.adjust(map.get(c.$grey, "charcoal"), $alpha: -0.5)
+            )
+    )
+);
