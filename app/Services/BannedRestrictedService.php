@@ -27,7 +27,8 @@ use Illuminate\Support\Facades\Cache;
  * Those go to {@see self::CATEGORIES} instead, see {@see self::category()}.
  * A card on several lists (Sol Ring, Black Lotus) is shipped once, in
  * `cards`, and the lists refer to it by oracle id — that halves the page
- * payload.
+ * payload. It is pictured by its first regular paper printing
+ * ({@see FirstPrintingService}), as the welcome page's lookup does.
  *
  * The lists only change with the Scryfall dataset, so they are cached and
  * re-warmed by `scryfall:cache` at the end of every `scryfall:update`. No
@@ -42,7 +43,7 @@ use Illuminate\Support\Facades\Cache;
  */
 class BannedRestrictedService
 {
-    public const CACHE_KEY = 'bannedRestricted.lists.v2';
+    public const CACHE_KEY = 'bannedRestricted.lists.v3';
 
     /** Display order of the colour groups. */
     public const GROUPS = ['W', 'U', 'B', 'R', 'G', 'multicolor', 'colorless', 'land'];
@@ -253,7 +254,7 @@ class BannedRestrictedService
             ->orderBy('face_index')
             ->get(['oracle_card_id', 'mana_cost', 'type_line', 'oracle_text', 'colors'])
             ->groupBy('oracle_card_id');
-        $printings = DeckCardSearchService::fetchNewestPrintings($oracleIds);
+        $printings = FirstPrintingService::forOracles($oracleIds);
 
         $cards = [];
         $groupOf = [];
@@ -270,11 +271,10 @@ class BannedRestrictedService
                 ->all();
             $groupOf[$id] = self::colorGroup((string) $oracle->layout, $cardFaces);
             $categoryOf[$id] = self::category((string) $oracle->name, $cardFaces);
-            $printing = $printings[$id] ?? null;
             $cards[$id] = [
                 'name' => $oracle->name,
                 'mana_cost' => array_column($cardFaces, 'mana_cost'),
-                'printing' => $printing === null ? null : ['id' => $printing['id'], 'image' => $printing['card_image_0']],
+                'printing' => $printings[$id] ?? null,
             ];
         }
 

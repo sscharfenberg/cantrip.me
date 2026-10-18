@@ -1,0 +1,9 @@
+@use "sass:map"; // https://sass-lang.com/documentation/modules/map
+@use "deck" as d;
+
+/* The welcome page's Oracle card lookup lists its results exactly like the
+   deck page's quick add does, so it takes the quick add's colours as they
+   are rather than copying them. */
+$welcome: (
+    "lookup": map.get(d.$deck, "quick-add")
+);

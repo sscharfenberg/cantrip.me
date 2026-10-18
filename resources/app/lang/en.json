@@ -174,6 +174,12 @@
             "label": "Welcome page",
             "claim": "Keep your collection of magic cards organized.",
             "intro": "While building a new deck, you want to add a specific card. You know that you own the card - somewhere in your 10+ binders/boxes/whatever. After searching for half an hour, you give up and buy a new copy. Sounds familiar? cantrip.me is for you.",
+            "lookup": {
+                "placeholder": "Oracle card lookup",
+                "label": "Oracle card lookup — search by name, or with set: and number:",
+                "no_results": "No cards found.",
+                "truncated": "Showing the first {count} cards — narrow the search to see the rest."
+            },
             "scryfall_stats": {
                 "title": "Scryfall data",
                 "oracle": {

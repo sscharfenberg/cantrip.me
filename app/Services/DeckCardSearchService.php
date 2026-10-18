@@ -132,13 +132,10 @@ final class DeckCardSearchService
      * as a deterministic tie-breaker. Returns a map keyed by oracle_id so the
      * caller can look up each printing in O(1) when assembling results.
      *
-     * Public so {@see BannedRestrictedService} pictures its cards by the
-     * same rule the deck search does.
-     *
      * @param  string[]  $oracleIds
      * @return array<string, array{id: string, card_image_0: string|null, card_image_1: string|null, set_code: string, collector_number: string}>
      */
-    public static function fetchNewestPrintings(array $oracleIds): array
+    private static function fetchNewestPrintings(array $oracleIds): array
     {
         if ($oracleIds === []) {
             return [];

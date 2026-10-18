@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\CardStackPreviewController;
 use App\Http\Controllers\Api\DefaultCardPreviewController;
+use App\Http\Controllers\Api\OracleCardLookupController;
 use App\Http\Controllers\BannedRestrictedController;
 use App\Http\Controllers\Collection\CardStackController;
 use App\Http\Controllers\Collection\CollectionController;
@@ -261,6 +262,9 @@ Route::get('collection/cardstack/{cardStack}/preview', [CardStackPreviewControll
     ->name('cardstack.preview');
 Route::get('cards/{defaultCard}/preview', [DefaultCardPreviewController::class, 'show'])
     ->name('card.preview');
+Route::get('/api/cards/lookup', [OracleCardLookupController::class, 'search'])
+    ->middleware('throttle:60,1')
+    ->name('api.cards.lookup');
 
 /******************************************************************************
  * Dev pages (no auth, not linked from anywhere)

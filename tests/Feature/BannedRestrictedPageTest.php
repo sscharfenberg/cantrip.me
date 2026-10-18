@@ -123,18 +123,18 @@ class BannedRestrictedPageTest extends TestCase
     }
 
     #[Test]
-    public function each_card_is_pictured_by_its_newest_printing(): void
+    public function each_card_is_pictured_by_its_first_printing(): void
     {
         $card = $this->makeCard('Channel', 'normal', [['{G}{G}', 'Sorcery', 'G']], printings: ['1993-08-05', '2026-01-01', '2004-01-01']);
         $this->ban($card, CardFormat::Commander);
 
         $printing = $this->pageProps()['cards'][$card->id]['printing'];
 
-        $newest = DefaultCard::query()
+        $first = DefaultCard::query()
             ->where('oracle_id', $card->id)
-            ->where('card_image_0', 'like', '%2026-01-01%')
+            ->where('card_image_0', 'like', '%1993-08-05%')
             ->firstOrFail();
-        $this->assertSame(['id' => $newest->id, 'image' => $newest->card_image_0], $printing);
+        $this->assertSame(['id' => $first->id, 'image' => $first->card_image_0], $printing);
     }
 
     #[Test]

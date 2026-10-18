@@ -1,0 +1,16 @@
+@use "sass:map"; // https://sass-lang.com/documentation/modules/map
+@use "deck" as d;
+
+/* The Oracle card lookup's results: the quick add's sizes, but wider, so a
+   double-faced card's two type lines and costs fit on one row. A narrow
+   viewport still gets the full width less the page gutters. */
+$welcome: (
+    "lookup": map.merge(
+            map.get(d.$deck, "quick-add"),
+            (
+                "results-max": 36rem,
+                "results-min": 18rem,
+                "input-max": 30rem
+            )
+        )
+);

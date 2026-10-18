@@ -2,6 +2,7 @@
 import { Head, Link } from "@inertiajs/vue3";
 import WelcomeCollectionStats from "@/pages/Guest/WelcomeCollectionStats.vue";
 import WelcomeDecksStats from "@/pages/Guest/WelcomeDecksStats.vue";
+import WelcomeOracleLookup from "@/pages/Guest/WelcomeOracleLookup.vue";
 import Headline from "Components/UI/Headline.vue";
 import Icon from "Components/UI/Icon.vue";
 import Paragraph from "Components/UI/Paragraph.vue";
@@ -65,6 +66,7 @@ defineProps<{
             <icon name="flag" />
             {{ $t("pages.banned_restricted.link") }}
         </Link>
+        <welcome-oracle-lookup class="welcome-actions__lookup" />
     </div>
     <headline :size="3">{{ $t("pages.welcome.scryfall_stats.title") }}</headline>
     <stats>
@@ -146,11 +148,22 @@ defineProps<{
 </template>
 
 <style lang="scss" scoped>
+@use "sass:map";
+@use "Abstracts/sizes" as s;
+
 .welcome-actions {
     display: flex;
+    align-items: center;
     flex-wrap: wrap;
 
     margin-bottom: 1lh;
     gap: 0.5rem;
+
+    // Next to the button on a wide screen, on a line of its own on a phone.
+    &__lookup {
+        max-width: map.get(s.$pages, "welcome", "lookup", "input-max");
+
+        flex: 1 1 18rem;
+    }
 }
 </style>
