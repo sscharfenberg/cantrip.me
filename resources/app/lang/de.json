@@ -1426,6 +1426,16 @@
             },
             "command_zone": {
                 "label": "Kommandozone"
+            },
+            "unclaim": {
+                "link": "Reservierung aufheben",
+                "title": "Reservierung aufheben?",
+                "question": "{quantity}× {name} ist aus deiner Sammlung für dieses Deck reserviert. Nach dem Aufheben stehen die Karten wieder anderen Decks zur Verfügung.",
+                "label": "Karten ablegen in",
+                "remove_from_deck": "Karte auch aus dem Deck entfernen",
+                "submit": "Reservierung aufheben",
+                "cancel": "Abbrechen",
+                "error": "Die Reservierung konnte nicht aufgehoben werden."
             }
         },
         "create_deck": {

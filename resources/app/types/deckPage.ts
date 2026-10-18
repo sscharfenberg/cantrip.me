@@ -327,6 +327,12 @@ export interface DeckCardRow {
      * *instead of* its tracking-mode badge.
      */
     collection_availability: CollectionAvailability | null;
+    /**
+     * The collection stacks claimed for this card — what "Unclaim" in the
+     * card's menu frees, with where they lie now. Owner-only and only while
+     * the collection master switch is on; empty otherwise.
+     */
+    claimed_stacks: { id: string; container_id: string | null }[];
     default_card: DeckCardDefaultCard;
 }
 

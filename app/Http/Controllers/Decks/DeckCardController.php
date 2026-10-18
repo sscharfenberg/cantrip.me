@@ -9,6 +9,7 @@ use App\Http\Requests\Decks\MoveDeckCardZoneRequest;
 use App\Http\Requests\Decks\ShowDeckCardPrintingsRequest;
 use App\Http\Requests\Decks\SplitDeckCardRequest;
 use App\Http\Requests\Decks\StoreDeckCardRequest;
+use App\Http\Requests\Decks\UnclaimDeckCardRequest;
 use App\Http\Requests\Decks\UpdateDeckCardAssignedStacksRequest;
 use App\Http\Requests\Decks\UpdateDeckCardCategoryRequest;
 use App\Http\Requests\Decks\UpdateDeckCardPrintingRequest;
@@ -18,6 +19,7 @@ use App\Models\Deck;
 use App\Models\DeckCard;
 use App\Models\DefaultCard;
 use App\Models\OracleCard;
+use App\Services\CardStackClaimService;
 use App\Services\DeckCardAssignmentService;
 use App\Services\DeckCardService;
 use App\Services\DeckPrintingsService;
@@ -125,6 +127,21 @@ class DeckCardController extends Controller
         $deck->syncHeroImage();
 
         return response()->json(status: 204);
+    }
+
+    /**
+     * Free the collection stacks claimed for this card — the deck page's
+     * "Unclaim" in the card's actions menu. The dialog can move the freed
+     * stacks (`move_to`) and take the card out of the deck (`remove_from_deck`)
+     * in the same step; see {@see CardStackClaimService::unclaimDeckCard}.
+     * Answers whether the card left the deck, so the page knows what to reload.
+     */
+    public function unclaim(UnclaimDeckCardRequest $request, Deck $deck, DeckCard $deckCard): JsonResponse
+    {
+        $removed = $request->boolean('remove_from_deck');
+        CardStackClaimService::unclaimDeckCard($deckCard, $request->moveTarget(), $removed);
+
+        return response()->json(['removed' => $removed]);
     }
 
     /**

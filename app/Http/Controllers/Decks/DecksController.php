@@ -38,6 +38,7 @@ use App\Models\DefaultCardRelation;
 use App\Models\OracleCard;
 use App\Rulebreakers\RulebreakerRegistry;
 use App\Services\BracketSuggestionService;
+use App\Services\CardStackClaimService;
 use App\Services\CardStackService;
 use App\Services\CommandZoneService;
 use App\Services\DeckBulkAddCollectionService;
@@ -330,6 +331,7 @@ class DecksController extends Controller
         $collectionStatuses = [];
         $collectionImplicitStatuses = [];
         $collectionAvailability = [];
+        $claimedStacks = [];
         $collectionModeContext = null;
         $containers = collect();
         $hasUnclaimedCards = false;
@@ -359,6 +361,14 @@ class DecksController extends Controller
             // since the user actively picked B and the badge should
             // reflect their choice.
             $collectionBadgeMode = $collectionMode;
+
+            // The stacks claimed for each card, for the card menu's
+            // "Unclaim". Any state and mode — a planned deck can still hold
+            // claims — but, like every collection-derived UI, only while the
+            // master switch is on.
+            if ($request->user()->collection_integration_enabled) {
+                $claimedStacks = CardStackClaimService::claimedStacksForDeck($deck);
+            }
 
             // Context for the collection-mode badge popover: just the
             // master switch flag. When off, the parent hides the badge
@@ -526,6 +536,7 @@ class DecksController extends Controller
                 'collection_status' => $collectionStatuses[$dc->id] ?? null,
                 'collection_implicit_status' => $collectionImplicitStatuses[$dc->id] ?? null,
                 'collection_availability' => $collectionAvailability[$dc->id] ?? null,
+                'claimed_stacks' => $claimedStacks[$dc->id] ?? [],
                 'default_card' => [
                     'id' => $dc->defaultCard?->id,
                     'name' => $dc->defaultCard?->name,

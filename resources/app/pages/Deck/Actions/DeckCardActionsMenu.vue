@@ -9,6 +9,7 @@ import DeckCardAssignStackModal from "../Modals/DeckCardAssignStackModal.vue";
 import DeckCardMoveToGroupModal from "../Modals/DeckCardMoveToGroupModal.vue";
 import DeckCardSplitPrintingModal from "../Modals/DeckCardSplitPrintingModal.vue";
 import DeckCardSwitchPrintingModal from "../Modals/DeckCardSwitchPrintingModal.vue";
+import DeckCardUnclaimModal from "../Modals/DeckCardUnclaimModal.vue";
 const props = defineProps<{
     /** UUID of the deck this card belongs to. */
     deckId: string;
@@ -48,6 +49,8 @@ const showSplitPrintingModal = ref(false);
 const showMoveToGroupModal = ref(false);
 /** Controls visibility of the assign-stack modal (mode C only). */
 const showAssignStackModal = ref(false);
+/** Controls visibility of the unclaim dialog — offered while stacks are claimed for this card. */
+const showUnclaimModal = ref(false);
 /** Close the action popover programmatically. */
 function closePopover(): void {
     const el = document.getElementById(popoverId);
@@ -72,6 +75,11 @@ function openMoveToGroup(): void {
 function openAssignStack(): void {
     closePopover();
     showAssignStackModal.value = true;
+}
+/** Close the popover and open the unclaim dialog. */
+function openUnclaim(): void {
+    closePopover();
+    showUnclaimModal.value = true;
 }
 /**
  * PATCH the chosen stack id (or null to clear) and refresh the cards
@@ -169,6 +177,12 @@ const { canIncrement, increment, decrement, destroy, moveZone, switchPrinting } 
                     {{ $t("pages.deck.assign_stack.link") }}
                 </button>
             </li>
+            <li v-if="props.card.claimed_stacks.length > 0">
+                <button type="button" class="popover-list-item" @click="openUnclaim">
+                    <icon name="unclaimed" :size="1" />
+                    {{ $t("pages.deck.unclaim.link") }}
+                </button>
+            </li>
             <li v-if="props.card.zone !== 'side' && props.hasSideboard">
                 <button type="button" class="popover-list-item" @click="moveZone('side')">
                     <icon name="sideboard" :size="1" />
@@ -230,5 +244,11 @@ const { canIncrement, increment, decrement, destroy, moveZone, switchPrinting } 
         :name="props.card.name"
         @select="assignStack"
         @close="showAssignStackModal = false"
+    />
+    <deck-card-unclaim-modal
+        v-if="showUnclaimModal"
+        :deck-id="props.deckId"
+        :card="props.card"
+        @close="showUnclaimModal = false"
     />
 </template>

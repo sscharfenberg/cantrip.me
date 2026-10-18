@@ -213,6 +213,8 @@ Route::middleware(array_filter(['auth', Features::enabled(Features::emailVerific
         ->name('api.decks.cards.assignable-stacks');
     Route::patch('/api/decks/{deck}/cards/{deckCard}/assigned-stacks', [DeckCardController::class, 'updateAssignedStacks'])
         ->name('api.decks.cards.update-assigned-stacks');
+    Route::delete('/api/decks/{deck}/cards/{deckCard}/claims', [DeckCardController::class, 'unclaim'])
+        ->name('api.decks.cards.unclaim');
     Route::patch('/api/decks/{deck}/cards/{deckCard}/category', [DeckCardController::class, 'updateCategory'])
         ->name('api.decks.cards.update-category');
     Route::patch('/api/decks/{deck}/cards/{deckCard}/printing', [DeckCardController::class, 'updatePrinting'])

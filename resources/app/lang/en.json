@@ -1426,6 +1426,16 @@
             },
             "command_zone": {
                 "label": "Command zone"
+            },
+            "unclaim": {
+                "link": "Unclaim",
+                "title": "Unclaim card?",
+                "question": "{quantity}× {name} is reserved for this deck from your collection. Unclaiming makes the cards available to other decks again.",
+                "label": "Put the cards in",
+                "remove_from_deck": "Remove the card from the deck as well",
+                "submit": "Unclaim",
+                "cancel": "Cancel",
+                "error": "The card could not be unclaimed."
             }
         },
         "create_deck": {

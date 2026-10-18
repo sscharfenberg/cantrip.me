@@ -72,6 +72,7 @@ export function makeDeckCard(overrides: Partial<DeckCardRow> = {}): DeckCardRow 
         collection_status: null,
         collection_implicit_status: null,
         collection_availability: null,
+        claimed_stacks: [],
         default_card: {
             id: null,
             name: null,

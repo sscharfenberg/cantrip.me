@@ -4,6 +4,8 @@ namespace App\Services;
 
 use App\Enums\DeckCardRole;
 use App\Models\CardStack;
+use App\Models\Deck;
+use App\Models\DeckCard;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -144,5 +146,59 @@ class CardStackClaimService
         }
 
         return count($decks);
+    }
+
+    /**
+     * The stacks claimed for each card of `$deck`, by deck card id — what
+     * the deck page's "Unclaim" on a card frees. Cards nothing is claimed
+     * for are absent.
+     *
+     * @return array<string, list<array{id: string, container_id: string|null}>>
+     */
+    public static function claimedStacksForDeck(Deck $deck): array
+    {
+        $result = [];
+        $rows = DB::table('deck_card_card_stack')
+            ->join('deck_cards', 'deck_cards.id', '=', 'deck_card_card_stack.deck_card_id')
+            ->join('card_stacks', 'card_stacks.id', '=', 'deck_card_card_stack.card_stack_id')
+            ->where('deck_cards.deck_id', $deck->id)
+            ->orderBy('card_stacks.created_at')
+            ->get(['deck_card_card_stack.deck_card_id', 'card_stacks.id', 'card_stacks.container_id']);
+        foreach ($rows as $row) {
+            $result[$row->deck_card_id][] = ['id' => $row->id, 'container_id' => $row->container_id];
+        }
+
+        return $result;
+    }
+
+    /**
+     * Free the stacks claimed for one deck card — the deck page's "Unclaim"
+     * on a card. Only this card's claims go; a stack also claimed by
+     * another deck keeps that claim.
+     *
+     * In the same transaction the freed stacks can move (`$moveTo`: a
+     * container id, null for unsorted, false to stay where they are), and
+     * the card can leave the deck (`$removeFromDeck`), the deck's colours
+     * and hero image refreshed as deleting a card on the deck page does.
+     *
+     * @return int The number of stacks freed.
+     */
+    public static function unclaimDeckCard(DeckCard $deckCard, string|false|null $moveTo, bool $removeFromDeck): int
+    {
+        return DB::transaction(function () use ($deckCard, $moveTo, $removeFromDeck): int {
+            $stackIds = $deckCard->cardStacks()->pluck('card_stacks.id')->all();
+            $deckCard->cardStacks()->detach();
+            if ($moveTo !== false && $stackIds !== []) {
+                CardStack::query()->whereIn('id', $stackIds)->update(['container_id' => $moveTo]);
+            }
+            if ($removeFromDeck) {
+                $deck = $deckCard->deck;
+                $deckCard->delete();
+                DeckCardService::recalculateColors($deck);
+                $deck->syncHeroImage();
+            }
+
+            return count($stackIds);
+        });
     }
 }
