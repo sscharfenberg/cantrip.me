@@ -54,6 +54,7 @@ const columns: ColumnDef<UserRow>[] = [
 | `#cell-{key}`      | `{ row: T }`                | Custom renderer for a column. Fallback: raw `row[key]` as text.          |
 | `#actions`         | `{ row: T }`                | Row action popover content. Render as `<li>` with `popover-list-item`.   |
 | `#toolbar-actions` | `{ selectedIds: string[] }` | Toolbar buttons (e.g. bulk actions). Only visible when slot is provided. |
+| `#filters`         | `{ filters, setFilters }`   | Filter UI rendered above the search input. See below.                    |
 | `#empty`           | —                           | Content shown when `rows` is empty and not loading.                      |
 
 ### Header Slots
@@ -105,6 +106,21 @@ Shown to the right of the search input. The slot exposes `selectedIds` so you ca
 </template>
 ```
 
+### Filters
+
+Rendered above the search input. The table does not know which filters exist — the slot owns
+them. `filters` is what the server applied (`response.filters`); `setFilters(patch)` navigates
+with the patch merged into the current query (`null` removes a parameter) and resets to page 1:
+
+```vue
+<template #filters="{ filters, setFilters }">
+    <card-stack-filters :filters="filters" :options="filterOptions" @change="setFilters" />
+</template>
+```
+
+Filters are ordinary query parameters next to `sort`, `page` and `search`, so every other
+navigation (sort, page, search) carries them along unchanged.
+
 ## Column Definition
 
 ```ts
@@ -132,7 +148,7 @@ interface TableResponse<T> {
     pageSize: number | null; // null = no pagination
     sort: { key: string; direction: "asc" | "desc" } | null;
     search: string | null;
-    filters: Record<string, string | string[]> | null; // v1: always null
+    filters: Record<string, string | string[]> | null; // applied filters, null when none
 }
 ```
 
@@ -141,10 +157,10 @@ Rows may optionally have an `href: string` field — if present, the row becomes
 
 ## URL State
 
-Sort, pagination, and search state live in URL query parameters for bookmarkability:
+Sort, pagination, search and filter state live in URL query parameters for bookmarkability:
 
 ```
-?sort=name&dir=asc&page=2&pageSize=25&search=Lightning
+?sort=name&dir=asc&page=2&pageSize=25&search=Lightning&lang=de
 ```
 
 The component reads initial state from the `response` prop (server is the source of truth)
@@ -209,6 +225,12 @@ public function show(Request $request, Container $container): Response
 - Sort column mapping (sort key → actual DB column for joins)
 - Pagination via Laravel's `paginate()`
 - Response shaping to match the `TableResponse<T>` contract
+
+Filters are applied by the caller, not by the service: narrow `$query` before calling
+`buildResponse()` and pass the applied values as `filters:` so they are echoed back. Read them
+as forgivingly as the service reads sort and page size — drop an invalid value instead of
+answering with a 422. `CardStackFilterService` is the worked example (collection and container
+tables).
 
 The `sortColumnMap` is needed when sort keys don't match DB column names (e.g. the frontend
 sorts by `name` but the DB column is `default_cards.name` because of a join). Keys not in the

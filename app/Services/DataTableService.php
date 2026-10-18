@@ -26,7 +26,8 @@ class DataTableService
      * @param  string  $defaultSort  Default sort key.
      * @param  (callable(Builder, string): void)|null  $searchCallback  Optional callback to apply search filtering.
      * @param  callable(mixed): array  $rowMapper  Transforms each Eloquent model into a plain array for the frontend.
-     * @return array{rows: array, total: int, page: int, pageSize: int, sort: array{key: string, direction: string}, search: string|null, filters: null}
+     * @param  array<string, string>  $filters  Filters the caller has already applied to `$query`, echoed back so the UI shows what the rows were narrowed by.
+     * @return array{rows: array, total: int, page: int, pageSize: int, sort: array{key: string, direction: string}, search: string|null, filters: array<string, string>|null}
      */
     public static function buildResponse(
         Builder|HasMany $query,
@@ -37,6 +38,7 @@ class DataTableService
         ?callable $searchCallback,
         callable $rowMapper,
         string $defaultDirection = self::DEFAULT_SORT_DIR,
+        array $filters = [],
     ): array {
         $sortKey = $request->input('sort', $defaultSort);
         $sortDir = $request->input('dir', $defaultDirection);
@@ -72,7 +74,7 @@ class DataTableService
             'pageSize' => $pageSize,
             'sort' => ['key' => $sortKey, 'direction' => $sortDir],
             'search' => $search,
-            'filters' => null,
+            'filters' => $filters === [] ? null : $filters,
         ];
     }
 }

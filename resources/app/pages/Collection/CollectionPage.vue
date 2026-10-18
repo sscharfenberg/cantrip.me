@@ -8,6 +8,7 @@ import Headline from "Components/UI/Headline.vue";
 import Icon from "Components/UI/Icon.vue";
 import PopOver from "Components/UI/PopOver.vue";
 import { useBreadcrumbs } from "Composables/useBreadcrumbs.ts";
+import type { CardStackFilterOptions } from "Types/cardStackFilters";
 import type { CollectionCardStackRow } from "Types/collectionCardStackRow";
 import type { TableResponse } from "Types/dataTable";
 
@@ -32,6 +33,7 @@ defineProps<{
         } | null;
     };
     table: TableResponse<CollectionCardStackRow>;
+    filterOptions: CardStackFilterOptions;
     canCreateNewContainer: boolean;
 }>();
 
@@ -129,7 +131,7 @@ setBreadcrumbs([{ labelKey: "pages.collection.link" }]);
             {{ $t("pages.add_cards.link") }}
         </Link>
     </nav>
-    <collection-card-stacks v-if="stats.totalCards > 0" :table="table" />
+    <collection-card-stacks v-if="stats.totalCards > 0" :table="table" :filter-options="filterOptions" />
     <delete-collection-modal
         v-if="showNukeModal"
         :total-cards="stats.totalCards"

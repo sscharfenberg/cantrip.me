@@ -7,6 +7,7 @@ use App\Models\CardStack;
 use App\Models\Container;
 use App\Services\CardSearchParser;
 use App\Services\CardStackClaimService;
+use App\Services\CardStackFilterService;
 use App\Services\ContainerService;
 use App\Services\DataTableService;
 use App\Services\StatsService;
@@ -21,7 +22,9 @@ class CollectionController extends Controller
      * Display the user collection page.
      *
      * Renders the main collection view with collection-wide statistics
-     * and a searchable DataTable of all card stacks across all containers.
+     * and a searchable, filterable DataTable of all card stacks across all
+     * containers. The statistics describe the whole collection, never the
+     * filtered rows.
      */
     public function list(Request $request): Response
     {
@@ -58,6 +61,9 @@ class CollectionController extends Controller
             // hydrated post-build via `CardStackClaimService`; this
             // column exists only to drive the sort.
             ->selectRaw('(SELECT COUNT(*) FROM deck_card_card_stack WHERE deck_card_card_stack.card_stack_id = card_stacks.id) as claim_count');
+
+        $filters = CardStackFilterService::fromRequest($request, withContainer: true, withClaims: true);
+        CardStackFilterService::apply($tableQuery, $filters, $currency);
 
         $table = DataTableService::buildResponse(
             query: $tableQuery,
@@ -125,6 +131,7 @@ class CollectionController extends Controller
                 ];
             },
             defaultDirection: 'desc',
+            filters: $filters,
         );
 
         // Phase 2.5: hydrate per-row deck claims. One batched query per
@@ -139,6 +146,11 @@ class CollectionController extends Controller
         return Inertia::render('Collection/CollectionPage', [
             'stats' => $stats,
             'table' => $table,
+            'filterOptions' => CardStackFilterService::options(
+                CardStack::query()->where('card_stacks.user_id', $user->id),
+                containersOf: $user,
+                withClaims: true,
+            ),
             'canCreateNewContainer' => $containerCount < Container::MAX_CONTAINERS,
         ]);
     }

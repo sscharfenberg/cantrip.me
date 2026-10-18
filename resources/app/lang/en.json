@@ -36,6 +36,14 @@
             "foil": "Foil",
             "etched": "Etched"
         },
+        "rarities": {
+            "common": "Common",
+            "uncommon": "Uncommon",
+            "rare": "Rare",
+            "mythic": "Mythic Rare",
+            "special": "Special",
+            "bonus": "Bonus"
+        },
         "card_legalities": {
             "legal": "Legal",
             "not_legal": "Not Legal",
@@ -1567,6 +1575,38 @@
             "mass_actions": {
                 "move": "Move",
                 "delete": "Delete"
+            }
+        },
+        "card_stack_filters": {
+            "title": "Filters",
+            "clear": "Clear filters",
+            "any": "All",
+            "min_price": "Minimum price",
+            "max_price": "Maximum price",
+            "proxy": {
+                "label": "Proxies",
+                "all": "All",
+                "only": "Only",
+                "none": "None",
+                "hint": "A maximum price of {price} or less hides proxies."
+            },
+            "rarity": "Rarity",
+            "type": "Card type",
+            "colors": "Color identity",
+            "color_mode": {
+                "label": "Color match",
+                "include": "Contains these colors",
+                "exact": "Exactly these colors",
+                "within": "At most these colors"
+            },
+            "reserved": {
+                "label": "Reserved List",
+                "toggle": "Only Reserved List cards"
+            },
+            "claimed": {
+                "label": "Explicitly claimed",
+                "any": "Claimed by any deck",
+                "none": "Not claimed"
             }
         },
         "select": {

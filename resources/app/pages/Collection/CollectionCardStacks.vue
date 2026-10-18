@@ -7,14 +7,17 @@ import ProxyBadge from "Components/Card/Badges/ProxyBadge.vue";
 import CardImagePreview from "Components/Card/CardImagePreview.vue";
 import CardPreviewModal from "Components/Card/CardPreviewModal.vue";
 import CardStackClaimBadge from "Components/Collection/CardStackClaimBadge.vue";
+import CardStackFilters from "Components/Collection/CardStackFilters.vue";
 import DataTable from "Components/DataTable/DataTable.vue";
 import Icon from "Components/UI/Icon.vue";
 import Paragraph from "Components/UI/Paragraph.vue";
 import { useFormatting } from "Composables/useFormatting";
+import type { CardStackFilterOptions } from "Types/cardStackFilters";
 import type { CollectionCardStackRow } from "Types/collectionCardStackRow";
 import type { ColumnDef, TableResponse } from "Types/dataTable";
 defineProps<{
     table: TableResponse<CollectionCardStackRow>;
+    filterOptions: CardStackFilterOptions;
 }>();
 const { t } = useI18n();
 const { formatPrice, formatDateTime } = useFormatting();
@@ -131,6 +134,14 @@ const getTimeStamps = (created: string, updated?: string | null) => {
 
 <template>
     <data-table :columns="columns" :response="table" :selectable="false" base-url="/collection">
+        <template #filters="{ filters, setFilters }">
+            <card-stack-filters
+                :filters="filters"
+                :options="filterOptions"
+                storage-key="collection-filters-accordion-open"
+                @change="setFilters"
+            />
+        </template>
         <template #header-updated_at>
             <icon
                 name="calendar"

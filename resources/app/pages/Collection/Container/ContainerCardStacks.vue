@@ -9,16 +9,19 @@ import ProxyBadge from "Components/Card/Badges/ProxyBadge.vue";
 import CardImagePreview from "Components/Card/CardImagePreview.vue";
 import CardPreviewModal from "Components/Card/CardPreviewModal.vue";
 import CardStackClaimBadge from "Components/Collection/CardStackClaimBadge.vue";
+import CardStackFilters from "Components/Collection/CardStackFilters.vue";
 import DataTable from "Components/DataTable/DataTable.vue";
 import Icon from "Components/UI/Icon.vue";
 import Paragraph from "Components/UI/Paragraph.vue";
 import PopOver from "Components/UI/PopOver.vue";
 import { useFormatting } from "Composables/useFormatting";
+import type { CardStackFilterOptions } from "Types/cardStackFilters";
 import type { CardStackRow } from "Types/cardStackRow";
 import type { ContainerListItem } from "Types/containerListItem";
 import type { ColumnDef, TableResponse } from "Types/dataTable";
 const props = defineProps<{
     table: TableResponse<CardStackRow>;
+    filterOptions: CardStackFilterOptions;
     baseUrl: string;
     containerName: string;
     containers: ContainerListItem[];
@@ -158,6 +161,14 @@ const getTimeStamps = (created: string, updated?: string | null) => {
 
 <template>
     <data-table :columns="columns" :response="table" :selectable="isOwner" :has-actions="isOwner" :base-url="baseUrl">
+        <template #filters="{ filters, setFilters }">
+            <card-stack-filters
+                :filters="filters"
+                :options="filterOptions"
+                storage-key="container-filters-accordion-open"
+                @change="setFilters"
+            />
+        </template>
         <template #header-updated_at>
             <icon
                 name="calendar"

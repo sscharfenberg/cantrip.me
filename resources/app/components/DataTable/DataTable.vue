@@ -46,6 +46,10 @@ const props = withDefaults(
 defineSlots<{
     actions(props: { row: T; close: () => void }): unknown;
     "toolbar-actions"(props: { selectedIds: string[] }): unknown;
+    filters(props: {
+        filters: Record<string, string | string[]> | null;
+        setFilters: (patch: Record<string, string | null>) => void;
+    }): unknown;
     empty(): unknown;
 
     [name: string]: (props?: any) => unknown;
@@ -219,6 +223,14 @@ function onNavigate(page: number) {
 function onPageSizeChange(size: number) {
     router.get(buildUrl({ pageSize: size, page: 1 }), {}, { preserveState: true, preserveScroll: true });
 }
+/**
+ * Apply a filter change from the `#filters` slot and reset to page 1. The
+ * table does not know which parameters are filters: the slot owns its keys,
+ * `null` removes one, and every other parameter is carried over as usual.
+ */
+function onFilter(patch: Record<string, string | null>) {
+    router.get(buildUrl({ ...patch, page: 1 }), {}, { preserveState: true, preserveScroll: true });
+}
 // ---------------------------------------------------------------------------
 // Sticky header detection via IntersectionObserver
 // ---------------------------------------------------------------------------
@@ -248,6 +260,8 @@ onBeforeUnmount(() => {
 
 <template>
     <div class="dt" :class="{ 'dt--loading': isLoading }">
+        <slot name="filters" :filters="response.filters" :set-filters="onFilter" />
+
         <data-table-toolbar :search="response.search" :selected-count="selectedIds.length" @search="onSearch">
             <template v-if="$slots['toolbar-actions']" #actions>
                 <slot name="toolbar-actions" :selected-ids="selectedIds" />

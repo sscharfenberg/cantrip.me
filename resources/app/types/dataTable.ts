@@ -27,7 +27,10 @@ export interface TableResponse<T> {
     pageSize: number | null;
     sort: { key: string; direction: "asc" | "desc" } | null;
     search: string | null;
-    /** Reserved for future column/faceted filtering. v1: always null. */
+    /**
+     * Filters the server applied, keyed by query parameter — echoed back so the
+     * filter UI shows exactly what narrowed the rows. null when none are active.
+     */
     filters: Record<string, string | string[]> | null;
 }
 

@@ -11,6 +11,7 @@ import Icon from "Components/UI/Icon.vue";
 import Paragraph from "Components/UI/Paragraph.vue";
 import { useBreadcrumbs } from "Composables/useBreadcrumbs";
 import { useFormatting } from "Composables/useFormatting";
+import type { CardStackFilterOptions } from "Types/cardStackFilters";
 import type { CardStackRow } from "Types/cardStackRow";
 import type { Container } from "Types/container";
 import type { ContainerListItem } from "Types/containerListItem";
@@ -19,6 +20,7 @@ import type { TableResponse } from "Types/dataTable";
 const props = defineProps<{
     container: Container;
     table: TableResponse<CardStackRow>;
+    filterOptions: CardStackFilterOptions;
     isOwner: boolean;
     /** Only present when isOwner is true. */
     containers?: ContainerListItem[];
@@ -85,6 +87,7 @@ setBreadcrumbs(
     <container-card-stacks
         v-if="container.totalCards > 0"
         :table="table"
+        :filter-options="filterOptions"
         :base-url="`/containers/${container.id}`"
         :container-name="container.name"
         :containers="containers ?? []"

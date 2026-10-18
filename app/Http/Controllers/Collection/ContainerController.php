@@ -14,10 +14,12 @@ use App\Http\Requests\Collection\GenerateContainerQrSheetRequest;
 use App\Http\Requests\Collection\PruneContainerRequest;
 use App\Http\Requests\Collection\ShowContainerRequest;
 use App\Http\Requests\Collection\UpdateContainerRequest;
+use App\Models\CardStack;
 use App\Models\Container;
 use App\Models\DefaultCard;
 use App\Services\CardSearchParser;
 use App\Services\CardStackClaimService;
+use App\Services\CardStackFilterService;
 use App\Services\ContainerService;
 use App\Services\DataTableService;
 use App\Services\QrCodeService;
@@ -250,6 +252,12 @@ class ContainerController extends Controller
             // column's sort.
             ->selectRaw('(SELECT COUNT(*) FROM deck_card_card_stack WHERE deck_card_card_stack.card_stack_id = card_stacks.id) as claim_count');
 
+        // The claim filter is owner-only for the same reason the claims
+        // payload below is: it would tell a visitor which stacks the
+        // owner's (possibly private) decks hold.
+        $filters = CardStackFilterService::fromRequest($request, withContainer: false, withClaims: $isOwner);
+        CardStackFilterService::apply($query, $filters, $currency);
+
         $table = DataTableService::buildResponse(
             query: $query,
             request: $request,
@@ -308,6 +316,7 @@ class ContainerController extends Controller
                 ];
             },
             defaultDirection: 'desc',
+            filters: $filters,
         );
 
         // Phase 2.5: hydrate per-row deck claims for the owner only.
@@ -328,6 +337,11 @@ class ContainerController extends Controller
         $props = [
             'container' => ContainerService::serializeContainer($container),
             'table' => $table,
+            'filterOptions' => CardStackFilterService::options(
+                CardStack::query()->where('card_stacks.container_id', $container->id),
+                containersOf: null,
+                withClaims: $isOwner,
+            ),
             'isOwner' => $isOwner,
         ];
 
