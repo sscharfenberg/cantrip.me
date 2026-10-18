@@ -33,6 +33,13 @@ class ImageDownloadService extends ScryfallService
 
     private FormatService $formatService;
 
+    /**
+     * Set folders already known to exist in this run, as "disk:folder".
+     *
+     * @var array<string, true>
+     */
+    private array $preparedDirectories = [];
+
     public function __construct()
     {
         $this->imageService = new ScryfallImageService;
@@ -130,6 +137,7 @@ class ImageDownloadService extends ScryfallService
         try {
             $response = $this->http()->get($scryfallUrl);
             if ($response->successful()) {
+                $this->prepareSetDirectory('art-crops', $setCode);
                 Storage::disk('art-crops')->put($diskPath, $response->body());
                 Log::channel('scryfall')->debug("downloaded art crop for [{$setCode}] {$card->name}.");
 
@@ -260,6 +268,7 @@ class ImageDownloadService extends ScryfallService
             try {
                 $response = $this->http()->get($scryfallUrl);
                 if ($response->successful()) {
+                    $this->prepareSetDirectory('card-images', $setCode);
                     Storage::disk('card-images')->put($diskPath, $response->body());
                     Log::channel('scryfall')->debug("downloaded card image for [{$setCode}] {$card->name} (face $index).");
                     $counts['downloaded']++;
@@ -295,6 +304,31 @@ class ImageDownloadService extends ScryfallService
                 $this->deleteStaleFile('card-images', $file);
             }
         }
+    }
+
+    /**
+     * Create a set folder with the disk's configured folder permissions
+     * (2775, see config/filesystems.php) before the first image goes in.
+     *
+     * Left to Flysystem, a missing folder is created by a bare mkdir() with
+     * no chmod after it, so its mode depends on the umask and on whatever
+     * default ACL the parent carries — on prod that combination produced
+     * set folders writable for `deploy` alone. The explicit setVisibility()
+     * is a chmod, which neither can narrow.
+     */
+    private function prepareSetDirectory(string $disk, string $setCode): void
+    {
+        $key = "$disk:$setCode";
+        if (isset($this->preparedDirectories[$key])) {
+            return;
+        }
+
+        $storage = Storage::disk($disk);
+        if (! $storage->directoryExists($setCode)) {
+            $storage->makeDirectory($setCode);
+            $storage->setVisibility($setCode, 'public');
+        }
+        $this->preparedDirectories[$key] = true;
     }
 
     /**
@@ -425,6 +459,7 @@ class ImageDownloadService extends ScryfallService
 
                 return 'failed';
             }
+            $this->prepareSetDirectory($disk, $card->set_code);
             Storage::disk($disk)->put($webpPath, $response->body());
             $this->deleteStaleFile($disk, $cached);
 

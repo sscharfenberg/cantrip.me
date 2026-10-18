@@ -1,5 +1,25 @@
 <?php
 
+/*
+|--------------------------------------------------------------------------
+| Scryfall asset permissions
+|--------------------------------------------------------------------------
+|
+| The Scryfall asset folders are shared by deploy (the nightly sync) and
+| www-data (Apache), and art-crops, card-images and symbol also by prod and
+| staging. Their convention is group-writable: files 664, folders 2775
+| (setgid keeps the www-data group). Flysystem's defaults are 644 / 755 and
+| win over umask and the folders' default ACLs — it chmods every file it
+| writes and passes 0755 to mkdir — so without these the nightly sync left
+| every file it wrote writable for deploy alone.
+|
+*/
+
+$scryfallAssetPermissions = [
+    'file' => ['public' => 0664],
+    'dir' => ['public' => 02775],
+];
+
 return [
 
     /*
@@ -64,6 +84,7 @@ return [
             'root' => storage_path('app/set'),
             'url' => env('APP_URL').'/set',
             'visibility' => 'public',
+            'permissions' => $scryfallAssetPermissions,
             'throw' => true,
             'report' => false,
         ],
@@ -72,6 +93,7 @@ return [
             'root' => storage_path('app/symbol'),
             'url' => env('APP_URL').'/symbol',
             'visibility' => 'public',
+            'permissions' => $scryfallAssetPermissions,
             'throw' => true,
             'report' => false,
         ],
@@ -80,6 +102,7 @@ return [
             'root' => storage_path('app/art-crops'),
             'url' => env('APP_URL').'/art-crops',
             'visibility' => 'public',
+            'permissions' => $scryfallAssetPermissions,
             'throw' => true,
             'report' => false,
         ],
@@ -88,6 +111,7 @@ return [
             'root' => storage_path('app/card-images'),
             'url' => env('APP_URL').'/card-images',
             'visibility' => 'public',
+            'permissions' => $scryfallAssetPermissions,
             'throw' => true,
             'report' => false,
         ],
