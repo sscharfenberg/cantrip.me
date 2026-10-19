@@ -210,36 +210,6 @@ describe("DeckStatsSection — picking a spell for Mana sources", () => {
         expect(localStorage.getItem(`cantrip:deck-mana-source-automatic:${meta.id}`)).toBe("easiest");
     });
 
-    it("shows the commander when asked to, and remembers that for the deck", async () => {
-        // The rocks are not online for a two-drop: ten Plains.
-        const thalia = makeCommander({ name: "Thalia", mana_cost: ["{1}{W}"], cmc: 2 });
-        const { wrapper, meta } = render({ commanders: [thalia] });
-
-        wrapper.getComponent(MonoSelect).vm.$emit("change", "commander");
-        await nextTick();
-
-        expect(whiteRow(wrapper).text()).toBe("10 für Thalia");
-        expect(localStorage.getItem(`cantrip:deck-mana-source-automatic:${meta.id}`)).toBe("commander");
-    });
-
-    it("reads a stored commander choice against the deck's current commanders", () => {
-        const thalia = makeCommander({ name: "Thalia", mana_cost: ["{1}{W}"], cmc: 2 });
-        const partner = makeCommander({ name: "Partner", mana_cost: ["{3}{W}"], cmc: 4, is_partner: true });
-        // "Commander" was chosen before a partner joined: the primary stays chosen, by name.
-        const joined = deck();
-        localStorage.setItem(`cantrip:deck-mana-source-automatic:${joined.id}`, "commander");
-        const withPartner = render({ meta: joined, commanders: [thalia, partner] }).wrapper;
-        // The chosen partner left: back to the default.
-        const left = deck();
-        localStorage.setItem(`cantrip:deck-mana-source-automatic:${left.id}`, `commander:${partner.oracle_card_id}`);
-        const withoutPartner = render({ meta: left, commanders: [thalia] }).wrapper;
-
-        expect(withPartner.getComponent(MonoSelect).props("selected")).toBe(`commander:${thalia.oracle_card_id}`);
-        expect(whiteRow(withPartner).text()).toBe("10 für Thalia");
-        expect(withoutPartner.getComponent(MonoSelect).props("selected")).toBe("hardest");
-        expect(whiteRow(withoutPartner).text()).toBe("13 für Brimaz");
-    });
-
     it("moves a highlighted automatic spell along when the choice changes", async () => {
         const { wrapper, api } = render();
         await wrapper.get(".spell-link").trigger("click");

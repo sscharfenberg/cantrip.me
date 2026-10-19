@@ -146,24 +146,6 @@ describe("useManaSourcePicks — the automatic spell", () => {
         expect(useManaSourcePicks(deckId).automaticSpell.value).toBe("hardest");
     });
 
-    it("reads and stores a commander choice, plain or keyed by commander", () => {
-        const plain = newDeck();
-        localStorage.setItem(AUTOMATIC_KEY(plain), "commander");
-        expect(useManaSourcePicks(plain).automaticSpell.value).toBe("commander");
-
-        const keyed = newDeck();
-        useManaSourcePicks(keyed).setAutomaticSpell("commander:oracle-1");
-        expect(localStorage.getItem(AUTOMATIC_KEY(keyed))).toBe("commander:oracle-1");
-        expect(useManaSourcePicks(keyed).automaticSpell.value).toBe("commander:oracle-1");
-    });
-
-    it("reads a commander choice without a commander id as the default", () => {
-        const deckId = newDeck();
-        localStorage.setItem(AUTOMATIC_KEY(deckId), "commander:");
-
-        expect(useManaSourcePicks(deckId).automaticSpell.value).toBe("hardest");
-    });
-
     it("leaves the picks alone", () => {
         const deckId = newDeck();
         const { picks, setPick, setAutomaticSpell } = useManaSourcePicks(deckId);

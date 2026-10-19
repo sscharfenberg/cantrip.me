@@ -1,13 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
-import {
-    AUTOMATIC_RULES,
-    automaticCommander,
-    commandZoneRole,
-    isAutomaticSpell,
-    karstenArticleUrl
-} from "@/utils/frankKarstenAnalysis";
+import { karstenArticleUrl } from "@/utils/frankKarstenAnalysis";
 import DeckStatsSpellLink from "Components/Deck/DeckStats/DeckStatsSpellLink.vue";
 import MonoSelect from "Components/Form/Select/MonoSelect.vue";
 import Headline from "Components/UI/Headline.vue";
@@ -17,7 +11,6 @@ import LabelledLink from "Components/UI/LabelledLink.vue";
 import type { HighlightColor } from "Composables/useDeckHighlight.ts";
 import type { AutomaticSpell, KarstenColorAnalysis, KarstenCombinedAnalysis } from "Composables/useDeckStats.ts";
 import { useFormatting } from "Composables/useFormatting.ts";
-import type { DeckCommander } from "Types/deckPage.ts";
 
 const props = defineProps<{
     /** Per-color Karsten source recommendation for the deck's format. */
@@ -28,12 +21,10 @@ const props = defineProps<{
      * monocolor decks or decks without gold cards.
      */
     karstenCombined: KarstenCombinedAnalysis[];
-    /** Deck format slug — drives which Karsten article the attribution links to, and what the command-zone choices are called. */
+    /** Deck format slug — drives which Karsten article the attribution links to. */
     format: string;
-    /** Which spell the rows without a pick show — resolved against `commanders`, so it names one of the options. */
+    /** Which spell the rows without a pick show. */
     automaticSpell: AutomaticSpell;
-    /** The command zone, primary commander first — each can be the automatic spell. */
-    commanders: Pick<DeckCommander, "oracle_card_id" | "name" | "is_partner">[];
 }>();
 
 /**
@@ -62,45 +53,13 @@ const karstenUrl = computed(() => karstenArticleUrl(props.format));
 const colorLabel = (colors: readonly HighlightColor[]): string =>
     colors.map(c => t(`pages.deck.stats.colors.color.${c}`)).join(" / ");
 
-/** What a command-zone card is called here: commander, or Oathbreaker's oathbreaker and signature spell. */
-const roleOf = (commander: (typeof props.commanders)[number]) => commandZoneRole(props.format, commander.is_partner);
-
-/**
- * The automatic-spell choices: the rules, in their order, then the
- * command zone — one "Commander" entry, or one per card, named, when
- * there are several ("Commander: …", or "Oathbreaker: …" and
- * "Signature Spell: …").
- */
-const automaticOptions = computed(() => [
-    ...AUTOMATIC_RULES.map(choice => ({
+/** The automatic-spell choices, hardest first — the default, and the question Karsten answers. */
+const automaticOptions = computed(() =>
+    (["hardest", "easiest", "cheapest"] as const).map(choice => ({
         value: choice,
         label: t(`pages.deck.stats.colors.karsten.automatic.${choice}`)
-    })),
-    ...(props.commanders.length === 1
-        ? [{ value: "commander", label: t(`pages.deck.stats.colors.karsten.automatic.${roleOf(props.commanders[0])}`) }]
-        : props.commanders.map(cmd => ({
-              value: `commander:${cmd.oracle_card_id}`,
-              label: t(`pages.deck.stats.colors.karsten.automatic.${roleOf(cmd)}_named`, { name: cmd.name })
-          })))
-]);
-
-/** Report a new choice. Every option is one, so the guard only narrows MonoSelect's plain string. */
-const onAutomaticChange = (choice: string): void => {
-    if (isAutomaticSpell(choice)) emit("automatic-spell", choice);
-};
-
-/**
- * The slot of the command-zone card the rows follow, or null while a rule
- * chooses — only then can a row fall back to the hardest spell.
- */
-const followedRole = computed(() => {
-    const id = automaticCommander(
-        props.automaticSpell,
-        props.commanders.map(cmd => cmd.oracle_card_id)
-    );
-    const commander = props.commanders.find(cmd => cmd.oracle_card_id === id);
-    return commander === undefined ? null : roleOf(commander);
-});
+    }))
+);
 
 /** Whether any row shows a picked spell — only then is there anything to reset. */
 const hasPicks = computed(() => [...props.karsten, ...props.karstenCombined].some(row => row.picked));
@@ -118,14 +77,11 @@ const hasPicks = computed(() => [...props.karsten, ...props.karstenCombined].som
                     :placeholder="t('pages.deck.stats.colors.karsten.automatic.label')"
                     :sort="false"
                     :clearable="false"
-                    @change="onAutomaticChange"
+                    @change="(choice: string) => emit('automatic-spell', choice as AutomaticSpell)"
                 />
                 <info-box class="mana-sources__hint">
                     <p>{{ t("pages.deck.stats.colors.karsten.automatic.hint") }}</p>
                     <p>{{ t("pages.deck.stats.colors.karsten.automatic.hint_one_drops") }}</p>
-                    <p v-if="followedRole !== null">
-                        {{ t(`pages.deck.stats.colors.karsten.automatic.hint_${followedRole}`) }}
-                    </p>
                 </info-box>
                 <button v-if="hasPicks" type="button" class="mana-sources__reset" @click="emit('reset-picks')">
                     <icon name="clear" :size="0" />{{ t("pages.deck.stats.colors.karsten.reset_picks") }}

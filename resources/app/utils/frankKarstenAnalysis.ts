@@ -67,8 +67,7 @@ const SYMBOL_REGEX = /\{([^}]+)}/g;
 const COLORS: readonly HighlightColor[] = ["W", "U", "B", "R", "G"] as const;
 
 /**
- * The rules that choose a Karsten row's spell out of every main-deck
- * spell demanding it:
+ * Which spell a Karsten row shows while the user has picked none:
  *   - `hardest` — the one the deck is closest to failing (the largest
  *     `need - have`);
  *   - `easiest` — the one it covers with the most sources to spare
@@ -77,79 +76,7 @@ const COLORS: readonly HighlightColor[] = ["W", "U", "B", "R", "G"] as const;
  *   - `cheapest` — the lowest mana value, then the fewest pips of the
  *     color, whatever its sources.
  */
-export type AutomaticRule = "hardest" | "easiest" | "cheapest";
-
-/**
- * Which spell a Karsten row shows while the user has picked none: one of
- * the {@link AutomaticRule}s, or a commander — `commander` for the deck's
- * only (or primary) one, `commander:<oracle id>` for one of several. A
- * row the commander does not demand falls back to `hardest`.
- */
-export type AutomaticSpell = AutomaticRule | "commander" | `commander:${string}`;
-
-/** The command-zone slot a commander choice names — what its labels call it. */
-export type CommandZoneRole = "commander" | "oathbreaker" | "signature_spell";
-
-/**
- * The slot a command-zone card fills, read as the deck page reads it
- * (`DeckCommandZoneModal`): in Oathbreaker the primary row is the
- * oathbreaker and the other one (`is_partner`) the signature spell; every
- * other format calls both commanders.
- */
-export const commandZoneRole = (format: string, isPartner: boolean): CommandZoneRole => {
-    if (format !== "oathbreaker") return "commander";
-    return isPartner ? "signature_spell" : "oathbreaker";
-};
-
-/** How a row's automatic spell was actually chosen: by a rule, or as a command-zone card — named by its slot. */
-export type AutomaticReason = AutomaticRule | CommandZoneRole;
-
-/** Prefix of the choice naming one of several commanders by oracle id. */
-const COMMANDER_PREFIX = "commander:";
-
-/** The rules, in the order the dropdown offers them: hardest first — the default, and the question Karsten answers. */
-export const AUTOMATIC_RULES: readonly AutomaticRule[] = ["hardest", "easiest", "cheapest"];
-
-/** True for a rule rather than a commander choice. */
-export const isAutomaticRule = (choice: string): choice is AutomaticRule =>
-    (AUTOMATIC_RULES as readonly string[]).includes(choice);
-
-/**
- * True for any well-formed choice — a rule, `commander`, or `commander:`
- * followed by an id. Whether that commander is still in the deck is
- * {@link automaticCommander}'s question.
- */
-export const isAutomaticSpell = (choice: string): choice is AutomaticSpell =>
-    isAutomaticRule(choice) ||
-    choice === "commander" ||
-    (choice.startsWith(COMMANDER_PREFIX) && choice.length > COMMANDER_PREFIX.length);
-
-/**
- * The oracle id of the commander a choice names: the first of
- * `commanderIds` (the primary commander) for `commander`, the named one
- * for `commander:<id>` while it is still in the command zone. Null for a
- * rule, a deck without commanders, or a commander that has left.
- */
-export const automaticCommander = (choice: AutomaticSpell, commanderIds: readonly string[]): string | null => {
-    if (choice === "commander") return commanderIds[0] ?? null;
-    if (!choice.startsWith(COMMANDER_PREFIX)) return null;
-    const id = choice.slice(COMMANDER_PREFIX.length);
-    return commanderIds.includes(id) ? id : null;
-};
-
-/**
- * The choice as the deck's dropdown offers it: `commander` while the
- * deck has one commander, `commander:<id>` while it has several — so a
- * stored `commander` survives a partner joining, and a stored partner
- * survives the other one leaving. A commander choice naming no commander
- * of the deck reads as the default, `hardest`.
- */
-export const resolveAutomaticSpell = (choice: AutomaticSpell, commanderIds: readonly string[]): AutomaticSpell => {
-    if (isAutomaticRule(choice)) return choice;
-    const id = automaticCommander(choice, commanderIds);
-    if (id === null) return "hardest";
-    return commanderIds.length === 1 ? "commander" : `${COMMANDER_PREFIX}${id}`;
-};
+export type AutomaticSpell = "hardest" | "easiest" | "cheapest";
 
 /**
  * What a Karsten row needs so the user can pick the spell it is priced
@@ -160,13 +87,8 @@ export interface KarstenRowPick {
     key: string;
     /** True when the row shows a spell the user picked instead of the automatic one. */
     picked: boolean;
-    /**
-     * The spell the row shows when nothing is picked — see
-     * {@link AutomaticSpell} — and how it was chosen: `chosenBy` names the
-     * rule that actually applied, so a row the chosen commander does not
-     * demand says `hardest`, or the commander's slot ({@link CommandZoneRole}).
-     */
-    automatic: { card: string; mv: number; chosenBy: AutomaticReason };
+    /** The spell the row shows when nothing is picked — see {@link AutomaticSpell}. */
+    automatic: { card: string; mv: number };
     /**
      * Oracle ids of every card that can be picked for the row — main
      * deck, command zone, companion and sideboard alike.

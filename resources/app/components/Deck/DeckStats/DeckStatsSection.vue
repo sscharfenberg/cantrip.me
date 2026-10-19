@@ -2,7 +2,6 @@
 import { computed, nextTick, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { combineCI } from "@/utils/colorIdentity.ts";
-import { resolveAutomaticSpell } from "@/utils/frankKarstenAnalysis";
 import DeckStatsCategories from "Components/Deck/DeckStats/DeckStatsCategories.vue";
 import DeckStatsColors from "Components/Deck/DeckStats/DeckStatsColors.vue";
 import DeckStatsManacurve from "Components/Deck/DeckStats/DeckStatsManacurve.vue";
@@ -38,17 +37,6 @@ const { t } = useI18n();
  * without a pick show — both remembered per deck in this browser.
  */
 const { picks, setPick, clearPicks, automaticSpell, setAutomaticSpell } = useManaSourcePicks(props.deck.id);
-/**
- * The stored choice read against the deck's current commanders: a
- * commander choice naming none of them reads as the default, and the
- * dropdown always finds its option.
- */
-const effectiveAutomaticSpell = computed(() =>
-    resolveAutomaticSpell(
-        automaticSpell.value,
-        props.commanders.map(cmd => cmd.oracle_card_id)
-    )
-);
 /** The deck's sort mode — the spell picker lists its groups in the same order as the page. */
 const { sortMode } = useDeckSort(props.deck.id);
 const {
@@ -69,7 +57,7 @@ const {
     () => props.categories,
     () => props.deck.format,
     () => picks.value,
-    () => effectiveAutomaticSpell.value
+    () => automaticSpell.value
 );
 const { hasHighlight, clear, selectedSpellSources, setSpellSources } = useDeckHighlight();
 /**
@@ -206,8 +194,7 @@ const onPickerSelect = (oracleId: string | null): void => {
                         :karsten="karstenAnalysis"
                         :karsten-combined="karstenCombined"
                         :format="deck.format"
-                        :automatic-spell="effectiveAutomaticSpell"
-                        :commanders="commanders"
+                        :automatic-spell="automaticSpell"
                         @pick="key => (pickerKey = key)"
                         @automatic-spell="setAutomaticSpell"
                         @reset-picks="() => void resetPicks()"
@@ -219,6 +206,7 @@ const onPickerSelect = (oracleId: string | null): void => {
                     :candidates="pickerRow.candidates"
                     :picked="pickerRow.picked ? (picks[pickerKey] ?? null) : null"
                     :automatic="pickerRow.automatic"
+                    :automatic-spell="automaticSpell"
                     :cards="cards"
                     :commanders="commanders"
                     :companion="deck.allows_companion ? companion : null"

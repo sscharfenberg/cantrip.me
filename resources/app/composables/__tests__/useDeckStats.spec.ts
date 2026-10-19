@@ -3,7 +3,7 @@
 import { describe, expect, it } from "vitest";
 import { ref } from "vue";
 import { makeCategory, makeCommander, makeCompanion, makeDeckCard } from "@/test/factories/deckCard.ts";
-import type { AutomaticSpell, KarstenRowPick } from "@/utils/frankKarstenAnalysis";
+import type { KarstenRowPick } from "@/utils/frankKarstenAnalysis";
 import type { DeckCardRow, DeckCategoryRow, DeckCommander, DeckCompanion } from "Types/deckPage.ts";
 import { useDeckStats } from "../useDeckStats.ts";
 
@@ -31,7 +31,7 @@ const setup = (
         categories?: DeckCategoryRow[];
         format?: string;
         picks?: Record<string, string>;
-        automaticSpell?: AutomaticSpell;
+        automaticSpell?: "hardest" | "easiest" | "cheapest";
     } = {}
 ) =>
     useDeckStats(
@@ -1090,7 +1090,7 @@ describe("useDeckStats — picking the spell a Karsten row counts for", () => {
         // The rocks help the three-drop, but not enough: 13 of 18 is short by
         // five, the one-drop's 10 of 14 only by four.
         expect(row).toMatchObject({ key: "W", card: "{1}{W}{W}", mv: 3, have: 13, picked: false });
-        expect(row.automatic).toEqual({ card: "{1}{W}{W}", mv: 3, chosenBy: "hardest" });
+        expect(row.automatic).toEqual({ card: "{1}{W}{W}", mv: 3 });
         expect(row.candidates).toEqual(
             expect.arrayContaining([oneDrop.oracle_card_id, threeDrop.oracle_card_id, sideboarded.oracle_card_id])
         );
@@ -1103,7 +1103,7 @@ describe("useDeckStats — picking the spell a Karsten row counts for", () => {
         const [row] = setup({ cards, picks: { W: oneDrop.oracle_card_id } }).karstenAnalysis.value;
 
         expect(row).toMatchObject({ card: "{W}", mv: 1, have: 10, need: 14, short: 4, picked: true });
-        expect(row.automatic).toEqual({ card: "{1}{W}{W}", mv: 3, chosenBy: "hardest" });
+        expect(row.automatic).toEqual({ card: "{1}{W}{W}", mv: 3 });
     });
 
     it("checks a picked sideboard spell against the main deck's sources", () => {
@@ -1173,7 +1173,7 @@ describe("useDeckStats — picking the spell a Karsten row counts for", () => {
 
         expect(automatic).toMatchObject({ key: "WU", card: "{W}{U}", picked: false });
         expect(picked).toMatchObject({ key: "WU", card: "{2}{W}{U}", mv: 4, picked: true });
-        expect(picked.automatic).toEqual({ card: "{W}{U}", mv: 2, chosenBy: "hardest" });
+        expect(picked.automatic).toEqual({ card: "{W}{U}", mv: 2 });
     });
 });
 
@@ -1197,7 +1197,7 @@ describe("useDeckStats — the automatic spell: hardest or easiest", () => {
         const [row] = setup({ cards: cards(), automaticSpell: "easiest" }).karstenAnalysis.value;
 
         expect(row).toMatchObject({ card: "{2}{W}{W}", need: 16, have: 13, short: 3, picked: false });
-        expect(row.automatic).toEqual({ card: "{2}{W}{W}", mv: 4, chosenBy: "easiest" });
+        expect(row.automatic).toEqual({ card: "{2}{W}{W}", mv: 4 });
     });
 
     it("breaks a tie toward the smaller requirement for the easiest, the larger for the hardest", () => {
@@ -1230,7 +1230,7 @@ describe("useDeckStats — the automatic spell: hardest or easiest", () => {
         }).karstenAnalysis.value;
 
         expect(row).toMatchObject({ card: "{1}{W}{W}", picked: true });
-        expect(row.automatic).toEqual({ card: "{2}{W}{W}", mv: 4, chosenBy: "easiest" });
+        expect(row.automatic).toEqual({ card: "{2}{W}{W}", mv: 4 });
     });
 
     it("shows the cheapest spell when asked — a commander included, however short it falls", () => {
@@ -1267,147 +1267,5 @@ describe("useDeckStats — the automatic spell: hardest or easiest", () => {
         expect(setup({ cards: deck }).karstenCombined.value[0].card).toBe("{W}{U}");
         expect(setup({ cards: deck, automaticSpell: "easiest" }).karstenCombined.value[0].card).toBe("{3}{W}{U}");
         expect(setup({ cards: deck, automaticSpell: "cheapest" }).karstenCombined.value[0].card).toBe("{W}{U}");
-    });
-});
-
-describe("useDeckStats — the automatic spell: the commander", () => {
-    // Ten Plains and ten Islands. The hardest white spell is the {W}{W}
-    // two-drop (10 of 30); either commander asks for far fewer.
-    const islands = makeDeckCard({
-        name: "Island",
-        type_line: "Basic Land — Island",
-        cmc: 0,
-        mana_cost: [null],
-        is_basic_land: true,
-        produced_mana: ["U"],
-        quantity: 10
-    });
-    const cards = () => [plains(10), islands, spell("{W}{W}", 2), spell("{2}{U}", 3), spell("{1}{W}{U}", 3)];
-    const primary = makeCommander({
-        name: "Thalia, Guardian of Thraben",
-        color_identity: "W",
-        mana_cost: ["{1}{W}"],
-        cmc: 2
-    });
-    const partner = makeCommander({
-        name: "Ishai, Ojutai Dragonspeaker",
-        color_identity: "WU",
-        mana_cost: ["{2}{W}{U}"],
-        cmc: 4,
-        is_partner: true
-    });
-    const run = (automaticSpell: AutomaticSpell, commanders: DeckCommander[] = [primary, partner]) =>
-        setup({ cards: cards(), commanders, format: "commander", automaticSpell });
-
-    it("prices a row the commander demands for the commander", () => {
-        const [white] = run("commander", [primary]).karstenAnalysis.value;
-
-        expect(white).toMatchObject({ key: "W", card: "Thalia, Guardian of Thraben", mv: 2, need: 19, picked: false });
-        expect(white.automatic).toEqual({ card: "Thalia, Guardian of Thraben", mv: 2, chosenBy: "commander" });
-    });
-
-    it("prices it for the primary commander under the plain choice, for the named one under a keyed choice", () => {
-        expect(run("commander").karstenAnalysis.value[0].card).toBe("Thalia, Guardian of Thraben");
-        expect(run(`commander:${partner.oracle_card_id}`).karstenAnalysis.value[0]).toMatchObject({
-            card: "Ishai, Ojutai Dragonspeaker",
-            mv: 4,
-            need: 17
-        });
-    });
-
-    it("falls back to the hardest spell in a row the commander does not demand", () => {
-        const { karstenAnalysis, karstenCombined } = run("commander", [primary]);
-        const blue = karstenAnalysis.value.find(row => row.key === "U")!;
-
-        expect(blue).toMatchObject({ card: "{1}{W}{U}", picked: false });
-        expect(blue.automatic.chosenBy).toBe("hardest");
-        expect(karstenCombined.value[0]).toMatchObject({ key: "WU", card: "{1}{W}{U}" });
-        expect(karstenCombined.value[0].automatic.chosenBy).toBe("hardest");
-    });
-
-    it("falls back to the hardest spell once the chosen commander has left the deck", () => {
-        const [white] = run("commander:oracle-card-gone").karstenAnalysis.value;
-
-        expect(white).toMatchObject({ card: "{W}{W}", mv: 2, need: 30 });
-        expect(white.automatic.chosenBy).toBe("hardest");
-    });
-
-    it("leaves a picked spell alone", () => {
-        const deck = cards();
-        const [white] = setup({
-            cards: deck,
-            commanders: [primary],
-            format: "commander",
-            automaticSpell: "commander",
-            picks: { W: deck[2].oracle_card_id }
-        }).karstenAnalysis.value;
-
-        expect(white).toMatchObject({ card: "{W}{W}", picked: true });
-        expect(white.automatic).toEqual({ card: "Thalia, Guardian of Thraben", mv: 2, chosenBy: "commander" });
-    });
-
-    it("prices a multicolor row a gold commander demands for the commander", () => {
-        // Ishai's W∪U needs 27, the deck's {1}{W}{U} 29 — the hardest would be the latter.
-        const [combined] = run(`commander:${partner.oracle_card_id}`).karstenCombined.value;
-
-        expect(combined).toMatchObject({ key: "WU", card: "Ishai, Ojutai Dragonspeaker", mv: 4, need: 27 });
-        expect(combined.automatic.chosenBy).toBe("commander");
-    });
-});
-
-describe("useDeckStats — the automatic spell: in Oathbreaker", () => {
-    // Ten Islands. The hardest blue spell is the {U}{U}{U} (10 of 23);
-    // the oathbreaker needs 18, the signature spell 14.
-    const islands = makeDeckCard({
-        name: "Island",
-        type_line: "Basic Land — Island",
-        cmc: 0,
-        mana_cost: [null],
-        is_basic_land: true,
-        produced_mana: ["U"],
-        quantity: 10
-    });
-    const narset = makeCommander({
-        name: "Narset, Parter of Veils",
-        type_line: "Legendary Planeswalker — Narset",
-        color_identity: "U",
-        mana_cost: ["{1}{U}{U}"],
-        cmc: 3
-    });
-    const brainstorm = makeCommander({
-        name: "Brainstorm",
-        type_line: "Instant",
-        color_identity: "U",
-        mana_cost: ["{U}"],
-        cmc: 1,
-        is_partner: true
-    });
-    const blueRow = (automaticSpell: AutomaticSpell) =>
-        setup({
-            cards: [islands, spell("{U}{U}{U}", 3)],
-            commanders: [narset, brainstorm],
-            format: "oathbreaker",
-            automaticSpell
-        }).karstenAnalysis.value[0];
-
-    it("names the oathbreaker as the oathbreaker, the signature spell as the signature spell", () => {
-        expect(blueRow("commander").automatic).toEqual({
-            card: "Narset, Parter of Veils",
-            mv: 3,
-            chosenBy: "oathbreaker"
-        });
-        expect(blueRow(`commander:${brainstorm.oracle_card_id}`).automatic).toEqual({
-            card: "Brainstorm",
-            mv: 1,
-            chosenBy: "signature_spell"
-        });
-    });
-
-    it("falls back to the hardest spell as elsewhere", () => {
-        expect(blueRow("commander:oracle-card-gone").automatic).toEqual({
-            card: "{U}{U}{U}",
-            mv: 3,
-            chosenBy: "hardest"
-        });
     });
 });

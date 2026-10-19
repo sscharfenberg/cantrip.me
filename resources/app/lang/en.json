@@ -1219,17 +1219,8 @@
                             "hardest": "Hardest to cast",
                             "easiest": "Most sources to spare",
                             "cheapest": "Cheapest spell",
-                            "commander": "Commander",
-                            "commander_named": "Commander: {name}",
-                            "oathbreaker": "Oathbreaker",
-                            "oathbreaker_named": "Oathbreaker: {name}",
-                            "signature_spell": "Signature Spell",
-                            "signature_spell_named": "Signature Spell: {name}",
                             "hint": "Why a spell? How many sources a color needs depends on the spell: its mana value and how many symbols of that color it asks for. Mana rocks, mana creatures and ramp also only count toward spells they come online in time for. So each row counts the sources for one spell — chosen here, or picked by clicking the spell.",
-                            "hint_one_drops": "Cheap spells are often the hard ones: a one-drop needs its color on turn 1, and only lands can supply it by then. A five-drop has four more draws to find its color, and ramp counts toward it — so it usually has the most sources to spare.",
-                            "hint_commander": "A row whose color or color combination your commander doesn't need shows the spell that is hardest to cast.",
-                            "hint_oathbreaker": "A row whose color or color combination your oathbreaker doesn't need shows the spell that is hardest to cast.",
-                            "hint_signature_spell": "A row whose color or color combination your signature spell doesn't need shows the spell that is hardest to cast."
+                            "hint_one_drops": "Cheap spells are often the hard ones: a one-drop needs its color on turn 1, and only lands can supply it by then. A five-drop has four more draws to find its color, and ramp counts toward it — so it usually has the most sources to spare."
                         },
                         "picker": {
                             "title": "Spell for {colors} sources",
@@ -1239,10 +1230,7 @@
                             "automatic": "Automatic",
                             "automatic_hint_hardest": "hardest to cast in your deck",
                             "automatic_hint_easiest": "most sources to spare in your deck",
-                            "automatic_hint_cheapest": "cheapest spell in your deck",
-                            "automatic_hint_commander": "your commander",
-                            "automatic_hint_oathbreaker": "your oathbreaker",
-                            "automatic_hint_signature_spell": "your signature spell"
+                            "automatic_hint_cheapest": "cheapest spell in your deck"
                         },
                         "weighting": "Lands count as full sources. Mana creatures count as ½, mana rocks and land-search spells as up to ¾, Treasure makers as ¼ — each only toward spells it comes online in time for. Only cards in the main deck, the command zone and the companion count as sources.",
                         "attribution": "Analysis according to Frank Karsten's research. {link}",

@@ -1,15 +1,7 @@
 // @vitest-environment node
 
 import { describe, expect, it } from "vitest";
-import {
-    automaticCommander,
-    breakdownCard,
-    commandZoneRole,
-    isAutomaticSpell,
-    karstenArticleUrl,
-    resolveAutomaticSpell,
-    sourcesNeeded
-} from "../frankKarstenAnalysis.ts";
+import { breakdownCard, karstenArticleUrl, sourcesNeeded } from "../frankKarstenAnalysis.ts";
 
 const NO_PIPS = { W: 0, U: 0, B: 0, R: 0, G: 0 };
 
@@ -199,69 +191,5 @@ describe("karstenArticleUrl", () => {
         // format-keyed so a future 100-card-specific piece can diverge.
         expect(karstenArticleUrl("commander")).toBe(karstenArticleUrl("modern"));
         expect(karstenArticleUrl("modern")).toMatch(/^https:\/\/www\.tcgplayer\.com\/content\/article\//);
-    });
-});
-
-describe("isAutomaticSpell", () => {
-    it.each(["hardest", "easiest", "cheapest", "commander", "commander:oracle-1"])("accepts %s", choice => {
-        expect(isAutomaticSpell(choice)).toBe(true);
-    });
-
-    it.each(["fastest", "", "commander:", "Commander", "commanders"])("rejects %j", choice => {
-        expect(isAutomaticSpell(choice)).toBe(false);
-    });
-});
-
-describe("automaticCommander", () => {
-    it("names the primary commander for the plain choice", () => {
-        expect(automaticCommander("commander", ["primary", "partner"])).toBe("primary");
-    });
-
-    it("names the commander a keyed choice asks for, while it is in the command zone", () => {
-        expect(automaticCommander("commander:partner", ["primary", "partner"])).toBe("partner");
-        expect(automaticCommander("commander:gone", ["primary", "partner"])).toBeNull();
-    });
-
-    it("names nobody for a rule or a deck without commanders", () => {
-        expect(automaticCommander("cheapest", ["primary"])).toBeNull();
-        expect(automaticCommander("commander", [])).toBeNull();
-    });
-});
-
-describe("resolveAutomaticSpell", () => {
-    it("leaves a rule alone, commanders or not", () => {
-        expect(resolveAutomaticSpell("easiest", [])).toBe("easiest");
-        expect(resolveAutomaticSpell("cheapest", ["primary", "partner"])).toBe("cheapest");
-    });
-
-    it("offers the plain choice while the deck has one commander", () => {
-        expect(resolveAutomaticSpell("commander", ["primary"])).toBe("commander");
-        // The partner that was picked left; the one commander that stayed is the plain choice.
-        expect(resolveAutomaticSpell("commander:primary", ["primary"])).toBe("commander");
-    });
-
-    it("keys the choice by commander while the deck has several", () => {
-        // A partner joined after "Commander" was chosen: the primary stays chosen.
-        expect(resolveAutomaticSpell("commander", ["primary", "partner"])).toBe("commander:primary");
-        expect(resolveAutomaticSpell("commander:partner", ["primary", "partner"])).toBe("commander:partner");
-    });
-
-    it("reads a commander choice naming no commander of the deck as the default", () => {
-        expect(resolveAutomaticSpell("commander", [])).toBe("hardest");
-        expect(resolveAutomaticSpell("commander:gone", ["primary"])).toBe("hardest");
-        expect(resolveAutomaticSpell("commander:gone", ["primary", "partner"])).toBe("hardest");
-    });
-});
-
-describe("commandZoneRole", () => {
-    it("calls every command-zone card a commander outside Oathbreaker", () => {
-        expect(commandZoneRole("commander", false)).toBe("commander");
-        expect(commandZoneRole("commander", true)).toBe("commander");
-        expect(commandZoneRole("brawl", false)).toBe("commander");
-    });
-
-    it("tells the oathbreaker from the signature spell in Oathbreaker", () => {
-        expect(commandZoneRole("oathbreaker", false)).toBe("oathbreaker");
-        expect(commandZoneRole("oathbreaker", true)).toBe("signature_spell");
     });
 });
