@@ -1,6 +1,6 @@
 import type { Ref } from "vue";
 import { ref } from "vue";
-import type { AutomaticSpell } from "@/utils/frankKarstenAnalysis";
+import { type AutomaticSpell, isAutomaticSpell } from "@/utils/frankKarstenAnalysis";
 
 /**
  * The spell picked per "Mana sources" row: row key ("W", or a WUBRG-ordered
@@ -28,9 +28,6 @@ const PICKS_PREFIX = "cantrip:deck-mana-source-picks:";
 
 /** Prefix for per-deck localStorage entries holding the automatic-spell choice. */
 const AUTOMATIC_PREFIX = "cantrip:deck-mana-source-automatic:";
-
-/** Values that are considered valid persisted automatic-spell choices. */
-const AUTOMATIC_CHOICES: ReadonlySet<AutomaticSpell> = new Set<AutomaticSpell>(["hardest", "easiest", "cheapest"]);
 
 /**
  * Module-level cache, as in `useDeckSort`: every caller for the same deck id
@@ -61,14 +58,16 @@ function readPicks(deckId: string): ManaSourcePicks {
 
 /**
  * Read the persisted automatic-spell choice for a deck; anything unknown,
- * or unavailable storage, reads as the default `hardest`.
+ * or unavailable storage, reads as the default `hardest`. A commander
+ * choice is kept as stored, even once that commander has left the deck:
+ * `resolveAutomaticSpell` reads it against the deck's current commanders.
  *
  * @param deckId - Deck identifier used as part of the storage key.
  */
 function readAutomaticSpell(deckId: string): AutomaticSpell {
     try {
         const raw = window.localStorage.getItem(`${AUTOMATIC_PREFIX}${deckId}`);
-        return raw !== null && AUTOMATIC_CHOICES.has(raw as AutomaticSpell) ? (raw as AutomaticSpell) : "hardest";
+        return raw !== null && isAutomaticSpell(raw) ? raw : "hardest";
     } catch {
         return "hardest";
     }

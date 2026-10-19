@@ -2,6 +2,7 @@ import { mount } from "@vue/test-utils";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { makeCategory, makeCommander, makeCompanion, makeDeckCard } from "@/test/factories/deckCard.ts";
 import { setTestMessages } from "@/test/i18n.ts";
+import type { AutomaticReason } from "Composables/useDeckStats.ts";
 import type { DeckCardRow, DeckCommander, DeckCompanion } from "Types/deckPage.ts";
 import DeckStatsSpellPickerModal from "../DeckStatsSpellPickerModal.vue";
 
@@ -35,7 +36,7 @@ const open = (
         candidates: string[];
         picked: string | null;
         colors: ("W" | "U")[];
-        automaticSpell: "hardest" | "easiest" | "cheapest";
+        automatic: { card: string; mv: number; chosenBy: AutomaticReason };
         commanders: DeckCommander[];
         companion: DeckCompanion | null;
         allowsSideboard: boolean;
@@ -46,8 +47,7 @@ const open = (
             colors: ["W"],
             candidates: [lions, swords, tithe, wrath, commander, companion].map(c => c.oracle_card_id),
             picked: null,
-            automatic: { card: "Swords to Plowshares", mv: 1 },
-            automaticSpell: "hardest" as const,
+            automatic: { card: "Swords to Plowshares", mv: 1, chosenBy: "hardest" as const },
             cards,
             commanders: [commander],
             companion,
@@ -165,13 +165,16 @@ describe("DeckStatsSpellPickerModal — picking", () => {
         expect(wrapper.emitted("select")).toEqual([[null]]);
     });
 
-    it.each(["hardest", "easiest", "cheapest"] as const)("names how the automatic spell was chosen (%s)", choice => {
-        open({ automaticSpell: choice });
+    it.each(["hardest", "easiest", "cheapest", "commander", "oathbreaker", "signature_spell"] as const)(
+        "names how the automatic spell was chosen (%s)",
+        choice => {
+            open({ automatic: { card: "Swords to Plowshares", mv: 1, chosenBy: choice } });
 
-        expect(document.querySelector(".spell-picker__automatic .spell-picker__hint")?.textContent).toBe(
-            `pages.deck.stats.colors.karsten.picker.automatic_hint_${choice}`
-        );
-    });
+            expect(document.querySelector(".spell-picker__automatic .spell-picker__hint")?.textContent).toBe(
+                `pages.deck.stats.colors.karsten.picker.automatic_hint_${choice}`
+            );
+        }
+    );
 
     it("marks the current choice — the automatic entry while nothing is picked", () => {
         open();

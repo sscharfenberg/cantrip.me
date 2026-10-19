@@ -1219,8 +1219,17 @@
                             "hardest": "Am schwersten zu wirken",
                             "easiest": "Die meisten Quellen übrig",
                             "cheapest": "Günstigster Zauber",
+                            "commander": "Commander",
+                            "commander_named": "Commander: {name}",
+                            "oathbreaker": "Oathbreaker",
+                            "oathbreaker_named": "Oathbreaker: {name}",
+                            "signature_spell": "Signaturzauber",
+                            "signature_spell_named": "Signaturzauber: {name}",
                             "hint": "Warum ein Zauber? Wie viele Quellen eine Farbe braucht, hängt vom Zauber ab: von seinem Manawert und davon, wie viele Symbole dieser Farbe er verlangt. Manasteine, Manakreaturen und Rampe zählen außerdem nur für Zauber, für die sie rechtzeitig bereitstehen. Deshalb zählt jede Zeile die Quellen für einen Zauber — hier ausgewählt oder per Klick auf den Zauber.",
-                            "hint_one_drops": "Günstige Zauber sind oft die schwierigen: Ein Zauber mit Manawert 1 braucht seine Farbe schon in Zug 1, und bis dahin können nur Länder sie liefern. Ein Zauber mit Manawert 5 hat vier Züge mehr, um seine Farbe zu finden, und Rampe zählt für ihn mit — deshalb hat er meist die meisten Quellen übrig."
+                            "hint_one_drops": "Günstige Zauber sind oft die schwierigen: Ein Zauber mit Manawert 1 braucht seine Farbe schon in Zug 1, und bis dahin können nur Länder sie liefern. Ein Zauber mit Manawert 5 hat vier Züge mehr, um seine Farbe zu finden, und Rampe zählt für ihn mit — deshalb hat er meist die meisten Quellen übrig.",
+                            "hint_commander": "Braucht dein Commander die Farbe oder Farbkombination einer Zeile nicht, zeigt sie den Zauber, der am schwersten zu wirken ist.",
+                            "hint_oathbreaker": "Braucht dein Oathbreaker die Farbe oder Farbkombination einer Zeile nicht, zeigt sie den Zauber, der am schwersten zu wirken ist.",
+                            "hint_signature_spell": "Braucht dein Signaturzauber die Farbe oder Farbkombination einer Zeile nicht, zeigt sie den Zauber, der am schwersten zu wirken ist."
                         },
                         "picker": {
                             "title": "Zauber für {colors} Quellen",
@@ -1230,7 +1239,10 @@
                             "automatic": "Automatisch",
                             "automatic_hint_hardest": "im Deck am schwersten zu wirken",
                             "automatic_hint_easiest": "im Deck die meisten Quellen übrig",
-                            "automatic_hint_cheapest": "günstigster Zauber im Deck"
+                            "automatic_hint_cheapest": "günstigster Zauber im Deck",
+                            "automatic_hint_commander": "dein Commander",
+                            "automatic_hint_oathbreaker": "dein Oathbreaker",
+                            "automatic_hint_signature_spell": "dein Signaturzauber"
                         },
                         "weighting": "Länder zählen als volle Quellen. Manakreaturen zählen ½, Manasteine und Landsuch-Zauber bis zu ¾, Schatz-Erzeuger ¼ — jeweils nur für Zauber, für die sie rechtzeitig bereitstehen. Als Quellen zählen nur Karten aus Hauptdeck, Command Zone und Companion.",
                         "attribution": "Analyse basiert auf der Forschung von Frank Karsten. {link}",

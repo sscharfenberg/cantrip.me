@@ -6,8 +6,9 @@
  * default and custom groups, sideboard — narrowed to the cards the row can
  * be priced for, with empty groups left out. Rows are read-only: quantity,
  * name and mana cost, no drag handle and no actions menu. Clicking one picks
- * it; the "Automatic" entry above the groups hands the row back to the
- * main-deck spell it is closest to failing.
+ * it; the "Automatic" entry above the groups hands the row back to its
+ * automatic spell — the hardest, easiest or cheapest main-deck one, or the
+ * commander (in Oathbreaker: the oathbreaker or the signature spell).
  *
  * Grouping comes from `useDeckSections` and the column split from
  * `useResponsiveColumns`, both shared with the text view; the row styling
@@ -23,7 +24,7 @@ import InfoBox from "Components/UI/InfoBox.vue";
 import type { HighlightColor } from "Composables/useDeckHighlight.ts";
 import { useDeckSections } from "Composables/useDeckSections.ts";
 import type { DeckSort } from "Composables/useDeckSort.ts";
-import type { AutomaticSpell } from "Composables/useDeckStats.ts";
+import type { AutomaticReason } from "Composables/useDeckStats.ts";
 import { useResponsiveColumns } from "Composables/useResponsiveColumns.ts";
 import type { DeckCardRow, DeckCategoryRow, DeckCommander, DeckCompanion } from "Types/deckPage.ts";
 
@@ -34,10 +35,8 @@ const props = defineProps<{
     candidates: string[];
     /** Oracle id of the picked spell, or null while the row is automatic. */
     picked: string | null;
-    /** The spell the row shows while automatic. */
-    automatic: { card: string; mv: number };
-    /** How that spell is chosen — names it as the hardest or the easiest one. */
-    automaticSpell: AutomaticSpell;
+    /** The spell the row shows while automatic, and how it was chosen — named as the hardest one, the oathbreaker, … */
+    automatic: { card: string; mv: number; chosenBy: AutomaticReason };
     cards: DeckCardRow[];
     commanders: DeckCommander[];
     /** The companion, or null — also null when the format allows none, as in the text view. */
@@ -130,7 +129,7 @@ const isPicked = (oracleId: string): boolean => props.picked === oracleId;
                         >
                             <span class="card__name">{{ t("pages.deck.stats.colors.karsten.spell", automatic) }}</span>
                             <span class="spell-picker__hint">{{
-                                t(`pages.deck.stats.colors.karsten.picker.automatic_hint_${automaticSpell}`)
+                                t(`pages.deck.stats.colors.karsten.picker.automatic_hint_${automatic.chosenBy}`)
                             }}</span>
                         </button>
                     </li>

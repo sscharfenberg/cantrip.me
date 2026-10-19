@@ -1,8 +1,14 @@
 import { computed, type ComputedRef } from "vue";
 import { type LandCandidate, makeFetchResolver } from "@/utils/fetchlandResolver";
 import {
+    type AutomaticReason,
+    type AutomaticRule,
     type AutomaticSpell,
+    automaticCommander,
     breakdownCard,
+    type CommandZoneRole,
+    commandZoneRole,
+    isAutomaticRule,
     type KarstenColorAnalysis,
     type KarstenCombinedAnalysis,
     type KarstenRowPick,
@@ -15,7 +21,7 @@ import type { DeckCardRow, DeckCategoryRow, DeckCommander, DeckCompanion } from 
 // Re-export for callers that already import the Karsten output types
 // from this composable — keeps the existing `DeckStatsColors.vue` and
 // any future consumers importing from one place if they prefer.
-export type { AutomaticSpell, KarstenColorAnalysis, KarstenCombinedAnalysis };
+export type { AutomaticReason, AutomaticSpell, KarstenColorAnalysis, KarstenCombinedAnalysis };
 
 // ---------------------------------------------------------------------------
 // Output shapes
@@ -428,7 +434,7 @@ export function useDeckStats(
      */
     const bindingRequirement = (
         requirements: readonly KarstenRequirement[],
-        choose: AutomaticSpell = "hardest"
+        choose: AutomaticRule = "hardest"
     ): { have: number; need: number; short: number; card: string; mv: number } => {
         let chosen: { have: number; need: number; gap: number; card: string; mv: number } | null = null;
         for (const { colors, need, cmc, card } of requirements) {
@@ -450,7 +456,7 @@ export function useDeckStats(
 
     /** Whether `candidate` beats `current` as the automatic spell of a row — see {@link bindingRequirement}. */
     const isBetter = (
-        choose: AutomaticSpell,
+        choose: AutomaticRule,
         candidate: { gap: number; need: number; mv: number },
         current: { gap: number; need: number; mv: number }
     ): boolean => {
@@ -464,12 +470,40 @@ export function useDeckStats(
     };
 
     /**
+     * The automatic spell, resolved once for every row: the rule a row
+     * falls back to (the chosen one, or the hardest under a commander
+     * choice), and the commander it names with its slot — null for a rule,
+     * see {@link automaticCommander}.
+     */
+    const automaticChoice = computed<{
+        rule: AutomaticRule;
+        commander: { oracleId: string; role: CommandZoneRole } | null;
+    }>(() => {
+        const choice = automaticSpell();
+        const id = automaticCommander(
+            choice,
+            commanders().map(cmd => cmd.oracle_card_id)
+        );
+        const commander = commanders().find(cmd => cmd.oracle_card_id === id);
+        return {
+            rule: isAutomaticRule(choice) ? choice : "hardest",
+            commander:
+                commander === undefined
+                    ? null
+                    : { oracleId: commander.oracle_card_id, role: commandZoneRole(format(), commander.is_partner) }
+        };
+    });
+
+    /**
      * Build one Karsten row from every card demanding its color (or
      * combo). The automatic spell is the hardest, easiest or cheapest
-     * main-deck requirement, per `automaticSpell`; a pick replaces it with the
-     * picked card's own requirement (its tighter one, should the card
-     * demand the combo twice — gold and hybrid). Null when no main-deck
-     * card demands it: a color only the sideboard asks for gets no row.
+     * main-deck requirement, per `automaticSpell` — or the chosen
+     * commander's own requirement, in a row the commander demands; any
+     * other row falls back to the hardest. A pick replaces it with the
+     * picked card's own requirement. Either card's requirement is its
+     * tighter one, should it demand the combo twice (gold and hybrid).
+     * Null when no main-deck card demands it: a color only the sideboard
+     * asks for gets no row.
      */
     const buildRow = (
         key: string,
@@ -477,14 +511,17 @@ export function useDeckStats(
     ): (ReturnType<typeof bindingRequirement> & KarstenRowPick) | null => {
         const main = requirements.filter(r => !r.sideboard);
         if (main.length === 0) return null;
-        const automatic = bindingRequirement(main, automaticSpell());
+        const { rule, commander } = automaticChoice.value;
+        const fromCommander = commander === null ? [] : main.filter(r => r.oracleId === commander.oracleId);
+        const chosenBy: AutomaticReason = commander !== null && fromCommander.length > 0 ? commander.role : rule;
+        const automatic = fromCommander.length > 0 ? bindingRequirement(fromCommander) : bindingRequirement(main, rule);
         const pick = picks()[key];
         const picked = pick === undefined ? [] : requirements.filter(r => r.oracleId === pick);
         return {
             ...(picked.length > 0 ? bindingRequirement(picked) : automatic),
             key,
             picked: picked.length > 0,
-            automatic: { card: automatic.card, mv: automatic.mv },
+            automatic: { card: automatic.card, mv: automatic.mv, chosenBy },
             candidates: [...new Set(requirements.map(r => r.oracleId))]
         };
     };

@@ -2,7 +2,7 @@ import { mount } from "@vue/test-utils";
 import { describe, expect, it, vi } from "vitest";
 import { setTestMessages } from "@/test/i18n.ts";
 import MonoSelect from "Components/Form/Select/MonoSelect.vue";
-import type { KarstenColorAnalysis, KarstenCombinedAnalysis } from "Composables/useDeckStats.ts";
+import type { AutomaticSpell, KarstenColorAnalysis, KarstenCombinedAnalysis } from "Composables/useDeckStats.ts";
 import DeckStatsManaSources from "../DeckStatsManaSources.vue";
 
 vi.mock("@inertiajs/vue3", async () => (await import("@/test/inertia.ts")).inertiaModuleMock());
@@ -12,7 +12,7 @@ const colorRow = (row: Omit<KarstenColorAnalysis, "key" | "picked" | "automatic"
     ...row,
     key: row.color,
     picked: false,
-    automatic: { card: row.card, mv: row.mv },
+    automatic: { card: row.card, mv: row.mv, chosenBy: "hardest" as const },
     candidates: []
 });
 
@@ -24,8 +24,12 @@ const props = {
     ] satisfies KarstenColorAnalysis[],
     karstenCombined: [] as KarstenCombinedAnalysis[],
     format: "commander",
-    automaticSpell: "hardest" as const
+    automaticSpell: "hardest" as AutomaticSpell,
+    commanders: [] as { oracle_card_id: string; name: string; is_partner: boolean }[]
 };
+
+/** A lone commander, in a Commander deck. */
+const kenrith = { oracle_card_id: "kenrith", name: "Kenrith, the Returned King", is_partner: false };
 
 const combined: KarstenCombinedAnalysis = {
     colors: ["R", "G"],
@@ -36,7 +40,7 @@ const combined: KarstenCombinedAnalysis = {
     mv: 4,
     key: "RG",
     picked: false,
-    automatic: { card: "Ghor-Clan Rampager", mv: 4 },
+    automatic: { card: "Ghor-Clan Rampager", mv: 4, chosenBy: "hardest" },
     candidates: []
 };
 
@@ -153,6 +157,116 @@ describe("DeckStatsManaSources", () => {
         select.vm.$emit("change", "hardest");
 
         expect(wrapper.emitted("automatic-spell")).toEqual([["hardest"]]);
+    });
+
+    it("offers the commander after the rules, as one plain entry for one commander", () => {
+        const wrapper = mount(DeckStatsManaSources, {
+            props: { ...props, commanders: [kenrith] }
+        });
+
+        expect(wrapper.getComponent(MonoSelect).props("options")).toEqual([
+            { value: "hardest", label: "pages.deck.stats.colors.karsten.automatic.hardest" },
+            { value: "easiest", label: "pages.deck.stats.colors.karsten.automatic.easiest" },
+            { value: "cheapest", label: "pages.deck.stats.colors.karsten.automatic.cheapest" },
+            { value: "commander", label: "pages.deck.stats.colors.karsten.automatic.commander" }
+        ]);
+    });
+
+    it("offers each of several commanders by name, and reports which one is chosen", () => {
+        setTestMessages({
+            de: {
+                pages: {
+                    deck: { stats: { colors: { karsten: { automatic: { commander_named: "Commander: {name}" } } } } }
+                }
+            }
+        });
+        const wrapper = mount(DeckStatsManaSources, {
+            props: {
+                ...props,
+                automaticSpell: "commander:tymna",
+                commanders: [
+                    { oracle_card_id: "kraum", name: "Kraum, Ludevic's Opus", is_partner: false },
+                    { oracle_card_id: "tymna", name: "Tymna the Weaver", is_partner: true }
+                ]
+            }
+        });
+        const select = wrapper.getComponent(MonoSelect);
+
+        expect(select.props("options").slice(3)).toEqual([
+            { value: "commander:kraum", label: "Commander: Kraum, Ludevic's Opus" },
+            { value: "commander:tymna", label: "Commander: Tymna the Weaver" }
+        ]);
+        expect(select.props("selected")).toBe("commander:tymna");
+        select.vm.$emit("change", "commander:kraum");
+
+        expect(wrapper.emitted("automatic-spell")).toEqual([["commander:kraum"]]);
+    });
+
+    it("explains the fallback to the hardest spell only while a commander is chosen", () => {
+        const hint = "pages.deck.stats.colors.karsten.automatic.hint_commander";
+        const commanders = [kenrith];
+        const byRule = mount(DeckStatsManaSources, { props: { ...props, commanders } });
+        const byCommander = mount(DeckStatsManaSources, {
+            props: { ...props, commanders, automaticSpell: "commander" }
+        });
+
+        expect(byRule.findAll(".mana-sources__hint p").map(p => p.text())).not.toContain(hint);
+        expect(byCommander.findAll(".mana-sources__hint p").map(p => p.text())).toContain(hint);
+    });
+
+    describe("in Oathbreaker", () => {
+        const oathbreaker = { oracle_card_id: "narset", name: "Narset, Parter of Veils", is_partner: false };
+        const signatureSpell = { oracle_card_id: "brainstorm", name: "Brainstorm", is_partner: true };
+        const oathbreakerProps = { ...props, format: "oathbreaker", commanders: [oathbreaker, signatureSpell] };
+
+        it("offers the oathbreaker and the signature spell by name", () => {
+            setTestMessages({
+                de: {
+                    pages: {
+                        deck: {
+                            stats: {
+                                colors: {
+                                    karsten: {
+                                        automatic: {
+                                            oathbreaker_named: "Oathbreaker: {name}",
+                                            signature_spell_named: "Signaturzauber: {name}"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+            const wrapper = mount(DeckStatsManaSources, { props: oathbreakerProps });
+
+            expect(wrapper.getComponent(MonoSelect).props("options").slice(3)).toEqual([
+                { value: "commander:narset", label: "Oathbreaker: Narset, Parter of Veils" },
+                { value: "commander:brainstorm", label: "Signaturzauber: Brainstorm" }
+            ]);
+        });
+
+        it("offers a lone oathbreaker as one plain entry", () => {
+            const wrapper = mount(DeckStatsManaSources, { props: { ...oathbreakerProps, commanders: [oathbreaker] } });
+
+            expect(wrapper.getComponent(MonoSelect).props("options").slice(3)).toEqual([
+                { value: "commander", label: "pages.deck.stats.colors.karsten.automatic.oathbreaker" }
+            ]);
+        });
+
+        it("explains the fallback for the slot the rows follow", () => {
+            const hints = (automaticSpell: AutomaticSpell) =>
+                mount(DeckStatsManaSources, { props: { ...oathbreakerProps, automaticSpell } })
+                    .findAll(".mana-sources__hint p")
+                    .map(p => p.text())
+                    .slice(2);
+
+            expect(hints("commander:narset")).toEqual(["pages.deck.stats.colors.karsten.automatic.hint_oathbreaker"]);
+            expect(hints("commander:brainstorm")).toEqual([
+                "pages.deck.stats.colors.karsten.automatic.hint_signature_spell"
+            ]);
+            expect(hints("hardest")).toEqual([]);
+        });
     });
 
     it("stacks the choice: its headline, the dropdown, then why a row needs a spell", () => {
