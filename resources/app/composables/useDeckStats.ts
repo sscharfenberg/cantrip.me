@@ -742,7 +742,8 @@ export function useDeckStats(
      * as its row would be were it picked there — a card demanding a
      * combination twice (gold and hybrid) counts its tighter one. Picks
      * and the automatic spell play no part. A card without colored pips
-     * (Kozilek) needs no colored source and is left out.
+     * (Rograkh's `{0}`) makes no requirement and is on curve — it is still
+     * listed, so a partner never looks forgotten.
      */
     const karstenCommandZone = computed<KarstenCommandZoneCheck[]>(() => {
         const fmt = format();
@@ -753,7 +754,6 @@ export function useDeckStats(
                 const { have, need, short } = bindingRequirement(demands);
                 return { key, colors: demands[0].colors, have, need, short };
             });
-            if (requirements.length === 0) continue;
             checks.push({
                 oracleId: cmd.oracle_card_id,
                 card: cmd.name,

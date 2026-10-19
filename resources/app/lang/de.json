@@ -1218,6 +1218,7 @@
                             "title": "Command Zone",
                             "on_curve": "{spell}: genug Quellen, um rechtzeitig gewirkt zu werden.",
                             "short": "{spell}: nicht genug Quellen, um rechtzeitig gewirkt zu werden.",
+                            "colorless": "{spell}: braucht kein farbiges Mana.",
                             "requirement": "{colors} {have} von {need}",
                             "multicolor": "Eine mehrfarbige Karte braucht genug Quellen jeder ihrer Farben und genug Quellen, die eine davon erzeugen."
                         },

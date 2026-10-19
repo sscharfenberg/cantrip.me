@@ -176,9 +176,9 @@ export interface KarstenCommandZoneCheck {
     oracleId: string;
     card: string;
     mv: number;
-    /** Per-color requirements in WUBRG order, then the combined ones. */
+    /** Per-color requirements in WUBRG order, then the combined ones; empty for a card without colored pips. */
     requirements: KarstenCastRequirement[];
-    /** True when no requirement falls short. */
+    /** True when no requirement falls short — always, for a card that makes none. */
     onCurve: boolean;
 }
 

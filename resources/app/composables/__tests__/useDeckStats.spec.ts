@@ -1372,17 +1372,29 @@ describe("useDeckStats — karstenCommandZone", () => {
         ]);
     });
 
-    it("lists each command-zone card in order, leaving out one without colored pips", () => {
-        const kozilek = makeCommander({
-            name: "Kozilek, the Great Distortion",
-            color_identity: "",
-            mana_cost: ["{8}{C}{C}"],
-            cmc: 10
-        });
+    it("lists each command-zone card in order", () => {
         const partner = makeCommander({ name: "Partner", mana_cost: ["{1}{W}"], cmc: 2, is_partner: true });
-        const checks = commanderDeck({ cards: [plains(20)], commanders: [nekusar, kozilek, partner] })
-            .karstenCommandZone.value;
+        const checks = commanderDeck({ cards: [plains(20)], commanders: [nekusar, partner] }).karstenCommandZone.value;
 
         expect(checks.map(check => check.card)).toEqual(["Nekusar, the Mindrazer", "Partner"]);
+    });
+
+    it("keeps a partner without colored pips, on curve with nothing to check", () => {
+        // Rograkh is red by its color indicator alone; its cost is {0}.
+        const yoshimaru = makeCommander({ name: "Yoshimaru, Ever Faithful", mana_cost: ["{W}"], cmc: 1 });
+        const rograkh = makeCommander({
+            name: "Rograkh, Son of Rohgahh",
+            color_identity: "R",
+            mana_cost: ["{0}"],
+            cmc: 0,
+            is_partner: true
+        });
+        const checks = commanderDeck({ cards: [plains(6)], commanders: [yoshimaru, rograkh] }).karstenCommandZone.value;
+
+        expect(checks.map(check => [check.card, check.onCurve])).toEqual([
+            ["Yoshimaru, Ever Faithful", false],
+            ["Rograkh, Son of Rohgahh", true]
+        ]);
+        expect(checks[1]).toMatchObject({ mv: 0, requirements: [] });
     });
 });

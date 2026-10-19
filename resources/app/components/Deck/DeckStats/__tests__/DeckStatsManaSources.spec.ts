@@ -265,6 +265,41 @@ describe("DeckStatsManaSources — the command zone", () => {
         ]);
     });
 
+    it("says a card without colored pips needs no colored mana, and lists nothing under it", () => {
+        setTestMessages({
+            de: {
+                pages: {
+                    deck: {
+                        stats: {
+                            colors: {
+                                karsten: {
+                                    spell: "{card} ({mv})",
+                                    command_zone: { colorless: "{spell}: farblos", on_curve: "{spell}: ja" }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        const rograkh: KarstenCommandZoneCheck = {
+            oracleId: "rograkh",
+            card: "Rograkh, Son of Rohgahh",
+            mv: 0,
+            requirements: [],
+            onCurve: true
+        };
+        const wrapper = mount(DeckStatsManaSources, { props: { ...props, commandZone: [thalia, rograkh] } });
+        const rows = wrapper.findAll(".mana-sources__group--command-zone .mana-sources__rows > li");
+
+        expect(rows.map(row => row.get(".mana-sources__verdict").text())).toEqual([
+            "Thalia (2): ja",
+            "Rograkh, Son of Rohgahh (0): farblos"
+        ]);
+        expect(rows.map(row => row.find(".mana-sources__requirements").exists())).toEqual([true, false]);
+        expect(rows[1].get(".mana-sources__verdict").classes("mana-sources__verdict--short")).toBe(false);
+    });
+
     it("explains a multicolored card's several requirements only when one is in the command zone", () => {
         const note = "pages.deck.stats.colors.karsten.command_zone.multicolor";
         const notes = (commandZone: KarstenCommandZoneCheck[]) =>

@@ -1218,6 +1218,7 @@
                             "title": "Command Zone",
                             "on_curve": "{spell}: enough sources to cast on curve.",
                             "short": "{spell}: not enough sources to cast on curve.",
+                            "colorless": "{spell}: needs no colored mana.",
                             "requirement": "{colors} {have} of {need}",
                             "multicolor": "A multicolored card needs enough sources of each of its colors, and enough sources that make any of them."
                         },

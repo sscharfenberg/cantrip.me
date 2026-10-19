@@ -68,6 +68,20 @@ const automaticOptions = computed(() =>
     }))
 );
 
+/**
+ * What a command-zone card's line says: that it needs no colored mana,
+ * that the deck can cast it on curve, or that it cannot.
+ */
+const verdict = (check: KarstenCommandZoneCheck): string => {
+    const spell = t("pages.deck.stats.colors.karsten.spell", { card: check.card, mv: check.mv });
+    if (check.requirements.length === 0) {
+        return t("pages.deck.stats.colors.karsten.command_zone.colorless", { spell });
+    }
+    return check.onCurve
+        ? t("pages.deck.stats.colors.karsten.command_zone.on_curve", { spell })
+        : t("pages.deck.stats.colors.karsten.command_zone.short", { spell });
+};
+
 /** Whether a command-zone card is multicolored — only then does it have more than one requirement to explain. */
 const hasMulticolorCommand = computed(() => props.commandZone.some(check => check.requirements.length > 1));
 
@@ -88,21 +102,9 @@ const hasPicks = computed(() => [...props.karsten, ...props.karstenCombined].som
                         <span
                             class="mana-sources__verdict"
                             :class="{ 'mana-sources__verdict--short': !check.onCurve }"
-                            >{{
-                                t(
-                                    check.onCurve
-                                        ? "pages.deck.stats.colors.karsten.command_zone.on_curve"
-                                        : "pages.deck.stats.colors.karsten.command_zone.short",
-                                    {
-                                        spell: t("pages.deck.stats.colors.karsten.spell", {
-                                            card: check.card,
-                                            mv: check.mv
-                                        })
-                                    }
-                                )
-                            }}</span
+                            >{{ verdict(check) }}</span
                         >
-                        <ul class="mana-sources__requirements">
+                        <ul v-if="check.requirements.length" class="mana-sources__requirements">
                             <li
                                 v-for="requirement in check.requirements"
                                 :key="requirement.key"
