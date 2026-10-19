@@ -9,7 +9,12 @@ import Icon from "Components/UI/Icon.vue";
 import InfoBox from "Components/UI/InfoBox.vue";
 import LabelledLink from "Components/UI/LabelledLink.vue";
 import type { HighlightColor } from "Composables/useDeckHighlight.ts";
-import type { AutomaticSpell, KarstenColorAnalysis, KarstenCombinedAnalysis } from "Composables/useDeckStats.ts";
+import type {
+    AutomaticSpell,
+    KarstenColorAnalysis,
+    KarstenCombinedAnalysis,
+    KarstenCommandZoneCheck
+} from "Composables/useDeckStats.ts";
 import { useFormatting } from "Composables/useFormatting.ts";
 
 const props = defineProps<{
@@ -21,6 +26,8 @@ const props = defineProps<{
      * monocolor decks or decks without gold cards.
      */
     karstenCombined: KarstenCombinedAnalysis[];
+    /** Per command-zone card, whether it can be cast on curve. Empty for a deck without commanders. */
+    commandZone: KarstenCommandZoneCheck[];
     /** Deck format slug — drives which Karsten article the attribution links to. */
     format: string;
     /** Which spell the rows without a pick show. */
@@ -61,6 +68,9 @@ const automaticOptions = computed(() =>
     }))
 );
 
+/** Whether a command-zone card is multicolored — only then does it have more than one requirement to explain. */
+const hasMulticolorCommand = computed(() => props.commandZone.some(check => check.requirements.length > 1));
+
 /** Whether any row shows a picked spell — only then is there anything to reset. */
 const hasPicks = computed(() => [...props.karsten, ...props.karstenCombined].some(row => row.picked));
 </script>
@@ -69,6 +79,63 @@ const hasPicks = computed(() => [...props.karsten, ...props.karstenCombined].som
     <div class="mana-sources">
         <headline :size="4">{{ t("pages.deck.stats.colors.karsten.title") }}</headline>
         <figure class="mana-sources__figure">
+            <section v-if="commandZone.length" class="mana-sources__group mana-sources__group--command-zone">
+                <h5 class="mana-sources__subheading">
+                    {{ t("pages.deck.stats.colors.karsten.command_zone.title") }}
+                </h5>
+                <ul class="mana-sources__rows">
+                    <li v-for="check in commandZone" :key="check.oracleId" class="mana-sources__row">
+                        <span
+                            class="mana-sources__verdict"
+                            :class="{ 'mana-sources__verdict--short': !check.onCurve }"
+                            >{{
+                                t(
+                                    check.onCurve
+                                        ? "pages.deck.stats.colors.karsten.command_zone.on_curve"
+                                        : "pages.deck.stats.colors.karsten.command_zone.short",
+                                    {
+                                        spell: t("pages.deck.stats.colors.karsten.spell", {
+                                            card: check.card,
+                                            mv: check.mv
+                                        })
+                                    }
+                                )
+                            }}</span
+                        >
+                        <ul class="mana-sources__requirements">
+                            <li
+                                v-for="requirement in check.requirements"
+                                :key="requirement.key"
+                                class="mana-sources__requirement"
+                                :data-key="requirement.key"
+                                :class="{ 'mana-sources__requirement--short': requirement.short > 0 }"
+                            >
+                                <i18n-t
+                                    keypath="pages.deck.stats.colors.karsten.command_zone.requirement"
+                                    scope="global"
+                                >
+                                    <template #colors>
+                                        <span class="mana-sources__combined-colors">
+                                            <img
+                                                v-for="c in requirement.colors"
+                                                :key="c"
+                                                :src="`/symbol/${c}.svg`"
+                                                :alt="t(`pages.deck.stats.colors.color.${c}`)"
+                                                class="mana-sources__symbol"
+                                            />
+                                        </span>
+                                    </template>
+                                    <template #have>{{ formatDecimals(requirement.have) }}</template>
+                                    <template #need>{{ requirement.need }}</template>
+                                </i18n-t>
+                            </li>
+                        </ul>
+                    </li>
+                </ul>
+                <info-box v-if="hasMulticolorCommand" class="mana-sources__hint">
+                    <p>{{ t("pages.deck.stats.colors.karsten.command_zone.multicolor") }}</p>
+                </info-box>
+            </section>
             <section class="mana-sources__group mana-sources__automatic">
                 <h5 class="mana-sources__subheading">{{ t("pages.deck.stats.colors.karsten.automatic.label") }}</h5>
                 <mono-select
@@ -253,6 +320,31 @@ const hasPicks = computed(() => [...props.karsten, ...props.karstenCombined].som
 
         font-size: 1rem;
         font-weight: 400;
+    }
+
+    // A command-zone card's verdict, bold while it falls short — as a
+    // short row is, but without its requirements, which say so each.
+    &__verdict--short {
+        font-weight: 600;
+    }
+
+    // The requirements a command-zone card makes, side by side under its
+    // verdict. The row's hanging indent is inherited; the list resets it.
+    &__requirements {
+        display: flex;
+        flex-wrap: wrap;
+
+        padding: 0;
+        margin: 0;
+        gap: 0 1.5ch;
+
+        list-style: none;
+
+        text-indent: 0;
+    }
+
+    &__requirement--short {
+        font-weight: 600;
     }
 
     &__combined-colors {

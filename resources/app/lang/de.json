@@ -1214,6 +1214,13 @@
                         "change_spell_aria": "Anderen Zauber für {colors} Quellen wählen, derzeit {spell}, automatisch gewählt",
                         "change_spell_aria_picked": "Anderen Zauber für {colors} Quellen wählen, derzeit {spell}, von dir gewählt",
                         "reset_picks": "Auf automatische Zauber zurücksetzen",
+                        "command_zone": {
+                            "title": "Command Zone",
+                            "on_curve": "{spell}: genug Quellen, um rechtzeitig gewirkt zu werden.",
+                            "short": "{spell}: nicht genug Quellen, um rechtzeitig gewirkt zu werden.",
+                            "requirement": "{colors} {have} von {need}",
+                            "multicolor": "Eine mehrfarbige Karte braucht genug Quellen jeder ihrer Farben und genug Quellen, die eine davon erzeugen."
+                        },
                         "automatic": {
                             "label": "Automatischer Zauber",
                             "hardest": "Am schwersten zu wirken",

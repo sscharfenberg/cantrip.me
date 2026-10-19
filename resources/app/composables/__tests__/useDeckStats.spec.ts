@@ -1269,3 +1269,120 @@ describe("useDeckStats — the automatic spell: hardest or easiest", () => {
         expect(setup({ cards: deck, automaticSpell: "cheapest" }).karstenCombined.value[0].card).toBe("{W}{U}");
     });
 });
+
+describe("useDeckStats — karstenCommandZone", () => {
+    const basic = (name: string, color: string, quantity: number) =>
+        makeDeckCard({
+            name,
+            type_line: `Basic Land — ${name}`,
+            cmc: 0,
+            mana_cost: [null],
+            is_basic_land: true,
+            produced_mana: [color],
+            quantity
+        });
+    const nekusar = makeCommander({
+        name: "Nekusar, the Mindrazer",
+        color_identity: "UBR",
+        mana_cost: ["{2}{U}{B}{R}"],
+        cmc: 5
+    });
+    const commanderDeck = (options: Parameters<typeof setup>[0]) => setup({ format: "commander", ...options });
+
+    it("is empty without commanders", () => {
+        expect(setup({ cards: [plains(10), spell("{W}", 1)] }).karstenCommandZone.value).toEqual([]);
+    });
+
+    it("checks every requirement of a multicolored commander, each against its own sources", () => {
+        // Each color needs 16 (15, +1 for a gold card), any of the three 31.
+        // Five Mountains leave red short; the other three are met.
+        const [check] = commanderDeck({
+            cards: [basic("Island", "U", 20), basic("Swamp", "B", 20), basic("Mountain", "R", 5)],
+            commanders: [nekusar]
+        }).karstenCommandZone.value;
+
+        expect(check).toEqual({
+            oracleId: nekusar.oracle_card_id,
+            card: "Nekusar, the Mindrazer",
+            mv: 5,
+            requirements: [
+                { key: "U", colors: ["U"], have: 20, need: 16, short: 0 },
+                { key: "B", colors: ["B"], have: 20, need: 16, short: 0 },
+                { key: "R", colors: ["R"], have: 5, need: 16, short: 11 },
+                { key: "UBR", colors: ["U", "B", "R"], have: 45, need: 31, short: 0 }
+            ],
+            onCurve: false
+        });
+    });
+
+    it("is on curve once every requirement is met", () => {
+        const [check] = commanderDeck({
+            cards: [basic("Island", "U", 20), basic("Swamp", "B", 20), basic("Mountain", "R", 16)],
+            commanders: [nekusar]
+        }).karstenCommandZone.value;
+
+        expect(check.onCurve).toBe(true);
+    });
+
+    it("counts the sources online by the commander's own mana value", () => {
+        // Four rocks add ¾ each toward a five-drop; the deck's one-drop,
+        // the hardest white spell, gets none of them.
+        const commander = makeCommander({ name: "Five-drop", mana_cost: ["{4}{W}"], cmc: 5 });
+        const stats = commanderDeck({
+            cards: [plains(10), { ...manaRock(["W"]), quantity: 4 }, spell("{W}", 1)],
+            commanders: [commander]
+        });
+
+        expect(stats.karstenCommandZone.value[0].requirements).toEqual([
+            { key: "W", colors: ["W"], have: 13, need: 15, short: 2 }
+        ]);
+        expect(stats.karstenAnalysis.value[0]).toMatchObject({ card: "{W}", have: 10 });
+    });
+
+    it("ignores picks and the automatic spell", () => {
+        const commander = makeCommander({ name: "Five-drop", mana_cost: ["{4}{W}"], cmc: 5 });
+        const oneDrop = spell("{W}", 1);
+        const check = (options: Parameters<typeof setup>[0]) =>
+            commanderDeck({ cards: [plains(10), oneDrop], commanders: [commander], ...options }).karstenCommandZone
+                .value[0];
+
+        expect(check({ picks: { W: oneDrop.oracle_card_id }, automaticSpell: "cheapest" })).toEqual(check({}));
+        expect(check({}).requirements[0]).toMatchObject({ need: 15, have: 10 });
+    });
+
+    it("needs only combined sources for a hybrid commander", () => {
+        // Two {W/U} pips at mana value 4: 26 sources that make either, no +1.
+        const hybrid = makeCommander({ name: "Hybrid", color_identity: "WU", mana_cost: ["{2}{W/U}{W/U}"], cmc: 4 });
+        const [check] = commanderDeck({ cards: [plains(30)], commanders: [hybrid] }).karstenCommandZone.value;
+
+        expect(check.requirements).toEqual([{ key: "WU", colors: ["W", "U"], have: 30, need: 26, short: 0 }]);
+        expect(check.onCurve).toBe(true);
+    });
+
+    it("counts a combination demanded twice by its tighter requirement", () => {
+        // {W}{U}{W/U}: W∪U as a gold card (two forced pips at MV 3, +1: 29)
+        // and through its hybrid symbol (one pip at MV 3: 18).
+        const both = makeCommander({ name: "Both", color_identity: "WU", mana_cost: ["{W}{U}{W/U}"], cmc: 3 });
+        const [check] = commanderDeck({ cards: [plains(20)], commanders: [both] }).karstenCommandZone.value;
+
+        expect(check.requirements.map(r => [r.key, r.need])).toEqual([
+            ["W", 19],
+            ["U", 19],
+            ["WU", 29]
+        ]);
+    });
+
+    it("lists each command-zone card in order, leaving out one without colored pips", () => {
+        const kozilek = makeCommander({
+            name: "Kozilek, the Great Distortion",
+            color_identity: "",
+            mana_cost: ["{8}{C}{C}"],
+            cmc: 10
+        });
+        const partner = makeCommander({ name: "Partner", mana_cost: ["{1}{W}"], cmc: 2, is_partner: true });
+        const checks = commanderDeck({ cards: [plains(20)], commanders: [nekusar, kozilek, partner] })
+            .karstenCommandZone.value;
+
+        expect(checks.map(check => check.card)).toEqual(["Nekusar, the Mindrazer", "Partner"]);
+    });
+});

@@ -352,6 +352,16 @@ describe("DeckStatsSection — details of a pick", () => {
         expect(api().isHighlighted(islands)).toBe(false);
     });
 
+    it("checks whether each command-zone card can be cast on curve", () => {
+        // Modern's table: a two-drop with one white pip needs 13; ten Plains fall short.
+        const thalia = makeCommander({ name: "Thalia", mana_cost: ["{1}{W}"], cmc: 2 });
+        const { wrapper } = render({ commanders: [thalia] });
+        const zone = wrapper.get(".mana-sources__group--command-zone");
+
+        expect(zone.get(".mana-sources__verdict").text()).toBe("pages.deck.stats.colors.karsten.command_zone.short");
+        expect(zone.findAll(".mana-sources__requirement").map(r => r.attributes("data-key"))).toEqual(["W"]);
+    });
+
     it("counts a companion only where the format allows one, as the text view shows it", () => {
         const companion = makeCompanion({ name: "Lurrus", mana_cost: ["{1}{B}"], cmc: 2 });
 

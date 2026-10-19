@@ -46,6 +46,7 @@ const {
     productionPips,
     karstenAnalysis,
     karstenCombined,
+    karstenCommandZone,
     typeCounts,
     subtypeBreakdowns,
     categoryCounts
@@ -193,6 +194,7 @@ const onPickerSelect = (oracleId: string | null): void => {
                         v-if="showSources"
                         :karsten="karstenAnalysis"
                         :karsten-combined="karstenCombined"
+                        :command-zone="karstenCommandZone"
                         :format="deck.format"
                         :automatic-spell="automaticSpell"
                         @pick="key => (pickerKey = key)"

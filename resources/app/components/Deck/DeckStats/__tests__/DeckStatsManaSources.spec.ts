@@ -2,7 +2,11 @@ import { mount } from "@vue/test-utils";
 import { describe, expect, it, vi } from "vitest";
 import { setTestMessages } from "@/test/i18n.ts";
 import MonoSelect from "Components/Form/Select/MonoSelect.vue";
-import type { KarstenColorAnalysis, KarstenCombinedAnalysis } from "Composables/useDeckStats.ts";
+import type {
+    KarstenColorAnalysis,
+    KarstenCombinedAnalysis,
+    KarstenCommandZoneCheck
+} from "Composables/useDeckStats.ts";
 import DeckStatsManaSources from "../DeckStatsManaSources.vue";
 
 vi.mock("@inertiajs/vue3", async () => (await import("@/test/inertia.ts")).inertiaModuleMock());
@@ -23,6 +27,7 @@ const props = {
         colorRow({ color: "G", have: 34.75, need: 20, short: 0, card: "Wrenn and Six", mv: 2 })
     ] satisfies KarstenColorAnalysis[],
     karstenCombined: [] as KarstenCombinedAnalysis[],
+    commandZone: [] as KarstenCommandZoneCheck[],
     format: "commander",
     automaticSpell: "hardest" as const
 };
@@ -169,5 +174,105 @@ describe("DeckStatsManaSources", () => {
             "pages.deck.stats.colors.karsten.automatic.hint",
             "pages.deck.stats.colors.karsten.automatic.hint_one_drops"
         ]);
+    });
+});
+
+describe("DeckStatsManaSources — the command zone", () => {
+    /** Nekusar in a deck with too few red sources: three colors met, red short. */
+    const nekusar: KarstenCommandZoneCheck = {
+        oracleId: "nekusar",
+        card: "Nekusar, the Mindrazer",
+        mv: 5,
+        requirements: [
+            { key: "U", colors: ["U"], have: 20, need: 16, short: 0 },
+            { key: "B", colors: ["B"], have: 20.75, need: 16, short: 0 },
+            { key: "R", colors: ["R"], have: 5, need: 16, short: 11 },
+            { key: "UBR", colors: ["U", "B", "R"], have: 45, need: 31, short: 0 }
+        ],
+        onCurve: false
+    };
+    const thalia: KarstenCommandZoneCheck = {
+        oracleId: "thalia",
+        card: "Thalia",
+        mv: 2,
+        requirements: [{ key: "W", colors: ["W"], have: 20, need: 19, short: 0 }],
+        onCurve: true
+    };
+
+    it("only shows up for a deck with a command zone to check, ahead of the automatic spell", () => {
+        const without = mount(DeckStatsManaSources, { props });
+        const withCheck = mount(DeckStatsManaSources, { props: { ...props, commandZone: [thalia] } });
+
+        expect(without.find(".mana-sources__group--command-zone").exists()).toBe(false);
+        expect(withCheck.findAll(".mana-sources__subheading").map(h => h.text())).toEqual([
+            "pages.deck.stats.colors.karsten.command_zone.title",
+            "pages.deck.stats.colors.karsten.automatic.label",
+            "pages.deck.stats.colors.karsten.single_title"
+        ]);
+    });
+
+    it("says per card whether it can be cast on curve, bold only when it cannot", () => {
+        setTestMessages({
+            de: {
+                pages: {
+                    deck: {
+                        stats: {
+                            colors: {
+                                karsten: {
+                                    spell: "{card} ({mv})",
+                                    command_zone: { on_curve: "{spell}: ja", short: "{spell}: nein" }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        const wrapper = mount(DeckStatsManaSources, { props: { ...props, commandZone: [nekusar, thalia] } });
+        const verdicts = wrapper.findAll(".mana-sources__verdict");
+
+        expect(verdicts.map(v => v.text())).toEqual(["Nekusar, the Mindrazer (5): nein", "Thalia (2): ja"]);
+        expect(verdicts.map(v => v.classes("mana-sources__verdict--short"))).toEqual([true, false]);
+    });
+
+    it("lists every requirement with its sources, bold only where it falls short", () => {
+        setTestMessages({
+            de: {
+                pages: {
+                    deck: { stats: { colors: { karsten: { command_zone: { requirement: "{colors}{have}/{need}" } } } } }
+                }
+            }
+        });
+        const wrapper = mount(DeckStatsManaSources, { props: { ...props, commandZone: [nekusar] } });
+        const requirements = wrapper.findAll(".mana-sources__requirement");
+
+        expect(requirements.map(r => [r.attributes("data-key"), r.text()])).toEqual([
+            ["U", "20/16"],
+            ["B", "20,75/16"],
+            ["R", "5/16"],
+            ["UBR", "45/31"]
+        ]);
+        expect(requirements.map(r => r.classes("mana-sources__requirement--short"))).toEqual([
+            false,
+            false,
+            true,
+            false
+        ]);
+        expect(requirements[3].findAll(".mana-sources__symbol").map(img => img.attributes("alt"))).toEqual([
+            "pages.deck.stats.colors.color.U",
+            "pages.deck.stats.colors.color.B",
+            "pages.deck.stats.colors.color.R"
+        ]);
+    });
+
+    it("explains a multicolored card's several requirements only when one is in the command zone", () => {
+        const note = "pages.deck.stats.colors.karsten.command_zone.multicolor";
+        const notes = (commandZone: KarstenCommandZoneCheck[]) =>
+            mount(DeckStatsManaSources, { props: { ...props, commandZone } })
+                .findAll(".mana-sources__group--command-zone .info-box p")
+                .map(p => p.text());
+
+        expect(notes([thalia])).toEqual([]);
+        expect(notes([thalia, nekusar])).toEqual([note]);
     });
 });

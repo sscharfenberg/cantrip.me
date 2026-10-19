@@ -5,6 +5,7 @@ import {
     breakdownCard,
     type KarstenColorAnalysis,
     type KarstenCombinedAnalysis,
+    type KarstenCommandZoneCheck,
     type KarstenRowPick,
     sourcesNeeded
 } from "@/utils/frankKarstenAnalysis";
@@ -15,7 +16,7 @@ import type { DeckCardRow, DeckCategoryRow, DeckCommander, DeckCompanion } from 
 // Re-export for callers that already import the Karsten output types
 // from this composable — keeps the existing `DeckStatsColors.vue` and
 // any future consumers importing from one place if they prefer.
-export type { AutomaticSpell, KarstenColorAnalysis, KarstenCombinedAnalysis };
+export type { AutomaticSpell, KarstenColorAnalysis, KarstenCombinedAnalysis, KarstenCommandZoneCheck };
 
 // ---------------------------------------------------------------------------
 // Output shapes
@@ -260,6 +261,11 @@ export function useDeckStats(
      * decks or decks with no gold cards.
      */
     karstenCombined: ComputedRef<KarstenCombinedAnalysis[]>;
+    /**
+     * Per command-zone card, whether the deck can cast it on curve. Empty
+     * for a deck without commanders.
+     */
+    karstenCommandZone: ComputedRef<KarstenCommandZoneCheck[]>;
     typeCounts: ComputedRef<BreakdownBucket[]>;
     /**
      * Subtype breakdown per card type. Keys are the card type labels
@@ -592,21 +598,98 @@ export function useDeckStats(
     });
 
     /**
-     * Per-color Karsten analysis. For each color X, scans every
-     * non-land card (including commanders + companion), and for each
-     * card with a forced (non-hybrid) X pip, looks up Karsten's
-     * recommended source count for `(cmc, forcedPipsForX)` — one
-     * requirement per card, of which the row shows the binding one.
+     * Every Karsten requirement one spell makes — one per row it demands:
      *
-     * Gold-card adjustment: when a card has ≥2 distinct *forced*
-     * colors in its cost (e.g. `{W}{U}` Teferi), each per-color
-     * requirement is bumped by +1 (Karsten's hack for the
-     * conditional-probability hit when both colors must appear by the
-     * on-curve turn).
+     *   - **Per color.** For each color X the card has a forced
+     *     (non-hybrid) pip of, Karsten's recommendation for
+     *     `(cmc, forcedPipsForX)`. A card with ≥2 distinct *forced*
+     *     colors (e.g. `{W}{U}` Teferi) bumps each by +1 — Karsten's
+     *     hack for the conditional-probability hit when both colors must
+     *     appear by the on-curve turn. Pure hybrid cards (e.g. Yorion
+     *     `{3}{W/U}{W/U}`) make none.
+     *   - **Gold combined.** A card with ≥2 distinct forced colors makes
+     *     one for (forced colors), pip count = total forced pips, lookup
+     *     at (cmc, totalForced), **+1** per the same hack.
+     *   - **Hybrid combined.** Each unique hybrid color set on the card
+     *     (e.g. `{W/U}{W/U}` → one set `{W,U}` with count 2) makes one
+     *     for (those colors), lookup at (cmc, count), **no +1** — only
+     *     one of the colors is needed per pip, so the
+     *     conditional-probability hit doesn't apply (Karsten: "you need
+     *     to have enough combined sources of either color in the hybrid
+     *     cost").
      *
-     * Pure hybrid cards (e.g. Yorion `{3}{W/U}{W/U}`) contribute
-     * nothing here — they have no forced pips. Their requirement is
-     * surfaced as a hybrid-combined row in `karstenCombined` instead.
+     * A per-color requirement has one color and a combined one two or
+     * more, so its WUBRG-ordered colors are the key of its row.
+     */
+    const requirementsOf = (spell: KarstenSpell, sideboard: boolean, fmt: string): KarstenRequirement[] => {
+        const { cmc, name: card, oracle_card_id: oracleId } = spell;
+        const { pips, hybridGroups } = breakdownCard(spell.mana_cost, cmc);
+        const forcedColors = COLORS.filter(c => pips[c] > 0);
+        const isGold = forcedColors.length >= 2;
+        const out: KarstenRequirement[] = [];
+
+        for (const color of forcedColors) {
+            const base = sourcesNeeded(fmt, cmc, pips[color]);
+            if (base === null) continue;
+            out.push({ colors: [color], need: isGold ? base + 1 : base, cmc, card, oracleId, sideboard });
+        }
+
+        if (isGold) {
+            const totalForced = forcedColors.reduce((sum, c) => sum + pips[c], 0);
+            const base = sourcesNeeded(fmt, cmc, totalForced);
+            if (base !== null) {
+                out.push({ colors: forcedColors, need: base + 1, cmc, card, oracleId, sideboard });
+            }
+        }
+
+        // Group all hybrid pips by their color set so a card with two
+        // `{W/U}` symbols is treated as 2 pips of W∪U, not 2 independent
+        // 1-pip lookups.
+        const groupedHybrid = new Map<string, { colors: HighlightColor[]; count: number }>();
+        for (const group of hybridGroups) {
+            const key = group.join("");
+            const existing = groupedHybrid.get(key);
+            if (existing) {
+                existing.count += 1;
+            } else {
+                groupedHybrid.set(key, { colors: group, count: 1 });
+            }
+        }
+        for (const { colors, count } of groupedHybrid.values()) {
+            const base = sourcesNeeded(fmt, cmc, count);
+            if (base === null) continue;
+            out.push({ colors, need: base, cmc, card, oracleId, sideboard });
+        }
+        return out;
+    };
+
+    /** Requirements grouped by their row's key, in the order they come. */
+    const byRow = (requirements: readonly KarstenRequirement[]): Map<string, KarstenRequirement[]> => {
+        const rows = new Map<string, KarstenRequirement[]>();
+        for (const requirement of requirements) {
+            const key = requirement.colors.join("");
+            const existing = rows.get(key);
+            if (existing) {
+                existing.push(requirement);
+            } else {
+                rows.set(key, [requirement]);
+            }
+        }
+        return rows;
+    };
+
+    /** Every requirement every non-land spell of the deck makes — see {@link requirementsOf}. */
+    const karstenRequirements = computed<KarstenRequirement[]>(() => {
+        const fmt = format();
+        return karstenSpells()
+            .filter(({ spell }) => !isLand(spell.type_line))
+            .flatMap(({ spell, sideboard }) => requirementsOf(spell, sideboard, fmt));
+    });
+
+    /**
+     * Per-color Karsten analysis: of every non-land card (commanders
+     * and companion included) with a forced pip of a color — see
+     * {@link requirementsOf} — the row shows one requirement.
      *
      * The "have" side is weighted by Karsten's own counting rules
      * (`karstenSources.ts`) and priced per card by mana value, so the
@@ -618,57 +701,19 @@ export function useDeckStats(
      * production is.
      */
     const karstenAnalysis = computed<KarstenColorAnalysis[]>(() => {
-        const fmt = format();
-        const requirements: Record<HighlightColor, KarstenRequirement[]> = {
-            W: [],
-            U: [],
-            B: [],
-            R: [],
-            G: []
-        };
-
-        for (const { spell, sideboard } of karstenSpells()) {
-            if (isLand(spell.type_line)) continue;
-            const { pips } = breakdownCard(spell.mana_cost, spell.cmc);
-            const forcedColors = COLORS.filter(c => pips[c] > 0);
-            const isGold = forcedColors.length >= 2;
-            for (const color of forcedColors) {
-                const base = sourcesNeeded(fmt, spell.cmc, pips[color]);
-                if (base === null) continue;
-                requirements[color].push({
-                    colors: [color],
-                    need: isGold ? base + 1 : base,
-                    cmc: spell.cmc,
-                    card: spell.name,
-                    oracleId: spell.oracle_card_id,
-                    sideboard
-                });
-            }
-        }
-
-        const rows: KarstenColorAnalysis[] = [];
+        const rows = byRow(karstenRequirements.value.filter(r => r.colors.length === 1));
+        const out: KarstenColorAnalysis[] = [];
         for (const color of COLORS) {
-            const row = buildRow(color, requirements[color]);
-            if (row !== null) rows.push({ color, ...row });
+            const row = buildRow(color, rows.get(color) ?? []);
+            if (row !== null) out.push({ color, ...row });
         }
-        return rows;
+        return out;
     });
 
     /**
      * Karsten "combined" requirements: how many sources of *any* of a
-     * set of colors the deck needs. Two flavors feed the same output:
-     *
-     *   - **Gold combined.** A card with ≥2 distinct forced colors
-     *     contributes a combo of (forced colors), pip count = total
-     *     forced pips, lookup at (cmc, totalForced), **+1** per
-     *     Karsten's gold-card hack.
-     *   - **Hybrid combined.** Each unique hybrid color set on the
-     *     card (e.g. `{W/U}{W/U}` → one set `{W,U}` with count 2)
-     *     contributes a combo of (those colors), lookup at (cmc,
-     *     count), **no +1** — only one of the colors is needed per
-     *     pip, so the conditional-probability hit doesn't apply
-     *     (Karsten: "you need to have enough combined sources of
-     *     either color in the hybrid cost").
+     * set of colors the deck needs — the gold and hybrid requirements of
+     * {@link requirementsOf}.
      *
      * Combos are merged across cards (same color set → one row, the
      * binding requirement wins — see {@link bindingRequirement} — or
@@ -680,59 +725,8 @@ export function useDeckStats(
      * Empty when the deck has neither gold nor hybrid demand.
      */
     const karstenCombined = computed<KarstenCombinedAnalysis[]>(() => {
-        const fmt = format();
-
-        // Every card's requirement, grouped by the WUBRG-ordered combo string.
-        const reqByCombo = new Map<string, KarstenRequirement[]>();
-
-        const addRequirement = (requirement: KarstenRequirement): void => {
-            const key = requirement.colors.join("");
-            const existing = reqByCombo.get(key);
-            if (existing) {
-                existing.push(requirement);
-            } else {
-                reqByCombo.set(key, [requirement]);
-            }
-        };
-
-        for (const { spell, sideboard } of karstenSpells()) {
-            if (isLand(spell.type_line)) continue;
-            const { cmc, name: card, oracle_card_id: oracleId } = spell;
-            const { pips, hybridGroups } = breakdownCard(spell.mana_cost, cmc);
-            const forcedColors = COLORS.filter(c => pips[c] > 0);
-
-            // Gold-card combined (≥2 forced colors → +1 hack).
-            if (forcedColors.length >= 2) {
-                const totalForced = forcedColors.reduce((sum, c) => sum + pips[c], 0);
-                const base = sourcesNeeded(fmt, cmc, totalForced);
-                if (base !== null) {
-                    addRequirement({ colors: forcedColors, need: base + 1, cmc, card, oracleId, sideboard });
-                }
-            }
-
-            // Hybrid combined (one row per unique hybrid color set).
-            // Group all hybrid pips by their color set so a card with
-            // two `{W/U}` symbols is treated as 2 pips of W∪U, not 2
-            // independent 1-pip lookups.
-            const groupedHybrid = new Map<string, { colors: HighlightColor[]; count: number }>();
-            for (const group of hybridGroups) {
-                const key = group.join("");
-                const existing = groupedHybrid.get(key);
-                if (existing) {
-                    existing.count += 1;
-                } else {
-                    groupedHybrid.set(key, { colors: group, count: 1 });
-                }
-            }
-            for (const { colors, count } of groupedHybrid.values()) {
-                const base = sourcesNeeded(fmt, cmc, count);
-                if (base === null) continue;
-                addRequirement({ colors, need: base, cmc, card, oracleId, sideboard });
-            }
-        }
-
         const rows: KarstenCombinedAnalysis[] = [];
-        for (const [key, requirements] of reqByCombo) {
+        for (const [key, requirements] of byRow(karstenRequirements.value.filter(r => r.colors.length > 1))) {
             const row = buildRow(key, requirements);
             if (row !== null) rows.push({ colors: requirements[0].colors, ...row });
         }
@@ -740,6 +734,35 @@ export function useDeckStats(
             if (a.colors.length !== b.colors.length) return a.colors.length - b.colors.length;
             return a.colors.join("").localeCompare(b.colors.join(""));
         });
+    });
+
+    /**
+     * Whether each command-zone card can be cast on curve: every
+     * requirement it makes ({@link requirementsOf}), each priced for it
+     * as its row would be were it picked there — a card demanding a
+     * combination twice (gold and hybrid) counts its tighter one. Picks
+     * and the automatic spell play no part. A card without colored pips
+     * (Kozilek) needs no colored source and is left out.
+     */
+    const karstenCommandZone = computed<KarstenCommandZoneCheck[]>(() => {
+        const fmt = format();
+        const checks: KarstenCommandZoneCheck[] = [];
+        for (const cmd of commanders()) {
+            if (isLand(cmd.type_line)) continue;
+            const requirements = [...byRow(requirementsOf(cmd, false, fmt))].map(([key, demands]) => {
+                const { have, need, short } = bindingRequirement(demands);
+                return { key, colors: demands[0].colors, have, need, short };
+            });
+            if (requirements.length === 0) continue;
+            checks.push({
+                oracleId: cmd.oracle_card_id,
+                card: cmd.name,
+                mv: cmd.cmc,
+                requirements,
+                onCurve: requirements.every(r => r.short === 0)
+            });
+        }
+        return checks;
     });
 
     const typeCounts = computed<BreakdownBucket[]>(() => {
@@ -863,6 +886,7 @@ export function useDeckStats(
         productionPips,
         karstenAnalysis,
         karstenCombined,
+        karstenCommandZone,
         typeCounts,
         subtypeBreakdowns,
         categoryCounts,

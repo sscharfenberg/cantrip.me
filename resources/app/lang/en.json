@@ -1214,6 +1214,13 @@
                         "change_spell_aria": "Pick another spell for {colors} sources, currently {spell}, chosen automatically",
                         "change_spell_aria_picked": "Pick another spell for {colors} sources, currently {spell}, picked by you",
                         "reset_picks": "Reset to automatic spells",
+                        "command_zone": {
+                            "title": "Command Zone",
+                            "on_curve": "{spell}: enough sources to cast on curve.",
+                            "short": "{spell}: not enough sources to cast on curve.",
+                            "requirement": "{colors} {have} of {need}",
+                            "multicolor": "A multicolored card needs enough sources of each of its colors, and enough sources that make any of them."
+                        },
                         "automatic": {
                             "label": "Automatic spell",
                             "hardest": "Hardest to cast",

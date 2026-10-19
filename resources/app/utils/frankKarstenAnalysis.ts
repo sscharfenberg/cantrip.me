@@ -152,6 +152,37 @@ export interface KarstenCombinedAnalysis extends KarstenRowPick {
 }
 
 /**
+ * One requirement of a {@link KarstenCommandZoneCheck}: sources of one
+ * color, or of any color of a combination — the requirement the card's
+ * row would show were the card picked there.
+ */
+export interface KarstenCastRequirement {
+    /** The row it belongs to: the color letter, or the WUBRG-ordered combination ("UBR"). */
+    key: string;
+    colors: HighlightColor[];
+    have: number;
+    need: number;
+    /** `max(0, need - have)`. Zero ⇒ sufficient. */
+    short: number;
+}
+
+/**
+ * Whether a command-zone card can be cast on curve: every Karsten
+ * requirement it makes, priced for it. A multicolored card makes several
+ * — sources of each of its colors, and sources that make any of them —
+ * and is only on curve when all of them are met.
+ */
+export interface KarstenCommandZoneCheck {
+    oracleId: string;
+    card: string;
+    mv: number;
+    /** Per-color requirements in WUBRG order, then the combined ones. */
+    requirements: KarstenCastRequirement[];
+    /** True when no requirement falls short. */
+    onCurve: boolean;
+}
+
+/**
  * Per-card pip breakdown for Karsten analysis. Distinguishes "forced"
  * (single-color) pips from "hybrid" (multi-color choice) pips because
  * Karsten treats them differently:
