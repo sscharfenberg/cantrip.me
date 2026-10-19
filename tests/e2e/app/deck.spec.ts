@@ -47,10 +47,17 @@ test("shows the command zone, and a partner pair as two cards in it", async ({ p
      * table — they are two ordinary `deck_cards` rows in `zone=command`
      * distinguished by `role` — so "(2)" is what says the partner slot was
      * filled rather than silently dropped.
+     *
+     * The names are looked up INSIDE that group: the deck statistics' Command
+     * Zone check names the commanders too, so a page-wide `getByText` is a
+     * strict-mode violation.
      */
-    await expect(page.getByRole("heading", { name: "Command Zone (2)" })).toBeVisible();
-    await expect(page.getByText("Yoshimaru, Ever Faithful")).toBeVisible();
-    await expect(page.getByText("Rograkh, Son of Rohgahh")).toBeVisible();
+    const commandZone = page.locator(".text-card-group", {
+        has: page.getByRole("heading", { name: "Command Zone (2)" })
+    });
+    await expect(commandZone).toBeVisible();
+    await expect(commandZone.getByText("Yoshimaru, Ever Faithful")).toBeVisible();
+    await expect(commandZone.getByText("Rograkh, Son of Rohgahh")).toBeVisible();
 });
 
 test("groups the mainboard into type categories", async ({ page }) => {
