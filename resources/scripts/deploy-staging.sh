@@ -45,6 +45,26 @@ fi
 php artisan down --render="errors::503"
 
 git fetch origin
+
+# Source dirs whose ownership and perms are normalized after the reset.
+SOURCE_DIRS=(app database docs tests routes resources lang config public)
+
+# Hand tracked files another user wrote back to git before the reset. An
+# upload as sscharfenberg (tar-pipe, scp) normally comes back as deploy for
+# free: its inode no longer matches the index, so `git reset --hard`
+# rewrites it. But anything that refreshes the index in between — a
+# `git status` on the server is enough — records the upload's own stat
+# data, uid included. The file then looks clean, the reset leaves it alone,
+# and the `chgrp` below dies with EPERM after `php artisan down` (staging,
+# 2026-10-24). Deleting those files makes the reset recreate them as
+# deploy. Only files git tracks are deleted, so an upload that was never
+# committed is not lost (it still fails the chgrp, loudly). bootstrap/ is
+# searched for its tracked *.php; the caches in bootstrap/cache are
+# untracked and stay put.
+find "${SOURCE_DIRS[@]}" bootstrap -type f ! -user deploy -print0 \
+    | xargs -0 -r git --literal-pathspecs ls-files -z -- \
+    | xargs -0 -r rm -fv --
+
 git reset --hard origin/main
 
 # Wipe Vite's output dir before the chgrp + rebuild below. Any files
@@ -71,7 +91,6 @@ rm -rf public/build
 # dutifully made it 620, and `npm run build` then died with EACCES for
 # everyone except the file's owner. The build normally runs AS that owner,
 # so it only surfaced when someone ran it by hand.
-SOURCE_DIRS=(app database docs tests routes resources lang config public)
 chgrp -R www-data "${SOURCE_DIRS[@]}"
 find "${SOURCE_DIRS[@]}" -type d -exec chmod 2775 {} +
 find "${SOURCE_DIRS[@]}" -type f ! -perm -g+rw -exec chmod g+rw {} +
