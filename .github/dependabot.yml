@@ -32,17 +32,26 @@ updates:
           - "vitest"
           - "@vitest/*"
     ignore:
-      # TypeScript is held below 6.1 by one peer range — the `typescript-eslint` packages
-      # (parser and eslint-plugin, both reached through `@vue/eslint-config-typescript`)
-      # declare `typescript: ">=4.8.4 <6.1.0"`, and 8.67.0, their latest, still does. So
-      # `~6.0.x` in package.json is a ceiling, not a preference, and a bump past it fails
-      # `npm ci` on the peer conflict before a single file compiles.
+      # TypeScript is held on 6.0 because 7.0, the native (Go) port, ships no compiler API
+      # — the package's main entry exports only its version — and two tools here drive
+      # the compiler through that API:
+      # - `typescript-eslint` (parser and eslint-plugin, both reached through
+      #   `@vue/eslint-config-typescript`) says so in its peer range: `typescript:
+      #   ">=4.8.4 <6.1.0"`, which 8.72.0, their latest, still declares. A bump past it
+      #   fails `npm ci` on the peer conflict before a single file compiles.
+      # - `vue-tsc` asks only for `>=5.0.0`, but that range predates 7.0 rather than
+      #   covering it: it type-checks `.vue` files through the same missing API, so it
+      #   would install and then fail.
+      # So `~6.0.x` in package.json is a ceiling, not a preference.
       #
       # A version range rather than `update-types: semver-major`, because the major is not
-      # what breaks: 6.1 violates that peer exactly as 7.x does, so ignoring only majors
-      # would keep proposing a minor that cannot install. Delete this entry outright when
-      # the parser widens its range — nothing else here constrains TypeScript, `vue-tsc`
-      # asks only for `>=5.0.0`.
+      # what breaks: a 6.1 would violate that peer exactly as 7.x does (none has been
+      # published — 7.0.2 followed 6.0.3), and ignoring only majors would propose it.
+      #
+      # TypeScript 7.1 brings a new API (beta 2026-10-20). Delete this entry once both
+      # tools ship stable support for it: typescript-eslint is building it in
+      # typescript-eslint/typescript-eslint#12803, Vue in vuejs/language-tools#6170 — a
+      # 7.1 content mapper that may let plain `tsc` check `.vue` files instead of `vue-tsc`.
       - dependency-name: typescript
         versions: [">=6.1.0"]
 
