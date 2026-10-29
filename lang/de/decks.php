@@ -66,6 +66,7 @@ return [
 
     'copies' => [
         'errors' => [
+            'not_claimed' => 'Dieser Stapel ist nicht für diese Karte in deiner Sammlung.',
             'count' => 'So viele Exemplare dieser Karte sind nicht außerhalb deiner Sammlung.',
             'finish' => 'Diese Edition gibt es nicht in diesem Finish.',
         ],

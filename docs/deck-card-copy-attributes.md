@@ -208,8 +208,10 @@ condition, proxy, and "apply to N of M". Saving writes the stack.
 - **No container changes here.** Moving stays on the stack edit page and the
   Unclaim dialog, so the claimed-stack move guard in `UpdateCardStackRequest` is
   not involved.
-- Mode C only. In mode B nothing records which stack backs a card; those rows
-  have no claimed groups and edit the plan only.
+- Wherever claims exist, as with the deck page's "Unclaim", which is offered in
+  any mode (claims can outlive a switch away from mode C only through imports,
+  but they are shown, so they are editable). Mode B records no claims, so its
+  rows have no claimed groups and edit the plan only.
 
 Same endpoint as step 1, with stack groups added; the request checks each
 stack id is pivoted to this deck card.
@@ -283,3 +285,4 @@ Vitest: markers in both card views from `copies`; `DeckCardCopiesModal`
   - the assign flows reload `deck`, since a claim reprices the copy at its stack's finish;
   - a command-zone line's `*F*` / `*E*` reaches the commander;
   - `replan` locks the row and treats unchanged values as a no-op.
+- **Step 2 — done.** The dialog lists one group per claimed stack, then the plan, and edits the one picked. A stack edit writes the collection (`DeckCardCopiesService::editClaimedStack`); a partial one splits the stack, the split-off part keeps every claim, and a stack edited back folds into its twin (same cards, same claims). Both endpoints hide stacks while the master switch is off; the stack must be the user's and claimed for this card. A stack edit that leaves out `condition` keeps the stack's.

@@ -18,9 +18,29 @@ const plan = (overrides: Record<string, unknown> = {}) => ({
     finish: "nonfoil",
     language: "en",
     proxy: false,
+    condition: null,
     finishes: ["nonfoil", "foil"],
+    container: null,
+    other_decks: [],
     ...overrides
 });
+
+/** A claimed stack's group as the endpoint lists it. */
+const stack = (overrides: Record<string, unknown> = {}) => ({
+    stack_id: "s1",
+    count: 2,
+    splittable: true,
+    finish: "foil",
+    language: "de",
+    proxy: true,
+    condition: "played",
+    finishes: ["nonfoil", "foil", "etched"],
+    container: { id: "b1", name: "Binder" },
+    other_decks: [],
+    ...overrides
+});
+
+const CONDITIONS = ["mint", "near_mint", "played"];
 
 let http: FetchMock;
 
@@ -30,7 +50,13 @@ beforeEach(() => {
 });
 
 const render = async (
-    response: unknown = { integration: true, languages: LANGUAGES, claimed: 0, groups: [plan()] }
+    response: unknown = {
+        integration: true,
+        languages: LANGUAGES,
+        conditions: CONDITIONS,
+        claimed: 0,
+        groups: [plan()]
+    }
 ) => {
     http.json(ENDPOINT, response, 200, "GET");
     const wrapper = mount(DeckCardCopiesModal, {
@@ -82,24 +108,28 @@ describe("DeckCardCopiesModal — loading", () => {
     });
 
     it("asks for no count when there is one copy to plan", async () => {
-        await render({ integration: true, languages: LANGUAGES, claimed: 0, groups: [plan({ count: 1 })] });
+        await render({
+            integration: true,
+            languages: LANGUAGES,
+            conditions: CONDITIONS,
+            claimed: 0,
+            groups: [plan({ count: 1 })]
+        });
 
         expect(countInput()).toBeNull();
     });
 
     it("says how many copies are in the collection already", async () => {
-        await render({ integration: true, languages: LANGUAGES, claimed: 2, groups: [plan({ count: 2 })] });
+        await render({
+            integration: true,
+            languages: LANGUAGES,
+            conditions: CONDITIONS,
+            claimed: 2,
+            groups: [plan({ count: 2 })]
+        });
 
         expect(document.body.textContent).toContain("pages.deck.copies.planned");
         expect(document.body.textContent).toContain("pages.deck.copies.claimed");
-    });
-
-    it("has nothing to edit when every copy is in the collection", async () => {
-        await render({ integration: true, languages: LANGUAGES, claimed: 4, groups: [] });
-
-        expect(document.body.textContent).toContain("pages.deck.copies.all_claimed");
-        expect($("#finish-nonfoil")).toBeNull();
-        expect($('button[type="submit"]')).toBeNull();
     });
 
     it("says so when the copies can't be loaded", async () => {
@@ -117,7 +147,13 @@ describe("DeckCardCopiesModal — loading", () => {
 
 describe("DeckCardCopiesModal — collection integration off", () => {
     it("says nothing about the collection", async () => {
-        await render({ integration: false, languages: LANGUAGES, claimed: 0, groups: [plan()] });
+        await render({
+            integration: false,
+            languages: LANGUAGES,
+            conditions: CONDITIONS,
+            claimed: 0,
+            groups: [plan()]
+        });
 
         expect(document.body.textContent).toContain("pages.deck.copies.planned_plain");
         expect(document.body.textContent).not.toMatch(/pages\.deck\.copies\.planned(?!_plain)/u);
@@ -126,7 +162,13 @@ describe("DeckCardCopiesModal — collection integration off", () => {
 
     it("re-plans a card it may not split as a whole", async () => {
         http.status(ENDPOINT, 204, "PATCH");
-        await render({ integration: false, languages: LANGUAGES, claimed: 0, groups: [plan({ splittable: false })] });
+        await render({
+            integration: false,
+            languages: LANGUAGES,
+            conditions: CONDITIONS,
+            claimed: 0,
+            groups: [plan({ splittable: false })]
+        });
 
         expect(countInput()).toBeNull();
         await submit();
@@ -134,9 +176,158 @@ describe("DeckCardCopiesModal — collection integration off", () => {
     });
 });
 
+describe("DeckCardCopiesModal — copies in the collection", () => {
+    const both = {
+        integration: true,
+        languages: LANGUAGES,
+        conditions: CONDITIONS,
+        claimed: 2,
+        groups: [stack(), plan({ count: 2 })]
+    };
+    const groupButtons = () => [...document.querySelectorAll<HTMLButtonElement>(".deck-copies-modal__group")];
+
+    it("lists every group and opens on the plan", async () => {
+        await render(both);
+
+        expect(groupButtons().map(button => button.textContent!.trim())).toEqual([
+            "2× enums.finishes.foil · enums.card_languages.de · form.fields.proxy.label · enums.conditions.played — Binder",
+            "2× enums.finishes.nonfoil · enums.card_languages.en — pages.deck.copies.where_planned"
+        ]);
+        expect(groupButtons()[1].getAttribute("aria-checked")).toBe("true");
+        expect($(".form-select")).toBeNull();
+        expect(document.body.textContent).not.toContain("pages.deck.copies.stack_note");
+    });
+
+    it("starts a stack's form on the stack's values, with its condition and a note it is the collection's", async () => {
+        await render(both);
+
+        groupButtons()[0].click();
+        await flushPromises();
+
+        expect(groupButtons()[0].getAttribute("aria-checked")).toBe("true");
+        expect($<HTMLInputElement>("#finish-foil")!.checked).toBe(true);
+        expect($<HTMLInputElement>("#finish-etched")).not.toBeNull();
+        expect($<HTMLInputElement>("#language-de")!.checked).toBe(true);
+        expect($<HTMLInputElement>("#deck-card-copies-proxy")!.checked).toBe(true);
+        expect(document.body.textContent).toContain("pages.deck.copies.stack_note");
+        expect(document.body.textContent).toContain("pages.deck.copies.count_hint_stack");
+        expect($(".form-select")).not.toBeNull();
+        expect($(".form-select__button")!.textContent).toContain("enums.conditions.played");
+    });
+
+    it("names the other decks a stack belongs to", async () => {
+        await render({ ...both, groups: [stack({ other_decks: ["Burn", "Storm"] }), plan()] });
+
+        groupButtons()[0].click();
+        await flushPromises();
+
+        expect(document.body.textContent).toContain("pages.deck.copies.other_decks");
+    });
+
+    it("opens a lone stack directly, without a list", async () => {
+        await render({ ...both, claimed: 2, groups: [stack()] });
+
+        expect(groupButtons()).toHaveLength(0);
+        expect(document.body.textContent).toContain("pages.deck.copies.claimed_here");
+        expect(document.body.textContent).toContain("pages.deck.copies.stack_note");
+        expect($('button[type="submit"]')).not.toBeNull();
+    });
+
+    it("PATCHes a stack edit with the stack and its condition", async () => {
+        http.status(ENDPOINT, 204, "PATCH");
+        const wrapper = await render(both);
+        groupButtons()[0].click();
+        await flushPromises();
+
+        await pick("language-ja");
+        const input = countInput()!;
+        input.value = "1";
+        input.dispatchEvent(new Event("change"));
+        await submit();
+
+        expect(http.lastCall(ENDPOINT)!.body).toEqual({
+            stack_id: "s1",
+            condition: "played",
+            count: 1,
+            finish: "foil",
+            language: "ja",
+            proxy: true
+        });
+        expect(routerMock.reload).toHaveBeenCalledWith(RELOAD);
+        expect(wrapper.emitted("close")).toHaveLength(1);
+    });
+
+    it("sends the condition picked", async () => {
+        http.status(ENDPOINT, 204, "PATCH");
+        const wrapper = await render(both);
+        groupButtons()[0].click();
+        await flushPromises();
+
+        wrapper.findComponent({ name: "MonoSelect" }).vm.$emit("change", "near_mint");
+        await submit();
+
+        expect(http.lastCall(ENDPOINT)!.body).toMatchObject({ stack_id: "s1", condition: "near_mint" });
+    });
+
+    it("sends no condition once it is cleared", async () => {
+        http.status(ENDPOINT, 204, "PATCH");
+        const wrapper = await render(both);
+        groupButtons()[0].click();
+        await flushPromises();
+
+        wrapper.findComponent({ name: "MonoSelect" }).vm.$emit("change", "");
+        await submit();
+
+        expect(http.lastCall(ENDPOINT)!.body).toMatchObject({ stack_id: "s1", condition: null });
+    });
+
+    it("holds the group still while a save is under way", async () => {
+        http.hang(ENDPOINT);
+        await render(both);
+
+        $<HTMLButtonElement>('button[type="submit"]')!.click();
+        await flushPromises();
+
+        expect(groupButtons().every(button => button.disabled)).toBe(true);
+    });
+
+    it("offers the groups as one choice", async () => {
+        await render(both);
+
+        expect($('[role="radiogroup"]')!.getAttribute("aria-label")).toBe("pages.deck.copies.choose_label");
+        expect(groupButtons().every(button => button.getAttribute("role") === "radio")).toBe(true);
+    });
+
+    it("sends neither a stack nor a condition for the plan", async () => {
+        http.status(ENDPOINT, 204, "PATCH");
+        await render(both);
+
+        await submit();
+
+        expect(http.lastCall(ENDPOINT)!.body).toEqual({ count: 2, finish: "nonfoil", language: "en", proxy: false });
+    });
+
+    it("shows a refused stack under the condition field", async () => {
+        http.json(ENDPOINT, { errors: { stack_id: ["That stack isn't yours."] } }, 422, "PATCH");
+        await render(both);
+        groupButtons()[0].click();
+        await flushPromises();
+
+        await submit();
+
+        expect(document.body.textContent).toContain("That stack isn't yours.");
+    });
+});
+
 describe("DeckCardCopiesModal — apply to", () => {
     it("steps between one and the copies on offer", async () => {
-        await render({ integration: true, languages: LANGUAGES, claimed: 0, groups: [plan({ count: 2 })] });
+        await render({
+            integration: true,
+            languages: LANGUAGES,
+            conditions: CONDITIONS,
+            claimed: 0,
+            groups: [plan({ count: 2 })]
+        });
         const [add, subtract] = document.querySelectorAll<HTMLButtonElement>(".form-group button[type='button']");
 
         expect(add.disabled).toBe(true);

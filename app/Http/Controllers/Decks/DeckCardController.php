@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Decks;
 
+use App\Enums\CardCondition;
 use App\Enums\CardLanguage;
 use App\Enums\Finish;
 use App\Formats\Capabilities\AddCopyFailure;
@@ -421,16 +422,17 @@ class DeckCardController extends Controller
     }
 
     /**
-     * The copies of this card as "Edit copies" lists them: the copies no
-     * stack claims, with their plan and the finishes the printing exists in,
-     * and how many copies are claimed — those are edited where they are, in
-     * the collection.
+     * The copies of this card as "Edit copies" lists them: one group per
+     * stack claimed for it, then the copies no stack claims, with their
+     * plan. Each group names the finishes its printing exists in; a stack
+     * group also says where the cards lie and which other decks claim the
+     * stack, since editing it changes those decks too.
      *
      * While the collection master switch is off, claims stay as invisible
-     * here as on the deck page: every copy is listed as planned. A row that
-     * does have claims is then not `splittable` — splitting it would move
-     * copies away from claims the user cannot see — so it is re-planned
-     * whole ({@see UpdateDeckCardCopiesRequest}).
+     * here as on the deck page: no stack group, every copy listed as
+     * planned. A row that does have claims is then not `splittable` —
+     * splitting it would move copies away from claims the user cannot see —
+     * so it is re-planned whole ({@see UpdateDeckCardCopiesRequest}).
      *
      * Owner-only — same authorisation shape as {@see printings}.
      */
@@ -441,38 +443,89 @@ class DeckCardController extends Controller
         $planned = $integration ? $unclaimed : $deckCard->quantity;
         $mask = (int) DefaultCard::query()->whereKey($deckCard->default_card_id)->value('finishes');
 
-        return response()->json([
-            'integration' => $integration,
-            'languages' => array_column(CardLanguage::cases(), 'value'),
-            'claimed' => $deckCard->quantity - $planned,
-            'groups' => $planned === 0 ? [] : [[
+        $groups = [];
+        if ($integration) {
+            $stacks = $deckCard->cardStacks()
+                ->with(['container:id,name', 'defaultCard:id,finishes'])
+                ->orderBy('card_stacks.created_at')
+                ->orderBy('card_stacks.id')
+                ->get();
+            $otherDecks = DB::table('deck_card_card_stack')
+                ->join('deck_cards', 'deck_cards.id', '=', 'deck_card_card_stack.deck_card_id')
+                ->join('decks', 'decks.id', '=', 'deck_cards.deck_id')
+                ->whereIn('deck_card_card_stack.card_stack_id', $stacks->pluck('id'))
+                ->where('decks.id', '!=', $deck->id)
+                ->orderBy('decks.name')
+                ->get(['deck_card_card_stack.card_stack_id', 'decks.id', 'decks.name'])
+                ->groupBy('card_stack_id');
+            foreach ($stacks as $stack) {
+                $groups[] = [
+                    'stack_id' => $stack->id,
+                    'count' => (int) $stack->amount,
+                    'splittable' => true,
+                    'finish' => $stack->finish->label(),
+                    'language' => $stack->language->value,
+                    'proxy' => (bool) $stack->proxy,
+                    'condition' => $stack->condition?->value,
+                    'finishes' => Finish::labelsFromMask((int) $stack->defaultCard?->finishes),
+                    'container' => $stack->container ? ['id' => $stack->container->id, 'name' => $stack->container->name] : null,
+                    'other_decks' => ($otherDecks->get($stack->id) ?? collect())->unique('id')->pluck('name')->values()->all(),
+                ];
+            }
+        }
+        if ($planned > 0) {
+            $groups[] = [
                 'stack_id' => null,
                 'count' => $planned,
                 'splittable' => $integration || $unclaimed === $deckCard->quantity,
                 'finish' => $deckCard->finish->label(),
                 'language' => $deckCard->language->value,
                 'proxy' => $deckCard->proxy,
+                'condition' => null,
                 'finishes' => Finish::labelsFromMask($mask),
-            ]],
+                'container' => null,
+                'other_decks' => [],
+            ];
+        }
+
+        return response()->json([
+            'integration' => $integration,
+            'languages' => array_column(CardLanguage::cases(), 'value'),
+            'conditions' => array_column(CardCondition::cases(), 'value'),
+            'claimed' => $deckCard->quantity - $planned,
+            'groups' => $groups,
         ]);
     }
 
     /**
-     * Re-plan `count` of the card's unclaimed copies — all of them, or fewer,
-     * which splits them off into a row of their own. See
-     * {@see DeckCardCopiesService::replan}.
+     * Edit `count` copies of one group: with a `stack_id`, of that claimed
+     * stack — the collection's cards ({@see DeckCardCopiesService::editClaimedStack});
+     * without one, of the unclaimed copies' plan — all of them, or fewer,
+     * which split off into a row of their own
+     * ({@see DeckCardCopiesService::replan}).
      */
     public function updateCopies(UpdateDeckCardCopiesRequest $request, Deck $deck, DeckCard $deckCard): JsonResponse
     {
         $validated = $request->validated();
+        $finish = Finish::fromLabel($validated['finish']);
+        $language = CardLanguage::from($validated['language']);
+        $proxy = (bool) $validated['proxy'];
 
-        DeckCardCopiesService::replan(
-            $deckCard,
-            (int) $validated['count'],
-            Finish::fromLabel($validated['finish']),
-            CardLanguage::from($validated['language']),
-            (bool) $validated['proxy'],
-        );
+        if (($validated['stack_id'] ?? null) !== null) {
+            $stack = CardStack::query()->findOrFail($validated['stack_id']);
+            DeckCardCopiesService::editClaimedStack(
+                $stack,
+                (int) $validated['count'],
+                $finish,
+                $language,
+                $proxy,
+                array_key_exists('condition', $validated)
+                    ? CardCondition::tryFrom((string) $validated['condition'])
+                    : $stack->condition,
+            );
+        } else {
+            DeckCardCopiesService::replan($deckCard, (int) $validated['count'], $finish, $language, $proxy);
+        }
 
         return response()->json(status: 204);
     }

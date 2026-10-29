@@ -4,9 +4,12 @@ namespace Database\Seeders;
 
 use App\Enums\CardFormat;
 use App\Enums\CardLanguage;
+use App\Enums\ContainerType;
 use App\Enums\DeckState;
 use App\Enums\DeckZone;
 use App\Enums\Finish;
+use App\Models\CardStack;
+use App\Models\Container;
 use App\Models\Deck;
 use App\Models\DeckCard;
 use App\Models\DefaultCard;
@@ -31,7 +34,8 @@ use Illuminate\Support\Carbon;
  * The cards are picked for their prices in the snapshot, far apart between
  * finishes so a copy priced by the wrong finish moves the worth visibly:
  * Rhystic Study (PCY) €34.06 nonfoil / €204.71 foil, Krenko (M13) €1.43 /
- * €3.09, and Atraxa (C16), which exists only in foil, at €18.40.
+ * €3.09, Evolving Wilds (ROE) €0.18 / €1.01, and Atraxa (C16), which
+ * exists only in foil, at €18.40.
  */
 class E2EDeckCopiesSeeder extends Seeder
 {
@@ -50,6 +54,12 @@ class E2EDeckCopiesSeeder extends Seeder
 
     /** Atraxa from C16, which exists only in foil, as commander. */
     public const COMMANDER_DECK_ID = '0198a1b2-0000-7000-8000-000000000503';
+
+    /** Two Evolving Wilds claimed by one nonfoil stack in the binder — editing one copy splits the stack. */
+    public const CLAIMED_DECK_ID = '0198a1b2-0000-7000-8000-000000000504';
+
+    /** Where the claimed stack lies. */
+    public const BINDER_ID = '0198a1b2-0000-7000-8000-000000000601';
 
     /** A fixed instant, so nothing a spec can read moves with the wall clock. */
     private Carbon $stamp;
@@ -77,6 +87,30 @@ class E2EDeckCopiesSeeder extends Seeder
 
         $atraxa = $this->printing("Atraxa, Praetors' Voice", 'c16');
         DeckService::setCommandZone($this->deck(self::COMMANDER_DECK_ID, 'Atraxa Foil', CardFormat::Commander), $atraxa->oracle_id, null, null);
+
+        (new Container)->forceFill([
+            'id' => self::BINDER_ID,
+            'user_id' => $this->user->id,
+            'name' => 'Copies Binder',
+            'type' => ContainerType::Binder,
+            'sort_order' => 1,
+            'created_at' => $this->stamp,
+            'updated_at' => $this->stamp,
+        ])->save();
+        $wilds = $this->printing('Evolving Wilds', 'roe');
+        $claimed = $this->card($this->deck(self::CLAIMED_DECK_ID, 'Wilds Claimed', CardFormat::Legacy), $wilds, 2);
+        $stack = (new CardStack)->forceFill([
+            'user_id' => $this->user->id,
+            'default_card_id' => $wilds->id,
+            'container_id' => self::BINDER_ID,
+            'amount' => 2,
+            'finish' => Finish::Nonfoil,
+            'language' => CardLanguage::En,
+            'created_at' => $this->stamp,
+            'updated_at' => $this->stamp,
+        ]);
+        $stack->save();
+        $claimed->cardStacks()->attach($stack->id, ['created_at' => $this->stamp]);
     }
 
     /** Same shape as {@see E2ESeeder}'s accounts — see there for `forceFill`. */

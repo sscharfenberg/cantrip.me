@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\CardCondition;
 use App\Enums\CardLanguage;
 use App\Enums\Finish;
 use App\Models\CardStack;
@@ -37,6 +38,10 @@ use Illuminate\Support\Facades\DB;
  *
  * None of the three values affects coverage, availability or the collection
  * status badges: a nonfoil copy covers a foil plan.
+ *
+ * The deck page edits each copy where its values live: the plan through
+ * {@see replan}, a claimed copy through {@see editClaimedStack}, which
+ * writes the collection.
  */
 class DeckCardCopiesService
 {
@@ -181,6 +186,122 @@ class DeckCardCopiesService
 
             return self::foldIntoTwin($target);
         });
+    }
+
+    /**
+     * Edit `$count` copies of a stack claimed for a deck card — "Edit copies"
+     * on a claimed copy, the deck page's way into the collection. The stack
+     * owns these values, so this writes the stack and leaves the deck card's
+     * plan alone.
+     *
+     * All of its copies: the stack itself changes. Fewer: they are split off
+     * first ({@see CardStackService::splitStack}) and only the split-off part
+     * changes. The split-off part keeps every claim the stack had — on this
+     * card and on any other deck's — so it is still the same physical cards
+     * in the same decks, only now told apart.
+     *
+     * The stack is re-read under a lock, as {@see replan} re-reads its row;
+     * a count it no longer has is cut to its amount, and values it already
+     * has change nothing. The edited cards fold into a sibling stack that is
+     * now the same cards in the same decks, as {@see replan} folds rows. The
+     * caller validates the rest: the stack is claimed for the card, the
+     * finish exists for its printing.
+     *
+     * @return CardStack The stack now holding the edited copies.
+     */
+    public static function editClaimedStack(
+        CardStack $stack,
+        int $count,
+        Finish $finish,
+        CardLanguage $language,
+        bool $proxy,
+        ?CardCondition $condition,
+    ): CardStack {
+        return DB::transaction(function () use ($stack, $count, $finish, $language, $proxy, $condition): CardStack {
+            $stack = CardStack::query()->lockForUpdate()->findOrFail($stack->id);
+            if ($stack->finish === $finish
+                && $stack->language === $language
+                && $stack->proxy === $proxy
+                && $stack->condition === $condition) {
+                return $stack;
+            }
+
+            $target = $stack;
+            if ($count < $stack->amount) {
+                $target = CardStackService::splitStack($stack, $count);
+                $claims = DB::table('deck_card_card_stack')
+                    ->where('card_stack_id', $stack->id)
+                    ->pluck('deck_card_id')
+                    ->all();
+                $target->deckCards()->attach($claims);
+            }
+
+            $target->update([
+                'finish' => $finish,
+                'language' => $language,
+                'proxy' => $proxy,
+                'condition' => $condition,
+            ]);
+
+            return self::foldIntoTwinStack($target);
+        });
+    }
+
+    /**
+     * Fold an edited stack into a sibling that is now the same cards: same
+     * owner, printing, container, finish, language, condition and proxy flag,
+     * claimed by exactly the same deck cards. Without it, marking one of two
+     * copies foil and back again would leave two identical stacks in the
+     * binder and two identical groups on the deck.
+     */
+    private static function foldIntoTwinStack(CardStack $stack): CardStack
+    {
+        $claims = self::claimSet($stack->id);
+        $twins = CardStack::query()
+            ->where('id', '!=', $stack->id)
+            ->where('user_id', $stack->user_id)
+            ->where('default_card_id', $stack->default_card_id)
+            ->when(
+                $stack->container_id === null,
+                fn ($query) => $query->whereNull('container_id'),
+                fn ($query) => $query->where('container_id', $stack->container_id),
+            )
+            ->when(
+                $stack->condition === null,
+                fn ($query) => $query->whereNull('condition'),
+                fn ($query) => $query->where('condition', $stack->condition->value),
+            )
+            ->where('finish', $stack->finish->value)
+            ->where('language', $stack->language->value)
+            ->where('proxy', $stack->proxy)
+            ->orderBy('created_at')
+            ->lockForUpdate()
+            ->get();
+
+        foreach ($twins as $twin) {
+            if (self::claimSet($twin->id) === $claims) {
+                $twin->update(['amount' => $twin->amount + $stack->amount]);
+                $stack->delete();
+
+                return $twin;
+            }
+        }
+
+        return $stack;
+    }
+
+    /**
+     * The deck cards claiming a stack, sorted, for comparing two stacks.
+     *
+     * @return list<string>
+     */
+    private static function claimSet(string $stackId): array
+    {
+        return DB::table('deck_card_card_stack')
+            ->where('card_stack_id', $stackId)
+            ->orderBy('deck_card_id')
+            ->pluck('deck_card_id')
+            ->all();
     }
 
     /**

@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Decks;
 
+use App\Enums\CardCondition;
 use App\Enums\CardLanguage;
 use App\Enums\Finish;
 use App\Models\Deck;
@@ -13,10 +14,14 @@ use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
 /**
- * Validates "Edit copies" on the deck page for the copies of a card that
- * no stack claims — their plan ({@see DeckCardCopiesService::replan}).
- * `count` says how many of them take the new values: all of them, or
- * fewer, which splits them off into a row of their own.
+ * Validates "Edit copies" on the deck page, for one group of a card's
+ * copies: the copies no stack claims — their plan
+ * ({@see DeckCardCopiesService::replan}) — or, with `stack_id`, the copies
+ * of one stack claimed for the card, which are the collection's
+ * ({@see DeckCardCopiesService::editClaimedStack}). `count` says how many
+ * of them take the new values: all of them, or fewer, which splits them
+ * off. `condition` is a physical card's, so it applies to a stack only;
+ * left out, the stack keeps the one it has.
  */
 class UpdateDeckCardCopiesRequest extends FormRequest
 {
@@ -40,22 +45,25 @@ class UpdateDeckCardCopiesRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'stack_id' => ['nullable', 'uuid'],
             'count' => ['required', 'integer', 'min:1'],
             'finish' => ['required', Rule::in(Finish::labels())],
             'language' => ['required', Rule::enum(CardLanguage::class)],
             'proxy' => ['required', 'boolean'],
+            'condition' => ['nullable', Rule::enum(CardCondition::class)],
         ];
     }
 
     /**
-     * Two checks the rules can't express: there must be that many unclaimed
-     * copies to re-plan, and the card's printing must exist in the finish —
-     * the modal only offers those, but a malformed request could ask for a
-     * foil Alpha card.
-     *
-     * While the collection master switch is off, claims are invisible and
-     * every copy counts as planned; a card that has claims can then only be
-     * re-planned whole, so no split moves copies away from them.
+     * What the rules can't express. For a stack: it is claimed for this card
+     * — and claims exist for the user only while the collection master
+     * switch is on — and holds that many copies. For the plan: there are
+     * that many unclaimed copies to re-plan. While the master switch is off,
+     * claims are invisible and every copy counts as planned; a card that has
+     * claims can then only be re-planned whole, so no split moves copies away
+     * from them. Either way the printing must exist in the finish — the
+     * dialog only offers those, but a malformed request could ask for a foil
+     * Alpha card.
      */
     public function withValidator(Validator $validator): void
     {
@@ -66,16 +74,36 @@ class UpdateDeckCardCopiesRequest extends FormRequest
             }
 
             $count = (int) $this->input('count');
-            $unclaimed = DeckCardCopiesService::unclaimedCount($deckCard);
-            $tooMany = $this->user()->collection_integration_enabled
-                ? $count > $unclaimed
-                : $count > $deckCard->quantity || ($unclaimed < $deckCard->quantity && $count !== $deckCard->quantity);
-            if ($tooMany) {
-                $validator->errors()->add('count', __('decks.copies.errors.count'));
+            $stackId = $this->input('stack_id');
+            if ($stackId !== null) {
+                $stack = $this->user()->collection_integration_enabled
+                    ? $deckCard->cardStacks()
+                        ->where('card_stacks.id', $stackId)
+                        ->where('card_stacks.user_id', $this->user()->id)
+                        ->with('defaultCard:id,finishes')
+                        ->first()
+                    : null;
+                if ($stack === null) {
+                    $validator->errors()->add('stack_id', __('decks.copies.errors.not_claimed'));
+
+                    return;
+                }
+                if ($count > $stack->amount) {
+                    $validator->errors()->add('count', __('decks.copies.errors.count'));
+                }
+                $mask = (int) $stack->defaultCard?->finishes;
+            } else {
+                $unclaimed = DeckCardCopiesService::unclaimedCount($deckCard);
+                $tooMany = $this->user()->collection_integration_enabled
+                    ? $count > $unclaimed
+                    : $count > $deckCard->quantity || ($unclaimed < $deckCard->quantity && $count !== $deckCard->quantity);
+                if ($tooMany) {
+                    $validator->errors()->add('count', __('decks.copies.errors.count'));
+                }
+                $mask = (int) DefaultCard::query()->whereKey($deckCard->default_card_id)->value('finishes');
             }
 
             $finish = Finish::fromLabel((string) $this->input('finish'));
-            $mask = (int) DefaultCard::query()->whereKey($deckCard->default_card_id)->value('finishes');
             if ($finish === null || ! $finish->isPresentIn($mask)) {
                 $validator->errors()->add('finish', __('decks.copies.errors.finish'));
             }

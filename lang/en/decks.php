@@ -66,6 +66,7 @@ return [
 
     'copies' => [
         'errors' => [
+            'not_claimed' => "That stack isn't in your collection for this card.",
             'count' => "There aren't that many copies of this card outside your collection.",
             'finish' => "This printing doesn't exist in that finish.",
         ],

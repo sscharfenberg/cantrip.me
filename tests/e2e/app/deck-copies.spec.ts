@@ -14,8 +14,8 @@ import { COPIES_STORAGE_STATE } from "../support/environment";
  *
  * Every test writes, so the spec runs as its own account with one deck per
  * test — see `E2EDeckCopiesSeeder`, whose ids are mirrored below. Prices are
- * the snapshot's: Rhystic Study (PCY) €34.06 / foil €204.71, Atraxa (C16)
- * exists only in foil, €18.40.
+ * the snapshot's: Rhystic Study (PCY) €34.06 / foil €204.71, Evolving Wilds
+ * (ROE) €0.18 / €1.01, Atraxa (C16) exists only in foil, €18.40.
  *****************************************************************************/
 
 test.use({ storageState: COPIES_STORAGE_STATE });
@@ -23,7 +23,8 @@ test.use({ storageState: COPIES_STORAGE_STATE });
 const DECKS = {
     plan: "0198a1b2-0000-7000-8000-000000000501",
     addAll: "0198a1b2-0000-7000-8000-000000000502",
-    commander: "0198a1b2-0000-7000-8000-000000000503"
+    commander: "0198a1b2-0000-7000-8000-000000000503",
+    claimed: "0198a1b2-0000-7000-8000-000000000504"
 } as const;
 
 /** Open a deck by id and wait until its header has rendered. */
@@ -114,4 +115,29 @@ test("a foil-only commander is planned and priced as foil, and its language can 
 
     await expect(commander.locator(".deck-copies__marker--lang-ja")).toBeVisible();
     await expect(commander.locator(".deck-copies__marker--foil")).toBeVisible();
+});
+
+test("editing one claimed copy foil splits its stack in the collection and re-prices the deck", async ({ page }) => {
+    /* Two Evolving Wilds, both claimed by one nonfoil stack in the binder. */
+    await openDeck(page, DECKS.claimed);
+    await expect(worth(page)).toContainText("0,36");
+    const row = cardRows(page, "Evolving Wilds");
+    await expect(row.locator(".deck-copies")).toHaveCount(0);
+
+    const dialog = await editCopies(page, row);
+    /* The stack is the card's only group, so the dialog opens on it — the collection's cards. */
+    await expect(dialog.getByText("Das sind Karten aus deiner Sammlung", { exact: false })).toBeVisible();
+    await dialog.locator("#deck-card-copies-count").fill("1");
+    await dialog.locator("#deck-card-copies-count").press("Tab");
+    await dialog.locator('label[for="finish-foil"]').click();
+    await dialog.getByRole("button", { name: "Speichern" }).click();
+
+    /* €0.18 + €1.01: the claimed foil copy is priced as its stack now is. */
+    await expect(worth(page)).toContainText("1,19");
+    await expect(row.locator(".deck-copies__marker--foil .deck-copies__count")).toHaveText("1");
+
+    await page.goto("/collection");
+    const stacks = page.locator("tbody tr").filter({ hasText: "Evolving Wilds" });
+    await expect(stacks).toHaveCount(2);
+    await expect(stacks.filter({ has: page.locator("svg.star") })).toHaveCount(1);
 });

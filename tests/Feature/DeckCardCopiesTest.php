@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Enums\CardCondition;
 use App\Enums\CardFormat;
 use App\Enums\CardLanguage;
 use App\Enums\DeckCardRole;
@@ -9,6 +10,7 @@ use App\Enums\DeckState;
 use App\Enums\DeckZone;
 use App\Enums\Finish;
 use App\Models\CardStack;
+use App\Models\Container;
 use App\Models\Deck;
 use App\Models\DeckCard;
 use App\Models\DefaultCard;
@@ -24,6 +26,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Inertia\Testing\AssertableInertia;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -260,45 +263,70 @@ class DeckCardCopiesTest extends TestCase
     /* ------------------------------------------------------------------ */
 
     #[Test]
-    public function the_copies_endpoint_lists_the_plan_with_the_printings_finishes(): void
+    public function the_copies_endpoint_lists_each_claimed_stack_then_the_plan(): void
     {
         $user = $this->user();
         $deck = $this->deck($user);
         $printing = $this->printing('Lightning Bolt', 3);
         $card = $this->card($deck, $printing, 4, ['language' => CardLanguage::De]);
-        $this->claim($card, $this->stack($user, $printing, 1));
+        $binder = Container::create(['user_id' => $user->id, 'name' => 'Binder', 'type' => 'binder', 'sort_order' => 1]);
+        $stack = $this->stack($user, $printing, 1, ['finish' => Finish::Foil, 'condition' => 'played', 'container_id' => $binder->id]);
+        $this->claim($card, $stack);
+        $other = Deck::create(['user_id' => $user->id, 'name' => 'Other Deck', 'format' => CardFormat::Legacy->value]);
+        $this->claim($this->card($other, $printing, 1), $stack);
 
         $this->actingAs($user)
             ->getJson($this->url($deck, $card))
             ->assertOk()
             ->assertJsonPath('integration', true)
             ->assertJsonPath('claimed', 1)
-            ->assertJsonPath('groups', [[
-                'stack_id' => null,
-                'count' => 3,
-                'splittable' => true,
-                'finish' => 'nonfoil',
-                'language' => 'de',
-                'proxy' => false,
-                'finishes' => ['nonfoil', 'foil'],
-            ]])
-            ->assertJsonPath('languages.1', 'de');
+            ->assertJsonPath('languages.1', 'de')
+            ->assertJsonPath('conditions.0', 'mint')
+            ->assertJsonPath('groups', [
+                [
+                    'stack_id' => $stack->id,
+                    'count' => 1,
+                    'splittable' => true,
+                    'finish' => 'foil',
+                    'language' => 'en',
+                    'proxy' => false,
+                    'condition' => 'played',
+                    'finishes' => ['nonfoil', 'foil'],
+                    'container' => ['id' => $binder->id, 'name' => 'Binder'],
+                    'other_decks' => ['Other Deck'],
+                ],
+                [
+                    'stack_id' => null,
+                    'count' => 3,
+                    'splittable' => true,
+                    'finish' => 'nonfoil',
+                    'language' => 'de',
+                    'proxy' => false,
+                    'condition' => null,
+                    'finishes' => ['nonfoil', 'foil'],
+                    'container' => null,
+                    'other_decks' => [],
+                ],
+            ]);
     }
 
     #[Test]
-    public function a_fully_claimed_card_lists_no_plan(): void
+    public function a_fully_claimed_card_lists_only_its_stacks(): void
     {
         $user = $this->user();
         $deck = $this->deck($user);
         $printing = $this->printing('Lightning Bolt', 1);
         $card = $this->card($deck, $printing, 2);
-        $this->claim($card, $this->stack($user, $printing, 2));
+        $stack = $this->stack($user, $printing, 2);
+        $this->claim($card, $stack);
 
         $this->actingAs($user)
             ->getJson($this->url($deck, $card))
             ->assertOk()
             ->assertJsonPath('claimed', 2)
-            ->assertJsonPath('groups', []);
+            ->assertJsonCount(1, 'groups')
+            ->assertJsonPath('groups.0.stack_id', $stack->id)
+            ->assertJsonPath('groups.0.container', null);
     }
 
     #[Test]
@@ -316,6 +344,8 @@ class DeckCardCopiesTest extends TestCase
             ->getJson($this->url($deck, $claimed))
             ->assertJsonPath('integration', false)
             ->assertJsonPath('claimed', 0)
+            ->assertJsonCount(1, 'groups')
+            ->assertJsonPath('groups.0.stack_id', null)
             ->assertJsonPath('groups.0.count', 4)
             ->assertJsonPath('groups.0.splittable', false);
         $this->actingAs($user)
@@ -421,6 +451,302 @@ class DeckCardCopiesTest extends TestCase
         $this->actingAs($user)->patchJson($this->url($otherDeck, $card), $payload)->assertForbidden();
 
         $this->assertSame(Finish::Nonfoil, $card->refresh()->finish);
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Editing a claimed copy — the collection's cards */
+    /* ------------------------------------------------------------------ */
+
+    #[Test]
+    public function editing_every_copy_of_a_claimed_stack_changes_the_stack_not_the_plan(): void
+    {
+        $user = $this->user();
+        $deck = $this->deck($user);
+        $printing = $this->printing('Lightning Bolt', 3);
+        $card = $this->card($deck, $printing, 2, ['language' => CardLanguage::Fr]);
+        $stack = $this->stack($user, $printing, 2);
+        $this->claim($card, $stack);
+
+        $this->actingAs($user)
+            ->patchJson($this->url($deck, $card), [
+                'stack_id' => $stack->id, 'count' => 2, 'finish' => 'foil', 'language' => 'ja', 'proxy' => true, 'condition' => 'good',
+            ])
+            ->assertNoContent();
+
+        $stack->refresh();
+        $this->assertSame(
+            [2, Finish::Foil, CardLanguage::Ja, true, CardCondition::Good],
+            [$stack->amount, $stack->finish, $stack->language, $stack->proxy, $stack->condition],
+        );
+        $this->assertSame([Finish::Nonfoil, CardLanguage::Fr, false], [$card->refresh()->finish, $card->language, $card->proxy]);
+        $this->assertSame(1, CardStack::query()->count());
+    }
+
+    #[Test]
+    public function editing_some_copies_of_a_stack_splits_them_off_with_every_claim(): void
+    {
+        $user = $this->user();
+        $deck = $this->deck($user);
+        $printing = $this->printing('Lightning Bolt', 3);
+        $card = $this->card($deck, $printing, 3);
+        $stack = $this->stack($user, $printing, 3, ['condition' => 'mint']);
+        $this->claim($card, $stack);
+        $otherCard = $this->card($this->deck($user), $printing, 1);
+        $this->claim($otherCard, $stack);
+
+        $this->actingAs($user)
+            ->patchJson($this->url($deck, $card), [
+                'stack_id' => $stack->id, 'count' => 1, 'finish' => 'foil', 'language' => 'en', 'proxy' => false, 'condition' => 'mint',
+            ])
+            ->assertNoContent();
+
+        $split = CardStack::query()->where('id', '!=', $stack->id)->sole();
+        $this->assertSame([1, Finish::Foil, CardCondition::Mint], [$split->amount, $split->finish, $split->condition]);
+        $this->assertSame([2, Finish::Nonfoil], [$stack->refresh()->amount, $stack->finish]);
+        $this->assertEqualsCanonicalizing([$card->id, $otherCard->id], $split->deckCards()->pluck('deck_cards.id')->all());
+        $this->assertEqualsCanonicalizing([$card->id, $otherCard->id], $stack->deckCards()->pluck('deck_cards.id')->all());
+    }
+
+    /**
+     * @return array<string, array{0: array<string, mixed>, 1: string, 2: mixed}>
+     */
+    public static function singleStackEdits(): array
+    {
+        $base = ['finish' => 'nonfoil', 'language' => 'en', 'proxy' => false, 'condition' => 'good'];
+
+        return [
+            'condition only' => [[...$base, 'condition' => 'played'], 'condition', CardCondition::Played],
+            'language only' => [[...$base, 'language' => 'it'], 'language', CardLanguage::It],
+            'proxy only' => [[...$base, 'proxy' => true], 'proxy', true],
+            'finish only' => [[...$base, 'finish' => 'foil'], 'finish', Finish::Foil],
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $edit
+     */
+    #[Test]
+    #[DataProvider('singleStackEdits')]
+    public function a_stack_edit_changing_one_value_is_saved(array $edit, string $field, mixed $expected): void
+    {
+        $user = $this->user();
+        $deck = $this->deck($user);
+        $printing = $this->printing('Lightning Bolt', 3);
+        $card = $this->card($deck, $printing, 1);
+        $stack = $this->stack($user, $printing, 1, ['condition' => 'good']);
+        $this->claim($card, $stack);
+
+        $this->actingAs($user)
+            ->patchJson($this->url($deck, $card), ['stack_id' => $stack->id, 'count' => 1, ...$edit])
+            ->assertNoContent();
+
+        $this->assertSame($expected, $stack->refresh()->{$field});
+    }
+
+    #[Test]
+    public function a_stack_edit_without_a_condition_keeps_the_stacks(): void
+    {
+        $user = $this->user();
+        $deck = $this->deck($user);
+        $printing = $this->printing('Lightning Bolt', 3);
+        $card = $this->card($deck, $printing, 1);
+        $stack = $this->stack($user, $printing, 1, ['condition' => 'good']);
+        $this->claim($card, $stack);
+
+        $this->actingAs($user)
+            ->patchJson($this->url($deck, $card), [
+                'stack_id' => $stack->id, 'count' => 1, 'finish' => 'foil', 'language' => 'en', 'proxy' => false,
+            ])
+            ->assertNoContent();
+
+        $this->assertSame([Finish::Foil, CardCondition::Good], [$stack->refresh()->finish, $stack->condition]);
+    }
+
+    #[Test]
+    public function a_copy_edited_and_edited_back_folds_into_its_stack_again(): void
+    {
+        $user = $this->user();
+        $deck = $this->deck($user);
+        $printing = $this->printing('Lightning Bolt', 3);
+        $card = $this->card($deck, $printing, 2);
+        $stack = $this->stack($user, $printing, 2);
+        $this->claim($card, $stack);
+        $edit = ['count' => 1, 'language' => 'en', 'proxy' => false];
+
+        $this->actingAs($user)->patchJson($this->url($deck, $card), ['stack_id' => $stack->id, ...$edit, 'finish' => 'foil'])->assertNoContent();
+        $foil = CardStack::query()->where('id', '!=', $stack->id)->sole();
+        $this->actingAs($user)->patchJson($this->url($deck, $card), ['stack_id' => $foil->id, ...$edit, 'finish' => 'nonfoil'])->assertNoContent();
+
+        $this->assertNull($foil->fresh());
+        $this->assertSame(2, $stack->refresh()->amount);
+        $this->assertSame([$card->id], $stack->deckCards()->pluck('deck_cards.id')->all());
+    }
+
+    #[Test]
+    public function a_stack_claimed_by_other_decks_too_does_not_fold_into_one_claimed_here_alone(): void
+    {
+        $user = $this->user();
+        $deck = $this->deck($user);
+        $printing = $this->printing('Lightning Bolt', 3);
+        $card = $this->card($deck, $printing, 2);
+        $shared = $this->stack($user, $printing, 1, ['finish' => Finish::Foil]);
+        $own = $this->stack($user, $printing, 1);
+        $this->claim($card, $shared);
+        $this->claim($card, $own);
+        $this->claim($this->card($this->deck($user), $printing, 1), $shared);
+
+        $this->actingAs($user)
+            ->patchJson($this->url($deck, $card), [
+                'stack_id' => $shared->id, 'count' => 1, 'finish' => 'nonfoil', 'language' => 'en', 'proxy' => false,
+            ])
+            ->assertNoContent();
+
+        $this->assertSame(2, CardStack::query()->count());
+        $this->assertSame(Finish::Nonfoil, $shared->refresh()->finish);
+    }
+
+    #[Test]
+    public function the_other_decks_leave_out_this_deck_and_name_each_deck_once(): void
+    {
+        $user = $this->user();
+        $deck = $this->deck($user);
+        $printing = $this->printing('Lightning Bolt', 3);
+        $card = $this->card($deck, $printing, 1);
+        $stack = $this->stack($user, $printing, 3);
+        $this->claim($card, $stack);
+        $this->claim($this->card($deck, $printing, 1, ['zone' => DeckZone::Side->value]), $stack);
+        $twin = Deck::create(['user_id' => $user->id, 'name' => 'Twin', 'format' => CardFormat::Legacy->value]);
+        $sibling = Deck::create(['user_id' => $user->id, 'name' => 'Twin', 'format' => CardFormat::Legacy->value]);
+        $this->claim($this->card($twin, $printing, 1), $stack);
+        $this->claim($this->card($sibling, $printing, 1), $stack);
+
+        $this->actingAs($user)
+            ->getJson($this->url($deck, $card))
+            ->assertJsonPath('groups.0.other_decks', ['Twin', 'Twin']);
+    }
+
+    #[Test]
+    public function a_stack_of_another_user_is_refused_even_when_claimed_for_the_card(): void
+    {
+        $user = $this->user();
+        $deck = $this->deck($user);
+        $printing = $this->printing('Lightning Bolt', 3);
+        $card = $this->card($deck, $printing, 1);
+        $foreign = $this->stack($this->user(), $printing, 1);
+        $this->claim($card, $foreign);
+
+        $this->actingAs($user)
+            ->patchJson($this->url($deck, $card), [
+                'stack_id' => $foreign->id, 'count' => 1, 'finish' => 'foil', 'language' => 'en', 'proxy' => false,
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('stack_id');
+    }
+
+    #[Test]
+    public function an_edited_stack_shows_on_the_deck_and_reprices_it(): void
+    {
+        $user = $this->user();
+        $deck = $this->deck($user);
+        $printing = $this->printing('Lightning Bolt', 3);
+        $printing->update(['price_eur' => 1.00, 'price_eur_foil' => 100.00]);
+        $card = $this->card($deck, $printing, 2);
+        $stack = $this->stack($user, $printing, 2);
+        $this->claim($card, $stack);
+
+        $this->actingAs($user)->patchJson($this->url($deck, $card), [
+            'stack_id' => $stack->id, 'count' => 1, 'finish' => 'foil', 'language' => 'en', 'proxy' => false,
+        ])->assertNoContent();
+
+        $this->actingAs($user)
+            ->get(route('decks.show', $deck))
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('deck.total_worth', 101)
+                ->where('cards.0.copies.0', ['count' => 1, 'finish' => 'nonfoil', 'language' => 'en', 'proxy' => false, 'claimed' => true])
+                ->where('cards.0.copies.1', ['count' => 1, 'finish' => 'foil', 'language' => 'en', 'proxy' => false, 'claimed' => true]));
+    }
+
+    #[Test]
+    public function a_stack_not_claimed_for_this_card_is_refused(): void
+    {
+        $user = $this->user();
+        $deck = $this->deck($user);
+        $printing = $this->printing('Lightning Bolt', 3);
+        $card = $this->card($deck, $printing, 1);
+        $free = $this->stack($user, $printing, 1);
+        $elsewhere = $this->stack($user, $printing, 1);
+        $this->claim($this->card($this->deck($user), $printing, 1), $elsewhere);
+        $foreign = $this->stack($this->user(), $printing, 1);
+
+        foreach ([$free, $elsewhere, $foreign] as $stack) {
+            $this->actingAs($user)
+                ->patchJson($this->url($deck, $card), [
+                    'stack_id' => $stack->id, 'count' => 1, 'finish' => 'foil', 'language' => 'en', 'proxy' => false,
+                ])
+                ->assertUnprocessable()
+                ->assertJsonValidationErrors('stack_id');
+        }
+
+        $this->assertSame(0, CardStack::query()->where('finish', Finish::Foil->value)->count());
+    }
+
+    #[Test]
+    public function a_stack_edit_is_held_to_the_stacks_amount_and_printing(): void
+    {
+        $user = $this->user();
+        $deck = $this->deck($user);
+        $card = $this->card($deck, $this->printing('Lightning Bolt', 3), 2);
+        $alpha = $this->printing('Lightning Bolt', 1, oracle: $card->oracleCard);
+        $stack = $this->stack($user, $alpha, 2);
+        $this->claim($card, $stack);
+        $edit = ['stack_id' => $stack->id, 'language' => 'en', 'proxy' => false];
+
+        $this->actingAs($user)
+            ->patchJson($this->url($deck, $card), [...$edit, 'count' => 3, 'finish' => 'nonfoil'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('count');
+        // The stack is an Alpha printing without foil, though the card's own printing has one.
+        $this->actingAs($user)
+            ->patchJson($this->url($deck, $card), [...$edit, 'count' => 2, 'finish' => 'foil'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('finish');
+        $this->actingAs($user)
+            ->patchJson($this->url($deck, $card), [...$edit, 'count' => 2, 'finish' => 'nonfoil', 'condition' => 'pristine'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('condition');
+    }
+
+    #[Test]
+    public function with_the_master_switch_off_no_stack_can_be_edited(): void
+    {
+        $user = $this->user();
+        $deck = $this->deck($user);
+        $printing = $this->printing('Lightning Bolt', 3);
+        $card = $this->card($deck, $printing, 1);
+        $stack = $this->stack($user, $printing, 1);
+        $this->claim($card, $stack);
+        $user->update(['collection_integration_enabled' => false]);
+
+        $this->actingAs($user)
+            ->patchJson($this->url($deck, $card), [
+                'stack_id' => $stack->id, 'count' => 1, 'finish' => 'foil', 'language' => 'en', 'proxy' => false,
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('stack_id');
+
+        $this->assertSame(Finish::Nonfoil, $stack->refresh()->finish);
+    }
+
+    #[Test]
+    public function editing_a_stack_to_the_values_it_has_changes_nothing(): void
+    {
+        $user = $this->user();
+        $stack = $this->stack($user, $this->printing('Lightning Bolt', 3), 3, ['condition' => 'good']);
+
+        $result = DeckCardCopiesService::editClaimedStack($stack, 1, Finish::Nonfoil, CardLanguage::En, false, CardCondition::Good);
+
+        $this->assertSame($stack->id, $result->id);
+        $this->assertSame(1, CardStack::query()->count());
     }
 
     /* ------------------------------------------------------------------ */
