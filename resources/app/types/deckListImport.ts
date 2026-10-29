@@ -50,6 +50,8 @@ export interface DeckListLine {
     zone_guessed: boolean;
     quantity: number;
     name: string | null;
+    /** `foil` / `etched` from a `*F*` / `*E*` marker; null without one — the printing's first finish applies. */
+    finish: "foil" | "etched" | null;
     category: string | null;
     status: "resolved" | "unresolved";
     reason: "unparseable" | "not_found" | "ambiguous" | null;
@@ -75,6 +77,8 @@ export interface DeckListCommandZone {
     signature_spell: CommanderResult | null;
     /** Oracle id → printing for the pre-filled cards — the paste's printing, or the collection's. */
     printings: Record<string, string>;
+    /** Oracle id → `*F*` / `*E*` marker of a pre-filled card's line; absent without one. */
+    finishes: Record<string, "foil" | "etched">;
 }
 
 /** The parse endpoint's response. */

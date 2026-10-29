@@ -153,8 +153,14 @@ class ContainerService
      * based on its finish and the given currency. Proxies short-circuit to
      * 0 — they're print-outs, not real cards, and we don't claim a market
      * value for them anywhere in the UI.
+     *
+     * `$copies` names the table whose `finish` / `proxy` columns are read:
+     * `card_stacks` for the collection, `deck_cards` for a deck's planned
+     * copies ({@see DeckWorthService}), so both are priced by one rule.
+     * A finish without a price is NULL, not 0 — callers summing several
+     * terms wrap it in COALESCE.
      */
-    public static function unitPriceSql(Currency $currency): string
+    public static function unitPriceSql(Currency $currency, string $copies = 'card_stacks'): string
     {
         $c = $currency->value;
         $nonfoil = Finish::Nonfoil->value;
@@ -162,10 +168,10 @@ class ContainerService
         $etched = Finish::Etched->value;
 
         return "CASE
-            WHEN card_stacks.proxy = 1 THEN 0
-            WHEN card_stacks.finish = {$nonfoil} THEN default_cards.price_{$c}
-            WHEN card_stacks.finish = {$foil} THEN default_cards.price_{$c}_foil
-            WHEN card_stacks.finish = {$etched} THEN default_cards.price_{$c}_etched
+            WHEN {$copies}.proxy = 1 THEN 0
+            WHEN {$copies}.finish = {$nonfoil} THEN default_cards.price_{$c}
+            WHEN {$copies}.finish = {$foil} THEN default_cards.price_{$c}_foil
+            WHEN {$copies}.finish = {$etched} THEN default_cards.price_{$c}_etched
             ELSE 0 END";
     }
 

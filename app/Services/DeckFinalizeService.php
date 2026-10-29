@@ -50,7 +50,11 @@ class DeckFinalizeService
      *   into an existing matching unsorted stack) card_stack via
      *   {@see CardStackService::addToCollection}. The bought stack
      *   uses the deck_card's *current* printing — after the printing
-     *   swap above, that's whatever the user picked.
+     *   swap above, that's whatever the user picked — and its planned
+     *   finish, language and proxy flag.
+     * - The leftover row of a partial claim keeps the plan; the claimed
+     *   row takes the claimed stacks' values when they agree
+     *   ({@see DeckCardCopiesService::adoptClaimedValues}).
      *
      * @param  array<string, array<int, string>>  $assignments  Keyed by deck_card_id → list of card_stack_ids.
      * @param  array<string, bool>  $buyNew  Keyed by deck_card_id → "bought new" flag.
@@ -166,9 +170,10 @@ class DeckFinalizeService
             $bought = CardStackService::addToCollection($deckCard->deck->user, [
                 'default_card_id' => $deckCard->default_card_id,
                 'amount' => $uncovered,
-                'language' => 'en',
+                'language' => $deckCard->language->value,
                 'condition' => null,
-                'finish' => 'nonfoil',
+                'finish' => $deckCard->finish->label(),
+                'proxy' => $deckCard->proxy,
                 'container_id' => $containerId,
             ]);
             $stacksToAttach[] = $bought['stack']->id;
@@ -198,10 +203,12 @@ class DeckFinalizeService
                 'category_id' => $deckCard->category_id,
                 'zone' => $deckCard->zone->value,
                 'quantity' => $leftover,
+                ...$deckCard->planAttributes(),
             ]);
         }
 
         $targetDeckCard->cardStacks()->attach($stacksToAttach);
+        DeckCardCopiesService::adoptClaimedValues($targetDeckCard);
 
         return true;
     }

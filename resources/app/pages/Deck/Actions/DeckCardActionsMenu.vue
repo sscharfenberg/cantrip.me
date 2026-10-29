@@ -6,6 +6,7 @@ import PopOver from "Components/UI/PopOver.vue";
 import { useDeckCardActions } from "Composables/useDeckCardActions.ts";
 import type { DeckCardRow, DeckCategoryRow } from "Types/deckPage.ts";
 import DeckCardAssignStackModal from "../Modals/DeckCardAssignStackModal.vue";
+import DeckCardCopiesModal from "../Modals/DeckCardCopiesModal.vue";
 import DeckCardMoveToGroupModal from "../Modals/DeckCardMoveToGroupModal.vue";
 import DeckCardSplitPrintingModal from "../Modals/DeckCardSplitPrintingModal.vue";
 import DeckCardSwitchPrintingModal from "../Modals/DeckCardSwitchPrintingModal.vue";
@@ -56,6 +57,13 @@ function closePopover(): void {
     const el = document.getElementById(popoverId);
     if (el !== null) el.hidePopover();
 }
+/** Controls visibility of the "Edit copies" dialog. */
+const showCopiesModal = ref(false);
+/** Close the popover and open the "Edit copies" dialog. */
+function openCopies(): void {
+    closePopover();
+    showCopiesModal.value = true;
+}
 /** Close the popover and open the switch-printing modal. */
 function openSwitchPrinting(): void {
     closePopover();
@@ -87,6 +95,8 @@ function openUnclaim(): void {
  * state, and `hasUnclaimedCards` so the "Unclaimed cards" menu entry does
  * too. Mode itself can't change here — the deck stays sticky-pinned to
  * C even after a clear, by design.
+ * `deck` too: the header's worth prices a claimed copy at its stack's
+ * finish, so a foil stack claimed under a nonfoil plan reprices the deck.
  */
 async function assignStack(stackId: string | null): Promise<void> {
     const response = await fetch(`/api/decks/${props.deckId}/cards/${props.card.id}/assigned-stacks`, {
@@ -99,7 +109,7 @@ async function assignStack(stackId: string | null): Promise<void> {
         body: JSON.stringify({ card_stack_id: stackId })
     });
     if (!response.ok) return;
-    router.reload({ only: ["cards", "hasUnclaimedCards"] });
+    router.reload({ only: ["cards", "deck", "hasUnclaimedCards"] });
 }
 /**
  * True when the move-to-group modal would offer at least one real target —
@@ -163,6 +173,12 @@ const { canIncrement, increment, decrement, destroy, moveZone, switchPrinting } 
                 <button type="button" class="popover-list-item" @click="openSplitPrinting">
                     <icon name="copy" :size="1" />
                     {{ $t("pages.deck.split_printing.link") }}
+                </button>
+            </li>
+            <li>
+                <button type="button" class="popover-list-item" @click="openCopies">
+                    <icon name="star" :size="1" />
+                    {{ $t("pages.deck.copies.link") }}
                 </button>
             </li>
             <li v-if="props.card.zone !== 'side' && canMoveToGroup">
@@ -250,5 +266,12 @@ const { canIncrement, increment, decrement, destroy, moveZone, switchPrinting } 
         :deck-id="props.deckId"
         :card="props.card"
         @close="showUnclaimModal = false"
+    />
+    <deck-card-copies-modal
+        v-if="showCopiesModal"
+        :deck-id="props.deckId"
+        :deck-card-id="props.card.id"
+        :name="props.card.name"
+        @close="showCopiesModal = false"
     />
 </template>

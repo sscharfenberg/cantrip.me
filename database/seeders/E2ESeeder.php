@@ -146,8 +146,9 @@ class E2ESeeder extends Seeder
         $this->seedCardStacks($user);
         $this->seedDecks($user);
 
-        /* A second account with its own decks, for the specs that write. Needs the snapshot above. */
+        /* Accounts with their own decks, for the specs that write. Need the snapshot above. */
         $this->call(E2EDeckRefreshSeeder::class);
+        $this->call(E2EDeckCopiesSeeder::class);
     }
 
     /**

@@ -64,6 +64,13 @@ return [
         ],
     ],
 
+    'copies' => [
+        'errors' => [
+            'count' => 'So viele Exemplare dieser Karte sind nicht außerhalb deiner Sammlung.',
+            'finish' => 'Diese Edition gibt es nicht in diesem Finish.',
+        ],
+    ],
+
     'companion' => [
         'errors' => [
             'not_allowed_in_format' => 'Gefährten sind in diesem Format nicht erlaubt.',

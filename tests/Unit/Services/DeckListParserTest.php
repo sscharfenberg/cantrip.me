@@ -163,6 +163,31 @@ class DeckListParserTest extends TestCase
     }
 
     /**
+     * @return array<string, array{0: string, 1: string|null}>
+     */
+    public static function finishMarkers(): array
+    {
+        return [
+            'moxfield foil' => ['1 Sol Ring (C21) 263 *F*', 'foil'],
+            'moxfield etched' => ['1 Sol Ring (C21) 263 *E*', 'etched'],
+            'lower case' => ['1 Sol Ring *f*', 'foil'],
+            'beside an archidekt label' => ['1 Sol Ring [Ramp] ^Have,#37d67a^ *F*', 'foil'],
+            'no marker' => ['1 Sol Ring (C21) 263', null],
+            'another marker is no finish' => ['1 Sol Ring *X*', null],
+        ];
+    }
+
+    #[Test]
+    #[DataProvider('finishMarkers')]
+    public function a_finish_marker_becomes_the_lines_finish(string $line, ?string $finish): void
+    {
+        $parsed = DeckListParser::parse($line);
+
+        $this->assertSame($finish, $parsed['lines'][0]['finish']);
+        $this->assertSame('Sol Ring', $parsed['lines'][0]['name']);
+    }
+
+    /**
      * @return array<string, array{0: string, 1: string, 2: string|null}>
      */
     public static function headers(): array

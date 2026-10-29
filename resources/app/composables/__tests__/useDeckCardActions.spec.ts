@@ -429,9 +429,19 @@ describe("useDeckCardActions — destroy", () => {
     });
 });
 
+/** A move-zone response; the copies and merge list default to "nothing to say". */
+const moved = (overrides: Record<string, unknown>) => ({
+    source_copies: [],
+    target_copies: [],
+    merged_ids: [],
+    ...overrides
+});
+
+const FOIL = { count: 1, finish: "foil", language: "en", proxy: false, claimed: false } as const;
+
 describe("useDeckCardActions — moveZone", () => {
     beforeEach(() => {
-        http.json(MOVE_ZONE_URL, { source_quantity: 0, target_id: "card-side", target_quantity: 1 });
+        http.json(MOVE_ZONE_URL, moved({ source_quantity: 0, target_id: "card-side", target_quantity: 1 }));
     });
 
     it("PATCHes the target zone and closes the popover", async () => {
@@ -509,7 +519,7 @@ describe("useDeckCardActions — moveZone", () => {
 
     it("merges into an existing target row instead of adding a second one", async () => {
         const existing = makeDeckCard({ id: "card-side", oracle_card_id: ORACLE_ID, zone: "side", quantity: 1 });
-        http.json(MOVE_ZONE_URL, { source_quantity: 1, target_id: "card-side", target_quantity: 2 });
+        http.json(MOVE_ZONE_URL, moved({ source_quantity: 1, target_id: "card-side", target_quantity: 2 }));
         const { actions, cards } = setup({ cards: [deckCard({ quantity: 2 }), existing], quantity: 2 });
 
         await actions.moveZone("side");
@@ -545,13 +555,90 @@ describe("useDeckCardActions — moveZone", () => {
             quantity: 1,
             default_card: printing
         });
-        http.json(MOVE_ZONE_URL, { source_quantity: 1, target_id: "card-side", target_quantity: 3 });
+        http.json(
+            MOVE_ZONE_URL,
+            moved({ source_quantity: 1, target_id: "card-side", target_quantity: 3, merged_ids: ["card-side-2"] })
+        );
         const { actions, cards } = setup({ cards: [source, survivor, absorbed], quantity: 2 });
 
         await actions.moveZone("side");
 
         expect(cards.map(c => c.id)).toEqual([CARD_ID, "card-side"]);
         expect(cards.find(c => c.id === "card-side")?.quantity).toBe(3);
+    });
+
+    it("keeps a sibling the server did not merge — same card and printing, another plan", async () => {
+        // A foil row beside the nonfoil one: the page can't see the plan, so
+        // only the server's list of merged rows may decide what goes.
+        const printing = {
+            id: "printing-1",
+            name: "Sol Ring",
+            card_image_0: null,
+            card_image_1: null,
+            collector_number: null,
+            set: null
+        };
+        const source = deckCard({ quantity: 2, default_card: printing });
+        const survivor = makeDeckCard({
+            id: "card-side",
+            oracle_card_id: ORACLE_ID,
+            zone: "side",
+            default_card: printing
+        });
+        const foil = makeDeckCard({
+            id: "card-side-foil",
+            oracle_card_id: ORACLE_ID,
+            zone: "side",
+            default_card: printing,
+            copies: [FOIL]
+        });
+        http.json(MOVE_ZONE_URL, moved({ source_quantity: 1, target_id: "card-side", target_quantity: 2 }));
+        const { actions, cards } = setup({ cards: [source, survivor, foil], quantity: 2 });
+
+        await actions.moveZone("side");
+
+        expect(cards.map(c => c.id)).toEqual([CARD_ID, "card-side", "card-side-foil"]);
+    });
+
+    it("takes both rows' copies from the server", async () => {
+        const survivor = makeDeckCard({ id: "card-side", oracle_card_id: ORACLE_ID, zone: "side" });
+        const sourceCopies = [{ ...FOIL, count: 2, claimed: true }];
+        const targetCopies = [{ ...FOIL, count: 2 }];
+        http.json(
+            MOVE_ZONE_URL,
+            moved({
+                source_quantity: 2,
+                source_copies: sourceCopies,
+                target_id: "card-side",
+                target_quantity: 2,
+                target_copies: targetCopies
+            })
+        );
+        const { actions, cards } = setup({ cards: [deckCard({ quantity: 3 }), survivor], quantity: 3 });
+
+        await actions.moveZone("side");
+
+        expect(cards.find(c => c.id === CARD_ID)?.copies).toEqual(sourceCopies);
+        expect(cards.find(c => c.id === "card-side")?.copies).toEqual(targetCopies);
+    });
+
+    it("gives a synthesised row the server's copies and no claimed stacks", async () => {
+        // Cloning the source would hand the new, unclaimed row the source's
+        // claims and badge it with copies it does not hold.
+        http.json(
+            MOVE_ZONE_URL,
+            moved({ source_quantity: 1, target_id: "card-side", target_quantity: 1, target_copies: [FOIL] })
+        );
+        const source = deckCard({
+            quantity: 2,
+            claimed_stacks: [{ id: "stack-1", container_id: null }],
+            copies: [{ ...FOIL, count: 2, claimed: true }]
+        });
+        const { actions, cards } = setup({ cards: [source], quantity: 2 });
+
+        await actions.moveZone("side");
+
+        expect(cards.find(c => c.id === "card-side")).toMatchObject({ claimed_stacks: [], copies: [FOIL] });
     });
 
     it("keeps a categorised sibling out of the merge", async () => {
@@ -579,7 +666,7 @@ describe("useDeckCardActions — moveZone", () => {
             default_card: printing,
             category_id: "category-ramp"
         });
-        http.json(MOVE_ZONE_URL, { source_quantity: 1, target_id: "card-side", target_quantity: 2 });
+        http.json(MOVE_ZONE_URL, moved({ source_quantity: 1, target_id: "card-side", target_quantity: 2 }));
         const { actions, cards } = setup({ cards: [source, survivor, categorised], quantity: 2 });
 
         await actions.moveZone("side");

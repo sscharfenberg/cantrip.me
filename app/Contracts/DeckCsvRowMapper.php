@@ -30,6 +30,9 @@ interface DeckCsvRowMapper
      * skip a row that should not contribute to the deck (zero quantity,
      * unparseable, etc.).
      *
+     * `finish` (a label), `language` and `proxy` are the deck card's plan
+     * for its copies; null or absent leaves the deck's default.
+     *
      * @param  array<string, string>  $row  Keyed by lowercase header name.
      * @return array{
      *     role: 'card'|'commander'|'companion',
@@ -42,6 +45,9 @@ interface DeckCsvRowMapper
      *     category: ?string,
      *     is_partner: bool,
      *     card_stack_ids: array<int, string>,
+     *     finish?: ?string,
+     *     language?: ?string,
+     *     proxy?: ?bool,
      * }|null
      */
     public function mapRow(array $row): ?array;

@@ -91,3 +91,45 @@ describe("DeckCompanionActionsMenu — switch printing", () => {
         expect(routerMock.reload).not.toHaveBeenCalled();
     });
 });
+
+describe("DeckCompanionActionsMenu — edit copies", () => {
+    it("opens the copies dialog for the card's deck card", async () => {
+        http.json(
+            `/api/decks/${DECK_ID}/cards/deck-card-1/copies`,
+            { languages: ["en"], claimed: 0, groups: [] },
+            200,
+            "GET"
+        );
+        const wrapper = render();
+
+        await wrapper
+            .findAll(".popover-list-item")
+            .find(item => item.text().includes("pages.deck.copies.link"))!
+            .trigger("click");
+        await flushPromises();
+
+        const modal = wrapper.findComponent({ name: "DeckCardCopiesModal" });
+        expect(modal.props()).toEqual({ deckId: DECK_ID, deckCardId: "deck-card-1", name: "Lurrus of the Dream-Den" });
+        expect(http.callsTo(`/api/decks/${DECK_ID}/cards/deck-card-1/copies`)).toHaveLength(1);
+    });
+});
+
+describe("DeckCompanionActionsMenu — assign physical copy", () => {
+    it("reloads the card, the open-cards flag and the deck's worth after a stack is assigned", async () => {
+        http.json(`/api/decks/${DECK_ID}/cards/deck-card-1/assignable-stacks`, [], 200, "GET");
+        http.status(`/api/decks/${DECK_ID}/cards/deck-card-1/assigned-stacks`, 204, "PATCH");
+        const wrapper = render();
+        // The entry is offered in mode C only.
+        await wrapper.setProps({ collectionMode: "C" });
+
+        await wrapper
+            .findAll(".popover-list-item")
+            .find(item => item.text().includes("pages.deck.assign_stack.link"))!
+            .trigger("click");
+        await flushPromises();
+        wrapper.findComponent({ name: "DeckCardAssignStackModal" }).vm.$emit("select", "s1");
+        await flushPromises();
+
+        expect(routerMock.reload).toHaveBeenCalledWith({ only: ["companion", "deck", "hasUnclaimedCards"] });
+    });
+});

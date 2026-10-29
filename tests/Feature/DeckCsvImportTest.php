@@ -3,10 +3,12 @@
 namespace Tests\Feature;
 
 use App\Enums\CardFormat;
+use App\Enums\CardLanguage;
 use App\Enums\ContainerVisibility;
 use App\Enums\DeckCardRole;
 use App\Enums\DeckImportSource;
 use App\Enums\DeckZone;
+use App\Enums\Finish;
 use App\Models\CardStack;
 use App\Models\Deck;
 use App\Models\DeckCard;
@@ -330,6 +332,50 @@ class DeckCsvImportTest extends TestCase
         $this->assertSame($boltPrint->id, $deckCard->default_card_id);
         $this->assertSame(4, $deckCard->quantity);
         $this->assertSame('main', $deckCard->zone->value);
+    }
+
+    #[Test]
+    public function cantrip_format_reads_each_cards_plan_and_older_files_get_the_defaults(): void
+    {
+        $owner = $this->makeUser();
+        $deck = $this->makeDeck($owner, ContainerVisibility::Private);
+        $bolt = $this->makeOracleCard('Lightning Bolt');
+        $boltPrint = $this->makeDefaultCard($bolt, 'm10', '146');
+        $boltPrint->update(['finishes' => 3]);
+        $ring = $this->makeOracleCard('Sol Ring');
+        $ringPrint = $this->makeDefaultCard($ring, 'cmd', '263');
+
+        $csv = "Role,Deck Card ID,Scryfall ID,Name,Edition,Collector Number,Count,Zone,Category,Is Partner,Card Stack ID,Finish,Language,Proxy\n"
+            ."card,,{$boltPrint->id},Lightning Bolt,M10,146,2,main,,,,foil,de,true\n"
+            ."card,,{$ringPrint->id},Sol Ring,CMD,263,1,main,,,,,,\n";
+        DeckCsvImportService::import($owner, $deck, $this->stashCsv($csv), DeckImportSource::Cantrip);
+
+        $rows = DeckCard::query()->where('deck_id', $deck->id)->get()->keyBy('oracle_card_id');
+        $this->assertSame(
+            [Finish::Foil, CardLanguage::De, true],
+            [$rows[$bolt->id]->finish, $rows[$bolt->id]->language, $rows[$bolt->id]->proxy],
+        );
+        $this->assertSame(
+            [Finish::Nonfoil, CardLanguage::En, false],
+            [$rows[$ring->id]->finish, $rows[$ring->id]->language, $rows[$ring->id]->proxy],
+        );
+    }
+
+    #[Test]
+    public function archidekt_format_reads_the_optional_finish_and_language_columns(): void
+    {
+        $owner = $this->makeUser();
+        $deck = $this->makeDeck($owner, ContainerVisibility::Private);
+        $bolt = $this->makeOracleCard('Lightning Bolt');
+        $boltPrint = $this->makeDefaultCard($bolt, 'm10', '146');
+        $boltPrint->update(['finishes' => 3]);
+
+        $csv = "Quantity,Name,Finish,Language,Edition Code,Collector Number,Category,Scryfall ID\n"
+            ."4,Lightning Bolt,Foil,JA,m10,146,Burn,{$boltPrint->id}\n";
+        DeckCsvImportService::import($owner, $deck, $this->stashCsv($csv), DeckImportSource::Archidekt);
+
+        $row = DeckCard::query()->where('deck_id', $deck->id)->sole();
+        $this->assertSame([Finish::Foil, CardLanguage::Ja], [$row->finish, $row->language]);
     }
 
     #[Test]

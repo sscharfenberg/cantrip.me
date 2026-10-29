@@ -4,6 +4,7 @@ import { useI18n } from "vue-i18n";
 import CollectionAvailabilityBadge from "@/components/Deck/CollectionAvailabilityBadge.vue";
 import CollectionImplicitBadge from "@/components/Deck/CollectionImplicitBadge.vue";
 import CollectionStatusBadge from "@/components/Deck/CollectionStatusBadge.vue";
+import DeckCardCopiesBadge from "@/components/Deck/DeckCardCopiesBadge.vue";
 import SourceShareBadge from "@/components/Deck/SourceShareBadge.vue";
 import DeckCardActionsMenu from "@/pages/Deck/Actions/DeckCardActionsMenu.vue";
 import DeckCommanderActionsMenu from "@/pages/Deck/Actions/DeckCommanderActionsMenu.vue";
@@ -93,6 +94,7 @@ const { allGroups } = useDeckSections(
                     @preview="openPreview(commander.default_card.id)"
                 >
                     <source-share-badge :card="commander" variant="corner" />
+                    <deck-card-copies-badge :copies="commander.copies" variant="corner" />
                     <icon
                         v-if="commander.is_illegal"
                         v-tooltip="$t('pages.deck.illegal')"
@@ -160,6 +162,7 @@ const { allGroups } = useDeckSections(
                     @preview="openPreview(card.default_card.id, card.quantity)"
                 >
                     <source-share-badge :card="card" variant="corner" />
+                    <deck-card-copies-badge :copies="card.copies" variant="corner" />
                     <icon
                         v-if="card.is_game_changer && deck.uses_game_changer_list"
                         v-tooltip="$t('pages.deck.game_changer')"

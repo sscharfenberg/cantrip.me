@@ -3,9 +3,11 @@
 namespace Tests\Feature;
 
 use App\Enums\CardFormat;
+use App\Enums\CardLanguage;
 use App\Enums\ContainerVisibility;
 use App\Enums\DeckCardRole;
 use App\Enums\DeckZone;
+use App\Enums\Finish;
 use App\Models\CardStack;
 use App\Models\Container;
 use App\Models\Deck;
@@ -79,6 +81,7 @@ class DeckCsvExportTest extends TestCase
         $this->assertSame([
             'Role', 'Deck Card ID', 'Scryfall ID', 'Name', 'Edition', 'Collector Number',
             'Count', 'Zone', 'Category', 'Is Partner', 'Card Stack ID',
+            'Finish', 'Language', 'Proxy',
         ], $rows[0]);
 
         // Roles emitted in order: commanders → companion → cards. Role
@@ -122,6 +125,22 @@ class DeckCsvExportTest extends TestCase
         $this->assertSame((string) 4, $cardRow[6]);
         // Stack ids are joined and asc-sorted, so the 'a-…' uuid lands first.
         $this->assertSame($stackA->id.','.$stackB->id, $cardRow[10]);
+    }
+
+    #[Test]
+    public function each_row_carries_the_cards_plan(): void
+    {
+        $owner = $this->makeUser();
+        $deck = $this->makeDeck($owner, ContainerVisibility::Private);
+        $oracle = $this->makeOracleCard('Lightning Bolt');
+        $printing = $this->makeDefaultCard($oracle, 'm10', '146');
+        $printing->update(['finishes' => 3]);
+        $deckCard = $this->makeDeckCard($deck, $oracle, $printing, 2);
+        $deckCard->update(['finish' => Finish::Foil, 'language' => CardLanguage::De, 'proxy' => true]);
+
+        $rows = $this->exportRows($owner, $deck);
+
+        $this->assertSame(['foil', 'de', 'true'], array_slice($rows[1], 11));
     }
 
     #[Test]

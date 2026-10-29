@@ -175,13 +175,13 @@ describe("DeckListReview — what blocks the confirm", () => {
         const missing = render(
             makeParseResult([makeDeckListLine()], {
                 rules,
-                command_zone: { commander: walker, partner: null, signature_spell: null, printings: {} }
+                command_zone: { commander: walker, partner: null, signature_spell: null, printings: {}, finishes: {} }
             })
         );
         const complete = render(
             makeParseResult([makeDeckListLine()], {
                 rules,
-                command_zone: { commander: walker, partner: null, signature_spell: spell, printings: {} }
+                command_zone: { commander: walker, partner: null, signature_spell: spell, printings: {}, finishes: {} }
             })
         );
 
@@ -197,7 +197,13 @@ describe("DeckListReview — what blocks the confirm", () => {
     it("is not blocked when the paste pre-filled the commander", () => {
         const result = makeParseResult([makeDeckListLine()], {
             rules: commanderRules(),
-            command_zone: { commander: makeCommanderResult(), partner: null, signature_spell: null, printings: {} }
+            command_zone: {
+                commander: makeCommanderResult(),
+                partner: null,
+                signature_spell: null,
+                printings: {},
+                finishes: {}
+            }
         });
 
         expect(confirmButton(render(result)).attributes("disabled")).toBeUndefined();
@@ -212,7 +218,7 @@ describe("DeckListReview — confirm", () => {
             [
                 makeDeckListLine(krenko),
                 makeDeckListLine(makeDeckListCard("Sol Ring", { color_identity: null }), { category: "Ramp" }),
-                makeDeckListLine(makeDeckListCard("Pyroblast"), { zone: "side", quantity: 2 })
+                makeDeckListLine(makeDeckListCard("Pyroblast"), { zone: "side", quantity: 2, finish: "etched" })
             ],
             {
                 rules: commanderRules(),
@@ -221,7 +227,8 @@ describe("DeckListReview — confirm", () => {
                     partner: makeCommanderResult("Partner"),
                     signature_spell: null,
                     // The partner was picked, not pasted — it has no printing.
-                    printings: { "oracle-Krenko, Mob Boss": "printing-ddt-52", "oracle-Somebody Else": "printing-x" }
+                    printings: { "oracle-Krenko, Mob Boss": "printing-ddt-52", "oracle-Somebody Else": "printing-x" },
+                    finishes: { "oracle-Krenko, Mob Boss": "foil", "oracle-Somebody Else": "etched" }
                 }
             }
         );
@@ -235,20 +242,23 @@ describe("DeckListReview — confirm", () => {
             companion_id: "oracle-Partner",
             signature_spell_id: null,
             command_zone_printings: { "oracle-Krenko, Mob Boss": "printing-ddt-52" },
+            command_zone_finishes: { "oracle-Krenko, Mob Boss": "foil" },
             rows: [
                 {
                     oracle_card_id: "oracle-Sol Ring",
                     default_card_id: "printing-Sol Ring",
                     quantity: 1,
                     zone: "main",
-                    category: "Ramp"
+                    category: "Ramp",
+                    finish: null
                 },
                 {
                     oracle_card_id: "oracle-Pyroblast",
                     default_card_id: "printing-Pyroblast",
                     quantity: 2,
                     zone: "side",
-                    category: null
+                    category: null,
+                    finish: "etched"
                 }
             ]
         });

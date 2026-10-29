@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Decks;
 
 use App\Enums\CardFormat;
+use App\Enums\Finish;
 use App\Models\DeckCategory;
 use App\Models\DefaultCard;
 use App\Services\DeckList\DeckListParser;
@@ -26,6 +27,9 @@ use Illuminate\Validation\Validator;
  * `command_zone_printings` (oracle id → printing id) carries the printing
  * the paste named for a command-zone card; each key must be one of the
  * command-zone ids sent alongside, each value a printing of that card.
+ * `command_zone_finishes` (oracle id → finish label) carries a `*F*` /
+ * `*E*` marker the paste put on a command-zone line; a key that names no
+ * command-zone card is ignored.
  */
 class StoreDeckListImportRequest extends FormRequest
 {
@@ -52,8 +56,11 @@ class StoreDeckListImportRequest extends FormRequest
             'rows.*.quantity' => ['required', 'integer', 'between:1,999'],
             'rows.*.zone' => ['required', 'string', Rule::in($zones)],
             'rows.*.category' => ['nullable', 'string', 'max:'.DeckCategory::NAME_MAX],
+            'rows.*.finish' => ['nullable', 'string', Rule::in(Finish::labels())],
             'command_zone_printings' => ['nullable', 'array', 'max:3'],
             'command_zone_printings.*' => ['string'],
+            'command_zone_finishes' => ['nullable', 'array', 'max:3'],
+            'command_zone_finishes.*' => ['string', Rule::in(Finish::labels())],
         ];
     }
 

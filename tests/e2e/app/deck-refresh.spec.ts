@@ -152,15 +152,15 @@ test.describe("switching a printing", () => {
     });
 
     test("re-prices the header and re-checks the deckbox, for the companion", async ({ page }) => {
-        /* Atraxa has no price in the snapshot, so the worth is the companion's alone. */
+        /* Atraxa from C16 exists only in foil and is priced so, €18.40, on top of the companion. */
         await openDeck(page, DECKS.companionPrinting);
-        await expect(worth(page)).toContainText("1,52");
+        await expect(worth(page)).toContainText("19,92");
         await expect(unclaimedEntry(page)).toHaveCount(0);
 
         await (await openMenu(page, "Companion actions")).getByRole("button", { name: "Edition wechseln" }).click();
         await pickPrinting(page, { cn: "355" });
 
-        await expect(worth(page)).toContainText("3,50");
+        await expect(worth(page)).toContainText("21,90");
         await expect(unclaimedEntry(page)).toHaveCount(1);
     });
 });

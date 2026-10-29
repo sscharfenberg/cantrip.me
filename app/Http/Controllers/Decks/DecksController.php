@@ -42,6 +42,7 @@ use App\Services\CardStackClaimService;
 use App\Services\CardStackService;
 use App\Services\CommandZoneService;
 use App\Services\DeckBulkAddCollectionService;
+use App\Services\DeckCardCopiesService;
 use App\Services\DeckCollectionModeService;
 use App\Services\DeckCollectionStatusService;
 use App\Services\DeckFinalizeService;
@@ -400,6 +401,16 @@ class DecksController extends Controller
             }
         }
 
+        // Finish, language and proxy of every card's copies, for the deck
+        // page's markers: claimed copies as their stacks have them, the
+        // rest as the deck plans them (DeckCardCopiesService). Claims show
+        // under the same gate as `claimed_stacks` — owner, master switch
+        // on; anyone else sees every copy as planned.
+        $copies = DeckCardCopiesService::groupsFor(
+            $deck->deckCards,
+            $request->user()?->id === $deck->user_id && (bool) $request->user()?->collection_integration_enabled,
+        );
+
         // Build the `$companion` shape now that collection statuses are
         // available — the claim badge looks up by `deck_card_id`, so it
         // depends on `$collectionStatuses` / `$collectionImplicitStatuses`
@@ -426,6 +437,7 @@ class DecksController extends Controller
                 'collection_status' => $collectionStatuses[$companionRow->id] ?? null,
                 'collection_implicit_status' => $collectionImplicitStatuses[$companionRow->id] ?? null,
                 'collection_availability' => $collectionAvailability[$companionRow->id] ?? null,
+                'copies' => $copies[$companionRow->id] ?? [],
                 'default_card' => [
                     'id' => $companionDefault->id ?? null,
                     'card_image_0' => $companionDefault->card_image_0 ?? null,
@@ -462,7 +474,7 @@ class DecksController extends Controller
             ->where('zone', DeckZone::Command)
             ->sortBy(fn (DeckCard $dc): int => $dc->role === DeckCardRole::Commander ? 0 : 1)
             ->values();
-        $commanders = $commanderRows->map(function (DeckCard $dc) use ($illegalDeckCardIds, $collectionStatuses, $collectionImplicitStatuses, $collectionAvailability) {
+        $commanders = $commanderRows->map(function (DeckCard $dc) use ($illegalDeckCardIds, $collectionStatuses, $collectionImplicitStatuses, $collectionAvailability, $copies) {
             $oracle = $dc->oracleCard;
             $printing = $dc->defaultCard;
 
@@ -493,6 +505,7 @@ class DecksController extends Controller
                 'collection_status' => $collectionStatuses[$dc->id] ?? null,
                 'collection_implicit_status' => $collectionImplicitStatuses[$dc->id] ?? null,
                 'collection_availability' => $collectionAvailability[$dc->id] ?? null,
+                'copies' => $copies[$dc->id] ?? [],
                 'default_card' => [
                     'id' => $printing?->id,
                     'card_image_0' => $printing?->card_image_0,
@@ -537,6 +550,7 @@ class DecksController extends Controller
                 'collection_implicit_status' => $collectionImplicitStatuses[$dc->id] ?? null,
                 'collection_availability' => $collectionAvailability[$dc->id] ?? null,
                 'claimed_stacks' => $claimedStacks[$dc->id] ?? [],
+                'copies' => $copies[$dc->id] ?? [],
                 'default_card' => [
                     'id' => $dc->defaultCard?->id,
                     'name' => $dc->defaultCard?->name,
@@ -931,7 +945,8 @@ class DecksController extends Controller
     /**
      * Stream a CSV of the deck's unclaimed slots (one row per uncovered
      * slot). Columns: name, edition, collector_number, qty, scryfall id,
-     * zone, role. Triggered by the same-page "Download CSV" link on the
+     * zone, role, and the planned finish, language and proxy flag of the
+     * open copies. Triggered by the same-page "Download CSV" link on the
      * UnclaimedCardStacks page.
      */
     public function exportUnclaimed(UnclaimedCardsRequest $request, Deck $deck): StreamedResponse
@@ -943,7 +958,7 @@ class DecksController extends Controller
 
         return response()->streamDownload(function () use ($cards): void {
             $handle = fopen('php://output', 'w');
-            fputcsv($handle, ['name', 'edition', 'collector_number', 'qty', 'scryfall_id', 'zone', 'role']);
+            fputcsv($handle, ['name', 'edition', 'collector_number', 'qty', 'scryfall_id', 'zone', 'role', 'finish', 'language', 'proxy']);
             foreach ($cards as $card) {
                 fputcsv($handle, [
                     $card['name'],
@@ -953,6 +968,9 @@ class DecksController extends Controller
                     $card['default_card_id'],
                     $card['zone'],
                     $card['role'] ?? '',
+                    $card['finish'],
+                    $card['language'],
+                    $card['proxy'] ? 'true' : 'false',
                 ]);
             }
             fclose($handle);
@@ -1038,6 +1056,11 @@ class DecksController extends Controller
                     'zone' => $dc->zone->value,
                     'role' => $dc->role?->value,
                     'has_any_printing' => isset($ownedOracleIds[$dc->oracle_card_id]),
+                    // The open copies are the planned ones, so the
+                    // shopping list says what to buy: foil, German, proxy.
+                    'finish' => $dc->finish->label(),
+                    'language' => $dc->language->value,
+                    'proxy' => $dc->proxy,
                 ];
             })
             ->filter()

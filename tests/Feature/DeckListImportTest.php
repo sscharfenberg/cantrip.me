@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Enums\CardFormat;
 use App\Enums\DeckCardRole;
 use App\Enums\DeckZone;
+use App\Enums\Finish;
 use App\Models\CardStack;
 use App\Models\Container;
 use App\Models\Deck;
@@ -786,6 +787,57 @@ class DeckListImportTest extends TestCase
     }
 
     #[Test]
+    public function the_prefilled_command_zone_keeps_the_pasted_finish(): void
+    {
+        $user = $this->user();
+        $krenko = $this->legendaryCreature('Krenko, Mob Boss');
+        $this->printing($krenko, $this->set('ddt', '2017-11-10'), '52');
+
+        $marked = $this->parse($user, "Commander\n1 Krenko, Mob Boss (DDT) 52 *F*", CardFormat::Commander)->assertOk();
+        $plain = $this->parse($user, "Commander\n1 Krenko, Mob Boss (DDT) 52", CardFormat::Commander)->assertOk();
+
+        $this->assertSame([$krenko->id => 'foil'], $marked->json('command_zone.finishes'));
+        $this->assertSame([], $plain->json('command_zone.finishes'));
+    }
+
+    #[Test]
+    public function confirm_gives_the_command_zone_the_finish_the_paste_marked(): void
+    {
+        $user = $this->user();
+        $krenko = $this->legendaryCreature('Krenko, Mob Boss');
+        $ddt = $this->printing($krenko, $this->set('ddt', '2017-11-10'), '52');
+        $ddt->update(['finishes' => 3]);
+
+        $this->actingAs($user)->postJson('/decks/import-list', [
+            'format' => 'commander',
+            'deck_name' => 'Krenko',
+            'commander_id' => $krenko->id,
+            'command_zone_printings' => [$krenko->id => $ddt->id],
+            'command_zone_finishes' => [$krenko->id => 'foil'],
+            'rows' => [],
+        ])->assertOk();
+
+        $commander = DeckCard::query()->where('zone', DeckZone::Command->value)->sole();
+        $this->assertSame([$ddt->id, Finish::Foil], [$commander->default_card_id, $commander->finish]);
+    }
+
+    #[Test]
+    public function confirm_refuses_an_unknown_command_zone_finish(): void
+    {
+        $user = $this->user();
+        $krenko = $this->legendaryCreature('Krenko, Mob Boss');
+        $this->printing($krenko, $this->set('ddt', '2017-11-10'), '52');
+
+        $this->actingAs($user)->postJson('/decks/import-list', [
+            'format' => 'commander',
+            'deck_name' => 'Krenko',
+            'commander_id' => $krenko->id,
+            'command_zone_finishes' => [$krenko->id => 'shiny'],
+            'rows' => [],
+        ])->assertUnprocessable()->assertJsonValidationErrors("command_zone_finishes.{$krenko->id}");
+    }
+
+    #[Test]
     public function confirm_refuses_a_command_zone_printing_that_does_not_fit(): void
     {
         $user = $this->user();
@@ -852,6 +904,52 @@ class DeckListImportTest extends TestCase
         $this->assertSame(DeckCardRole::Companion, $companion->role);
         $this->assertSame(2, DeckCard::query()->where('deck_id', $deck->id)->where('zone', 'side')->sole()->quantity);
         $this->assertSame(0, DeckCategory::query()->where('deck_id', $deck->id)->count());
+    }
+
+    #[Test]
+    public function a_foil_line_imports_foil_and_stays_apart_from_the_same_card_without_one(): void
+    {
+        $user = $this->user();
+        $set = $this->set('m10', '2009-07-17');
+        $bolt = $this->oracle('Lightning Bolt');
+        $print = $this->printing($bolt, $set, '146');
+        $print->update(['finishes' => 3]);
+
+        $this->actingAs($user)->postJson('/decks/import-list', [
+            'format' => 'legacy',
+            'deck_name' => 'Burn',
+            'rows' => [
+                ['oracle_card_id' => $bolt->id, 'default_card_id' => $print->id, 'quantity' => 3, 'zone' => 'main', 'finish' => null],
+                ['oracle_card_id' => $bolt->id, 'default_card_id' => $print->id, 'quantity' => 1, 'zone' => 'main', 'finish' => 'foil'],
+            ],
+        ])->assertOk();
+
+        $rows = DeckCard::query()->where('oracle_card_id', $bolt->id)->orderBy('quantity')->get();
+        $this->assertSame([[1, Finish::Foil], [3, Finish::Nonfoil]], $rows->map(fn (DeckCard $row) => [$row->quantity, $row->finish])->all());
+    }
+
+    #[Test]
+    public function confirm_refuses_an_unknown_finish(): void
+    {
+        $user = $this->user();
+        $bolt = $this->oracle('Lightning Bolt');
+        $print = $this->printing($bolt, $this->set('m10', '2009-07-17'), '146');
+
+        $this->actingAs($user)->postJson('/decks/import-list', [
+            'format' => 'legacy',
+            'deck_name' => 'Burn',
+            'rows' => [['oracle_card_id' => $bolt->id, 'default_card_id' => $print->id, 'quantity' => 1, 'zone' => 'main', 'finish' => 'shiny']],
+        ])->assertUnprocessable()->assertJsonValidationErrors('rows.0.finish');
+    }
+
+    #[Test]
+    public function the_parse_names_each_lines_finish(): void
+    {
+        $user = $this->user();
+        $bolt = $this->oracle('Lightning Bolt');
+        $this->printing($bolt, $this->set('m10', '2009-07-17'), '146');
+
+        $this->assertSame('foil', $this->firstLine($user, '1 Lightning Bolt *F*')['finish']);
     }
 
     #[Test]

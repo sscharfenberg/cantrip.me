@@ -64,6 +64,13 @@ return [
         ],
     ],
 
+    'copies' => [
+        'errors' => [
+            'count' => "There aren't that many copies of this card outside your collection.",
+            'finish' => "This printing doesn't exist in that finish.",
+        ],
+    ],
+
     'companion' => [
         'errors' => [
             'not_allowed_in_format' => 'Companions are not allowed in this format.',

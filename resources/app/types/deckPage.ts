@@ -27,6 +27,25 @@ export interface DeckCommanderDefaultCard {
  */
 export type ManaSource = "ability" | "token";
 
+/**
+ * Copies of a deck card alike in finish, language and proxy flag.
+ *
+ * "One owner at a time" (`DeckCardCopiesService`): copies a collection stack
+ * claims show that stack's values, one group per stack; the copies no stack
+ * claims show the deck card's plan, as the last group. A visitor — or the
+ * owner while the collection master switch is off — gets the plan for every
+ * copy, in one group.
+ */
+export interface DeckCardCopyGroup {
+    count: number;
+    finish: "nonfoil" | "foil" | "etched";
+    /** A `CardLanguage` code (`en`, `de`, `zhs`, …). */
+    language: string;
+    proxy: boolean;
+    /** True for copies a stack claims, false for the deck's plan. */
+    claimed: boolean;
+}
+
 /** A commander in the deck's command zone. */
 export interface DeckCommander {
     /** UUID of the underlying deck_card row — drives the unified hero-image endpoint and any per-row claim flows. */
@@ -55,6 +74,8 @@ export interface DeckCommander {
     collection_implicit_status: CollectionImplicitStatus | null;
     /** Planned-deck availability — null unless the deck is planned. */
     collection_availability: CollectionAvailability | null;
+    /** Finish, language and proxy flag of the card's copies — see {@link DeckCardCopyGroup}. */
+    copies: DeckCardCopyGroup[];
     default_card: DeckCommanderDefaultCard;
 }
 
@@ -79,6 +100,8 @@ export interface DeckCompanion {
     collection_implicit_status: CollectionImplicitStatus | null;
     /** Planned-deck availability — null unless the deck is planned. */
     collection_availability: CollectionAvailability | null;
+    /** Finish, language and proxy flag of the card's copies — see {@link DeckCardCopyGroup}. */
+    copies: DeckCardCopyGroup[];
     default_card: DeckCommanderDefaultCard;
 }
 
@@ -333,6 +356,8 @@ export interface DeckCardRow {
      * the collection master switch is on; empty otherwise.
      */
     claimed_stacks: { id: string; container_id: string | null }[];
+    /** Finish, language and proxy flag of the card's copies — see {@link DeckCardCopyGroup}. */
+    copies: DeckCardCopyGroup[];
     default_card: DeckCardDefaultCard;
 }
 

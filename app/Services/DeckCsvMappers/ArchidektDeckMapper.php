@@ -23,6 +23,10 @@ use App\Contracts\DeckCsvRowMapper;
  *    creating redundant custom categories.
  *
  * Anything else lands as a custom category verbatim.
+ *
+ * The optional Finish (`Normal` / `Foil` / `Etched`) and Language (`EN`,
+ * `DE`, …) columns, when enabled, become the deck card's plan for its
+ * copies; values cantrip.me doesn't know are ignored.
  */
 class ArchidektDeckMapper implements DeckCsvRowMapper
 {
@@ -76,6 +80,13 @@ class ArchidektDeckMapper implements DeckCsvRowMapper
             'category' => $persistedCategory,
             'is_partner' => false,
             'card_stack_ids' => [],
+            'finish' => match (strtolower(trim($row['finish'] ?? ''))) {
+                'foil' => 'foil',
+                'etched' => 'etched',
+                'normal', 'nonfoil' => 'nonfoil',
+                default => null,
+            },
+            'language' => strtolower(trim($row['language'] ?? '')) ?: null,
         ];
     }
 }

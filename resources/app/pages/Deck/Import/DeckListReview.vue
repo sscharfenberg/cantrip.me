@@ -143,6 +143,8 @@ const confirm = async (): Promise<void> => {
                 companion_id: props.result.rules.hasSignatureSpell ? null : (partner.value?.id ?? null),
                 signature_spell_id: props.result.rules.hasSignatureSpell ? (signatureSpell.value?.id ?? null) : null,
                 command_zone_printings: commandZonePrintings(commandZone.value, props.result.command_zone.printings),
+                // Same rule as the printings: only for cards still the pre-filled ones.
+                command_zone_finishes: commandZonePrintings(commandZone.value, props.result.command_zone.finishes),
                 rows: submissionRows(effective.value)
             })
         });

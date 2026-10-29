@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\Finish;
 use App\Models\Deck;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -11,10 +12,11 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  * Stream a CSV export of a deck's composition: commanders, companion,
  * and deck_cards in that order. The shape is the deck-side counterpart
  * of {@see CsvExportService} — it deliberately drops stack-only fields
- * (condition, last modified, container) and the now-removed
- * deck_cards.finish / language columns. Stack-level facts are reachable
- * via the `Card Stack ID` pointer column for tools that want to
- * correlate against a collection export.
+ * (condition, last modified, container). `Finish`, `Language` and `Proxy`
+ * are the deck card's plan for its copies ({@see DeckCardCopiesService}),
+ * appended after the older columns; stack-level facts are reachable via
+ * the `Card Stack ID` pointer column for tools that want to correlate
+ * against a collection export.
  *
  * Multi-claim handling: a deck card backed by N stacks ships as a single
  * row with `Card Stack ID` set to a comma-joined list. Keeps `Count`
@@ -36,6 +38,9 @@ class DeckCsvExportService
         'Category',
         'Is Partner',
         'Card Stack ID',
+        'Finish',
+        'Language',
+        'Proxy',
     ];
 
     /**
@@ -97,6 +102,9 @@ class DeckCsvExportService
                 'default_cards.collector_number',
                 'sets.code as set_code',
                 'deck_cards.role',
+                'deck_cards.finish',
+                'deck_cards.language',
+                'deck_cards.proxy',
             ]);
 
         foreach ($rows as $row) {
@@ -113,6 +121,7 @@ class DeckCsvExportService
                 '',
                 $isPartner ? 'true' : 'false',
                 '',
+                ...self::plan($row),
             ]);
         }
     }
@@ -132,6 +141,9 @@ class DeckCsvExportService
                 'default_cards.name as card_name',
                 'default_cards.collector_number',
                 'sets.code as set_code',
+                'deck_cards.finish',
+                'deck_cards.language',
+                'deck_cards.proxy',
             ]);
 
         if ($row === null) {
@@ -150,6 +162,7 @@ class DeckCsvExportService
             '',
             '',
             '',
+            ...self::plan($row),
         ]);
     }
 
@@ -197,6 +210,9 @@ class DeckCsvExportService
                 'default_cards.collector_number',
                 'sets.code as set_code',
                 'deck_categories.name as category_name',
+                'deck_cards.finish',
+                'deck_cards.language',
+                'deck_cards.proxy',
             ]);
 
         foreach ($rows as $row) {
@@ -213,7 +229,22 @@ class DeckCsvExportService
                 $row->category_name ?? '',
                 '',
                 $includeStackIds ? implode(',', $stackIds) : '',
+                ...self::plan($row),
             ]);
         }
+    }
+
+    /**
+     * The `Finish`, `Language` and `Proxy` cells of a row.
+     *
+     * @return array{0: string, 1: string, 2: string}
+     */
+    private static function plan(object $row): array
+    {
+        return [
+            Finish::tryFrom((int) $row->finish)?->label() ?? '',
+            (string) $row->language,
+            $row->proxy ? 'true' : 'false',
+        ];
     }
 }

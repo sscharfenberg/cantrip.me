@@ -13,12 +13,17 @@ use Illuminate\Support\Facades\DB;
 /**
  * Computes the market-price worth of MTG decks in a user's currency.
  *
- * Single source of truth for the proxy-aware aggregation: each
- * deck_card's price contribution drops by the count of slots covered
- * by proxy stacks (clamped at the deck_card's quantity so a flag-only
- * / merge-anomaly stack can't push the contribution negative).
- * Real-card claims, multi-claim, and unclaimed slots all keep their
- * full printing price.
+ * Priced per copy, by whoever owns the copy's finish and proxy flag (see
+ * {@see DeckCardCopiesService}): a claimed copy at its card stack's price,
+ * an unclaimed one at the deck card's planned finish — nonfoil, foil or
+ * etched price, a proxy at nothing. Both go through
+ * {@see ContainerService::unitPriceSql}, the rule the collection prices its
+ * stacks by, so a foil is worth the same in a deck as in a binder. A finish
+ * without a price counts 0, as it does in the collection.
+ *
+ * A row whose claimed stacks hold more copies than the row (a multi-claim
+ * anomaly) counts their average price for its quantity, never more copies
+ * than it has.
  *
  * The maybeboard is left out: it's a scratch pile, not part of the
  * deck — the same reason the deck list's card count skips it.
@@ -44,26 +49,35 @@ class DeckWorthService
             return collect();
         }
 
-        $priceColumn = 'price_'.self::resolveCurrency($user)->value;
+        $currency = self::resolveCurrency($user);
+        $claimedPrice = 'COALESCE('.ContainerService::unitPriceSql($currency).', 0)';
+        $plannedPrice = 'COALESCE('.ContainerService::unitPriceSql($currency, 'deck_cards').', 0)';
 
-        $proxyClaims = DB::table('deck_card_card_stack')
+        $claims = DB::table('deck_card_card_stack')
             ->join('card_stacks', 'card_stacks.id', '=', 'deck_card_card_stack.card_stack_id')
-            ->where('card_stacks.proxy', true)
+            ->join('default_cards', 'default_cards.id', '=', 'card_stacks.default_card_id')
+            ->whereIn('deck_card_card_stack.deck_card_id', fn ($query) => $query
+                ->select('id')
+                ->from('deck_cards')
+                ->whereIn('deck_id', $deckIds))
             ->groupBy('deck_card_card_stack.deck_card_id')
-            ->select('deck_card_card_stack.deck_card_id', DB::raw('SUM(card_stacks.amount) as proxy_amount'));
+            ->select('deck_card_card_stack.deck_card_id')
+            ->selectRaw('SUM(card_stacks.amount) AS claimed_amount')
+            ->selectRaw("SUM(card_stacks.amount * {$claimedPrice}) AS claimed_worth");
 
         return DB::table('deck_cards')
             ->join('default_cards', 'default_cards.id', '=', 'deck_cards.default_card_id')
-            ->leftJoinSub($proxyClaims, 'proxy_claims', 'proxy_claims.deck_card_id', '=', 'deck_cards.id')
+            ->leftJoinSub($claims, 'claims', 'claims.deck_card_id', '=', 'deck_cards.id')
             ->whereIn('deck_cards.deck_id', $deckIds)
             ->where('deck_cards.zone', '!=', DeckZone::Maybe->value)
             ->groupBy('deck_cards.deck_id')
             ->selectRaw(
-                'deck_cards.deck_id, COALESCE(SUM('
-                .'(CASE WHEN deck_cards.quantity > COALESCE(proxy_claims.proxy_amount, 0) '
-                .'THEN deck_cards.quantity - COALESCE(proxy_claims.proxy_amount, 0) ELSE 0 END) '
-                ."* default_cards.{$priceColumn}"
-                .'), 0) AS total'
+                'deck_cards.deck_id, COALESCE(SUM(CASE '
+                .'WHEN COALESCE(claims.claimed_amount, 0) > deck_cards.quantity '
+                .'THEN 1.0 * claims.claimed_worth * deck_cards.quantity / claims.claimed_amount '
+                .'ELSE COALESCE(claims.claimed_worth, 0) '
+                ."+ (deck_cards.quantity - COALESCE(claims.claimed_amount, 0)) * {$plannedPrice} "
+                .'END), 0) AS total'
             )
             ->pluck('total', 'deck_id')
             ->map(fn ($total): float => (float) $total);

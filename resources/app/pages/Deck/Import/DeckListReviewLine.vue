@@ -87,6 +87,10 @@ const hasMessages = computed(
                     <span v-else class="review-line__raw">{{ line.name ?? line.raw }}</span>
                 </span>
                 <span v-if="effective?.category" class="review-line__category">{{ effective.category }}</span>
+                <span v-if="effective?.finish" class="review-line__finish">
+                    <icon :name="effective.finish === 'foil' ? 'star' : 'texture'" :size="0" />
+                    {{ $t(`enums.finishes.${effective.finish}`) }}
+                </span>
                 <collection-availability-badge v-if="candidate?.availability" :availability="candidate.availability" />
                 <span class="review-line__number">{{
                     $t("pages.deck_list_import.line.number", { line: line.line })
@@ -235,13 +239,21 @@ const hasMessages = computed(
     font-size: 0.8em;
 }
 
-.review-line__category {
+.review-line__category,
+.review-line__finish {
     padding: 0 0.75ch;
     border: 1px solid currentcolor;
 
     border-radius: 1em;
 
     font-size: 0.875em;
+}
+
+.review-line__finish {
+    display: inline-flex;
+    align-items: center;
+
+    gap: 0.5ch;
 }
 
 .review-line__messages {

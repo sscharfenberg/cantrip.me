@@ -31,13 +31,13 @@ describe("effectiveLines", () => {
         expect(result.map(line => line.line)).toEqual([kept.line]);
     });
 
-    it("imports the replacement picked for an unresolved line, at the line's quantity", () => {
-        const unresolved = makeDeckListLine(null, { quantity: 3 });
+    it("imports the replacement picked for an unresolved line, at the line's quantity and finish", () => {
+        const unresolved = makeDeckListLine(null, { quantity: 3, finish: "foil" });
         const replacement = { card: makeDeckListCard("Chain Lightning"), availability: null };
 
         const [line] = effectiveLines([unresolved], choicesFor([unresolved.line, { replacement }]), {}, noCommandZone);
 
-        expect([line.card.name, line.quantity]).toEqual(["Chain Lightning", 3]);
+        expect([line.card.name, line.quantity, line.finish]).toEqual(["Chain Lightning", 3, "foil"]);
     });
 
     it("applies the chosen zone to a guessed section only", () => {
@@ -185,7 +185,7 @@ describe("zoneTotals and submissionRows", () => {
     it("counts the command zone into the main deck and leaves out emptied lines", () => {
         const krenko = makeDeckListLine(makeDeckListCard("Krenko, Mob Boss"));
         const mountains = makeDeckListLine(makeDeckListCard("Mountain"), { quantity: 30, category: "Lands" });
-        const side = makeDeckListLine(makeDeckListCard("Pyroblast"), { zone: "side", quantity: 2 });
+        const side = makeDeckListLine(makeDeckListCard("Pyroblast"), { zone: "side", quantity: 2, finish: "foil" });
         const zone = { ...noCommandZone, commander: makeCommanderResult("Krenko, Mob Boss") };
         const effective = effectiveLines(makeParseResult([krenko, mountains, side]).lines, {}, {}, zone);
 
@@ -196,14 +196,16 @@ describe("zoneTotals and submissionRows", () => {
                 default_card_id: "printing-Mountain",
                 quantity: 30,
                 zone: "main",
-                category: "Lands"
+                category: "Lands",
+                finish: null
             },
             {
                 oracle_card_id: "oracle-Pyroblast",
                 default_card_id: "printing-Pyroblast",
                 quantity: 2,
                 zone: "side",
-                category: null
+                category: null,
+                finish: "foil"
             }
         ]);
     });

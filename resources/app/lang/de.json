@@ -1452,6 +1452,31 @@
                 "submit": "Reservierung aufheben",
                 "cancel": "Abbrechen",
                 "error": "Die Reservierung konnte nicht aufgehoben werden."
+            },
+            "copies": {
+                "link": "Exemplare bearbeiten",
+                "title": "Exemplare von {name}",
+                "planned": "Dieses Exemplar ist noch nicht in deiner Sammlung. Plane Finish, Sprache und ob es ein Proxy ist – so wird es in deine Sammlung aufgenommen. | Diese {count} Exemplare sind noch nicht in deiner Sammlung. Plane Finish, Sprache und ob sie Proxies sind – so werden sie in deine Sammlung aufgenommen.",
+                "planned_plain": "Plane Finish, Sprache und ob es Proxies sind.",
+                "claimed": "{count} Exemplar ist in deiner Sammlung – bearbeite es dort. | {count} Exemplare sind in deiner Sammlung – bearbeite sie dort.",
+                "all_claimed": "Alle Exemplare dieser Karte sind in deiner Sammlung – bearbeite sie dort.",
+                "count_label": "Anwenden auf",
+                "count_hint": "von {total} Exemplaren – die übrigen behalten ihre Werte in einer eigenen Zeile.",
+                "proxy_toggle": "Diese Exemplare sind Proxies",
+                "submit": "Speichern",
+                "cancel": "Abbrechen",
+                "error": "Die Exemplare konnten nicht gespeichert werden.",
+                "load_error": "Die Exemplare konnten nicht geladen werden.",
+                "marker": {
+                    "foil_all": "Foil",
+                    "foil_some": "{count} von {total} Foil",
+                    "etched_all": "Geätzt",
+                    "etched_some": "{count} von {total} geätzt",
+                    "proxy_all": "Proxy",
+                    "proxy_some": "{count} von {total} Proxies",
+                    "language_all": "{language}",
+                    "language_some": "{count} von {total} auf {language}"
+                }
             }
         },
         "create_deck": {

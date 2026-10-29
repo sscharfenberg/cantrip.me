@@ -5,6 +5,7 @@ import { useI18n } from "vue-i18n";
 import CollectionAvailabilityBadge from "@/components/Deck/CollectionAvailabilityBadge.vue";
 import CollectionImplicitBadge from "@/components/Deck/CollectionImplicitBadge.vue";
 import CollectionStatusBadge from "@/components/Deck/CollectionStatusBadge.vue";
+import DeckCardCopiesBadge from "@/components/Deck/DeckCardCopiesBadge.vue";
 import SourceShareBadge from "@/components/Deck/SourceShareBadge.vue";
 import DeckCardActionsMenu from "@/pages/Deck/Actions/DeckCardActionsMenu.vue";
 import DeckCommanderActionsMenu from "@/pages/Deck/Actions/DeckCommanderActionsMenu.vue";
@@ -138,6 +139,7 @@ const openPreview = (id: string | null, quantity?: number): void => {
                             >
                                 <span class="card__qty">1x </span>{{ commander.name }}
                             </card-image-preview>
+                            <deck-card-copies-badge :copies="commander.copies" variant="inline" />
                             <source-share-badge :card="commander" variant="inline" />
                             <icon
                                 v-if="commander.is_illegal"
@@ -236,6 +238,7 @@ const openPreview = (id: string | null, quantity?: number): void => {
                             >
                                 <span class="card__qty">{{ card.quantity }}x </span>{{ card.name }}
                             </card-image-preview>
+                            <deck-card-copies-badge :copies="card.copies" variant="inline" />
                             <source-share-badge :card="card" variant="inline" />
                             <icon
                                 v-if="card.is_illegal"

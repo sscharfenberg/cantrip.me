@@ -2,6 +2,7 @@
 
 namespace App\Services\DeckList;
 
+use App\Enums\Finish;
 use App\Models\DeckCategory;
 
 /**
@@ -132,7 +133,7 @@ final class DeckListParser
     /**
      * @return array{
      *     sections: list<array{index: int, label: string|null, zone: string, zone_guessed: bool}>,
-     *     lines: list<array{line: int, raw: string, section: int, zone: string, zone_guessed: bool, quantity: int, name: string|null, set: string|null, number: string|null, category: string|null}>,
+     *     lines: list<array{line: int, raw: string, section: int, zone: string, zone_guessed: bool, quantity: int, name: string|null, set: string|null, number: string|null, finish: string|null, category: string|null}>,
      *     dropped: int,
      * }
      */
@@ -225,6 +226,7 @@ final class DeckListParser
                 'name' => $card['name'],
                 'set' => $card['set'],
                 'number' => $card['number'],
+                'finish' => $card['finish'],
                 'category' => in_array($lineZone, [self::ZONE_MAIN, self::ZONE_SIDE], true) ? $lineCategory : null,
             ];
         }
@@ -338,7 +340,10 @@ final class DeckListParser
      * section's) from "an inline category that resolves to none" (a type
      * name — the line has no category even under a custom header).
      *
-     * @return array{quantity: int, name: string|null, set: string|null, number: string|null, zone: string|null, category: string|null, category_given: bool, drop: bool}
+     * `finish` is `foil` / `etched` for a `*F*` / `*E*` marker, null without
+     * one — the printing's own first finish then applies.
+     *
+     * @return array{quantity: int, name: string|null, set: string|null, number: string|null, finish: string|null, zone: string|null, category: string|null, category_given: bool, drop: bool}
      */
     private static function cardLine(string $line): array
     {
@@ -367,7 +372,13 @@ final class DeckListParser
             $line = (string) preg_replace('/(?:^|\s)#!?[^#]+?(?=\s+#|$)/', ' ', $line);
         }
 
-        // Archidekt `^Have,#37d67a^` labels and `*F*` / `*E*` finish markers.
+        // Moxfield / Archidekt `*F*` / `*E*` finish markers — foil, etched.
+        $finish = null;
+        if (preg_match('/\*([FE])\*/i', $line, $match) === 1) {
+            $finish = strtoupper($match[1]) === 'F' ? Finish::Foil->label() : Finish::Etched->label();
+        }
+
+        // Archidekt `^Have,#37d67a^` labels and the finish markers.
         $line = (string) preg_replace('/\^[^^]*\^|\*[A-Za-z]{1,3}\*/', ' ', $line);
         $line = trim((string) preg_replace('/\s+/', ' ', $line));
 
@@ -416,6 +427,7 @@ final class DeckListParser
             'name' => $name,
             'set' => $set,
             'number' => $number,
+            'finish' => $finish,
             'zone' => $zone,
             'category' => $category,
             'category_given' => $categoryGiven,

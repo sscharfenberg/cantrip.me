@@ -2,9 +2,7 @@
 
 namespace App\Services;
 
-use App\Enums\CardLanguage;
 use App\Enums\DeckState;
-use App\Enums\Finish;
 use App\Models\CardStack;
 use App\Models\Deck;
 use Illuminate\Support\Facades\DB;
@@ -24,9 +22,10 @@ use Illuminate\Support\Facades\DB;
  *
  * Always creates fresh stacks (no merge into existing ones) — the user's
  * intent is "bulk-claim everything in this deck", and merging could hit
- * stacks already claimed by another deck. Defaults are `language=en`,
- * `condition=null`, `finish=nonfoil` — same baseline as the finalize
- * wizard's "bought new" path.
+ * stacks already claimed by another deck. Each stack is minted as the deck
+ * card plans its copies — finish, language, proxy
+ * ({@see DeckCardCopiesService}) — with `condition=null`, the same as the
+ * finalize wizard's "bought new" path.
  *
  * Pins `decks.collection_mode = 'C'` whenever at least one pivot row is
  * written, mirroring {@see DeckFinalizeService::persistAssignments}.
@@ -53,8 +52,7 @@ class DeckBulkAddCollectionService
                     'default_card_id' => $deckCard->default_card_id,
                     'container_id' => $containerId,
                     'amount' => $deckCard->quantity,
-                    'language' => CardLanguage::En->value,
-                    'finish' => Finish::Nonfoil,
+                    ...$deckCard->planAttributes(),
                     'condition' => null,
                 ]);
                 $deckCard->cardStacks()->attach($stack->id);

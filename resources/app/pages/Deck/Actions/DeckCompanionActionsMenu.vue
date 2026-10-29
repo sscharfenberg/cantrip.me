@@ -5,6 +5,7 @@ import Icon from "Components/UI/Icon.vue";
 import PopOver from "Components/UI/PopOver.vue";
 import type { DeckPrinting } from "Types/defaultCardImage.ts";
 import DeckCardAssignStackModal from "../Modals/DeckCardAssignStackModal.vue";
+import DeckCardCopiesModal from "../Modals/DeckCardCopiesModal.vue";
 import DeckCardSwitchPrintingModal from "../Modals/DeckCardSwitchPrintingModal.vue";
 const props = defineProps<{
     /** UUID of the deck. */
@@ -35,6 +36,13 @@ function closePopover(): void {
     const el = document.getElementById(popoverId);
     if (el !== null) el.hidePopover();
 }
+/** Controls visibility of the "Edit copies" dialog. */
+const showCopiesModal = ref(false);
+/** Close the popover and open the "Edit copies" dialog. */
+function openCopies(): void {
+    closePopover();
+    showCopiesModal.value = true;
+}
 /** Close the menu and open the switch-printing modal. */
 function openSwitchPrinting(): void {
     closePopover();
@@ -50,6 +58,8 @@ function openAssignStack(): void {
  * deck_card row, then refresh its badge and the "Unclaimed cards" menu
  * entry. Reuses the deck_card-keyed endpoints because companions are
  * deck_cards too post-consolidation.
+ * `deck` too: the header's worth prices a claimed copy at its stack's
+ * finish, so a foil stack claimed under a nonfoil plan reprices the deck.
  */
 async function assignStack(stackId: string | null): Promise<void> {
     const response = await fetch(`/api/decks/${props.deckId}/cards/${props.deckCardId}/assigned-stacks`, {
@@ -62,7 +72,7 @@ async function assignStack(stackId: string | null): Promise<void> {
         body: JSON.stringify({ card_stack_id: stackId })
     });
     if (!response.ok) return;
-    router.reload({ only: ["companion", "hasUnclaimedCards"] });
+    router.reload({ only: ["companion", "deck", "hasUnclaimedCards"] });
 }
 /**
  * Remove the companion from the deck. `removing` guards against double-
@@ -133,6 +143,12 @@ async function switchPrinting(printing: DeckPrinting): Promise<void> {
                     {{ $t("pages.deck.switch_printing.link") }}
                 </button>
             </li>
+            <li>
+                <button type="button" class="popover-list-item" @click="openCopies">
+                    <icon name="star" :size="1" />
+                    {{ $t("pages.deck.copies.link") }}
+                </button>
+            </li>
             <li v-if="props.collectionMode === 'C'">
                 <button type="button" class="popover-list-item" @click="openAssignStack">
                     <icon name="storage" :size="1" />
@@ -177,5 +193,12 @@ async function switchPrinting(printing: DeckPrinting): Promise<void> {
         :name="props.companionName"
         @select="assignStack"
         @close="showAssignStackModal = false"
+    />
+    <deck-card-copies-modal
+        v-if="showCopiesModal"
+        :deck-id="props.deckId"
+        :deck-card-id="props.deckCardId"
+        :name="props.companionName"
+        @close="showCopiesModal = false"
     />
 </template>

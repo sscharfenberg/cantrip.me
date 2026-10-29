@@ -4,6 +4,7 @@ import ManaCost from "Components/Card/ManaCost.vue";
 import CollectionAvailabilityBadge from "Components/Deck/CollectionAvailabilityBadge.vue";
 import CollectionImplicitBadge from "Components/Deck/CollectionImplicitBadge.vue";
 import CollectionStatusBadge from "Components/Deck/CollectionStatusBadge.vue";
+import DeckCardCopiesBadge from "Components/Deck/DeckCardCopiesBadge.vue";
 import type { DeckCompanion } from "Types/deckPage.ts";
 import DeckCompanionActionsMenu from "../Actions/DeckCompanionActionsMenu.vue";
 import FaceImageLazy from "../Cards/FaceImageLazy.vue";
@@ -30,6 +31,7 @@ defineProps<{
             :name="companion.name"
             @preview="emit('preview', companion.default_card.id)"
         >
+            <deck-card-copies-badge :copies="companion.copies" variant="corner" />
             <collection-status-badge
                 v-if="collectionMode === 'C' && companion.collection_status"
                 :status="companion.collection_status"
@@ -67,6 +69,7 @@ defineProps<{
             >
                 <span class="card__qty">1x </span>{{ companion.name }}
             </card-image-preview>
+            <deck-card-copies-badge :copies="companion.copies" variant="inline" />
             <collection-status-badge
                 v-if="collectionMode === 'C' && companion.collection_status"
                 :status="companion.collection_status"

@@ -3,6 +3,7 @@
 namespace App\Services\DeckList;
 
 use App\Enums\DeckZone;
+use App\Enums\Finish;
 use App\Models\Deck;
 use App\Models\DeckCard;
 use App\Models\User;
@@ -23,7 +24,7 @@ use Illuminate\Support\Facades\DB;
 final class DeckListImportService
 {
     /**
-     * @param  array{format: string, deck_name: string, commander_id?: string|null, companion_id?: string|null, signature_spell_id?: string|null, command_zone_printings?: array<string, string>|null, rows: list<array{oracle_card_id: string, default_card_id: string, quantity: int, zone: string, category?: string|null}>}  $data
+     * @param  array{format: string, deck_name: string, commander_id?: string|null, companion_id?: string|null, signature_spell_id?: string|null, command_zone_printings?: array<string, string>|null, command_zone_finishes?: array<string, string>|null, rows: list<array{oracle_card_id: string, default_card_id: string, quantity: int, zone: string, category?: string|null, finish?: string|null}>}  $data
      */
     public static function import(User $user, array $data): Deck
     {
@@ -37,14 +38,21 @@ final class DeckListImportService
             ]);
 
             // The create form's command zone takes the newest printing; the
-            // paste may have named another, or the collection offered one.
-            foreach ($data['command_zone_printings'] ?? [] as $oracleId => $printingId) {
-                DeckCard::query()
-                    ->where('deck_id', $deck->id)
-                    ->where('zone', DeckZone::Command->value)
-                    ->where('oracle_card_id', $oracleId)
-                    ->update(['default_card_id' => $printingId]);
-            }
+            // paste may have named another, or the collection offered one,
+            // and may have marked the card foil or etched. Saved row by row,
+            // not as one UPDATE, so the model fits the finish to the printing
+            // (DeckCard::booted).
+            $printings = $data['command_zone_printings'] ?? [];
+            $finishes = $data['command_zone_finishes'] ?? [];
+            DeckCard::query()
+                ->where('deck_id', $deck->id)
+                ->where('zone', DeckZone::Command->value)
+                ->whereIn('oracle_card_id', array_keys([...$printings, ...$finishes]))
+                ->get()
+                ->each(fn (DeckCard $row) => $row->update(array_filter([
+                    'default_card_id' => $printings[$row->oracle_card_id] ?? null,
+                    'finish' => Finish::fromLabel((string) ($finishes[$row->oracle_card_id] ?? '')),
+                ], fn ($value): bool => $value !== null)));
 
             DeckCardWriter::write($deck, self::mergeRows($data['rows']));
 
@@ -56,12 +64,13 @@ final class DeckListImportService
     }
 
     /**
-     * One writer row per distinct card, printing, zone and category — two
-     * pasted lines of the same card (a list split across headers, a
-     * replacement that picked a card already listed) become one deck row.
+     * One writer row per distinct card, printing, finish, zone and category —
+     * two pasted lines of the same card (a list split across headers, a
+     * replacement that picked a card already listed) become one deck row,
+     * unless one was marked foil (`*F*`) and the other not.
      *
-     * @param  list<array{oracle_card_id: string, default_card_id: string, quantity: int, zone: string, category?: string|null}>  $rows
-     * @return list<array{oracle_card_id: string, default_card_id: string, role: string, is_partner: bool, zone: string, quantity: int, category: string|null, card_stack_ids: list<string>}>
+     * @param  list<array{oracle_card_id: string, default_card_id: string, quantity: int, zone: string, category?: string|null, finish?: string|null}>  $rows
+     * @return list<array{oracle_card_id: string, default_card_id: string, role: string, is_partner: bool, zone: string, quantity: int, category: string|null, card_stack_ids: list<string>, finish: string|null}>
      */
     private static function mergeRows(array $rows): array
     {
@@ -72,7 +81,8 @@ final class DeckListImportService
             if ($isCompanion) {
                 $category = null;
             }
-            $key = implode("\0", [$row['oracle_card_id'], $row['default_card_id'], $row['zone'], $category ?? '']);
+            $finish = $row['finish'] ?? null;
+            $key = implode("\0", [$row['oracle_card_id'], $row['default_card_id'], $row['zone'], $category ?? '', $finish ?? '']);
 
             if (isset($merged[$key])) {
                 $merged[$key]['quantity'] += (int) $row['quantity'];
@@ -89,6 +99,7 @@ final class DeckListImportService
                 'quantity' => (int) $row['quantity'],
                 'category' => $category,
                 'card_stack_ids' => [],
+                'finish' => $finish,
             ];
         }
 

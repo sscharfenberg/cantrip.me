@@ -147,6 +147,9 @@ class DeckCsvImportService
                 // owns. Stacks owned by someone else (or that no longer
                 // exist) are silently dropped.
                 'card_stack_ids' => array_values(array_intersect($mapped['card_stack_ids'], $ownedStackIds)),
+                'finish' => $mapped['finish'] ?? null,
+                'language' => $mapped['language'] ?? null,
+                'proxy' => $mapped['proxy'] ?? null,
             ];
         }
 

@@ -2,8 +2,10 @@
 
 namespace App\Services;
 
+use App\Enums\CardLanguage;
 use App\Enums\DeckCardRole;
 use App\Enums\DeckZone;
+use App\Enums\Finish;
 use App\Models\Deck;
 use App\Models\DeckCard;
 use App\Models\DeckCategory;
@@ -33,7 +35,13 @@ final class DeckCardWriter
      * `companion`; `card_stack_ids` must already be narrowed to stacks the
      * deck's owner owns.
      *
-     * @param  list<array{oracle_card_id: string, default_card_id: string, role: string, is_partner: bool, zone: string, quantity: int, category: string|null, card_stack_ids: list<string>}>  $rows
+     * `finish` (a label), `language` and `proxy` are the plan for the card's
+     * copies ({@see DeckCardCopiesService}); each is optional, and a row
+     * without one gets the model's default — English, not a proxy, the
+     * printing's first finish. A finish the printing lacks falls back the
+     * same way.
+     *
+     * @param  list<array{oracle_card_id: string, default_card_id: string, role: string, is_partner: bool, zone: string, quantity: int, category: string|null, card_stack_ids: list<string>, finish?: string|null, language?: string|null, proxy?: bool|null}>  $rows
      * @return array{imported: int, commanders: int, companion: int}
      */
     public static function write(Deck $deck, array $rows): array
@@ -72,6 +80,7 @@ final class DeckCardWriter
                         'zone' => DeckZone::Command->value,
                         'role' => $role,
                         'quantity' => 1,
+                        ...self::plan($row),
                     ]);
                     $commanders++;
 
@@ -92,6 +101,7 @@ final class DeckCardWriter
                         'zone' => DeckZone::Companion->value,
                         'role' => DeckCardRole::Companion->value,
                         'quantity' => 1,
+                        ...self::plan($row),
                     ]);
                     $companion++;
 
@@ -107,6 +117,7 @@ final class DeckCardWriter
                         : null,
                     'zone' => $row['zone'],
                     'quantity' => $row['quantity'],
+                    ...self::plan($row),
                 ]);
                 $imported += $row['quantity'];
 
@@ -121,6 +132,31 @@ final class DeckCardWriter
                 'companion' => $companion,
             ];
         });
+    }
+
+    /**
+     * The plan values a row names, as model attributes — absent ones are left
+     * to the model's defaults.
+     *
+     * @param  array{finish?: string|null, language?: string|null, proxy?: bool|null}  $row
+     * @return array{finish?: Finish, language?: CardLanguage, proxy?: bool}
+     */
+    private static function plan(array $row): array
+    {
+        $plan = [];
+        $finish = Finish::fromLabel((string) ($row['finish'] ?? ''));
+        if ($finish !== null) {
+            $plan['finish'] = $finish;
+        }
+        $language = CardLanguage::tryFrom((string) ($row['language'] ?? ''));
+        if ($language !== null) {
+            $plan['language'] = $language;
+        }
+        if (isset($row['proxy'])) {
+            $plan['proxy'] = (bool) $row['proxy'];
+        }
+
+        return $plan;
     }
 
     /**

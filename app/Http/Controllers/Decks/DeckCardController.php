@@ -2,16 +2,20 @@
 
 namespace App\Http\Controllers\Decks;
 
+use App\Enums\CardLanguage;
+use App\Enums\Finish;
 use App\Formats\Capabilities\AddCopyFailure;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Decks\ModifyDeckCardRequest;
 use App\Http\Requests\Decks\MoveDeckCardZoneRequest;
+use App\Http\Requests\Decks\ShowDeckCardCopiesRequest;
 use App\Http\Requests\Decks\ShowDeckCardPrintingsRequest;
 use App\Http\Requests\Decks\SplitDeckCardRequest;
 use App\Http\Requests\Decks\StoreDeckCardRequest;
 use App\Http\Requests\Decks\UnclaimDeckCardRequest;
 use App\Http\Requests\Decks\UpdateDeckCardAssignedStacksRequest;
 use App\Http\Requests\Decks\UpdateDeckCardCategoryRequest;
+use App\Http\Requests\Decks\UpdateDeckCardCopiesRequest;
 use App\Http\Requests\Decks\UpdateDeckCardPrintingRequest;
 use App\Http\Requests\Decks\UpdateDeckCardQuantityRequest;
 use App\Models\CardStack;
@@ -21,6 +25,7 @@ use App\Models\DefaultCard;
 use App\Models\OracleCard;
 use App\Services\CardStackClaimService;
 use App\Services\DeckCardAssignmentService;
+use App\Services\DeckCardCopiesService;
 use App\Services\DeckCardService;
 use App\Services\DeckPrintingsService;
 use Illuminate\Http\JsonResponse;
@@ -150,8 +155,10 @@ class DeckCardController extends Controller
      * Decrements the source row by one (deletes the row when the resulting
      * quantity is zero) and merges the moved copy into the target zone.
      *
-     * "Matching" target rows share the same oracle card, printing, finish
-     * and language, and carry no category. The query collects every such
+     * "Matching" target rows share the same oracle card, printing and plan
+     * (finish, language, proxy — {@see DeckCardCopiesService}), and carry
+     * no category; a new target row takes the source's plan. The query
+     * collects every such
      * row in the target zone, sums their quantities, deletes all but the
      * first, and writes the combined-plus-one quantity back to the
      * survivor. This both absorbs the moved copy AND consolidates any
@@ -167,24 +174,33 @@ class DeckCardController extends Controller
      * Returns the post-move identity of both rows so the frontend can
      * apply the change in place — synthesising the target row from the
      * source's already-rendered data when it didn't exist yet — instead
-     * of having to reload the full `cards` prop.
+     * of having to reload the full `cards` prop: the rows the merge
+     * absorbed (`merged_ids`, so the page drops exactly those and not a
+     * sibling with another plan) and both rows' `copies` groups, which
+     * the move changes and a synthesised row can't take from its source.
      */
     public function moveZone(MoveDeckCardZoneRequest $request, Deck $deck, DeckCard $deckCard): JsonResponse
     {
         $targetZone = $request->validated()['zone'];
+        $withClaims = (bool) $request->user()->collection_integration_enabled;
 
-        $result = DB::transaction(function () use ($deck, $deckCard, $targetZone): array {
+        $result = DB::transaction(function () use ($deck, $deckCard, $targetZone, $withClaims): array {
             $matches = DeckCard::query()
                 ->where('deck_id', $deck->id)
                 ->where('oracle_card_id', $deckCard->oracle_card_id)
                 ->where('default_card_id', $deckCard->default_card_id)
                 ->where('zone', $targetZone)
                 ->whereNull('category_id')
+                ->where('finish', $deckCard->finish->value)
+                ->where('language', $deckCard->language->value)
+                ->where('proxy', $deckCard->proxy)
                 ->orderBy('created_at')
                 ->get();
 
+            $mergedIds = [];
             if ($matches->isNotEmpty()) {
                 $target = $matches->shift();
+                $mergedIds = $matches->pluck('id')->all();
                 $extra = (int) $matches->sum('quantity');
                 foreach ($matches as $duplicate) {
                     $duplicate->delete();
@@ -198,6 +214,7 @@ class DeckCardController extends Controller
                     'zone' => $targetZone,
                     'quantity' => 1,
                     'category_id' => null,
+                    ...$deckCard->planAttributes(),
                 ]);
             }
 
@@ -208,10 +225,15 @@ class DeckCardController extends Controller
                 $deckCard->update(['quantity' => $sourceQuantity]);
             }
 
+            $copies = DeckCardCopiesService::groupsFor(collect([$deckCard, $target]), $withClaims);
+
             return [
                 'source_quantity' => max(0, $sourceQuantity),
+                'source_copies' => $sourceQuantity > 0 ? $copies[$deckCard->id] : [],
                 'target_id' => $target->id,
                 'target_quantity' => $target->quantity,
+                'target_copies' => $copies[$target->id],
+                'merged_ids' => $mergedIds,
             ];
         });
 
@@ -224,7 +246,9 @@ class DeckCardController extends Controller
      * The existing row is mutated to the first split entry (preserving its
      * id, category, and zone — typically used for the largest assignment),
      * and additional rows are inserted for the remaining entries with
-     * matching `zone`, `category_id`, `finish`, and `language`.
+     * matching `zone`, `category_id` and plan (`finish`, `language`,
+     * `proxy`). A printing that lacks the planned finish gets its own first
+     * finish instead ({@see DeckCard::booted}).
      *
      * Copy limits cannot be violated because the sum of split quantities is
      * required by the FormRequest to equal the existing quantity.
@@ -235,6 +259,10 @@ class DeckCardController extends Controller
         $splits = $request->validated()['splits'];
 
         DB::transaction(function () use ($deckCard, $splits): void {
+            // Read before the first entry's update: saving onto a printing
+            // without the planned finish re-fits it, and the other rows must
+            // start from the plan the user had, not from that fallback.
+            $plan = $deckCard->planAttributes();
             $first = array_shift($splits);
             $deckCard->update([
                 'default_card_id' => $first['default_card_id'],
@@ -249,6 +277,7 @@ class DeckCardController extends Controller
                     'category_id' => $deckCard->category_id,
                     'zone' => $deckCard->zone->value,
                     'quantity' => $entry['quantity'],
+                    ...$plan,
                 ]);
             }
         });
@@ -387,6 +416,63 @@ class DeckCardController extends Controller
         $stack = $stackId === null ? null : CardStack::query()->find($stackId);
 
         DeckCardAssignmentService::replaceAssignedStack($deckCard, $stack);
+
+        return response()->json(status: 204);
+    }
+
+    /**
+     * The copies of this card as "Edit copies" lists them: the copies no
+     * stack claims, with their plan and the finishes the printing exists in,
+     * and how many copies are claimed — those are edited where they are, in
+     * the collection.
+     *
+     * While the collection master switch is off, claims stay as invisible
+     * here as on the deck page: every copy is listed as planned. A row that
+     * does have claims is then not `splittable` — splitting it would move
+     * copies away from claims the user cannot see — so it is re-planned
+     * whole ({@see UpdateDeckCardCopiesRequest}).
+     *
+     * Owner-only — same authorisation shape as {@see printings}.
+     */
+    public function copies(ShowDeckCardCopiesRequest $request, Deck $deck, DeckCard $deckCard): JsonResponse
+    {
+        $integration = (bool) $request->user()->collection_integration_enabled;
+        $unclaimed = DeckCardCopiesService::unclaimedCount($deckCard);
+        $planned = $integration ? $unclaimed : $deckCard->quantity;
+        $mask = (int) DefaultCard::query()->whereKey($deckCard->default_card_id)->value('finishes');
+
+        return response()->json([
+            'integration' => $integration,
+            'languages' => array_column(CardLanguage::cases(), 'value'),
+            'claimed' => $deckCard->quantity - $planned,
+            'groups' => $planned === 0 ? [] : [[
+                'stack_id' => null,
+                'count' => $planned,
+                'splittable' => $integration || $unclaimed === $deckCard->quantity,
+                'finish' => $deckCard->finish->label(),
+                'language' => $deckCard->language->value,
+                'proxy' => $deckCard->proxy,
+                'finishes' => Finish::labelsFromMask($mask),
+            ]],
+        ]);
+    }
+
+    /**
+     * Re-plan `count` of the card's unclaimed copies — all of them, or fewer,
+     * which splits them off into a row of their own. See
+     * {@see DeckCardCopiesService::replan}.
+     */
+    public function updateCopies(UpdateDeckCardCopiesRequest $request, Deck $deck, DeckCard $deckCard): JsonResponse
+    {
+        $validated = $request->validated();
+
+        DeckCardCopiesService::replan(
+            $deckCard,
+            (int) $validated['count'],
+            Finish::fromLabel($validated['finish']),
+            CardLanguage::from($validated['language']),
+            (bool) $validated['proxy'],
+        );
 
         return response()->json(status: 204);
     }

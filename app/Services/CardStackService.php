@@ -234,7 +234,9 @@ class CardStackService
     /**
      * Split a stack into two — decrement the source's `amount` and create
      * a new stack carrying the split-off amount, with otherwise identical
-     * attributes (printing, container, language, condition, finish).
+     * attributes (printing, container, language, condition, finish, proxy).
+     * Dropping `proxy` here once turned the claimed copy of a proxy stack
+     * into a real card, priced at full value on the deck.
      *
      * Used by the deck finalize wizard when a stack's `amount` exceeds the
      * deck card's `quantity`: the wizard splits off only the cards being
@@ -255,6 +257,7 @@ class CardStackService
                 'condition' => $stack->condition,
                 'finish' => $stack->finish,
                 'language' => $stack->language,
+                'proxy' => (bool) $stack->proxy,
             ]);
         });
     }

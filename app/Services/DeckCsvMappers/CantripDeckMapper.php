@@ -9,7 +9,9 @@ use App\Services\DeckCsvExportService;
  * Deck-CSV row mapper for cantrip.me's own export format. Round-trips
  * the columns produced by {@see DeckCsvExportService}:
  * Role, Deck Card ID, Scryfall ID, Name, Edition, Collector Number,
- * Count, Zone, Category, Is Partner, Card Stack ID.
+ * Count, Zone, Category, Is Partner, Card Stack ID, Finish, Language,
+ * Proxy. The last three are optional — files exported before they
+ * existed import with the deck's defaults.
  *
  * `Deck Card ID` is intentionally ignored on import — replace mode
  * wipes existing deck_cards and mints fresh UUIDs, so the source-side
@@ -63,6 +65,11 @@ class CantripDeckMapper implements DeckCsvRowMapper
             'category' => $category !== '' ? $category : null,
             'is_partner' => strtolower(trim($row['is partner'] ?? '')) === 'true',
             'card_stack_ids' => $stackIds,
+            'finish' => strtolower(trim($row['finish'] ?? '')) ?: null,
+            'language' => strtolower(trim($row['language'] ?? '')) ?: null,
+            'proxy' => isset($row['proxy']) && trim($row['proxy']) !== ''
+                ? strtolower(trim($row['proxy'])) === 'true'
+                : null,
         ];
     }
 }

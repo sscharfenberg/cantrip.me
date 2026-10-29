@@ -4,7 +4,7 @@ import { computed, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { refusalMessageKey } from "@/utils/deckCardRefusal.ts";
 import { useToast } from "Composables/useToast";
-import type { DeckCardDefaultCard, DeckCardRow } from "Types/deckPage";
+import type { DeckCardCopyGroup, DeckCardDefaultCard, DeckCardRow } from "Types/deckPage";
 import type { DeckPrinting } from "Types/defaultCardImage";
 
 /** Parameters for {@link useDeckCardActions}. */
@@ -256,8 +256,12 @@ export function useDeckCardActions(params: DeckCardActionParams, closePopover: (
 
         const data = (await response.json().catch(() => null)) as {
             source_quantity: number;
+            source_copies: DeckCardCopyGroup[];
             target_id: string;
             target_quantity: number;
+            target_copies: DeckCardCopyGroup[];
+            /** Target-zone rows the server folded into the target — the ones to drop here. */
+            merged_ids: string[];
         } | null;
         if (data === null) return;
 
@@ -272,29 +276,27 @@ export function useDeckCardActions(params: DeckCardActionParams, closePopover: (
             // Server merged the moved copy into `data.target_id` and
             // potentially absorbed other matching rows in the target zone.
             // Mirror that locally: write the new quantity onto the
-            // survivor and splice any sibling rows that share the same
-            // mergeable identity (no category, no specific card_stack).
+            // survivor and splice exactly the rows the server names. The
+            // merge also matches on the copies' plan (finish, language,
+            // proxy), which the page can't see — guessing would drop a
+            // sibling planned differently.
             survivor.quantity = data.target_quantity;
+            survivor.copies = data.target_copies;
             for (let i = cards.length - 1; i >= 0; i--) {
-                const c = cards[i];
-                if (
-                    c.id !== data.target_id &&
-                    c.zone === targetZone &&
-                    c.oracle_card_id === source.oracle_card_id &&
-                    c.default_card.id === source.default_card.id &&
-                    c.category_id === null
-                ) {
-                    cards.splice(i, 1);
-                }
+                if (data.merged_ids.includes(cards[i].id)) cards.splice(i, 1);
             }
         } else {
             // No matching target row pre-existed; synthesise from source.
+            // A new row has no claims, so neither the source's claimed
+            // stacks nor its copies carry over.
             cards.push({
                 ...source,
                 id: data.target_id,
                 zone: targetZone,
                 quantity: data.target_quantity,
-                category_id: null
+                category_id: null,
+                claimed_stacks: [],
+                copies: data.target_copies
             });
         }
 
@@ -302,6 +304,7 @@ export function useDeckCardActions(params: DeckCardActionParams, closePopover: (
             spliceCard();
         } else {
             source.quantity = data.source_quantity;
+            source.copies = data.source_copies;
         }
 
         router.reload({ only: ["violations", "hasUnclaimedCards"] });

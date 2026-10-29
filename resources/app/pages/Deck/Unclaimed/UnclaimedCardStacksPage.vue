@@ -19,12 +19,14 @@ import { Head, Link, useForm } from "@inertiajs/vue3";
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 import CardImagePreview from "Components/Card/CardImagePreview.vue";
+import DeckCardCopiesBadge from "Components/Deck/DeckCardCopiesBadge.vue";
 import Checkbox from "Components/Form/Checkbox.vue";
 import FormLegend from "Components/Form/FormLegend.vue";
 import Headline from "Components/UI/Headline.vue";
 import Icon from "Components/UI/Icon.vue";
 import LabelledLink from "Components/UI/LabelledLink.vue";
 import { useBreadcrumbs } from "Composables/useBreadcrumbs.ts";
+import type { DeckCardCopyGroup } from "Types/deckPage.ts";
 interface UnclaimedCard {
     id: string;
     name: string;
@@ -38,7 +40,15 @@ interface UnclaimedCard {
     role: string | null;
     /** True when the user already owns at least one stack of any printing of this oracle card — drives the "View your copies" link. */
     has_any_printing: boolean;
+    /** How the open copies are planned — what to buy. */
+    finish: DeckCardCopyGroup["finish"];
+    language: string;
+    proxy: boolean;
 }
+/** The open copies as one copy group, for the finish / language / proxy markers. */
+const planOf = (card: UnclaimedCard): DeckCardCopyGroup[] => [
+    { count: card.unclaimed, finish: card.finish, language: card.language, proxy: card.proxy, claimed: false }
+];
 interface DeckSnapshot {
     id: string;
     name: string;
@@ -136,6 +146,7 @@ function onSubmit(): void {
                         <span v-if="card.set_code" class="unclaimed__set">
                             {{ card.set_code.toUpperCase() }}:{{ card.collector_number }}
                         </span>
+                        <deck-card-copies-badge :copies="planOf(card)" />
                     </label>
                     <labelled-link
                         v-if="card.has_any_printing"
@@ -165,6 +176,7 @@ function onSubmit(): void {
                 <span v-if="card.set_code" class="unclaimed__set">
                     {{ card.set_code.toUpperCase() }}:{{ card.collector_number }}
                 </span>
+                <deck-card-copies-badge :copies="planOf(card)" />
                 <labelled-link
                     v-if="card.has_any_printing"
                     :href="`/collection?search=${encodeURIComponent(card.name)}`"

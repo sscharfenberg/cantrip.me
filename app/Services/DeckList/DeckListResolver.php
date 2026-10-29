@@ -56,7 +56,7 @@ final class DeckListResolver
      *     sections: list<array>,
      *     lines: list<array>,
      *     dropped: int,
-     *     command_zone: array{commander: array|null, partner: array|null, signature_spell: array|null, printings: array<string, string>},
+     *     command_zone: array{commander: array|null, partner: array|null, signature_spell: array|null, printings: array<string, string>, finishes: array<string, string>},
      *     rules: array<string, mixed>,
      *     collection: bool,
      * }
@@ -507,7 +507,7 @@ final class DeckListResolver
      */
     private static function commandZone(array $lines, Collection $oracles, FormatProfile $profile, CardFormat $format): array
     {
-        $zone = ['commander' => null, 'partner' => null, 'signature_spell' => null, 'printings' => []];
+        $zone = ['commander' => null, 'partner' => null, 'signature_spell' => null, 'printings' => [], 'finishes' => []];
 
         /** @var array<int, OracleCard> $eligible Legal, resolved command-zone lines, by line index. */
         $eligible = [];
@@ -556,6 +556,9 @@ final class DeckListResolver
             }
             $zone[$slot] = CommandZoneService::mapCommanderCard($eligible[$i]);
             $zone['printings'][$eligible[$i]->id] = $lines[$i]['card']['default_card_id'];
+            if (($lines[$i]['finish'] ?? null) !== null) {
+                $zone['finishes'][$eligible[$i]->id] = $lines[$i]['finish'];
+            }
             $used[$i] = true;
         }
 
@@ -617,6 +620,7 @@ final class DeckListResolver
             'zone_guessed' => $line['zone_guessed'],
             'quantity' => $line['quantity'],
             'name' => $line['name'],
+            'finish' => $line['finish'] ?? null,
             'category' => $line['category'],
             'status' => $line['status'],
             'reason' => $line['reason'],

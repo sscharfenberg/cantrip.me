@@ -32,6 +32,10 @@ class DeckCardAssignmentService
      * {@see DeckFinalizeService}'s wizard behaviour). When `$stack` is
      * null the deck_card is left with no claimed stacks.
      *
+     * A stack that covers the whole card hands it its finish, language
+     * and proxy flag ({@see DeckCardCopiesService::adoptClaimedValues});
+     * a smaller one leaves the plan for the copies it doesn't cover.
+     *
      * Caller is responsible for verifying that the stack is owned by the
      * same user, matches the deck_card's printing, and isn't already
      * pivoted to a different deck_card — those checks live in
@@ -52,6 +56,7 @@ class DeckCardAssignmentService
             }
 
             $deckCard->cardStacks()->attach($stackToAttach->id);
+            DeckCardCopiesService::adoptClaimedValues($deckCard);
         });
     }
 }

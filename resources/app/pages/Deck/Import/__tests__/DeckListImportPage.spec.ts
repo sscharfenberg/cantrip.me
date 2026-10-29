@@ -101,7 +101,8 @@ describe("DeckListImportPage — parsing", () => {
                     commander: makeCommanderResult("Krenko, Mob Boss"),
                     partner: null,
                     signature_spell: null,
-                    printings: {}
+                    printings: {},
+                    finishes: {}
                 }
             })
         );
@@ -117,7 +118,13 @@ describe("DeckListImportPage — parsing", () => {
         http.json(
             "/api/decks/import-list/parse",
             makeParseResult([], {
-                command_zone: { commander: makeCommanderResult(), partner: null, signature_spell: null, printings: {} }
+                command_zone: {
+                    commander: makeCommanderResult(),
+                    partner: null,
+                    signature_spell: null,
+                    printings: {},
+                    finishes: {}
+                }
             })
         );
         const wrapper = render();

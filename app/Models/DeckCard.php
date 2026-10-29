@@ -2,8 +2,11 @@
 
 namespace App\Models;
 
+use App\Enums\CardLanguage;
 use App\Enums\DeckCardRole;
 use App\Enums\DeckZone;
+use App\Enums\Finish;
+use App\Services\DeckCardCopiesService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
@@ -30,6 +33,9 @@ class DeckCard extends Model
         'zone',
         'role',
         'quantity',
+        'finish',
+        'language',
+        'proxy',
     ];
 
     protected function casts(): array
@@ -38,6 +44,49 @@ class DeckCard extends Model
             'zone' => DeckZone::class,
             'role' => DeckCardRole::class,
             'quantity' => 'integer',
+            'finish' => Finish::class,
+            'language' => CardLanguage::class,
+            'proxy' => 'boolean',
+        ];
+    }
+
+    /**
+     * `finish`, `language` and `proxy` are the plan for the copies of this
+     * card that are not in the collection yet; a claimed copy's values live
+     * on its card stack (see {@see DeckCardCopiesService}).
+     *
+     * Every writer gets the same two guarantees here, so none of them has to
+     * know: a new row is planned in English and not as a proxy, and the
+     * finish always exists for the row's printing — the one asked for when
+     * the printing has it, the printing's first finish otherwise
+     * ({@see Finish::fitTo}). That covers a foil-only printing, and a printing
+     * switch onto one that lacks the planned finish.
+     */
+    protected static function booted(): void
+    {
+        static::saving(function (DeckCard $deckCard): void {
+            if (! $deckCard->exists) {
+                $deckCard->language ??= CardLanguage::En;
+                $deckCard->proxy ??= false;
+            }
+            if (! $deckCard->exists || $deckCard->isDirty(['default_card_id', 'finish'])) {
+                $mask = DefaultCard::query()->whereKey($deckCard->default_card_id)->value('finishes');
+                $deckCard->finish = Finish::fitTo((int) ($mask ?? 0), $deckCard->finish);
+            }
+        });
+    }
+
+    /**
+     * The plan values, for a row split off or merged from this one.
+     *
+     * @return array{finish: Finish, language: CardLanguage, proxy: bool}
+     */
+    public function planAttributes(): array
+    {
+        return [
+            'finish' => $this->finish,
+            'language' => $this->language,
+            'proxy' => $this->proxy,
         ];
     }
 

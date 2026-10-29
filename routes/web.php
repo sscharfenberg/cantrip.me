@@ -225,6 +225,10 @@ Route::middleware(array_filter(['auth', Features::enabled(Features::emailVerific
         ->name('api.decks.cards.update-quantity');
     Route::patch('/api/decks/{deck}/cards/{deckCard}/move-zone', [DeckCardController::class, 'moveZone'])
         ->name('api.decks.cards.move-zone');
+    Route::get('/api/decks/{deck}/cards/{deckCard}/copies', [DeckCardController::class, 'copies'])
+        ->name('api.decks.cards.copies');
+    Route::patch('/api/decks/{deck}/cards/{deckCard}/copies', [DeckCardController::class, 'updateCopies'])
+        ->name('api.decks.cards.update-copies');
     Route::delete('/api/decks/{deck}/cards/{deckCard}', [DeckCardController::class, 'destroy'])
         ->name('api.decks.cards.destroy');
     Route::patch('/api/decks/{deck}/categories/{deckCategory}', [DeckCategoryController::class, 'update'])

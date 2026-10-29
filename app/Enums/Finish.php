@@ -37,6 +37,27 @@ enum Finish: int
     }
 
     /**
+     * The finish a copy of a printing gets: `$wanted` when the printing
+     * (`$mask`) exists in it, otherwise the printing's first finish — nonfoil,
+     * then foil, then etched — so a foil-only printing is never planned as a
+     * nonfoil that does not exist. A mask without any known finish keeps
+     * `$wanted`, or nonfoil.
+     */
+    public static function fitTo(int $mask, ?self $wanted = null): self
+    {
+        if ($wanted !== null && $wanted->isPresentIn($mask)) {
+            return $wanted;
+        }
+        foreach (self::cases() as $case) {
+            if ($case->isPresentIn($mask)) {
+                return $case;
+            }
+        }
+
+        return $wanted ?? self::Nonfoil;
+    }
+
+    /**
      * Lowercase label for frontend display and i18n keys (e.g. 'nonfoil', 'foil', 'etched').
      */
     public function label(): string

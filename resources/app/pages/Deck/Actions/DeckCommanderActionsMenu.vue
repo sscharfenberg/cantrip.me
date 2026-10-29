@@ -5,6 +5,7 @@ import Icon from "Components/UI/Icon.vue";
 import PopOver from "Components/UI/PopOver.vue";
 import type { DeckPrinting } from "Types/defaultCardImage.ts";
 import DeckCardAssignStackModal from "../Modals/DeckCardAssignStackModal.vue";
+import DeckCardCopiesModal from "../Modals/DeckCardCopiesModal.vue";
 import DeckCardSwitchPrintingModal from "../Modals/DeckCardSwitchPrintingModal.vue";
 import DeckCommandZoneModal from "../Modals/DeckCommandZoneModal.vue";
 const props = defineProps<{
@@ -42,6 +43,13 @@ function closePopover(): void {
     const el = document.getElementById(popoverId);
     if (el !== null) el.hidePopover();
 }
+/** Controls visibility of the "Edit copies" dialog. */
+const showCopiesModal = ref(false);
+/** Close the popover and open the "Edit copies" dialog. */
+function openCopies(): void {
+    closePopover();
+    showCopiesModal.value = true;
+}
 /** Close the menu and open the switch-printing modal. */
 function openSwitchPrinting(): void {
     closePopover();
@@ -63,6 +71,8 @@ function openAssignStack(): void {
  * the new pivot state, and `hasUnclaimedCards` so the "Unclaimed cards"
  * menu entry does too. Reuses the deck_card-keyed endpoints because
  * commanders are deck_cards too post-consolidation.
+ * `deck` too: the header's worth prices a claimed copy at its stack's
+ * finish, so a foil stack claimed under a nonfoil plan reprices the deck.
  */
 async function assignStack(stackId: string | null): Promise<void> {
     const response = await fetch(`/api/decks/${props.deckId}/cards/${props.deckCardId}/assigned-stacks`, {
@@ -75,7 +85,7 @@ async function assignStack(stackId: string | null): Promise<void> {
         body: JSON.stringify({ card_stack_id: stackId })
     });
     if (!response.ok) return;
-    router.reload({ only: ["commanders", "hasUnclaimedCards"] });
+    router.reload({ only: ["commanders", "deck", "hasUnclaimedCards"] });
 }
 /**
  * Swap this commander's display printing (its command-zone deck_card's
@@ -112,6 +122,12 @@ async function switchPrinting(printing: DeckPrinting): Promise<void> {
                 <button type="button" class="popover-list-item" @click="openSwitchPrinting">
                     <icon name="card" :size="1" />
                     {{ $t("pages.deck.switch_printing.link") }}
+                </button>
+            </li>
+            <li>
+                <button type="button" class="popover-list-item" @click="openCopies">
+                    <icon name="star" :size="1" />
+                    {{ $t("pages.deck.copies.link") }}
                 </button>
             </li>
             <li>
@@ -159,5 +175,12 @@ async function switchPrinting(printing: DeckPrinting): Promise<void> {
         :name="props.commanderName"
         @select="assignStack"
         @close="showAssignStackModal = false"
+    />
+    <deck-card-copies-modal
+        v-if="showCopiesModal"
+        :deck-id="props.deckId"
+        :deck-card-id="props.deckCardId"
+        :name="props.commanderName"
+        @close="showCopiesModal = false"
     />
 </template>

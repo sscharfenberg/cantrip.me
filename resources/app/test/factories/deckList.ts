@@ -43,6 +43,7 @@ export function makeDeckListLine(
         zone_guessed: false,
         quantity: 1,
         name: card?.name ?? "Unknown",
+        finish: null,
         category: null,
         status: card ? "resolved" : "unresolved",
         reason: card ? null : "not_found",
@@ -85,7 +86,7 @@ export function makeParseResult(
         })),
         lines,
         dropped: 0,
-        command_zone: { commander: null, partner: null, signature_spell: null, printings: {} },
+        command_zone: { commander: null, partner: null, signature_spell: null, printings: {}, finishes: {} },
         rules: {
             format: "legacy",
             minDeckSize: 60,

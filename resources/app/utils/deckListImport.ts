@@ -36,6 +36,8 @@ export interface EffectiveLine {
     quantity: number;
     zone: DeckListZone;
     category: string | null;
+    /** The pasted finish marker, kept whatever card replaces the line's own. */
+    finish: "foil" | "etched" | null;
     /** Copies moved out because the card is in the command zone. */
     deduped: number;
 }
@@ -90,6 +92,7 @@ export function effectiveLines(
             quantity: line.quantity - deduped,
             zone,
             category: zone === "companion" ? null : line.category,
+            finish: line.finish,
             deduped
         });
     }
@@ -169,6 +172,7 @@ export function submissionRows(effective: EffectiveLine[]): Array<{
     quantity: number;
     zone: DeckListZone;
     category: string | null;
+    finish: "foil" | "etched" | null;
 }> {
     return effective
         .filter(line => line.quantity > 0)
@@ -177,14 +181,16 @@ export function submissionRows(effective: EffectiveLine[]): Array<{
             default_card_id: line.card.default_card_id,
             quantity: line.quantity,
             zone: line.zone,
-            category: line.category
+            category: line.category,
+            finish: line.finish
         }));
 }
 
 /**
  * Printings for the command-zone cards that are still the pre-filled ones.
  * A card picked in the picker instead has no printing here and gets the
- * newest, as on the create form.
+ * newest, as on the create form. The pasted finish markers follow the same
+ * rule, through the same function.
  */
 export function commandZonePrintings(
     commandZone: ChosenCommandZone,

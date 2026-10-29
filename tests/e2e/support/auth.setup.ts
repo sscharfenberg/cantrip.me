@@ -1,6 +1,6 @@
 import { expect, test as setup } from "@playwright/test";
 import { signIn } from "./actions";
-import { REFRESH_STORAGE_STATE, REFRESH_USER, STORAGE_STATE } from "./environment";
+import { COPIES_STORAGE_STATE, COPIES_USER, REFRESH_STORAGE_STATE, REFRESH_USER, STORAGE_STATE } from "./environment";
 
 /**
  * Sign in once and save the session, so the authenticated specs do not each pay
@@ -42,4 +42,13 @@ setup("sign in as the refresh user", async ({ page }) => {
     await expect(page.getByRole("heading", { name: "Mein Benutzerkonto" })).toBeVisible();
 
     await page.context().storageState({ path: REFRESH_STORAGE_STATE });
+});
+
+/** The same for the account `app/deck-copies.spec.ts` writes as. */
+setup("sign in as the copies user", async ({ page }) => {
+    await signIn(page, COPIES_USER);
+
+    await expect(page.getByRole("heading", { name: "Mein Benutzerkonto" })).toBeVisible();
+
+    await page.context().storageState({ path: COPIES_STORAGE_STATE });
 });
