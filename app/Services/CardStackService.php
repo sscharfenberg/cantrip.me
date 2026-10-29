@@ -14,7 +14,7 @@ class CardStackService
 {
     /**
      * How many copies of each given printing sit in the user's collection,
-     * keyed by `default_card_id`.
+     * per finish, keyed by `default_card_id`.
      *
      * Feeds the ownership badge on `CardFaceImage`'s panel. The global
      * collection-integration master switch is honoured here rather than at
@@ -31,8 +31,12 @@ class CardStackService
      * this to hand" goes, and every other collection count in the app
      * treats it the same way.
      *
+     * Split by finish because a foil and a nonfoil of one printing are
+     * different cards to own — a deck planned foil needs the foil. All three
+     * finishes are always present, 0 where the user owns none of that one.
+     *
      * @param  list<string>  $defaultCardIds
-     * @return array<string, int> Printing id → copies owned.
+     * @return array<string, array{nonfoil: int, foil: int, etched: int}> Printing id → copies owned per finish.
      */
     public static function ownedAmountsFor(?User $user, array $defaultCardIds): array
     {
@@ -40,14 +44,24 @@ class CardStackService
             return [];
         }
 
-        return CardStack::query()
+        $owned = [];
+        CardStack::query()
             ->where('user_id', $user->id)
             ->whereIn('default_card_id', array_values(array_unique($defaultCardIds)))
-            ->groupBy('default_card_id')
-            ->selectRaw('default_card_id, SUM(amount) as total')
-            ->pluck('total', 'default_card_id')
-            ->map(fn ($total): int => (int) $total)
-            ->all();
+            ->groupBy('default_card_id', 'finish')
+            ->selectRaw('default_card_id, finish, SUM(amount) as total')
+            ->toBase()
+            ->get()
+            ->each(function (object $row) use (&$owned): void {
+                $finish = Finish::tryFrom((int) $row->finish);
+                if ($finish === null) {
+                    return;
+                }
+                $owned[$row->default_card_id] ??= ['nonfoil' => 0, 'foil' => 0, 'etched' => 0];
+                $owned[$row->default_card_id][$finish->label()] += (int) $row->total;
+            });
+
+        return $owned;
     }
 
     /**

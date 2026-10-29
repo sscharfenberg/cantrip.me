@@ -1742,7 +1742,8 @@
             "max_size": "Maximale Dateigröße: {size}"
         },
         "card_face_image": {
-            "owned": "{count} Exemplar in deiner Sammlung | {count} Exemplare in deiner Sammlung"
+            "owned_title": "In deiner Sammlung:",
+            "owned_finish": "{count}× {finish}"
         },
         "card_preview": {
             "title": "Kartendetails",

@@ -1,7 +1,7 @@
 import { mount } from "@vue/test-utils";
 import { describe, expect, it } from "vitest";
 import { setTestMessages } from "@/test/i18n.ts";
-import type { DefaultCardImage } from "Types/defaultCardImage.ts";
+import type { DefaultCardImage, OwnedCopies } from "Types/defaultCardImage.ts";
 import CardFaceImage from "../CardFaceImage.vue";
 
 const card = (overrides: Partial<DefaultCardImage> = {}): DefaultCardImage => ({
@@ -21,17 +21,81 @@ const render = (overrides: Partial<DefaultCardImage> = {}, props: Record<string,
 
 const badge = (wrapper: ReturnType<typeof render>) => wrapper.find(".face-image__panel-owned");
 
-describe("CardFaceImage — collection ownership badge", () => {
-    it("shows the count when the viewer owns copies of this printing", () => {
-        const wrapper = render({ owned: 3 });
+/** Copies owned per finish. */
+const owned = (nonfoil: number, foil = 0, etched = 0): OwnedCopies => ({ nonfoil, foil, etched });
 
-        expect(badge(wrapper).exists()).toBe(true);
-        expect(badge(wrapper).text()).toContain("3");
+describe("CardFaceImage — collection ownership badge", () => {
+    const dual = { finishes: ["nonfoil", "foil"] };
+
+    it("shows a count for each finish the printing exists in", () => {
+        const wrapper = render({ ...dual, owned: owned(3, 1) });
+
+        expect(badge(wrapper).find(".face-image__panel-count--nonfoil").text()).toBe("3");
+        expect(badge(wrapper).find(".face-image__panel-count--foil").text()).toBe("1");
+    });
+
+    it("marks the foil count with the foil star, as the collection does", () => {
+        expect(
+            badge(render({ ...dual, owned: owned(1, 2) }))
+                .find(".face-image__panel-count--foil use")
+                .attributes("href")
+        ).toBe("#star");
+    });
+
+    it("shows a dual-finish printing's 0 foil, so the counts keep their places", () => {
+        const wrapper = render({ ...dual, owned: owned(2) });
+
+        expect(badge(wrapper).find(".face-image__panel-count--foil").text()).toBe("0");
+    });
+
+    it("offers no foil count on a printing that has no foil", () => {
+        const wrapper = render({ finishes: ["nonfoil"], owned: owned(2) });
+
+        expect(badge(wrapper).find(".face-image__panel-count--nonfoil").text()).toBe("2");
+        expect(badge(wrapper).find(".face-image__panel-count--foil").exists()).toBe(false);
+    });
+
+    it("shows a finish owned even where the printing data does not list it", () => {
+        const wrapper = render({ finishes: ["nonfoil"], owned: owned(0, 1) });
+
+        expect(badge(wrapper).find(".face-image__panel-count--nonfoil").text()).toBe("0");
+        expect(badge(wrapper).find(".face-image__panel-count--foil").text()).toBe("1");
+    });
+
+    it("adds the etched count for an etched printing or etched copies", () => {
+        expect(
+            badge(render({ ...dual, owned: owned(1, 1) }))
+                .find(".face-image__panel-count--etched")
+                .exists()
+        ).toBe(false);
+
+        const etched = badge(render({ finishes: ["etched"], owned: owned(0, 0, 2) })).find(
+            ".face-image__panel-count--etched"
+        );
+        expect(etched.text()).toBe("2");
+        expect(etched.find("use").attributes("href")).toBe("#texture");
+    });
+
+    it("hides the bare digits from a screen reader and tells it in words instead", () => {
+        setTestMessages({
+            de: {
+                enums: { finishes: { nonfoil: "Normal", foil: "Foil", etched: "Geätzt" } },
+                components: {
+                    card_face_image: { owned_title: "In deiner Sammlung:", owned_finish: "{count}× {finish}" }
+                }
+            }
+        });
+        const wrapper = badge(render({ ...dual, owned: owned(2, 1) }));
+
+        expect(
+            wrapper.findAll(".face-image__panel-count").every(count => count.attributes("aria-hidden") === "true")
+        ).toBe(true);
+        expect(wrapper.find(".sr-only").text()).toBe("In deiner Sammlung: 2× Normal, 1× Foil");
     });
 
     it("uses the storage icon", () => {
         expect(
-            badge(render({ owned: 1 }))
+            badge(render({ owned: owned(1) }))
                 .find("use")
                 .attributes("href")
         ).toBe("#storage");
@@ -40,17 +104,17 @@ describe("CardFaceImage — collection ownership badge", () => {
     it.each([
         ["the field is absent — a guest, or an endpoint that doesn't ship it", undefined],
         ["the master switch is off, so the backend sent null", null],
-        ["the viewer owns none of this printing", 0]
-    ] satisfies [string, number | null | undefined][])("stays hidden when %s", (_case, owned) => {
+        ["the viewer owns none of this printing", owned(0)]
+    ] satisfies [string, OwnedCopies | null | undefined][])("stays hidden when %s", (_case, copies) => {
         // The badge is a positive signal only: it never announces a zero,
         // and the three nothing-to-show cases are indistinguishable by design.
-        expect(badge(render({ owned })).exists()).toBe(false);
+        expect(badge(render({ owned: copies })).exists()).toBe(false);
     });
 
     it("shares the artist's row rather than adding a third one", () => {
         // The panel is two rows: collector number + set symbol, then artist
         // + owned count. A third row would push the panel over the art.
-        const wrapper = render({ owned: 2 });
+        const wrapper = render({ owned: owned(2) });
         const rows = wrapper.findAll(".face-image__panel > .face-image__panel-line");
 
         expect(rows).toHaveLength(2);
@@ -61,7 +125,7 @@ describe("CardFaceImage — collection ownership badge", () => {
     it("keeps the second row for a printing with no artist", () => {
         // Tokens routinely have no artist; the count still needs its row,
         // and `margin-left: auto` keeps it flush right without one.
-        const wrapper = render({ owned: 2, artist: null });
+        const wrapper = render({ owned: owned(2), artist: null });
         const rows = wrapper.findAll(".face-image__panel > .face-image__panel-line");
 
         expect(rows).toHaveLength(2);
@@ -77,19 +141,22 @@ describe("CardFaceImage — collection ownership badge", () => {
 });
 
 describe("CardFaceImage — ownership tooltip", () => {
-    it("counts singular and plural apart", () => {
+    it("names each finish owned, one line each, and leaves out the ones not owned", () => {
         setTestMessages({
             de: {
+                enums: { finishes: { nonfoil: "Normal", foil: "Foil", etched: "Geätzt" } },
                 components: {
-                    card_face_image: {
-                        owned: "{count} Exemplar in deiner Sammlung | {count} Exemplare in deiner Sammlung"
-                    }
+                    card_face_image: { owned_title: "In deiner Sammlung:", owned_finish: "{count}× {finish}" }
                 }
             }
         });
 
-        expect(badge(render({ owned: 1 })).attributes("data-tooltip")).toBe("1 Exemplar in deiner Sammlung");
-        expect(badge(render({ owned: 4 })).attributes("data-tooltip")).toBe("4 Exemplare in deiner Sammlung");
+        expect(badge(render({ finishes: ["nonfoil", "foil"], owned: owned(2, 1) })).attributes("data-tooltip")).toBe(
+            "In deiner Sammlung:<br />2× Normal<br />1× Foil"
+        );
+        expect(badge(render({ owned: owned(0, 0, 3) })).attributes("data-tooltip")).toBe(
+            "In deiner Sammlung:<br />3× Geätzt"
+        );
     });
 
     // The `container: tooltipContainer ?? "body"` half of the binding is not

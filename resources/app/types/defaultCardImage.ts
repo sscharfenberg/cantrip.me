@@ -1,3 +1,6 @@
+/** Copies of one printing owned, per finish — every finish present, 0 where none. */
+export type OwnedCopies = { nonfoil: number; foil: number; etched: number };
+
 /** A single card-image focused defaultCard (front and optional back face). */
 export type DefaultCardImage = {
     id: string;
@@ -17,14 +20,14 @@ export type DefaultCardImage = {
      */
     matched_translation?: { lang: string; name: string } | null;
     /**
-     * Copies of this exact printing in the *viewer's* collection, driving
-     * the ownership badge on `CardFaceImage`'s panel. Filled by
-     * `CardStackService::ownedAmountsFor`, which returns nothing for a
+     * Copies of this exact printing in the *viewer's* collection, per
+     * finish, driving the ownership badge on `CardFaceImage`'s panel. Filled
+     * by `CardStackService::ownedAmountsFor`, which returns nothing for a
      * guest, nothing while the collection-integration master switch is
-     * off, and nothing for a printing the viewer owns none of — so a
-     * number here always means "there is something to show".
+     * off, and nothing for a printing the viewer owns none of — so an
+     * object here always means "there is something to show".
      */
-    owned?: number | null;
+    owned?: OwnedCopies | null;
     /**
      * Foreign languages the card's oracle has any translation in.
      * English is implicit (never in the list). Drives the card-stack

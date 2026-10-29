@@ -1,4 +1,5 @@
 import type { StackClaim } from "Types/cardStackRow";
+import type { OwnedCopies } from "Types/defaultCardImage.ts";
 
 /** A single legality entry for a card format. */
 export interface CardLegality {
@@ -53,11 +54,12 @@ export interface CollectionInfo {
 export interface CardPreview {
     name: string;
     /**
-     * Copies of this printing in the viewer's collection — forwarded onto
-     * the face image's ownership badge. Null for a guest, while the
-     * collection master switch is off, and when the viewer owns none.
+     * Copies of this printing in the viewer's collection, per finish —
+     * forwarded onto the face image's ownership badge. Null for a guest,
+     * while the collection master switch is off, and when the viewer owns
+     * none.
      */
-    owned?: number | null;
+    owned?: OwnedCopies | null;
     card_image_0: string | null;
     card_image_1: string | null;
     set_code: string | null;

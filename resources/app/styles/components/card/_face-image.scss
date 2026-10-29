@@ -130,6 +130,14 @@
             font-size: 0.8em;
             font-weight: bold;
         }
+
+        // One count per finish, its icon hugging the digits.
+        &-count {
+            display: inline-flex;
+            align-items: center;
+
+            gap: 2px;
+        }
     }
 
     &--interactive {

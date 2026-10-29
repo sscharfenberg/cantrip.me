@@ -68,10 +68,10 @@ const render = async () => {
     return wrapper;
 };
 
-/** Collector numbers of the listed printings, in order — the fixture makes them the ids. */
+/** Collector numbers of the listed printings, in order — the fixture makes them the ids. The panel writes them `#270`. */
 const listed = (): string[] =>
     [...document.querySelectorAll(".switch-printing__list .face-image__panel-line:first-child")].map(
-        line => line.textContent?.trim() ?? ""
+        line => line.textContent?.trim().replace(/^#/u, "") ?? ""
     );
 
 const searchInput = (): HTMLInputElement => document.querySelector(".set-search input") as HTMLInputElement;

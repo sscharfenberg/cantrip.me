@@ -61,6 +61,12 @@ class E2EDeckCopiesSeeder extends Seeder
     /** Where the claimed stack lies. */
     public const BINDER_ID = '0198a1b2-0000-7000-8000-000000000601';
 
+    /** Two nonfoil Lurrus (IKO #355) in the binder, beside {@see FOIL_STACK_ID} — the panel counts them apart. */
+    public const NONFOIL_STACK_ID = '0198a1b2-0000-7000-8000-000000000701';
+
+    /** One foil Lurrus (IKO #355) in the binder. */
+    public const FOIL_STACK_ID = '0198a1b2-0000-7000-8000-000000000702';
+
     /** A fixed instant, so nothing a spec can read moves with the wall clock. */
     private Carbon $stamp;
 
@@ -111,6 +117,21 @@ class E2EDeckCopiesSeeder extends Seeder
         ]);
         $stack->save();
         $claimed->cardStacks()->attach($stack->id, ['created_at' => $this->stamp]);
+
+        $lurrus = $this->printing('Lurrus of the Dream-Den', 'iko', '355');
+        foreach ([[self::NONFOIL_STACK_ID, 2, Finish::Nonfoil], [self::FOIL_STACK_ID, 1, Finish::Foil]] as [$id, $amount, $finish]) {
+            (new CardStack)->forceFill([
+                'id' => $id,
+                'user_id' => $this->user->id,
+                'default_card_id' => $lurrus->id,
+                'container_id' => self::BINDER_ID,
+                'amount' => $amount,
+                'finish' => $finish,
+                'language' => CardLanguage::En,
+                'created_at' => $this->stamp,
+                'updated_at' => $this->stamp,
+            ])->save();
+        }
     }
 
     /** Same shape as {@see E2ESeeder}'s accounts — see there for `forceFill`. */
@@ -168,13 +189,17 @@ class E2EDeckCopiesSeeder extends Seeder
         ]);
     }
 
-    /** One printing from the snapshot, by set code. */
-    private function printing(string $name, string $setCode): DefaultCard
+    /**
+     * One printing from the snapshot, by set code and — where a set holds
+     * more than one, as with Lurrus — collector number.
+     */
+    private function printing(string $name, string $setCode, ?string $collectorNumber = null): DefaultCard
     {
         $printing = DefaultCard::query()
             ->join('sets', 'sets.id', '=', 'default_cards.set_id')
             ->where('default_cards.name', $name)
             ->where('sets.code', $setCode)
+            ->when($collectorNumber !== null, fn ($query) => $query->where('default_cards.collector_number', $collectorNumber))
             ->select('default_cards.*')
             ->first();
 

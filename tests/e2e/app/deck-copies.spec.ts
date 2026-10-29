@@ -10,7 +10,8 @@ import { COPIES_STORAGE_STATE } from "../support/environment";
  * What Vitest cannot answer is the round trip: the PATCH lands, the server
  * re-plans (splitting the row when only some copies change), the partial
  * reload brings the new rows AND the new worth, and "add all to collection"
- * really mints the stack the plan described.
+ * really mints the stack the plan described. Also the card image panel's
+ * collection count, which tells the finishes apart for the same reason.
  *
  * Every test writes, so the spec runs as its own account with one deck per
  * test — see `E2EDeckCopiesSeeder`, whose ids are mirrored below. Prices are
@@ -26,6 +27,9 @@ const DECKS = {
     commander: "0198a1b2-0000-7000-8000-000000000503",
     claimed: "0198a1b2-0000-7000-8000-000000000504"
 } as const;
+
+/** The foil Lurrus (IKO #355) stack, beside two nonfoil ones — `E2EDeckCopiesSeeder::FOIL_STACK_ID`. */
+const FOIL_STACK = "0198a1b2-0000-7000-8000-000000000702";
 
 /** Open a deck by id and wait until its header has rendered. */
 const openDeck = async (page: Page, id: string): Promise<void> => {
@@ -140,4 +144,14 @@ test("editing one claimed copy foil splits its stack in the collection and re-pr
     const stacks = page.locator("tbody tr").filter({ hasText: "Evolving Wilds" });
     await expect(stacks).toHaveCount(2);
     await expect(stacks.filter({ has: page.locator("svg.star") })).toHaveCount(1);
+});
+
+test("the collection count on a card image tells foil and nonfoil apart", async ({ page }) => {
+    /* Two nonfoil and one foil Lurrus (IKO #355), in two stacks; the edit page shows the printing's panel. */
+    await page.goto(`/collection/cardstack/${FOIL_STACK}/edit`);
+    const owned = page.locator(".face-image__panel-owned");
+
+    await expect(owned.locator(".face-image__panel-count--nonfoil")).toHaveText("2");
+    await expect(owned.locator(".face-image__panel-count--foil")).toHaveText("1");
+    await expect(owned.locator(".face-image__panel-count--etched")).toHaveCount(0);
 });

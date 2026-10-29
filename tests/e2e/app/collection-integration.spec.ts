@@ -126,7 +126,9 @@ test("narrows Add Cards to printings the collection can cover", async ({ page })
      * face-image panel renders from the same collection data.
      */
     await expect(printings.locator(".face-image__panel-owned")).toBeVisible();
-    await expect(printings.locator(".face-image__panel-owned")).toContainText("1");
+    await expect(printings.locator(".face-image__panel-count--nonfoil")).toHaveText("1");
+    /* An Alpha printing: there is no foil of it, so no foil count is offered. */
+    await expect(printings.locator(".face-image__panel-count--foil")).toHaveCount(0);
 
     // Back off, and the printings it hid come back — so the filter is the
     // cause, not a search that happened to narrow.

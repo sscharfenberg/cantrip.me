@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Enums\Finish;
 use App\Models\CardStack;
 use App\Models\DefaultCard;
 use App\Models\OracleCard;
@@ -80,16 +81,24 @@ class CardStackOwnedAmountsTest extends TestCase
         ]);
     }
 
-    private function stack(User $user, DefaultCard $printing, int $amount, bool $proxy = false): CardStack
+    private function stack(User $user, DefaultCard $printing, int $amount, bool $proxy = false, Finish $finish = Finish::Nonfoil): CardStack
     {
         return CardStack::create([
             'user_id' => $user->id,
             'default_card_id' => $printing->id,
             'amount' => $amount,
-            'finish' => 1,
+            'finish' => $finish,
             'language' => 'en',
             'proxy' => $proxy,
         ]);
+    }
+
+    /**
+     * @return array{nonfoil: int, foil: int, etched: int}
+     */
+    private function owned(int $nonfoil, int $foil = 0, int $etched = 0): array
+    {
+        return ['nonfoil' => $nonfoil, 'foil' => $foil, 'etched' => $etched];
     }
 
     #[Test]
@@ -104,7 +113,50 @@ class CardStackOwnedAmountsTest extends TestCase
 
         $amounts = CardStackService::ownedAmountsFor($user, [$printing->id]);
 
-        $this->assertSame([$printing->id => 5], $amounts);
+        $this->assertSame([$printing->id => $this->owned(5)], $amounts);
+    }
+
+    #[Test]
+    public function it_counts_each_finish_apart(): void
+    {
+        // A foil and a nonfoil of one printing are different cards to own.
+        $user = User::factory()->create();
+        $printing = $this->makePrinting();
+        $this->stack($user, $printing, 2);
+        $this->stack($user, $printing, 1, finish: Finish::Foil);
+        $this->stack($user, $printing, 2, finish: Finish::Foil);
+        $this->stack($user, $printing, 4, finish: Finish::Etched);
+
+        $amounts = CardStackService::ownedAmountsFor($user, [$printing->id]);
+
+        $this->assertSame([$printing->id => $this->owned(2, 3, 4)], $amounts);
+    }
+
+    #[Test]
+    public function a_printing_owned_only_in_foil_shows_no_nonfoil(): void
+    {
+        $user = User::factory()->create();
+        $printing = $this->makePrinting();
+        $this->stack($user, $printing, 1, finish: Finish::Foil);
+
+        $this->assertSame([$printing->id => $this->owned(0, 1)], CardStackService::ownedAmountsFor($user, [$printing->id]));
+    }
+
+    #[Test]
+    public function a_card_preview_ships_the_count_per_finish(): void
+    {
+        $user = User::factory()->create();
+        $printing = $this->makePrinting();
+        $this->stack($user, $printing, 1);
+        $this->stack($user, $printing, 1, finish: Finish::Foil);
+
+        $this->actingAs($user)
+            ->getJson(route('card.preview', $printing))
+            ->assertOk()
+            ->assertJsonPath('owned', $this->owned(1, 1));
+        $this->actingAs(User::factory()->create())
+            ->getJson(route('card.preview', $printing))
+            ->assertJsonPath('owned', null);
     }
 
     #[Test]
@@ -118,8 +170,8 @@ class CardStackOwnedAmountsTest extends TestCase
 
         $amounts = CardStackService::ownedAmountsFor($user, [$one->id, $two->id]);
 
-        $this->assertSame(1, $amounts[$one->id]);
-        $this->assertSame(4, $amounts[$two->id]);
+        $this->assertSame($this->owned(1), $amounts[$one->id]);
+        $this->assertSame($this->owned(4), $amounts[$two->id]);
     }
 
     #[Test]
@@ -178,7 +230,7 @@ class CardStackOwnedAmountsTest extends TestCase
         $this->stack($user, $printing, 1);
         $this->stack($user, $printing, 2, proxy: true);
 
-        $this->assertSame([$printing->id => 3], CardStackService::ownedAmountsFor($user, [$printing->id]));
+        $this->assertSame([$printing->id => $this->owned(3)], CardStackService::ownedAmountsFor($user, [$printing->id]));
     }
 
     #[Test]
