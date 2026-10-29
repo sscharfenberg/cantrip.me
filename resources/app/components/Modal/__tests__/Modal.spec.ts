@@ -83,6 +83,15 @@ describe("Modal — opening", () => {
 
         expect(dialog.querySelector(".modal-dialog__footer")).toBeNull();
     });
+
+    it("hands the scrolling to the content only when asked to", () => {
+        const { dialog } = open();
+        expect(dialog.querySelector(".modal-dialog__body--inner-scroll")).toBeNull();
+        document.body.innerHTML = "";
+
+        const { dialog: innerScrolling } = open({ props: { innerScroll: true } });
+        expect(innerScrolling.querySelector(".modal-dialog__body--inner-scroll")).not.toBeNull();
+    });
 });
 
 describe("Modal — closing without animation", () => {

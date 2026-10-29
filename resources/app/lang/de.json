@@ -1344,7 +1344,15 @@
                 "error": "Editionen konnten nicht geladen werden.",
                 "in_collection": "In Sammlung",
                 "not_in_collection": "Nicht in Sammlung",
-                "currently_selected": "Aktuell ausgewählt"
+                "currently_selected": "Aktuell ausgewählt",
+                "no_printings": "Keine Editionen passen zu deinen Filtern.",
+                "set_search": {
+                    "label": "Sets suchen",
+                    "placeholder": "Sets nach Code oder Name suchen",
+                    "no_results": "Kein Set passt zu deiner Suche.",
+                    "count": "{count} Edition | {count} Editionen",
+                    "remove": "Set-Filter {set} entfernen"
+                }
             },
             "change_commander": {
                 "link": "Kommandozone ändern"

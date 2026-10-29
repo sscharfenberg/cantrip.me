@@ -3,6 +3,19 @@ import { onMounted, ref } from "vue";
 import ModalBody from "./ModalBody.vue";
 import ModalFooter from "./ModalFooter.vue";
 import ModalHeader from "./ModalHeader.vue";
+withDefaults(
+    defineProps<{
+        /**
+         * The body stops being the scroll container and lays its content out
+         * as a flex column instead, so the content can keep a toolbar in view
+         * above a list that scrolls on its own.
+         */
+        innerScroll?: boolean;
+    }>(),
+    {
+        innerScroll: false
+    }
+);
 const emit = defineEmits<{ close: [] }>();
 const modalRef = ref<HTMLDialogElement | null>(null);
 const contentRef = ref<HTMLDivElement | null>(null);
@@ -97,7 +110,7 @@ onMounted(() => {
         >
             <div ref="contentRef" class="modal-dialog__content">
                 <modal-header @close="closeModal"><slot name="header" /></modal-header>
-                <modal-body :has-footer="!!$slots.footer"><slot /></modal-body>
+                <modal-body :has-footer="!!$slots.footer" :inner-scroll="innerScroll"><slot /></modal-body>
                 <modal-footer v-if="$slots.footer"><slot name="footer" /></modal-footer>
             </div>
         </dialog>

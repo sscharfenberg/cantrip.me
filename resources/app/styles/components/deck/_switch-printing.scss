@@ -1,9 +1,93 @@
 @use "sass:map";
 @use "Abstracts/colors" as c;
+@use "Abstracts/mixins" as m;
 @use "Abstracts/shadows" as sh;
 @use "Abstracts/sizes" as s;
 
+// The modal body is an `inner-scroll` flex column: the toolbar keeps its
+// height and only the scroller below it scrolls.
 .switch-printing {
+    display: flex;
+    flex-direction: column;
+
+    min-height: 0;
+    flex: 1 1 auto;
+
+    container-type: inline-size;
+
+    // Phones stack the switch, the set search, then the status row. With
+    // room, the search moves left of the switch; the status row spans both.
+    &__toolbar {
+        display: grid;
+        align-items: center;
+        grid-template-columns: minmax(0, 1fr);
+
+        flex: 0 0 auto;
+
+        margin: map.get(s.$pages, "deck", "switch-printing", "toolbar", "margin");
+        gap: map.get(s.$pages, "deck", "switch-printing", "toolbar", "gap");
+
+        @include m.cq("portrait") {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+
+    &__available {
+        display: flex;
+        align-items: center;
+
+        gap: map.get(s.$pages, "deck", "switch-printing", "available-gap");
+
+        @include m.cq("portrait") {
+            grid-area: 1 / 2;
+        }
+
+        label {
+            cursor: pointer;
+        }
+    }
+
+    &__search {
+        @include m.cq("portrait") {
+            grid-area: 1 / 1;
+        }
+    }
+
+    // The picked set's chip on the left, the count's pill pushed right.
+    &__status {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+
+        grid-column: 1 / -1;
+
+        gap: map.get(s.$pages, "deck", "switch-printing", "toolbar", "gap");
+    }
+
+    &__chip {
+        font-family: inherit;
+
+        cursor: pointer;
+    }
+
+    &__chip-icon {
+        width: map.get(s.$pages, "deck", "switch-printing", "chip-icon");
+        height: map.get(s.$pages, "deck", "switch-printing", "chip-icon");
+
+        object-fit: contain;
+    }
+
+    &__count {
+        flex: 1 1 auto;
+    }
+
+    &__scroller {
+        overflow-y: auto;
+
+        min-height: 0;
+        flex: 1 1 auto;
+    }
+
     &__sentinel {
         height: 1px;
     }
@@ -51,4 +135,9 @@
         color: map.get(c.$state, "success", "surface");
         border-radius: map.get(s.$pages, "deck", "switch-printing", "current", "radius");
     }
+}
+
+// Set icons are black-filled SVGs; dark mode needs them inverted.
+@include m.theme-dark(".switch-printing__chip-icon") {
+    filter: invert(1);
 }

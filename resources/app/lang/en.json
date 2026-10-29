@@ -1344,7 +1344,15 @@
                 "error": "Could not load printings.",
                 "in_collection": "In collection",
                 "not_in_collection": "Not in collection",
-                "currently_selected": "Currently selected"
+                "currently_selected": "Currently selected",
+                "no_printings": "No printings match your filters.",
+                "set_search": {
+                    "label": "Search sets",
+                    "placeholder": "Search sets by code or name",
+                    "no_results": "No set matches your search.",
+                    "count": "{count} printing | {count} printings",
+                    "remove": "Remove the set filter {set}"
+                }
             },
             "change_commander": {
                 "link": "Change command zone"

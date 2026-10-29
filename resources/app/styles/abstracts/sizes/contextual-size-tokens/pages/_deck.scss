@@ -52,7 +52,13 @@ $deck: (
             "gap": 1rem,
             "radius": map.get(s.$radius, "base"),
             "border": map.get(s.$border, "base")
-        )
+        ),
+        "toolbar": (
+            "gap": 1ex 2ch,
+            "margin": 0 0 1ex
+        ),
+        "available-gap": 1ch,
+        "chip-icon": 1.25rem
     ),
     "split-printings": (
         "stepper": (
