@@ -215,21 +215,33 @@ test.describe("the open-cards entry follows", () => {
     });
 
     test("a copy moved to the sideboard", async ({ page }) => {
-        /* The moved copy lands in a new sideboard row; the claim stays with the old one, which goes. */
+        /*
+         * The moved copy takes its claim along to its new sideboard row, so
+         * nothing opens up: the new row offers "Reservierung aufheben", and the
+         * entry is still hidden once the page has reloaded the flag. Nothing
+         * else here can flip — a move never changes what is covered.
+         */
         await openDeck(page, DECKS.sideboard);
         await expect(unclaimedEntry(page)).toHaveCount(0);
 
+        const reloaded = page.waitForResponse(
+            response => response.request().headers()["x-inertia-partial-data"]?.includes("hasUnclaimedCards") ?? false
+        );
         await (
             await cardMenu(page, "Lightning Bolt")
         )
             .getByRole("button", { name: "1 in Sideboard verschieben" })
             .click();
+        await reloaded;
 
-        await expect(unclaimedEntry(page)).toHaveCount(1);
+        await expect(unclaimedEntry(page)).toHaveCount(0);
+        await expect(
+            (await cardMenu(page, "Lightning Bolt")).getByRole("button", { name: "Reservierung aufheben" })
+        ).toBeVisible();
     });
 
     test("a copy split off onto another printing", async ({ page }) => {
-        /* Two LEA copies under one claimed stack; the split-off LEB copy is a new, unclaimed row. */
+        /* Mode B: the deckbox holds two LEA copies, so a copy split off onto LEB is not covered. */
         await openDeck(page, DECKS.split);
         await expect(unclaimedEntry(page)).toHaveCount(0);
 

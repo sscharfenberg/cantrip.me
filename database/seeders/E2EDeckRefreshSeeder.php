@@ -81,6 +81,8 @@ class E2EDeckRefreshSeeder extends Seeder
 
     private const COMPANION_PRINTING_DECKBOX_ID = '0198a1b2-0000-7000-8000-000000000304';
 
+    private const SPLIT_DECKBOX_ID = '0198a1b2-0000-7000-8000-000000000305';
+
     /* The decks, one per test. Mirrored in deck-refresh.spec.ts. */
 
     public const CARD_PRINTING_DECK_ID = '0198a1b2-0000-7000-8000-000000000401';
@@ -156,6 +158,7 @@ class E2EDeckRefreshSeeder extends Seeder
             [self::CARD_PRINTING_DECKBOX_ID, 'Bolt Deckbox', ContainerType::Deckbox],
             [self::COMMANDER_PRINTING_DECKBOX_ID, 'Lurrus Deckbox', ContainerType::Deckbox],
             [self::COMPANION_PRINTING_DECKBOX_ID, 'Atraxa Lurrus Deckbox', ContainerType::Deckbox],
+            [self::SPLIT_DECKBOX_ID, 'Bolt Split Deckbox', ContainerType::Deckbox],
         ];
 
         foreach ($containers as $index => [$id, $name, $type]) {
@@ -172,10 +175,13 @@ class E2EDeckRefreshSeeder extends Seeder
     }
 
     /**
-     * Mode B, one deck per place a printing can be switched from.
+     * Mode B, one deck per place a printing can be switched from, and one
+     * whose copies are split over two printings.
      *
      * Each deckbox holds exactly the printing its deck starts on, so the deck
-     * starts fully covered and switching away uncovers it. The two printings
+     * starts fully covered and switching away — or splitting a copy off onto
+     * another printing — uncovers it. Mode C could not show the split: its
+     * claimed copies follow the printings they are split onto. The two printings
      * on each side cost different amounts, so the switch moves the worth too:
      * Lightning Bolt LEA €409.41 / 2ED €18.21, Lurrus #226 €1.52 / #355 €3.50.
      */
@@ -185,6 +191,10 @@ class E2EDeckRefreshSeeder extends Seeder
         $deck = $this->deck(self::CARD_PRINTING_DECK_ID, 'Bolt Printing Swap', CardFormat::Legacy, 'B', self::CARD_PRINTING_DECKBOX_ID);
         $this->card($deck, $bolt);
         $this->stack($bolt->id, 1, self::CARD_PRINTING_DECKBOX_ID);
+
+        $deck = $this->deck(self::SPLIT_DECK_ID, 'Bolt Printing Split', CardFormat::Legacy, 'B', self::SPLIT_DECKBOX_ID);
+        $this->card($deck, $bolt, 2);
+        $this->stack($bolt->id, 2, self::SPLIT_DECKBOX_ID);
 
         $lurrus = $this->printing('Lurrus of the Dream-Den', 'iko', '226');
         $deck = $this->deck(self::COMMANDER_PRINTING_DECK_ID, 'Lurrus Commander Printing', CardFormat::Commander, 'B', self::COMMANDER_PRINTING_DECKBOX_ID);
@@ -202,14 +212,13 @@ class E2EDeckRefreshSeeder extends Seeder
 
     /**
      * Mode C decks whose test acts on an ordinary deck card. Legacy, because
-     * moving to the sideboard and splitting a row both need a format with a
-     * sideboard and more than one copy of a card.
+     * moving to the sideboard needs a format with a sideboard.
      */
     private function seedCardDecks(): void
     {
         $bolt = $this->printing('Lightning Bolt', 'lea');
 
-        /* Fully claimed, so one more copy, one new card or one moved copy leaves something open. */
+        /* Fully claimed: one more copy or one new card leaves something open, and a moved copy takes its claim along. */
         foreach ([
             [self::QUANTITY_DECK_ID, 'Bolt Quantity Steps'],
             [self::QUICK_ADD_DECK_ID, 'Quick Add Ritual'],
@@ -217,9 +226,6 @@ class E2EDeckRefreshSeeder extends Seeder
         ] as [$id, $name]) {
             $this->claim($this->card($this->deck($id, $name, CardFormat::Legacy, 'C'), $bolt));
         }
-
-        /* Two copies under one claimed stack: splitting one off leaves the new row open. */
-        $this->claim($this->card($this->deck(self::SPLIT_DECK_ID, 'Bolt Printing Split', CardFormat::Legacy, 'C'), $bolt, 2));
 
         /* Open, with a free copy waiting in the spare binder. */
         $this->card($this->deck(self::CARD_CLAIM_DECK_ID, 'Bolt Claim', CardFormat::Legacy, 'C'), $bolt);
