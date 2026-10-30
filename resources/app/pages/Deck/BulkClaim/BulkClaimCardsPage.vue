@@ -3,13 +3,16 @@
  * BulkClaim page — replaces the old "finalize deck" wizard.
  *
  * Reached only by mode-C owners (gated by BulkClaimRequest). Cards are
- * partitioned into three sections:
+ * listed in up to three sections:
  *
  *   §1 exact    — user owns ≥1 eligible stack of the same printing.
  *   §2 alt      — user owns ≥1 eligible stack of a different printing
  *                 of the same oracle card. Picking one swaps the
  *                 deck_card's printing to match.
- *   §3 missing  — user owns nothing of this oracle card.
+ *   §3 new      — every card, §1 and §2 ones too: a fresh copy can be
+ *                 added to the collection even when an owned one could
+ *                 be claimed. With a stack picked above, only the copies
+ *                 it leaves uncovered; a card it covers whole drops out.
  *
  * Eligibility (server-side): owned + no pivot row + not in another
  * deck's deckbox container.
@@ -88,8 +91,6 @@ useBreadcrumbs().setBreadcrumbs([
 const exactCards = computed(() => props.cards.filter(c => c.section === "exact"));
 /** §2 — alternate printing available; picking one swaps deck_card.default_card_id server-side. */
 const altCards = computed(() => props.cards.filter(c => c.section === "alt"));
-/** §3 — nothing in the user's collection; only buy-new is offered. */
-const missingCards = computed(() => props.cards.filter(c => c.section === "missing"));
 /** One slot per deck_card_id, empty list. Single-stack-per-row UI so the inner array is at most one element. */
 const initialAssignments: Record<string, string[]> = Object.fromEntries(props.cards.map(c => [c.id, []]));
 /** Mirror map keyed by deck_card_id — flips to true when the user ticks "I just bought N more copies". */
@@ -155,6 +156,14 @@ function pickedStackAmount(card: BulkClaimCard): number {
 /** How many of the deck card's slots are *not* covered by the picked stack — drives the buy-more checkbox. */
 function uncoveredFor(card: BulkClaimCard): number {
     return Math.max(0, card.quantity - pickedStackAmount(card));
+}
+/** §3 — every card with copies left to cover, whatever the collection holds of it. */
+const newCards = computed(() => props.cards.filter(c => uncoveredFor(c) > 0));
+/** §3 checkbox label: every copy while no stack is picked, else only what the picked stack leaves uncovered. */
+function newCopiesLabel(card: BulkClaimCard): string {
+    return pickedStackAmount(card) > 0
+        ? t("pages.deck.bulk_claim.buy_new.label_partial", { amount: uncoveredFor(card) })
+        : t("pages.deck.bulk_claim.buy_new.label_full", { amount: card.quantity });
 }
 /** Single-stack-per-row replace. Empty value clears the row. */
 function onPickStack(cardId: string, value: string): void {
@@ -295,10 +304,10 @@ function onSubmit(): void {
                 </ul>
             </section>
 
-            <section v-if="missingCards.length" class="bulk-claim__section">
-                <headline :size="3">{{ $t("pages.deck.bulk_claim.section_missing") }}</headline>
+            <section v-if="newCards.length" class="bulk-claim__section">
+                <headline :size="3">{{ $t("pages.deck.bulk_claim.section_new") }}</headline>
                 <ul class="bulk-claim__list">
-                    <li v-for="card in missingCards" :key="card.id" class="bulk-claim__row">
+                    <li v-for="card in newCards" :key="card.id" class="bulk-claim__row">
                         <div class="bulk-claim__needed">
                             <img
                                 v-if="card.card_image_0"
@@ -317,11 +326,11 @@ function onSubmit(): void {
                         <div class="bulk-claim__assign">
                             <label class="bulk-claim__buy-new">
                                 <checkbox
-                                    :ref-id="`buy-new-${card.id}`"
+                                    :ref-id="`add-new-${card.id}`"
                                     :checked-initially="form.buy_new[card.id]"
                                     @change="form.buy_new[card.id] = $event"
                                 />
-                                {{ $t("pages.deck.bulk_claim.buy_new.label_full", { amount: card.quantity }) }}
+                                {{ newCopiesLabel(card) }}
                             </label>
                         </div>
                     </li>

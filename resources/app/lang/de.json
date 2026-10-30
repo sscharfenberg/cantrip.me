@@ -1127,7 +1127,7 @@
                 "unsorted": "Unsortiert",
                 "section_exact": "Genauer Druck in deiner Sammlung verfügbar",
                 "section_alt": "Anderer Druck in deiner Sammlung verfügbar",
-                "section_missing": "Nicht in deiner Sammlung",
+                "section_new": "Neue Karte zur Sammlung hinzufügen",
                 "container_heading": "Container für dieses Deck",
                 "container_hint": "Optional. Eine Deck Box ist der empfohlene Container-Typ.",
                 "container_unset": "- Kein Container -",

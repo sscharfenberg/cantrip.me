@@ -1127,7 +1127,7 @@
                 "unsorted": "Unsorted",
                 "section_exact": "Exact printing available in your collection",
                 "section_alt": "A different printing available in your collection",
-                "section_missing": "Not in your collection",
+                "section_new": "Add new card to collection",
                 "container_heading": "Container for this deck",
                 "container_hint": "Optional. A Deck Box is the recommended container type.",
                 "container_unset": "- No container -",
