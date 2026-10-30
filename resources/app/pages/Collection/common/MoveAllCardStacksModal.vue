@@ -70,7 +70,8 @@ const onSubmit = () => {
             <form-legend
                 :items="[
                     { slot: 'info', icon: 'info' },
-                    { slot: 'unsorted', icon: 'info' }
+                    { slot: 'unsorted', icon: 'info' },
+                    { slot: 'claimed', icon: 'info' }
                 ]"
             >
                 <template #info>
@@ -84,6 +85,9 @@ const onSubmit = () => {
                     </i18n-t>
                 </template>
                 <template #unsorted>{{ $t("pages.container_page.mass_move.unsorted") }} </template>
+                <!-- The server skips claimed stacks (a claimed stack is locked to
+                     its container) and its flash message counts what stayed. -->
+                <template #claimed>{{ $t("pages.container_page.mass_move.claimed") }}</template>
             </form-legend>
             <form-group
                 :label="$t('form.fields.container.id')"

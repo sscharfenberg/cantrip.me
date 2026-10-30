@@ -743,6 +743,7 @@
                 "title": "Move all cards from {source}?",
                 "question": "You are about to move all {amount} cards out of {source}. Please choose the target container.",
                 "unsorted": "No choice = unsorted, no container.",
+                "claimed": "Cards claimed by a deck stay where they are.",
                 "submit": "Move {number}"
             }
         },
@@ -1537,7 +1538,8 @@
         "edit_card": {
             "title": "Edit card",
             "link": "Edit card",
-            "submit": "Save changes"
+            "submit": "Save changes",
+            "amount_claimed": "A deck claims this stack, so its amount is locked. Unclaim it to change the amount."
         }
     },
     "form": {

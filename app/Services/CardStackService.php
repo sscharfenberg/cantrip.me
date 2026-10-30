@@ -83,14 +83,21 @@ class CardStackService
     }
 
     /**
-     * Add cards to the user's collection, merging into an existing stack when
-     * one already exists with the same identifying attributes.
+     * Add cards to the user's collection, merging into an existing unclaimed
+     * stack when one already exists with the same identifying attributes.
      *
      * A stack is uniquely identified by user_id + default_card_id + language +
      * condition + finish + container_id (including null matches) + proxy.
      * Proxies are kept on their own stacks so a real-card pile and a proxy
      * pile of the same printing never collapse into one — they're different
      * physical objects with different value semantics.
+     *
+     * A stack a deck claims is never merged into: its amount is the deck's
+     * business. Growing it would claim copies the deck card never asked for
+     * (a 1× deck card holding a stack of 3), and a caller that goes on to
+     * claim the result for another deck card would have two decks share one
+     * stack, or fail on the pivot's unique key when it is the same one. The
+     * copies then start a stack of their own beside the claimed twin.
      *
      * @param  array{default_card_id: string, amount: int, language: string, container_id?: string|null, condition?: string|null, finish: string, proxy?: bool}  $data  finish is a Finish label string.
      * @return array{stack: CardStack, merged: bool}
@@ -107,7 +114,10 @@ class CardStackService
             'proxy' => (bool) ($data['proxy'] ?? false),
         ];
 
-        $existing = CardStack::where($attributes)->first();
+        $existing = CardStack::query()
+            ->where($attributes)
+            ->whereDoesntHave('deckCards')
+            ->first();
 
         if ($existing) {
             $existing->increment('amount', (int) $data['amount']);
@@ -277,22 +287,36 @@ class CardStackService
     }
 
     /**
-     * Move all card stacks from one container to another.
+     * Move all card stacks from one container to another — all but the
+     * ones a deck claims, which stay where they are.
+     *
+     * A claimed stack is locked to its container (the lock
+     * {@see UpdateCardStackRequest} and {@see MoveSelectedCardStacksRequest}
+     * enforce with a 422). Mass move picks its stacks by container rather
+     * than by the user's selection, and a deckbox holding a deck's claimed
+     * cards is exactly the container one empties, so refusing whenever one
+     * is in it would leave the action unusable there. It moves the rest
+     * instead and counts the cards that stayed, for the flash message.
      *
      * Source ownership is checked at the controller boundary by
      * {@see MassMoveCardStacksRequest::authorize}.
      *
-     * @return int Total number of cards (sum of amounts) moved.
+     * @return array{moved: int, claimed: int} Cards (sum of amounts) moved, and cards left behind because a deck claims them.
      */
-    public static function massMove(User $user, Container $sourceContainer, ?string $targetContainerId): int
+    public static function massMove(User $user, Container $sourceContainer, ?string $targetContainerId): array
     {
-        $query = CardStack::where('user_id', $user->id)
-            ->where('container_id', $sourceContainer->id);
+        return DB::transaction(function () use ($user, $sourceContainer, $targetContainerId): array {
+            $inSource = CardStack::query()
+                ->where('user_id', $user->id)
+                ->where('container_id', $sourceContainer->id);
+            $movable = (clone $inSource)->whereDoesntHave('deckCards');
 
-        $totalCards = (int) $query->sum('amount');
+            $claimed = (int) (clone $inSource)->whereHas('deckCards')->sum('amount');
+            $moved = (int) (clone $movable)->sum('amount');
 
-        $query->update(['container_id' => $targetContainerId]);
+            $movable->update(['container_id' => $targetContainerId]);
 
-        return $totalCards;
+            return ['moved' => $moved, 'claimed' => $claimed];
+        });
     }
 }

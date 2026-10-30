@@ -10,6 +10,7 @@ return [
     'cards_moved' => ':number Kartenstapel erfolgreich nach :container verschoben.',
     'cards_deleted' => ':stacks Kartenstapel mit insgesamt :cards Karten gelöscht.',
     'cards_mass_moved' => ':number Karten von \':source\' nach \':target\' verschoben.',
+    'cards_mass_move_claimed_stayed' => '{1} :number Karte ist in \':source\' geblieben, weil sie einem Deck zugeordnet ist.|[2,*] :number Karten sind in \':source\' geblieben, weil sie Decks zugeordnet sind.',
     'cardstack_unclaimed' => '{0} :name war für kein Deck reserviert.|{1} Reservierung von :name für :count Deck aufgehoben.|[2,*] Reservierung von :name für :count Decks aufgehoben.',
     'cardstack_removed_from_decks' => '{1} Aus der Deckliste entfernt.|[2,*] Aus :count Decklisten entfernt.',
     'cardstack_moved_to' => 'Nach „:container“ verschoben.',
@@ -22,6 +23,7 @@ return [
 
     'errors' => [
         'cannot_move_claimed_stack' => 'Dieser Kartenstapel ist einem Deck zugeordnet und kann nicht verschoben werden. Hebe die Zuordnung zuerst auf.',
+        'cannot_change_amount_of_claimed_stack' => 'Dieser Kartenstapel ist einem Deck zugeordnet, seine Anzahl kann sich nicht ändern. Hebe die Zuordnung zuerst auf.',
         'amount_out_of_range' => 'Ein Kartenstapel enthält zwischen 1 und :max Karten.',
         'container_not_found' => 'Diesen Container gibt es nicht (mehr).',
         'finish_not_available_for_card' => 'Die gewählte Ausführung ist für diese Karte nicht verfügbar. Verfügbar: :available.',

@@ -743,6 +743,7 @@
                 "title": "Alle Karten von {source} verschieben?",
                 "question": "Du bist dabei alle {amount} Karten aus {source} zu verschieben. Bitte wähle den Ziel Container.",
                 "unsorted": "Keine Angabe = Unsortiert, ohne Container.",
+                "claimed": "Karten, die einem Deck zugeordnet sind, bleiben, wo sie sind.",
                 "submit": "Verschiebe {number}"
             }
         },
@@ -1537,7 +1538,8 @@
         "edit_card": {
             "title": "Karte bearbeiten",
             "link": "Bearbeiten",
-            "submit": "Änderungen speichern"
+            "submit": "Änderungen speichern",
+            "amount_claimed": "Dieser Stapel ist einem Deck zugeordnet, daher ist die Anzahl gesperrt. Hebe die Zuordnung auf, um sie zu ändern."
         }
     },
     "form": {

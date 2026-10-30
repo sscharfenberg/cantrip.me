@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Collection;
 
 use App\Models\CardStack;
+use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 
 /**
@@ -32,5 +33,24 @@ class UpdateCardStackAmountRequest extends FormRequest
         return [
             'delta' => ['required', 'integer', 'not_in:0', 'between:-'.CardStack::MAX_AMOUNT.','.CardStack::MAX_AMOUNT],
         ];
+    }
+
+    /**
+     * Amount lock: a stack claimed by a deck keeps its amount — it is the
+     * deck's business, and the tables offer no +/- for it. Reported on
+     * `delta`, the one field this request has. See
+     * {@see UpdateCardStackRequest::withValidator} for the edit form's twin.
+     */
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator): void {
+            $cardStack = $this->route('cardStack');
+            if ($cardStack instanceof CardStack && $cardStack->isClaimed()) {
+                $validator->errors()->add(
+                    'delta',
+                    __('collection.errors.cannot_change_amount_of_claimed_stack'),
+                );
+            }
+        });
     }
 }

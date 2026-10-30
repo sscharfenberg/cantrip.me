@@ -301,6 +301,10 @@ class CardStackController extends Controller
     /**
      * Move all card stacks from one container to another (or to unsorted).
      *
+     * Stacks a deck claims stay behind (see
+     * {@see CardStackService::massMove}); the flash message then says how
+     * many cards did, as a warning, since the container is not empty.
+     *
      * Source container ownership is enforced by
      * {@see MassMoveCardStacksRequest::authorize}. Target container
      * ownership is verified by {@see CardStackService::resolveOwnedContainer}.
@@ -317,7 +321,7 @@ class CardStackController extends Controller
             $request->container_id,
         );
 
-        $count = CardStackService::massMove(
+        $result = CardStackService::massMove(
             $request->user(),
             $container,
             $request->container_id ?: null,
@@ -327,12 +331,19 @@ class CardStackController extends Controller
             ? $targetContainer->name
             : __('collection.unsorted');
 
-        $request->session()->flash('message', __('collection.cards_mass_moved', [
-            'number' => number_format($count, 0, ',', '.'),
+        $message = __('collection.cards_mass_moved', [
+            'number' => number_format($result['moved'], 0, ',', '.'),
             'source' => $container->name,
             'target' => $targetName,
-        ]));
-        $request->session()->flash('type', 'success');
+        ]);
+        if ($result['claimed'] > 0) {
+            $message .= ' '.trans_choice('collection.cards_mass_move_claimed_stayed', $result['claimed'], [
+                'number' => number_format($result['claimed'], 0, ',', '.'),
+                'source' => $container->name,
+            ]);
+        }
+        $request->session()->flash('message', $message);
+        $request->session()->flash('type', $result['claimed'] > 0 ? 'warning' : 'success');
 
         return redirect()->back();
     }

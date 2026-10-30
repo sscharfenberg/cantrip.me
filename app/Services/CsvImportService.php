@@ -282,6 +282,13 @@ class CsvImportService
      *
      * Each row carries its own `container_id` so stacks can span multiple containers.
      *
+     * Only unclaimed real-card stacks are merge targets, as in
+     * {@see CardStackService::addToCollection}: a stack a deck claims keeps
+     * its amount (the deck's business — more would over-claim the deck card),
+     * and a proxy stack never absorbs the real cards an import brings. Both
+     * are left out of the one query that fetches the candidates, so a row
+     * matching only such a stack starts a stack of its own.
+     *
      * @param  array<array{card_id: string, container_id: ?string, mapped: array}>  $validRows
      * @return array{imported: int, merged: int}
      */
@@ -294,8 +301,10 @@ class CsvImportService
         // Collect all distinct container IDs (including null) to fetch existing stacks.
         $containerIds = array_unique(array_column($validRows, 'container_id'));
 
-        // Fetch all existing stacks for this user across all relevant containers.
-        $existingQuery = CardStack::where('user_id', $user->id);
+        // Fetch all mergeable stacks for this user across all relevant containers.
+        $existingQuery = CardStack::where('user_id', $user->id)
+            ->where('proxy', false)
+            ->whereDoesntHave('deckCards');
         $hasNull = in_array(null, $containerIds, true);
         $nonNullIds = array_filter($containerIds, fn ($id) => $id !== null);
 

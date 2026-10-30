@@ -45,13 +45,20 @@ class UpdateCardStackRequest extends FormRequest
     }
 
     /**
-     * Two after-checks:
+     * Three after-checks:
      *
      *  - **Container lock.** A stack claimed by a deck cannot be moved.
      *    The pivot relation enforces "this physical card lives where the
      *    deck card lives" — silently moving a claimed stack would desync
      *    the deck card's collection_status. The user must unclaim the
      *    stack first via the deck UI.
+     *
+     *  - **Amount lock.** Nor can a claimed stack's amount change: it is
+     *    the deck's business — more copies would over-claim the deck card,
+     *    fewer would leave it short without the deck knowing. The form
+     *    submits every field, so only a changed amount is refused; the
+     *    form shows the field read-only while the stack is claimed. The
+     *    +/- buttons' twin is {@see UpdateCardStackAmountRequest}.
      *
      *  - **Finish-per-card.** The chosen finish must be one of the
      *    finishes the underlying default_card actually supports. The
@@ -76,6 +83,16 @@ class UpdateCardStackRequest extends FormRequest
                         __('collection.errors.cannot_move_claimed_stack'),
                     );
                 }
+            }
+
+            // Amount lock-check (only when the field is a number and changed;
+            // anything else is the rules' to refuse).
+            $amount = $this->input('amount');
+            if (is_numeric($amount) && (int) $amount !== $cardStack->amount && $cardStack->isClaimed()) {
+                $validator->errors()->add(
+                    'amount',
+                    __('collection.errors.cannot_change_amount_of_claimed_stack'),
+                );
             }
 
             // Finish-per-card check.

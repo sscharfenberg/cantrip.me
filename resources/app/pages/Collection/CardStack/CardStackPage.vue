@@ -36,7 +36,8 @@ type CardStackEdit = {
      * Decks claiming this stack (Phase 2.5). When non-empty, the
      * container picker would 422 with "cannot move claimed stack" if
      * the user tries to change it; the badge surfaces *which* deck so
-     * the user can navigate over and unclaim before retrying.
+     * the user can navigate over and unclaim before retrying. The amount
+     * is locked too, see `isAmountLocked`.
      */
     claims: { deck_id: string; deck_name: string }[];
 };
@@ -112,6 +113,14 @@ if (isEditMode) {
     selectedCondition.value = props.cardStack!.condition;
     selectedFinish.value = props.cardStack!.finish;
 }
+/**
+ * Whether a deck claims this stack. Its amount is then the deck's business
+ * and the server refuses a change, so the amount field is read-only (not
+ * disabled: the form still has to send the unchanged amount) and its +/-
+ * buttons and keyboard shortcut are off. Computed from the props rather than
+ * fixed at setup, so an inline unclaim's reload unlocks it.
+ */
+const isAmountLocked = computed(() => (props.cardStack?.claims.length ?? 0) > 0);
 /** Container options formatted for MonoSelect: `{ value, label }` pairs. */
 const containerOptions = computed(() =>
     props.containers.map(container => ({
@@ -254,6 +263,7 @@ function onGlobalPlusMinus(event: KeyboardEvent): void {
     if (event.key !== "+" && event.key !== "-") return;
     if (event.metaKey || event.ctrlKey || event.altKey) return;
     if (event.defaultPrevented) return;
+    if (isAmountLocked.value) return;
     const target = event.target as HTMLElement | null;
     if (target) {
         const tag = target.tagName;
@@ -495,16 +505,24 @@ const unclaim = () => {
                 class="form-input"
                 inputmode="numeric"
                 v-model="amount"
+                :readonly="isAmountLocked"
                 @change="validate('amount')"
             />
             <template #button>
-                <button type="button" @mousedown.prevent @click="amount++" tabindex="-1">
+                <button type="button" @mousedown.prevent @click="amount++" :disabled="isAmountLocked" tabindex="-1">
                     <icon name="add" />
                 </button>
-                <button type="button" @mousedown.prevent @click="amount--" :disabled="amount <= 1" tabindex="-1">
+                <button
+                    type="button"
+                    @mousedown.prevent
+                    @click="amount--"
+                    :disabled="isAmountLocked || amount <= 1"
+                    tabindex="-1"
+                >
                     <icon name="subtract" />
                 </button>
             </template>
+            <template v-if="isAmountLocked" #text>{{ $t("pages.edit_card.amount_claimed") }}</template>
         </form-group>
         <card-stack-language
             v-model="selectedLanguage"
