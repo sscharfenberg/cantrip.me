@@ -129,6 +129,7 @@ Each deck-owner pair resolves to one of three modes that drive UI gating and dat
 - Form submission uses `fetch()` with JSON (not Inertia form helpers or traditional HTML forms) for flows that need fine-grained control (e.g. 2FA challenge)
 - Validation errors come back as 422 with `{ errors: { field: [messages] } }`; map to flat `Record<string, string>` in composables
 - Fortify password confirmation gate returns **423** when the session confirmation has expired
+- **WAF:** production runs ModSecurity with the OWASP Core Rule Set, which false-positives on free text (card names in every language, deck lists, descriptions, passwords). Every request field carrying user free text must be on the server's WAF exclusion list; a new one without it gets users 403s and fail2ban bans. A 403 on a route whose `authorize()` passes is the WAF, not the app.
 
 **Composables:**
 - Shared reactive state is declared _outside_ the composable function (module-level `ref`s) so all consumers share the same instance — see `useTwoFactorAuth.ts`
