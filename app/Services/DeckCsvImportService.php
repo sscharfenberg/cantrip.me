@@ -5,11 +5,9 @@ namespace App\Services;
 use App\Contracts\DeckCsvRowMapper;
 use App\Enums\DeckImportSource;
 use App\Jobs\CleanupTempUploads;
-use App\Models\CardStack;
 use App\Models\Deck;
 use App\Models\DefaultCard;
 use App\Models\Set;
-use App\Models\User;
 use App\Services\DeckCsvMappers\ArchidektDeckMapper;
 use App\Services\DeckCsvMappers\CantripDeckMapper;
 use Illuminate\Support\Facades\Storage;
@@ -30,6 +28,12 @@ use Illuminate\Validation\ValidationException;
  *    commanders + companion (if previously set) are intentionally
  *    preserved because Archidekt's deck export doesn't carry them.
  *
+ * A cantrip file's `Card Stack ID`s are the claims of the deck it was
+ * exported from. They are handed on as they stand; {@see DeckCardWriter}
+ * re-claims only the stacks still free to claim — the deck owner's, claimed
+ * by no deck, of the row's printing and within its count — so importing an
+ * export beside its source deck leaves the source's claims where they are.
+ *
  * The upload endpoint is shared with the collection import — both
  * flows POST to /collection/import/upload, which writes to the `tmp`
  * disk. The {@see CleanupTempUploads} job prunes that disk on
@@ -49,7 +53,7 @@ class DeckCsvImportService
      *
      * @throws ValidationException
      */
-    public static function import(User $user, Deck $deck, string $filename, DeckImportSource $source): array
+    public static function import(Deck $deck, string $filename, DeckImportSource $source): array
     {
         $mapper = match ($source) {
             DeckImportSource::Cantrip => new CantripDeckMapper,
@@ -122,12 +126,6 @@ class DeckCsvImportService
             ->pluck('oracle_id', 'id')
             ->all();
 
-        // Pre-resolve user-owned stacks for cantrip-format pivot
-        // reattachment. We only attach stacks the importing user owns —
-        // pivot rows referencing someone else's stack would fail FK
-        // anyway, but skipping silently is friendlier than aborting.
-        $ownedStackIds = self::resolveOwnedStackIds($user, $validRows);
-
         $rows = [];
         foreach ($validRows as $row) {
             $oracleId = $oracleByDefault[$row['default_card_id']] ?? null;
@@ -143,10 +141,7 @@ class DeckCsvImportService
                 'zone' => $mapped['zone'],
                 'quantity' => (int) $mapped['quantity'],
                 'category' => $mapped['category'],
-                // Reattach pivot rows only for stacks the importing user
-                // owns. Stacks owned by someone else (or that no longer
-                // exist) are silently dropped.
-                'card_stack_ids' => array_values(array_intersect($mapped['card_stack_ids'], $ownedStackIds)),
+                'card_stack_ids' => $mapped['card_stack_ids'],
                 'finish' => $mapped['finish'] ?? null,
                 'language' => $mapped['language'] ?? null,
                 'proxy' => $mapped['proxy'] ?? null,
@@ -284,34 +279,6 @@ class DeckCsvImportService
         }
 
         return "fallback:{$mapped['set_code']}:{$mapped['collector_number']}";
-    }
-
-    /**
-     * Pre-resolve which of the referenced card_stack_ids the importing
-     * user actually owns. Stacks owned by someone else (or deleted) are
-     * silently dropped so the import doesn't error mid-flight.
-     *
-     * @param  array<int, array{mapped: array}>  $rows
-     * @return array<int, string>
-     */
-    private static function resolveOwnedStackIds(User $user, array $rows): array
-    {
-        $referenced = [];
-        foreach ($rows as $row) {
-            foreach ($row['mapped']['card_stack_ids'] as $id) {
-                $referenced[] = $id;
-            }
-        }
-        $referenced = array_values(array_unique($referenced));
-        if ($referenced === []) {
-            return [];
-        }
-
-        return CardStack::query()
-            ->where('user_id', $user->id)
-            ->whereIn('id', $referenced)
-            ->pluck('id')
-            ->all();
     }
 
     /**

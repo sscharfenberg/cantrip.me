@@ -6,6 +6,7 @@ use App\Enums\CardLanguage;
 use App\Enums\DeckCardRole;
 use App\Enums\DeckZone;
 use App\Enums\Finish;
+use App\Models\CardStack;
 use App\Models\Deck;
 use App\Models\DeckCard;
 use App\Models\DeckCategory;
@@ -21,7 +22,8 @@ use Illuminate\Support\Str;
  * — by Scryfall id, by set + collector number, by name — but once every row
  * names an oracle card and a printing, putting them on the deck is the same
  * job: command-zone rows by role, the first companion, everything else into
- * its zone with its custom category, created on first use.
+ * its zone with its custom category, created on first use — each claiming
+ * the card stacks it names, where they are still free to claim.
  *
  * Purely additive, like the CSV import always was: nothing on the deck is
  * removed. The caller decides what state the deck is in beforehand.
@@ -32,8 +34,9 @@ final class DeckCardWriter
      * Write the rows in one transaction.
      *
      * `role` is `card`, `commander`, `partner`, `signature_spell` or
-     * `companion`; `card_stack_ids` must already be narrowed to stacks the
-     * deck's owner owns.
+     * `companion`. `card_stack_ids` are the stacks a row asks to claim, in
+     * the order it names them; which of them it gets is {@see claim}'s
+     * call, for command-zone and companion rows as for every other.
      *
      * `finish` (a label), `language` and `proxy` are the plan for the card's
      * copies ({@see DeckCardCopiesService}); each is optional, and a row
@@ -48,6 +51,7 @@ final class DeckCardWriter
     {
         return DB::transaction(function () use ($deck, $rows): array {
             $categoryMap = self::ensureCategories($deck, $rows);
+            $claimable = self::claimableStacks($deck, $rows);
 
             $imported = 0;
             $commanders = 0;
@@ -73,7 +77,7 @@ final class DeckCardWriter
                     } else {
                         $role = $row['role'];
                     }
-                    DeckCard::create([
+                    $deckCard = DeckCard::create([
                         'deck_id' => $deck->id,
                         'oracle_card_id' => $row['oracle_card_id'],
                         'default_card_id' => $row['default_card_id'],
@@ -82,6 +86,7 @@ final class DeckCardWriter
                         'quantity' => 1,
                         ...self::plan($row),
                     ]);
+                    self::claim($deckCard, $row['card_stack_ids'], $claimable);
                     $commanders++;
 
                     continue;
@@ -94,7 +99,7 @@ final class DeckCardWriter
                     if ($companion > 0) {
                         continue;
                     }
-                    DeckCard::create([
+                    $deckCard = DeckCard::create([
                         'deck_id' => $deck->id,
                         'oracle_card_id' => $row['oracle_card_id'],
                         'default_card_id' => $row['default_card_id'],
@@ -103,6 +108,7 @@ final class DeckCardWriter
                         'quantity' => 1,
                         ...self::plan($row),
                     ]);
+                    self::claim($deckCard, $row['card_stack_ids'], $claimable);
                     $companion++;
 
                     continue;
@@ -120,10 +126,7 @@ final class DeckCardWriter
                     ...self::plan($row),
                 ]);
                 $imported += $row['quantity'];
-
-                if ($row['card_stack_ids'] !== []) {
-                    $deckCard->cardStacks()->attach($row['card_stack_ids']);
-                }
+                self::claim($deckCard, $row['card_stack_ids'], $claimable);
             }
 
             return [
@@ -157,6 +160,69 @@ final class DeckCardWriter
         }
 
         return $plan;
+    }
+
+    /**
+     * The stacks the rows ask for that a new deck card may claim, keyed by id:
+     * the deck owner's, and claimed by no deck card on any deck. A cantrip
+     * export names the stacks its deck claims, so without the second rule
+     * importing it beside that deck would have both claim the same cards.
+     *
+     * @param  list<array{card_stack_ids: list<string>}>  $rows
+     * @return array<string, CardStack>
+     */
+    private static function claimableStacks(Deck $deck, array $rows): array
+    {
+        $ids = array_values(array_unique(array_merge(...array_column($rows, 'card_stack_ids'))));
+        if ($ids === []) {
+            return [];
+        }
+
+        return CardStack::query()
+            ->where('user_id', $deck->user_id)
+            ->whereIn('id', $ids)
+            ->whereDoesntHave('deckCards')
+            ->get(['id', 'default_card_id', 'amount'])
+            ->keyBy('id')
+            ->all();
+    }
+
+    /**
+     * Claim the stacks a row asks for, in its order: each one that is still
+     * claimable (an earlier row of this write may have taken it), of the
+     * card's printing and small enough to fit the copies not yet claimed. A
+     * stack that would overflow is skipped, never split, and a smaller one
+     * after it may still fit; every id passed over is dropped silently, the
+     * card itself is written either way.
+     *
+     * Claims that cover every copy hand the card their finish, language and
+     * proxy flag ({@see DeckCardCopiesService::adoptClaimedValues}), as on the
+     * other claim flows.
+     *
+     * @param  list<string>  $stackIds
+     * @param  array<string, CardStack>  $claimable  Loses every stack claimed here.
+     */
+    private static function claim(DeckCard $deckCard, array $stackIds, array &$claimable): void
+    {
+        $claimed = [];
+        $covered = 0;
+        foreach ($stackIds as $id) {
+            $stack = $claimable[$id] ?? null;
+            if ($stack === null
+                || $stack->default_card_id !== $deckCard->default_card_id
+                || $covered + $stack->amount > $deckCard->quantity) {
+                continue;
+            }
+            $claimed[] = $id;
+            $covered += $stack->amount;
+            unset($claimable[$id]);
+        }
+        if ($claimed === []) {
+            return;
+        }
+
+        $deckCard->cardStacks()->attach($claimed);
+        DeckCardCopiesService::adoptClaimedValues($deckCard);
     }
 
     /**

@@ -73,7 +73,6 @@ class ImportController extends Controller
             $deck = self::createBlankDeck($request->user(), $validated['format']);
 
             $results = DeckCsvImportService::import(
-                $request->user(),
                 $deck,
                 $validated['filename'],
                 $source,

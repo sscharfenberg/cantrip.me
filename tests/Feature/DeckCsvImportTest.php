@@ -32,7 +32,8 @@ use Tests\TestCase;
  * Covers route auth (private deck → 404 for non-owner), happy paths
  * for the cantrip and Archidekt formats, the replace-mode contract
  * (existing deck contents are wiped before re-load), category
- * auto-creation, and skipped-row reporting.
+ * auto-creation, skipped-row reporting, and which of a cantrip file's
+ * card stacks the new deck claims.
  */
 class DeckCsvImportTest extends TestCase
 {
@@ -204,7 +205,7 @@ class DeckCsvImportTest extends TestCase
             ."1,Sol Ring,cmd,263,Ramp,{$solPrint->id}\n";
         $filename = $this->stashCsv($csv);
 
-        $results = DeckCsvImportService::import($owner, $deck, $filename, DeckImportSource::Archidekt);
+        $results = DeckCsvImportService::import($deck, $filename, DeckImportSource::Archidekt);
 
         $this->assertSame(1, $results['imported']);
         $this->assertSame(0, $results['commanders']);
@@ -235,7 +236,7 @@ class DeckCsvImportTest extends TestCase
             ."1,Atraxa,cmr,347,Commander,{$atraxaPrint->id}\n";
         $filename = $this->stashCsv($csv);
 
-        $results = DeckCsvImportService::import($owner, $deck, $filename, DeckImportSource::Archidekt);
+        $results = DeckCsvImportService::import($deck, $filename, DeckImportSource::Archidekt);
 
         $this->assertSame(0, $results['imported']);
         $this->assertSame(1, $results['commanders']);
@@ -267,7 +268,7 @@ class DeckCsvImportTest extends TestCase
             ."1,Lightning Bolt,lea,161,instant,{$boltPrint->id}\n";
         $filename = $this->stashCsv($csv);
 
-        DeckCsvImportService::import($owner, $deck, $filename, DeckImportSource::Archidekt);
+        DeckCsvImportService::import($deck, $filename, DeckImportSource::Archidekt);
 
         $this->assertSame(0, DeckCategory::query()->where('deck_id', $deck->id)->count());
         $deckCards = DeckCard::query()->where('deck_id', $deck->id)->get();
@@ -295,7 +296,7 @@ class DeckCsvImportTest extends TestCase
             ."card,,{$boltPrint->id},Lightning Bolt,LEA,161,4,main,Burn,,\n";
         $filename = $this->stashCsv($csv);
 
-        $results = DeckCsvImportService::import($owner, $deck, $filename, DeckImportSource::Cantrip);
+        $results = DeckCsvImportService::import($deck, $filename, DeckImportSource::Cantrip);
 
         $this->assertSame(4, $results['imported']);
         $this->assertSame(1, $results['commanders']);
@@ -348,7 +349,7 @@ class DeckCsvImportTest extends TestCase
         $csv = "Role,Deck Card ID,Scryfall ID,Name,Edition,Collector Number,Count,Zone,Category,Is Partner,Card Stack ID,Finish,Language,Proxy\n"
             ."card,,{$boltPrint->id},Lightning Bolt,M10,146,2,main,,,,foil,de,true\n"
             ."card,,{$ringPrint->id},Sol Ring,CMD,263,1,main,,,,,,\n";
-        DeckCsvImportService::import($owner, $deck, $this->stashCsv($csv), DeckImportSource::Cantrip);
+        DeckCsvImportService::import($deck, $this->stashCsv($csv), DeckImportSource::Cantrip);
 
         $rows = DeckCard::query()->where('deck_id', $deck->id)->get()->keyBy('oracle_card_id');
         $this->assertSame(
@@ -372,7 +373,7 @@ class DeckCsvImportTest extends TestCase
 
         $csv = "Quantity,Name,Finish,Language,Edition Code,Collector Number,Category,Scryfall ID\n"
             ."4,Lightning Bolt,Foil,JA,m10,146,Burn,{$boltPrint->id}\n";
-        DeckCsvImportService::import($owner, $deck, $this->stashCsv($csv), DeckImportSource::Archidekt);
+        DeckCsvImportService::import($deck, $this->stashCsv($csv), DeckImportSource::Archidekt);
 
         $row = DeckCard::query()->where('deck_id', $deck->id)->sole();
         $this->assertSame([Finish::Foil, CardLanguage::Ja], [$row->finish, $row->language]);
@@ -391,7 +392,7 @@ class DeckCsvImportTest extends TestCase
             ."card,,{$boltPrint->id},Lightning Bolt,LEA,161,4,main,,,{$stack->id}\n";
         $filename = $this->stashCsv($csv);
 
-        DeckCsvImportService::import($owner, $deck, $filename, DeckImportSource::Cantrip);
+        DeckCsvImportService::import($deck, $filename, DeckImportSource::Cantrip);
 
         $deckCard = DeckCard::query()->where('deck_id', $deck->id)->first();
         $this->assertNotNull($deckCard);
@@ -413,11 +414,147 @@ class DeckCsvImportTest extends TestCase
             ."card,,{$boltPrint->id},Lightning Bolt,LEA,161,4,main,,,{$strangerStack->id}\n";
         $filename = $this->stashCsv($csv);
 
-        DeckCsvImportService::import($owner, $deck, $filename, DeckImportSource::Cantrip);
+        DeckCsvImportService::import($deck, $filename, DeckImportSource::Cantrip);
 
         $deckCard = DeckCard::query()->where('deck_id', $deck->id)->first();
         $this->assertNotNull($deckCard);
         $this->assertSame([], $deckCard->cardStacks()->pluck('card_stacks.id')->all());
+    }
+
+    /**
+     * Each stack the row names is one reason not to claim it, and each would
+     * fit the count if its own check were gone: the 3 + 1 that do claim leave
+     * room for none of the others, and the 2 between them overflows.
+     */
+    #[Test]
+    public function cantrip_format_claims_only_free_stacks_of_the_rows_printing_that_fit_its_count(): void
+    {
+        $owner = $this->makeUser();
+        $stranger = $this->makeUser();
+        $deck = $this->makeDeck($owner, ContainerVisibility::Private);
+        $bolt = $this->makeOracleCard('Lightning Bolt');
+        $boltPrint = $this->makeDefaultCard($bolt, 'lea', '161');
+        $otherPrint = $this->makeDefaultCard($bolt, 'm10', '146');
+
+        $claimedElsewhere = $this->makeCardStack($owner, $boltPrint, 1);
+        $otherDeckCard = $this->claimForAnotherDeck($owner, $claimedElsewhere);
+        $wrongPrinting = $this->makeCardStack($owner, $otherPrint, 1);
+        $strangers = $this->makeCardStack($stranger, $boltPrint, 1);
+        $fits = $this->makeCardStack($owner, $boltPrint, 3);
+        $overflows = $this->makeCardStack($owner, $boltPrint, 2);
+        $fillsUp = $this->makeCardStack($owner, $boltPrint, 1);
+
+        $stackIds = implode(',', [
+            $claimedElsewhere->id, $wrongPrinting->id, $strangers->id, $fits->id, $overflows->id, $fillsUp->id,
+        ]);
+        $csv = "Role,Deck Card ID,Scryfall ID,Name,Edition,Collector Number,Count,Zone,Category,Is Partner,Card Stack ID\n"
+            ."card,,{$boltPrint->id},Lightning Bolt,LEA,161,4,main,,,\"{$stackIds}\"\n";
+        DeckCsvImportService::import($deck, $this->stashCsv($csv), DeckImportSource::Cantrip);
+
+        $deckCard = DeckCard::query()->where('deck_id', $deck->id)->sole();
+        $this->assertEqualsCanonicalizing([$fits->id, $fillsUp->id], $this->claimedStackIds($deckCard));
+        $this->assertSame([$otherDeckCard->id], $claimedElsewhere->deckCards()->pluck('deck_cards.id')->all());
+    }
+
+    #[Test]
+    public function a_stack_two_rows_name_is_claimed_by_the_first_of_them_only(): void
+    {
+        $owner = $this->makeUser();
+        $deck = $this->makeDeck($owner, ContainerVisibility::Private);
+        $bolt = $this->makeOracleCard('Lightning Bolt');
+        $boltPrint = $this->makeDefaultCard($bolt, 'lea', '161');
+        $stack = $this->makeCardStack($owner, $boltPrint, 2);
+
+        $csv = "Role,Deck Card ID,Scryfall ID,Name,Edition,Collector Number,Count,Zone,Category,Is Partner,Card Stack ID\n"
+            ."card,,{$boltPrint->id},Lightning Bolt,LEA,161,2,main,,,{$stack->id}\n"
+            ."card,,{$boltPrint->id},Lightning Bolt,LEA,161,2,side,,,{$stack->id}\n";
+        DeckCsvImportService::import($deck, $this->stashCsv($csv), DeckImportSource::Cantrip);
+
+        $rows = DeckCard::query()->where('deck_id', $deck->id)->get()->keyBy(fn (DeckCard $row) => $row->zone->value);
+        $this->assertSame([$stack->id], $this->claimedStackIds($rows['main']));
+        $this->assertSame([], $this->claimedStackIds($rows['side']));
+    }
+
+    /**
+     * The export names the source deck's claims; importing it beside that
+     * deck claims nothing, importing it once the source has let go claims
+     * the stack again.
+     */
+    #[Test]
+    public function importing_an_export_beside_its_source_deck_leaves_the_source_its_claims(): void
+    {
+        $owner = $this->makeUser();
+        $bolt = $this->makeOracleCard('Lightning Bolt');
+        $boltPrint = $this->makeDefaultCard($bolt, 'lea', '161');
+        $stack = $this->makeCardStack($owner, $boltPrint, 4);
+        $sourceCard = $this->claimForAnotherDeck($owner, $stack, 4);
+
+        $export = $this->actingAs($owner)->get('/decks/'.$sourceCard->deck_id.'/export');
+        $export->assertOk();
+        $csv = $export->streamedContent();
+
+        $beside = $this->makeDeck($owner, ContainerVisibility::Private);
+        DeckCsvImportService::import($beside, $this->stashCsv($csv), DeckImportSource::Cantrip);
+        $this->assertSame([], $this->claimedStackIds(DeckCard::query()->where('deck_id', $beside->id)->sole()));
+        $this->assertSame([$stack->id], $this->claimedStackIds($sourceCard));
+
+        $sourceCard->cardStacks()->detach();
+        $restored = $this->makeDeck($owner, ContainerVisibility::Private);
+        DeckCsvImportService::import($restored, $this->stashCsv($csv), DeckImportSource::Cantrip);
+        $this->assertSame([$stack->id], $this->claimedStackIds(DeckCard::query()->where('deck_id', $restored->id)->sole()));
+    }
+
+    /**
+     * A command-zone or companion card is one copy, whatever the file's
+     * count says: the stack of two overflows it, the single after it fits.
+     */
+    #[Test]
+    public function cantrip_format_claims_stacks_for_the_command_zone_and_the_companion_too(): void
+    {
+        $owner = $this->makeUser();
+        $deck = $this->makeDeck($owner, ContainerVisibility::Private);
+        $atraxa = $this->makeOracleCard('Atraxa, Praetors\' Voice');
+        $atraxaPrint = $this->makeDefaultCard($atraxa, 'cmr', '347');
+        $lurrus = $this->makeOracleCard('Lurrus of the Dream-Den');
+        $lurrusPrint = $this->makeDefaultCard($lurrus, 'iko', '226');
+        $pair = $this->makeCardStack($owner, $atraxaPrint, 2);
+        $single = $this->makeCardStack($owner, $atraxaPrint, 1);
+        $lurrusStack = $this->makeCardStack($owner, $lurrusPrint, 1);
+
+        $csv = "Role,Deck Card ID,Scryfall ID,Name,Edition,Collector Number,Count,Zone,Category,Is Partner,Card Stack ID\n"
+            ."commander,,{$atraxaPrint->id},Atraxa,CMR,347,2,command,,false,\"{$pair->id},{$single->id}\"\n"
+            ."companion,,{$lurrusPrint->id},Lurrus,IKO,226,1,companion,,,{$lurrusStack->id}\n";
+        DeckCsvImportService::import($deck, $this->stashCsv($csv), DeckImportSource::Cantrip);
+
+        $rows = DeckCard::query()->where('deck_id', $deck->id)->get()->keyBy(fn (DeckCard $row) => $row->role->value);
+        $this->assertSame([$single->id], $this->claimedStackIds($rows[DeckCardRole::Commander->value]));
+        $this->assertSame([$lurrusStack->id], $this->claimedStackIds($rows[DeckCardRole::Companion->value]));
+    }
+
+    #[Test]
+    public function claims_covering_every_copy_hand_the_card_their_values_and_partial_ones_keep_the_plan(): void
+    {
+        $owner = $this->makeUser();
+        $deck = $this->makeDeck($owner, ContainerVisibility::Private);
+        $bolt = $this->makeOracleCard('Lightning Bolt');
+        $boltPrint = $this->makeDefaultCard($bolt, 'm10', '146');
+        $boltPrint->update(['finishes' => 3]);
+        $ring = $this->makeOracleCard('Sol Ring');
+        $ringPrint = $this->makeDefaultCard($ring, 'cmd', '263');
+        $ringPrint->update(['finishes' => 3]);
+        $boltA = $this->makeCardStack($owner, $boltPrint, 1, Finish::Foil, CardLanguage::De);
+        $boltB = $this->makeCardStack($owner, $boltPrint, 1, Finish::Foil, CardLanguage::De);
+        $ringStack = $this->makeCardStack($owner, $ringPrint, 1, Finish::Foil, CardLanguage::De);
+
+        $csv = "Role,Deck Card ID,Scryfall ID,Name,Edition,Collector Number,Count,Zone,Category,Is Partner,Card Stack ID,Finish,Language,Proxy\n"
+            ."card,,{$boltPrint->id},Lightning Bolt,M10,146,2,main,,,\"{$boltA->id},{$boltB->id}\",nonfoil,en,false\n"
+            ."card,,{$ringPrint->id},Sol Ring,CMD,263,3,main,,,{$ringStack->id},nonfoil,en,false\n";
+        DeckCsvImportService::import($deck, $this->stashCsv($csv), DeckImportSource::Cantrip);
+
+        $rows = DeckCard::query()->where('deck_id', $deck->id)->get()->keyBy('oracle_card_id');
+        $this->assertSame([Finish::Foil, CardLanguage::De], [$rows[$bolt->id]->finish, $rows[$bolt->id]->language]);
+        $this->assertSame([Finish::Nonfoil, CardLanguage::En], [$rows[$ring->id]->finish, $rows[$ring->id]->language]);
+        $this->assertSame([$ringStack->id], $this->claimedStackIds($rows[$ring->id]));
     }
 
     #[Test]
@@ -442,7 +579,7 @@ class DeckCsvImportTest extends TestCase
             ."1,Lightning Bolt,lea,161,,{$boltPrint->id}\n";
         $filename = $this->stashCsv($csv);
 
-        DeckCsvImportService::import($owner, $deck, $filename, DeckImportSource::Archidekt);
+        DeckCsvImportService::import($deck, $filename, DeckImportSource::Archidekt);
 
         $this->assertSame(
             1,
@@ -467,7 +604,7 @@ class DeckCsvImportTest extends TestCase
         $filename = $this->stashCsv($csv);
 
         try {
-            DeckCsvImportService::import($owner, $deck, $filename, DeckImportSource::Archidekt);
+            DeckCsvImportService::import($deck, $filename, DeckImportSource::Archidekt);
             $this->fail('Expected ValidationException for wrong source format.');
         } catch (ValidationException $e) {
             $this->assertArrayHasKey('filename', $e->errors());
@@ -513,7 +650,7 @@ class DeckCsvImportTest extends TestCase
             .'1,Mystery,xxx,000,,'.(string) Str::uuid()."\n";
         $filename = $this->stashCsv($csv);
 
-        $results = DeckCsvImportService::import($owner, $deck, $filename, DeckImportSource::Archidekt);
+        $results = DeckCsvImportService::import($deck, $filename, DeckImportSource::Archidekt);
 
         $this->assertSame(0, $results['imported']);
         $this->assertSame(1, $results['skipped']);
@@ -532,7 +669,7 @@ class DeckCsvImportTest extends TestCase
             ."1,Lightning Bolt,lea,161,,{$boltPrint->id}\n";
         $filename = $this->stashCsv($csv);
 
-        DeckCsvImportService::import($owner, $deck, $filename, DeckImportSource::Archidekt);
+        DeckCsvImportService::import($deck, $filename, DeckImportSource::Archidekt);
 
         $this->assertFalse(Storage::disk('tmp')->exists($filename));
     }
@@ -605,14 +742,44 @@ class DeckCsvImportTest extends TestCase
         ]);
     }
 
-    private function makeCardStack(User $user, DefaultCard $default, int $amount = 1): CardStack
-    {
+    private function makeCardStack(
+        User $user,
+        DefaultCard $default,
+        int $amount = 1,
+        Finish $finish = Finish::Nonfoil,
+        CardLanguage $language = CardLanguage::En,
+    ): CardStack {
         return CardStack::create([
             'user_id' => $user->id,
             'default_card_id' => $default->id,
             'amount' => $amount,
-            'finish' => 1,
-            'language' => 'en',
+            'finish' => $finish,
+            'language' => $language,
         ]);
+    }
+
+    /**
+     * A deck card of the stack's printing on a deck of its own, claiming it.
+     */
+    private function claimForAnotherDeck(User $owner, CardStack $stack, int $quantity = 1): DeckCard
+    {
+        $deckCard = DeckCard::create([
+            'deck_id' => $this->makeDeck($owner, ContainerVisibility::Private)->id,
+            'oracle_card_id' => DefaultCard::query()->whereKey($stack->default_card_id)->value('oracle_id'),
+            'default_card_id' => $stack->default_card_id,
+            'zone' => DeckZone::Main->value,
+            'quantity' => $quantity,
+        ]);
+        $deckCard->cardStacks()->attach($stack->id);
+
+        return $deckCard;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function claimedStackIds(DeckCard $deckCard): array
+    {
+        return $deckCard->cardStacks()->pluck('card_stacks.id')->all();
     }
 }
