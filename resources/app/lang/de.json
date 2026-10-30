@@ -1453,6 +1453,13 @@
                 "cancel": "Abbrechen",
                 "error": "Die Reservierung konnte nicht aufgehoben werden."
             },
+            "freed_copies": {
+                "title": "Wohin mit den Karten?",
+                "question": "{quantity}× {name} kommt aus dem Deck. Die Karten sind dafür aus {container} reserviert — wohin sollen sie jetzt?",
+                "label": "Karten ablegen in",
+                "submit": "Aus dem Deck entfernen",
+                "cancel": "Abbrechen"
+            },
             "copies": {
                 "link": "Exemplare bearbeiten",
                 "title": "Exemplare von {name}",

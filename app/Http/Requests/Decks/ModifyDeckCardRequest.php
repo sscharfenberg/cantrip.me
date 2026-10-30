@@ -4,10 +4,17 @@ namespace App\Http\Requests\Decks;
 
 use App\Models\Deck;
 use App\Models\DeckCard;
+use App\Traits\MovesFreedStacks;
 use Illuminate\Foundation\Http\FormRequest;
 
+/**
+ * Validates removing a deck card. Its claimed copies are freed; `move_to`
+ * (see {@see MovesFreedStacks}) says where those go when the page asked.
+ */
 class ModifyDeckCardRequest extends FormRequest
 {
+    use MovesFreedStacks;
+
     /**
      * The user may modify a card's quantity or remove it only on their own
      * deck, and only for a card that belongs to that deck.
@@ -28,6 +35,6 @@ class ModifyDeckCardRequest extends FormRequest
      */
     public function rules(): array
     {
-        return [];
+        return $this->moveToRules();
     }
 }

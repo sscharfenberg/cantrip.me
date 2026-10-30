@@ -1453,6 +1453,13 @@
                 "cancel": "Cancel",
                 "error": "The card could not be unclaimed."
             },
+            "freed_copies": {
+                "title": "Where should the cards go?",
+                "question": "{quantity}× {name} will leave the deck. They are reserved for it from {container} — where should they go now?",
+                "label": "Put the cards in",
+                "submit": "Remove from deck",
+                "cancel": "Cancel"
+            },
             "copies": {
                 "link": "Edit copies",
                 "title": "Copies of {name}",

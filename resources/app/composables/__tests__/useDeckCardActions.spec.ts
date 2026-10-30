@@ -429,6 +429,98 @@ describe("useDeckCardActions — destroy", () => {
     });
 });
 
+/** The server's question when copies leaving free claimed copies that lie in the deckbox. */
+const FREED = { reason: "freed_copies_need_a_place", count: 2, container_id: "deckbox" };
+
+/**
+ * Answer `url` with the 409 until the request names a place (`move_to`),
+ * then with `answer`.
+ */
+const askUntilPlaced = (url: string, answer: Response | (() => Response)) =>
+    http.on(url, call =>
+        (call.body as { move_to?: string } | undefined)?.move_to === undefined
+            ? Response.json(FREED, { status: 409 })
+            : typeof answer === "function"
+              ? answer()
+              : answer
+    );
+
+describe("useDeckCardActions — copies freed from the deckbox", () => {
+    it("asks where they go, closes the popover, and sends the removal again with the answer", async () => {
+        askUntilPlaced(QUANTITY_URL, Response.json({ quantity: 1 }));
+        const placeFreedCopies = vi.fn(async () => "binder");
+        const { actions, cards } = setup({ quantity: 3, params: { placeFreedCopies } });
+
+        actions.decrement();
+        actions.decrement();
+        await flush();
+
+        expect(placeFreedCopies).toHaveBeenCalledExactlyOnceWith(FREED);
+        expect(closePopover).toHaveBeenCalledOnce();
+        expect(http.callsTo(QUANTITY_URL).map(call => call.body)).toEqual([
+            { delta: -2 },
+            { delta: -2, move_to: "binder" }
+        ]);
+        expect(cards[0].quantity).toBe(1);
+        expect(routerMock.reload).toHaveBeenCalledExactlyOnceWith(RELOADED_PROPS);
+    });
+
+    it("keeps the copies when the user cancels, undoing the pending clicks", async () => {
+        askUntilPlaced(QUANTITY_URL, Response.json({ quantity: 4 }));
+        const { actions, cards } = setup({ quantity: 3, params: { placeFreedCopies: async () => null } });
+
+        actions.decrement();
+        await flush();
+        expect(http.callsTo(QUANTITY_URL)).toHaveLength(1);
+        expect(cards[0].quantity).toBe(3);
+        expect(routerMock.reload).not.toHaveBeenCalled();
+
+        // Back at 3, one "+" is a whole copy more — had the cancelled "−"
+        // stuck, it would only have cancelled out and sent nothing.
+        actions.increment();
+        await flush();
+        expect(http.lastCall(QUANTITY_URL)?.body).toEqual({ delta: 1 });
+    });
+
+    it("drops the removal when nobody can be asked", async () => {
+        askUntilPlaced(QUANTITY_URL, Response.json({ quantity: 2 }));
+        const { actions, cards } = setup({ quantity: 3 });
+
+        actions.decrement();
+        await flush();
+
+        expect(http.callsTo(QUANTITY_URL)).toHaveLength(1);
+        expect(cards[0].quantity).toBe(3);
+    });
+
+    it("asks before removing the whole card too", async () => {
+        askUntilPlaced(CARD_URL, () => new Response(null, { status: 204 }));
+        const placeFreedCopies = vi.fn(async () => "unsorted");
+        const { actions, cards } = setup({ params: { placeFreedCopies } });
+
+        await actions.destroy();
+
+        expect(placeFreedCopies).toHaveBeenCalledExactlyOnceWith(FREED);
+        expect(http.callsTo(CARD_URL).map(call => [call.method, call.body])).toEqual([
+            ["DELETE", undefined],
+            ["DELETE", { move_to: "unsorted" }]
+        ]);
+        expect(cards).toHaveLength(0);
+        expect(routerMock.reload).toHaveBeenCalledExactlyOnceWith(RELOADED_PROPS);
+    });
+
+    it("keeps the card when removing it is cancelled", async () => {
+        askUntilPlaced(CARD_URL, () => new Response(null, { status: 204 }));
+        const { actions, cards } = setup({ params: { placeFreedCopies: async () => null } });
+
+        await actions.destroy();
+
+        expect(http.callsTo(CARD_URL)).toHaveLength(1);
+        expect(cards).toHaveLength(1);
+        expect(routerMock.reload).not.toHaveBeenCalled();
+    });
+});
+
 /** A move-zone response; the copies and merge list default to "nothing to say". */
 const moved = (overrides: Record<string, unknown>) => ({
     source_copies: [],

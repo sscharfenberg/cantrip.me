@@ -24,7 +24,14 @@ const render = (card: DeckCardRow) =>
             heroCardId: null,
             collectionMode: "C"
         },
-        global: { stubs: { DeckCardUnclaimModal: true, DeckCardCopiesModal: true, DeckCardAssignStackModal: true } }
+        global: {
+            stubs: {
+                DeckCardUnclaimModal: true,
+                DeckCardCopiesModal: true,
+                DeckCardAssignStackModal: true,
+                DeckCardFreedCopiesModal: true
+            }
+        }
     });
 
 const unclaimEntry = (wrapper: ReturnType<typeof render>) =>
@@ -50,6 +57,36 @@ describe("DeckCardActionsMenu — unclaim", () => {
         const modal = wrapper.findComponent({ name: "DeckCardUnclaimModal" });
         expect(modal.props("deckId")).toBe("d1");
         expect(modal.props("card")).toEqual(card);
+    });
+});
+
+describe("DeckCardActionsMenu — where freed copies go", () => {
+    const QUANTITY_URL = "/api/decks/d1/cards/c1/quantity";
+
+    it("asks when removing frees copies in the deckbox, and sends the answer along", async () => {
+        vi.useFakeTimers();
+        const http = installFetchMock();
+        http.on(QUANTITY_URL, call =>
+            (call.body as { move_to?: string }).move_to === undefined
+                ? Response.json({ reason: "freed_copies_need_a_place", count: 1, container_id: "deckbox" }, { status: 409 })
+                : Response.json({ quantity: 3 })
+        );
+        const card = makeDeckCard({ id: "c1", name: "Forest", quantity: 4 });
+        setPageProps({ csrfToken: "token", cards: [card] });
+        const wrapper = render(card);
+
+        await wrapper.find('[aria-label="pages.deck.card_quantity.decrement"]').trigger("click");
+        await vi.advanceTimersByTimeAsync(500);
+
+        const modal = wrapper.findComponent({ name: "DeckCardFreedCopiesModal" });
+        expect(modal.props()).toEqual({ name: "Forest", count: 1, deckboxId: "deckbox" });
+
+        modal.vm.$emit("place", "binder");
+        await flushPromises();
+
+        expect(http.lastCall(QUANTITY_URL)?.body).toEqual({ delta: -1, move_to: "binder" });
+        expect(wrapper.findComponent({ name: "DeckCardFreedCopiesModal" }).exists()).toBe(false);
+        vi.useRealTimers();
     });
 });
 

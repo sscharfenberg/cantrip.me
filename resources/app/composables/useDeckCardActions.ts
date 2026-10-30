@@ -34,6 +34,25 @@ export interface DeckCardActionParams {
     maxCopies: number;
     /** Whether the format is singleton. */
     isSingleton: boolean;
+    /**
+     * Asked when taking copies out frees claimed copies that lie in the
+     * deck's deckbox — they need a new place. Resolves to that place, a
+     * `move_to` value (a container id or `"unsorted"`), or to null when the
+     * user would rather keep the copies in the deck. Without it such a
+     * removal is dropped.
+     */
+    placeFreedCopies?: (freed: FreedCopies) => Promise<string | null>;
+}
+
+/**
+ * The server's 409 to a removal whose freed claimed copies lie in the deck's
+ * deckbox: sent again with a `move_to`, it goes through.
+ */
+export interface FreedCopies {
+    /** How many claimed copies the removal frees. */
+    count: number;
+    /** The deck's deckbox, where they lie now. */
+    container_id: string;
 }
 
 /** Return type of {@link useDeckCardActions}. */
@@ -134,25 +153,50 @@ export function useDeckCardActions(params: DeckCardActionParams, closePopover: (
     }
 
     /**
+     * Send a request that takes copies out of the deck. When the server
+     * answers that the claimed copies it frees need a new place (409), close
+     * the popover, ask {@link DeckCardActionParams.placeFreedCopies}, and
+     * send it again with the answer. Resolves to the final response, or to
+     * null when nothing was taken out after all.
+     */
+    async function sendRemoval(send: (moveTo?: string) => Promise<Response>): Promise<Response | null> {
+        const response = await send();
+        if (response.status !== 409) return response;
+        const freed = (await response.json().catch(() => null)) as FreedCopies | null;
+        if (freed === null || params.placeFreedCopies === undefined) return null;
+        closePopover();
+        const moveTo = await params.placeFreedCopies(freed);
+        return moveTo === null ? null : send(moveTo);
+    }
+
+    /**
      * Send the accumulated delta to the server, then patch page props
      * in place. Only reloads deck metadata when the card is deleted
-     * (card count / colors may have changed).
+     * (card count / colors may have changed). Copies taken out may first
+     * need a place for the claimed copies they free — see {@link sendRemoval};
+     * when the user keeps them, the pending clicks are undone.
      */
     async function flush(): Promise<void> {
         flushTimer = null;
         const delta = effectiveQty.value - params.quantity();
         if (delta === 0) return;
 
-        const response = await fetch(`/api/decks/${params.deckId}/cards/${params.cardId}/quantity`, {
-            method: "PATCH",
-            headers: {
-                "Content-Type": "application/json",
-                "X-CSRF-TOKEN": page.props.csrfToken as string,
-                Accept: "application/json"
-            },
-            body: JSON.stringify({ delta })
-        });
+        const response = await sendRemoval(moveTo =>
+            fetch(`/api/decks/${params.deckId}/cards/${params.cardId}/quantity`, {
+                method: "PATCH",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRF-TOKEN": page.props.csrfToken as string,
+                    Accept: "application/json"
+                },
+                body: JSON.stringify(moveTo === undefined ? { delta } : { delta, move_to: moveTo })
+            })
+        );
 
+        if (response === null) {
+            effectiveQty.value = params.quantity();
+            return;
+        }
         if (!response.ok) {
             effectiveQty.value = params.quantity();
             if (response.status === 422) {
@@ -199,20 +243,27 @@ export function useDeckCardActions(params: DeckCardActionParams, closePopover: (
         scheduleFlush();
     }
 
-    /** Remove the card entirely, cancelling any pending quantity flush. */
+    /**
+     * Remove the card entirely, cancelling any pending quantity flush. Its
+     * claimed copies may first need a place — see {@link sendRemoval}.
+     */
     async function destroy(): Promise<void> {
         if (flushTimer !== null) clearTimeout(flushTimer);
         closePopover();
 
-        const response = await fetch(`/api/decks/${params.deckId}/cards/${params.cardId}`, {
-            method: "DELETE",
-            headers: {
-                "X-CSRF-TOKEN": page.props.csrfToken as string,
-                Accept: "application/json"
-            }
-        });
+        const response = await sendRemoval(moveTo =>
+            fetch(`/api/decks/${params.deckId}/cards/${params.cardId}`, {
+                method: "DELETE",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRF-TOKEN": page.props.csrfToken as string,
+                    Accept: "application/json"
+                },
+                body: moveTo === undefined ? undefined : JSON.stringify({ move_to: moveTo })
+            })
+        );
 
-        if (response.ok) {
+        if (response?.ok) {
             spliceCard();
             router.reload({ only: ["deck", "cards", "violations", "tokens", "hasUnclaimedCards"] });
         }

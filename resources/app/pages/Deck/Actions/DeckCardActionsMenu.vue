@@ -4,9 +4,11 @@ import { computed, ref, useId } from "vue";
 import Icon from "Components/UI/Icon.vue";
 import PopOver from "Components/UI/PopOver.vue";
 import { useDeckCardActions } from "Composables/useDeckCardActions.ts";
+import type { FreedCopies } from "Composables/useDeckCardActions.ts";
 import type { DeckCardRow, DeckCategoryRow } from "Types/deckPage.ts";
 import DeckCardAssignStackModal from "../Modals/DeckCardAssignStackModal.vue";
 import DeckCardCopiesModal from "../Modals/DeckCardCopiesModal.vue";
+import DeckCardFreedCopiesModal from "../Modals/DeckCardFreedCopiesModal.vue";
 import DeckCardMoveToGroupModal from "../Modals/DeckCardMoveToGroupModal.vue";
 import DeckCardSplitPrintingModal from "../Modals/DeckCardSplitPrintingModal.vue";
 import DeckCardSwitchPrintingModal from "../Modals/DeckCardSwitchPrintingModal.vue";
@@ -112,6 +114,23 @@ async function assignStack(stackId: string | null): Promise<void> {
     router.reload({ only: ["cards", "deck", "hasUnclaimedCards"] });
 }
 /**
+ * The open "Where should the cards go?" question — copies taken out of the
+ * deck free claimed copies lying in its deckbox — with the callback that
+ * hands the answer back to the pending removal, or null.
+ */
+const freedCopies = ref<(FreedCopies & { answer: (moveTo: string | null) => void }) | null>(null);
+/** Ask where the freed copies go; resolves to a `move_to` value, or null to keep them in the deck. */
+function placeFreedCopies(freed: FreedCopies): Promise<string | null> {
+    return new Promise(resolve => {
+        freedCopies.value = { ...freed, answer: resolve };
+    });
+}
+/** Hand the answer to the pending removal and close the question. */
+function answerFreedCopies(moveTo: string | null): void {
+    freedCopies.value?.answer(moveTo);
+    freedCopies.value = null;
+}
+/**
  * True when the move-to-group modal would offer at least one real target —
  * the card is in a custom category (so "back to default" is available), or
  * at least one custom category exists. Gates the menu entry; without a
@@ -129,7 +148,8 @@ const { canIncrement, increment, decrement, destroy, moveZone, switchPrinting } 
         isBasicLand: props.card.is_basic_land,
         isUnlimited: props.card.is_unlimited,
         maxCopies: props.maxCopies,
-        isSingleton: props.isSingleton
+        isSingleton: props.isSingleton,
+        placeFreedCopies
     },
     closePopover
 );
@@ -266,6 +286,14 @@ const { canIncrement, increment, decrement, destroy, moveZone, switchPrinting } 
         :deck-id="props.deckId"
         :card="props.card"
         @close="showUnclaimModal = false"
+    />
+    <deck-card-freed-copies-modal
+        v-if="freedCopies"
+        :name="props.card.name"
+        :count="freedCopies.count"
+        :deckbox-id="freedCopies.container_id"
+        @place="answerFreedCopies"
+        @close="answerFreedCopies(null)"
     />
     <deck-card-copies-modal
         v-if="showCopiesModal"

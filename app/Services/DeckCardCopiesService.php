@@ -252,9 +252,10 @@ class DeckCardCopiesService
      * owner, printing, container, finish, language, condition and proxy flag,
      * claimed by exactly the same deck cards. Without it, marking one of two
      * copies foil and back again would leave two identical stacks in the
-     * binder and two identical groups on the deck.
+     * binder and two identical groups on the deck. Copies a deck freed fold
+     * the same way ({@see CardStackClaimService::releaseClaimedCopies}).
      */
-    private static function foldIntoTwinStack(CardStack $stack): CardStack
+    public static function foldIntoTwinStack(CardStack $stack): CardStack
     {
         $claims = self::claimSet($stack->id);
         $twins = CardStack::query()

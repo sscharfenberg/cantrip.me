@@ -6,10 +6,11 @@ use App\Models\Container;
 use Closure;
 
 /**
- * For the unclaim requests, collection- and deck-side: a stack freed from
- * its deck can be put somewhere else in the same step. `move_to` names one
- * of the user's containers, or {@see self::UNSORTED} for none; without it
- * the stack stays where it is.
+ * For the unclaim requests, collection- and deck-side, and for taking
+ * claimed copies out of a deck ("−", "Remove"): a stack freed from its deck
+ * can be put somewhere else in the same step. `move_to` names one of the
+ * user's containers, or {@see self::UNSORTED} for none; without it the
+ * stack stays where it is.
  */
 trait MovesFreedStacks
 {

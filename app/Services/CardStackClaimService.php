@@ -201,4 +201,78 @@ class CardStackClaimService
             return count($stackIds);
         });
     }
+
+    /**
+     * The claimed copies a deck card would give up on shrinking to
+     * `$quantity`, by stack — what removing copies on the deck page frees.
+     * The unclaimed copies go first, so a claim is only touched once fewer
+     * copies are left than its stacks hold; then the newest claim goes
+     * first, and the last stack reached gives up only what is still due.
+     *
+     * @return list<array{stack: CardStack, amount: int}>
+     */
+    public static function copiesToRelease(DeckCard $deckCard, int $quantity): array
+    {
+        $stacks = $deckCard->cardStacks()
+            ->orderByDesc('deck_card_card_stack.created_at')
+            ->orderByDesc('card_stacks.id')
+            ->get();
+        $due = (int) $stacks->sum('amount') - max($quantity, 0);
+
+        $release = [];
+        foreach ($stacks as $stack) {
+            if ($due <= 0) {
+                break;
+            }
+            $amount = min((int) $stack->amount, $due);
+            $release[] = ['stack' => $stack, 'amount' => $amount];
+            $due -= $amount;
+        }
+
+        return $release;
+    }
+
+    /**
+     * Free the claimed copies a deck card gives up on shrinking to
+     * `$quantity` ({@see copiesToRelease}) — call before writing the new
+     * quantity or deleting the card. A stack given up whole loses this
+     * card's claim; one given up in part splits, and the split-off copies
+     * keep only the claims other deck cards had on the stack, so no other
+     * deck loses a card.
+     *
+     * Freed stacks no deck claims any more can move (`$moveTo`: a container
+     * id, null for unsorted, false to stay where they are), and then fold
+     * into an unclaimed twin where they land, so a forest put back in the
+     * land binder counts there as one more, not as a stack of its own.
+     *
+     * @return int The number of copies freed.
+     */
+    public static function releaseClaimedCopies(DeckCard $deckCard, int $quantity, string|false|null $moveTo): int
+    {
+        return DB::transaction(function () use ($deckCard, $quantity, $moveTo): int {
+            $freedCopies = 0;
+            foreach (self::copiesToRelease($deckCard, $quantity) as ['stack' => $stack, 'amount' => $amount]) {
+                $freed = $stack;
+                if ($amount < $stack->amount) {
+                    $freed = CardStackService::splitStack($stack, $amount);
+                    $freed->deckCards()->attach(
+                        $stack->deckCards()->where('deck_cards.id', '!=', $deckCard->id)->pluck('deck_cards.id')->all()
+                    );
+                } else {
+                    $deckCard->cardStacks()->detach($stack->id);
+                }
+                $freedCopies += $amount;
+
+                if ($freed->isClaimed()) {
+                    continue;
+                }
+                if ($moveTo !== false) {
+                    $freed->update(['container_id' => $moveTo]);
+                }
+                DeckCardCopiesService::foldIntoTwinStack($freed);
+            }
+
+            return $freedCopies;
+        });
+    }
 }

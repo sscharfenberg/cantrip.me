@@ -24,6 +24,7 @@ use App\Models\Deck;
 use App\Models\DeckCard;
 use App\Models\DefaultCard;
 use App\Models\OracleCard;
+use App\Models\User;
 use App\Services\CardStackClaimService;
 use App\Services\DeckCardAssignmentService;
 use App\Services\DeckCardCopiesService;
@@ -73,14 +74,30 @@ class DeckCardController extends Controller
      * Positive deltas are validated against format rules — see
      * {@see refuseAddingCopies()}. When the resulting quantity reaches zero or
      * below the card row is deleted entirely.
+     *
+     * Copies that leave free the claims they no longer need
+     * ({@see CardStackClaimService::releaseClaimedCopies}), after asking
+     * where freed copies in the deck's deckbox should go — see
+     * {@see askWhereFreedCopiesGo()}.
      */
     public function updateQuantity(UpdateDeckCardQuantityRequest $request, Deck $deck, DeckCard $deckCard): JsonResponse
     {
         $delta = $request->validated()['delta'];
         $newQuantity = $deckCard->quantity + $delta;
+        $moveTo = $request->moveTarget();
+
+        if ($delta < 0) {
+            $question = $this->askWhereFreedCopiesGo($request->user(), $deck, $deckCard, $newQuantity, $moveTo);
+            if ($question !== null) {
+                return $question;
+            }
+        }
 
         if ($newQuantity <= 0) {
-            $deckCard->delete();
+            DB::transaction(function () use ($deckCard, $moveTo): void {
+                CardStackClaimService::releaseClaimedCopies($deckCard, 0, $moveTo);
+                $deckCard->delete();
+            });
             DeckCardService::recalculateColors($deck);
             $deck->syncHeroImage();
 
@@ -94,9 +111,45 @@ class DeckCardController extends Controller
             }
         }
 
-        $deckCard->update(['quantity' => $newQuantity]);
+        DB::transaction(function () use ($deckCard, $delta, $newQuantity, $moveTo): void {
+            if ($delta < 0) {
+                CardStackClaimService::releaseClaimedCopies($deckCard, $newQuantity, $moveTo);
+            }
+            $deckCard->update(['quantity' => $newQuantity]);
+        });
 
         return response()->json(['quantity' => $newQuantity]);
+    }
+
+    /**
+     * Before copies leave the deck: the claimed copies they free
+     * ({@see CardStackClaimService::copiesToRelease}) may lie in the deck's
+     * deckbox, and then have to go somewhere else. Until the request names
+     * the place (`move_to`), answer 409 with how many copies go and from
+     * which container, so the page can ask; null means go ahead. Freed
+     * copies lying elsewhere stay where they are without asking.
+     *
+     * While the collection master switch is off, claims are invisible, so
+     * nothing is asked — the claims are still freed, as deleting a card
+     * always did, and the copies stay put.
+     */
+    private function askWhereFreedCopiesGo(User $user, Deck $deck, DeckCard $deckCard, int $quantity, string|false|null $moveTo): ?JsonResponse
+    {
+        if ($moveTo !== false || $deck->container_id === null || ! $user->collection_integration_enabled) {
+            return null;
+        }
+
+        $release = CardStackClaimService::copiesToRelease($deckCard, $quantity);
+        $fromDeckbox = array_filter($release, fn (array $entry): bool => $entry['stack']->container_id === $deck->container_id);
+        if ($fromDeckbox === []) {
+            return null;
+        }
+
+        return response()->json([
+            'reason' => 'freed_copies_need_a_place',
+            'count' => array_sum(array_column($release, 'amount')),
+            'container_id' => $deck->container_id,
+        ], 409);
     }
 
     /**
@@ -123,11 +176,21 @@ class DeckCardController extends Controller
     }
 
     /**
-     * Remove a deck card entirely, regardless of quantity.
+     * Remove a deck card entirely, regardless of quantity. Its claims are
+     * freed as for "−" on the last copy — see {@see updateQuantity()}.
      */
     public function destroy(ModifyDeckCardRequest $request, Deck $deck, DeckCard $deckCard): JsonResponse
     {
-        $deckCard->delete();
+        $moveTo = $request->moveTarget();
+        $question = $this->askWhereFreedCopiesGo($request->user(), $deck, $deckCard, 0, $moveTo);
+        if ($question !== null) {
+            return $question;
+        }
+
+        DB::transaction(function () use ($deckCard, $moveTo): void {
+            CardStackClaimService::releaseClaimedCopies($deckCard, 0, $moveTo);
+            $deckCard->delete();
+        });
 
         DeckCardService::recalculateColors($deck);
         $deck->syncHeroImage();
