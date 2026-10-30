@@ -29,6 +29,10 @@ class DeckFinalizeService
      *
      * - Each `[deck_card_id => [stack_id, ...]]` entry attaches the
      *   listed stacks via the pivot.
+     * - Copies a deck_card already claims count as covered: only the
+     *   rest is claimed or bought (the Unclaimed page's "I just bought"
+     *   on a partly claimed row), and a card that claims stacks keeps
+     *   their printing — picks of another printing are dropped.
      * - Printing swap: if the user picked a stack of a printing other
      *   than the deck_card's, `deck_cards.default_card_id` is swapped
      *   to the picked stack's printing before any other write — the
@@ -46,9 +50,11 @@ class DeckFinalizeService
      *   (carrying the pivot rows) and a leftover row of `quantity =
      *   remainder` (no pivot).
      * - Buy-new pad: rows where `buy_new[deck_card_id] === true` get
-     *   any uncovered slots covered by a freshly created (or merged
-     *   into an existing matching unsorted stack) card_stack via
-     *   {@see CardStackService::addToCollection}. The bought stack
+     *   any uncovered slots covered by a freshly created card_stack via
+     *   {@see CardStackService::addToCollection}. Bought copies that
+     *   land on a stack the user picked in the same submission join it;
+     *   on any other matching stack they are split back off, so the
+     *   copies the user already had stay unclaimed. The bought stack
      *   uses the deck_card's *current* printing — after the printing
      *   swap above, that's whatever the user picked — and its planned
      *   finish, language and proxy flag.
@@ -117,21 +123,26 @@ class DeckFinalizeService
      */
     private static function claimStacksForDeckCard(DeckCard $deckCard, array $stackIds, bool $buyNew, ?string $containerId): bool
     {
-        $needed = (int) $deckCard->quantity;
+        // Copies the card already claims are covered: only the rest is
+        // claimed or bought, so a partly claimed row never over-claims.
+        $copiesClaimed = (int) $deckCard->cardStacks()->sum('card_stacks.amount');
+        $needed = (int) $deckCard->quantity - $copiesClaimed;
         if ($needed <= 0) {
             return false;
         }
 
         // Pull picked stacks, then narrow to ones whose printing belongs
-        // to the deck_card's oracle card. Alt-printing picks are valid:
-        // the printing swap below brings the deck_card in line with the
-        // chosen stack before any pivot writes.
+        // to the deck_card's oracle card. Alt-printing picks are valid
+        // while nothing is claimed yet: the printing swap below brings
+        // the deck_card in line with the chosen stack before any pivot
+        // writes. Once the card claims stacks, it keeps their printing.
         $stacks = CardStack::query()
             ->whereIn('id', $stackIds)
             ->where('user_id', $deckCard->deck->user_id)
             ->with('defaultCard:id,oracle_id')
             ->get()
-            ->filter(fn (CardStack $s) => $s->defaultCard?->oracle_id === $deckCard->oracle_card_id);
+            ->filter(fn (CardStack $s) => $s->defaultCard?->oracle_id === $deckCard->oracle_card_id)
+            ->filter(fn (CardStack $s) => $copiesClaimed === 0 || $s->default_card_id === $deckCard->default_card_id);
 
         // Printing swap (§2 path). Single-stack-per-row UI means all
         // picked stacks share one printing, so swapping to the first
@@ -176,7 +187,13 @@ class DeckFinalizeService
                 'proxy' => $deckCard->proxy,
                 'container_id' => $containerId,
             ]);
-            $stacksToAttach[] = $bought['stack']->id;
+            $boughtStack = $bought['stack'];
+            if ($bought['merged'] && ! in_array($boughtStack->id, $stacksToAttach, true)) {
+                // Merged into copies the user already had and didn't
+                // pick: only the bought ones are this card's.
+                $boughtStack = CardStackService::splitStack($boughtStack, $uncovered);
+            }
+            $stacksToAttach[] = $boughtStack->id;
             $claimed += $uncovered;
         }
 
@@ -195,7 +212,7 @@ class DeckFinalizeService
             // the leftover slot is its own row, rendering with
             // `not_owned` status.
             $leftover = $needed - $claimed;
-            $deckCard->update(['quantity' => $claimed]);
+            $deckCard->update(['quantity' => $copiesClaimed + $claimed]);
             DeckCard::create([
                 'deck_id' => $deckCard->deck_id,
                 'oracle_card_id' => $deckCard->oracle_card_id,

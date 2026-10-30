@@ -583,4 +583,75 @@ class DeckBulkClaimControllerTest extends TestCase
         $response->assertRedirect("/decks/{$deck->id}/unclaimed");
         $this->assertSame($container->id, $deck->fresh()->container_id);
     }
+
+    #[Test]
+    public function buying_the_open_copies_of_a_partly_claimed_card_buys_only_those(): void
+    {
+        $user = User::factory()->create();
+        $deck = $this->makeDeck($user);
+        $oracle = $this->makeOracleCard();
+        $default = $this->makeDefaultCard($oracle);
+        $deckCard = $this->makeDeckCard($deck, $oracle, $default, quantity: 4);
+        $claimed = $this->makeCardStack($user, $default, amount: 2);
+        $deckCard->cardStacks()->attach($claimed->id);
+
+        $this->actingAs($user)
+            ->post("/decks/{$deck->id}/unclaimed/buy", ['bought' => [$deckCard->id]])
+            ->assertRedirect("/decks/{$deck->id}/unclaimed");
+
+        $this->assertSame(4, (int) $deckCard->cardStacks()->sum('card_stacks.amount'));
+        $this->assertSame([2, 2], $deckCard->cardStacks()->orderBy('card_stacks.created_at')->pluck('card_stacks.amount')->all());
+        $this->assertSame(4, $deckCard->fresh()->quantity);
+    }
+
+    #[Test]
+    public function a_bulk_claim_for_a_card_that_claims_already_covers_only_its_open_copies_in_its_own_printing(): void
+    {
+        $user = User::factory()->create();
+        $deck = $this->makeDeck($user);
+        $oracle = $this->makeOracleCard();
+        $default = $this->makeDefaultCard($oracle);
+        $alternate = $this->makeDefaultCard($oracle);
+        $deckCard = $this->makeDeckCard($deck, $oracle, $default, quantity: 3);
+        $claimed = $this->makeCardStack($user, $default, amount: 1);
+        $deckCard->cardStacks()->attach($claimed->id);
+        // The other printing's stack first, so it would be the one picked
+        // and swapped to if the card's own printing didn't count.
+        $altStack = $this->makeCardStack($user, $alternate, amount: 5);
+        $sameStack = $this->makeCardStack($user, $default, amount: 5);
+
+        $this->actingAs($user)
+            ->post("/decks/{$deck->id}/bulk-claim", ['assignments' => [$deckCard->id => [$altStack->id, $sameStack->id]]])
+            ->assertRedirect("/decks/{$deck->id}/unclaimed");
+
+        $deckCard->refresh();
+        $this->assertSame($default->id, $deckCard->default_card_id);
+        $this->assertSame(3, $deckCard->quantity);
+        $this->assertSame(3, (int) $deckCard->cardStacks()->sum('card_stacks.amount'));
+        $this->assertFalse($deckCard->cardStacks()->whereKey($altStack->id)->exists());
+        $this->assertSame(3, $sameStack->fresh()->amount);
+    }
+
+    #[Test]
+    public function a_partial_claim_on_a_card_that_claims_already_leaves_only_the_rest_open(): void
+    {
+        $user = User::factory()->create();
+        $deck = $this->makeDeck($user);
+        $oracle = $this->makeOracleCard();
+        $default = $this->makeDefaultCard($oracle);
+        $deckCard = $this->makeDeckCard($deck, $oracle, $default, quantity: 4);
+        $claimed = $this->makeCardStack($user, $default, amount: 1);
+        $deckCard->cardStacks()->attach($claimed->id);
+        $picked = $this->makeCardStack($user, $default, amount: 2);
+
+        $this->actingAs($user)
+            ->post("/decks/{$deck->id}/bulk-claim", ['assignments' => [$deckCard->id => [$picked->id]]])
+            ->assertRedirect("/decks/{$deck->id}/unclaimed");
+
+        $this->assertSame(3, $deckCard->fresh()->quantity);
+        $this->assertSame(3, (int) $deckCard->cardStacks()->sum('card_stacks.amount'));
+        $leftover = DeckCard::query()->where('deck_id', $deck->id)->whereKeyNot($deckCard->id)->sole();
+        $this->assertSame(1, $leftover->quantity);
+        $this->assertFalse($leftover->cardStacks()->exists());
+    }
 }

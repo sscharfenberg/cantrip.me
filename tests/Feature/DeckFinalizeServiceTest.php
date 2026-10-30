@@ -387,18 +387,19 @@ class DeckFinalizeServiceTest extends TestCase
     }
 
     #[Test]
-    public function buy_new_merges_into_an_existing_unsorted_stack_of_the_same_printing(): void
+    public function buy_new_beside_an_unsorted_stack_of_the_same_printing_claims_only_the_bought_copies(): void
     {
-        // Pre-seed an unsorted stack of the same printing/lang/finish.
-        // Buy-new should increment that stack's amount instead of
-        // creating a duplicate row, then attach the merged stack.
+        // Pre-seed an unsorted stack of the same printing/lang/finish that
+        // the user did not pick. Buy-new must not claim it along: the deck
+        // card needs 2, so exactly the 2 bought copies are claimed and the
+        // copy the user already had stays theirs, unclaimed.
         $user = User::factory()->create();
         $deck = $this->makeDeck($user);
         $oracle = $this->makeOracleCard();
         $default = $this->makeDefaultCard($oracle);
         $deckCard = $this->makeDeckCard($deck, $oracle, $default, quantity: 2);
         // Pre-seed a 1-stack matching the buy-new defaults (en / nonfoil
-        // / null condition / null container) — should merge.
+        // / null condition / null container).
         $existing = $this->makeCardStack($user, $default, amount: 1);
 
         DeckFinalizeService::persistAssignments(
@@ -408,14 +409,9 @@ class DeckFinalizeServiceTest extends TestCase
             null,
         );
 
-        // Still one stack, now with amount = 3 (1 pre-seed + 2 minted).
-        $this->assertSame(1, CardStack::query()->where('user_id', $user->id)->count());
-        $this->assertSame(3, $existing->fresh()->amount);
-        // The merged stack is attached.
-        $this->assertDatabaseHas('deck_card_card_stack', [
-            'deck_card_id' => $deckCard->id,
-            'card_stack_id' => $existing->id,
-        ]);
+        $this->assertSame(1, $existing->fresh()->amount);
+        $this->assertFalse($existing->fresh()->isClaimed());
+        $this->assertSame([2], $deckCard->cardStacks()->pluck('card_stacks.amount')->all());
     }
 
     #[Test]
