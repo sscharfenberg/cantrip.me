@@ -1,5 +1,5 @@
-/** Copies of one printing owned, per finish — every finish present, 0 where none. */
-export type OwnedCopies = { nonfoil: number; foil: number; etched: number };
+/** Copies of one printing owned: the real cards per finish, and the proxies — every key present, 0 where none. */
+export type OwnedCopies = { nonfoil: number; foil: number; etched: number; proxy: number };
 
 /** A single card-image focused defaultCard (front and optional back face). */
 export type DefaultCardImage = {

@@ -42,6 +42,16 @@
         }
     }
 
+    // A market's row in the Prices section: its logo, then the currency.
+    &__market {
+        display: flex;
+        align-items: center;
+
+        gap: 0.25rem;
+
+        cursor: help;
+    }
+
     &__set {
         display: flex;
         align-items: center;

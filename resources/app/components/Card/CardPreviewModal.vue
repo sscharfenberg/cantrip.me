@@ -10,12 +10,13 @@ import CardLegalities from "Components/Card/CardLegalities.vue";
 import CardRulings from "Components/Card/CardRulings.vue";
 import ManaCost from "Components/Card/ManaCost.vue";
 import CardStackClaimBadge from "Components/Collection/CardStackClaimBadge.vue";
+import DeckCardCopiesBadge from "Components/Deck/DeckCardCopiesBadge.vue";
 import Modal from "Components/Modal/Modal.vue";
 import Headline from "Components/UI/Headline.vue";
 import Icon from "Components/UI/Icon.vue";
 import LoadingSpinner from "Components/UI/LoadingSpinner.vue";
 import { useFormatting } from "Composables/useFormatting";
-import type { CardPreview } from "Types/cardPreview";
+import type { CardPreview, CollectionCopyKind } from "Types/cardPreview";
 import type { DefaultCardImage } from "Types/defaultCardImage";
 /** @emits close — Fired when the modal should be dismissed. */
 const emit = defineEmits<{ close: [] }>();
@@ -57,6 +58,41 @@ const faceImage = computed<DefaultCardImage | null>(() => {
         }
     };
 });
+/**
+ * The market prices, one row per market in its own currency: the nonfoil
+ * price bare, the other finishes in brackets — "15,31 € (41,12 € Foil)". A
+ * printing with no nonfoil price lists its finishes alone; a market without
+ * any price for the printing is left out, and the section with it when
+ * neither has one.
+ */
+const MARKETS = [
+    { key: "cardmarket", currency: "eur" },
+    { key: "tcgplayer", currency: "usd" }
+] as const;
+const marketPrices = computed(() => {
+    const prices = card.value?.prices;
+    if (!prices) return [];
+    return MARKETS.flatMap(market => {
+        const finishes = prices[market.currency];
+        const others = (["foil", "etched"] as const)
+            .filter(finish => finishes[finish] !== null)
+            .map(finish =>
+                t("components.card_preview.prices.finish", {
+                    price: formatPrice(finishes[finish]!, market.currency),
+                    finish: t(`enums.finishes.${finish}`)
+                })
+            )
+            .join(", ");
+        const nonfoil = finishes.nonfoil === null ? null : formatPrice(finishes.nonfoil, market.currency);
+        if (nonfoil === null && others === "") return [];
+        const listing = nonfoil === null ? others : others === "" ? nonfoil : `${nonfoil} (${others})`;
+        return [{ ...market, listing }];
+    });
+});
+/** One collection row's copies as the deck page's copy markers take them: foil, etched, proxy, language. */
+const copiesOf = (entry: CollectionCopyKind & { amount: number }) => [
+    { count: entry.amount, finish: entry.finish, language: entry.language, proxy: entry.proxy, claimed: false }
+];
 /**
  * Fetch card preview data from the configured endpoint on mount.
  * Shows a loading spinner until the response arrives; sets the error
@@ -152,7 +188,7 @@ onMounted(async () => {
                             <proxy-badge :show-label="true" />
                         </dd>
                     </template>
-                    <template v-if="card.price">
+                    <template v-if="card.finish !== undefined && card.price">
                         <dt>{{ t("form.fields.price") }}</dt>
                         <dd>{{ formatPrice(card.price) }}</dd>
                     </template>
@@ -175,6 +211,25 @@ onMounted(async () => {
                         </dd>
                     </template>
                 </dl>
+                <div v-if="marketPrices.length" class="cardstack-preview__collection cardstack-preview__prices">
+                    <headline :size="4">{{ t("components.card_preview.prices.title") }}</headline>
+                    <dl class="cardstack-preview__details">
+                        <template v-for="market in marketPrices" :key="market.key">
+                            <dt
+                                class="cardstack-preview__market"
+                                v-tooltip="{
+                                    content: t(`components.card_preview.prices.${market.key}`),
+                                    container: '#modal-body'
+                                }"
+                            >
+                                <icon :name="market.key" :size="1" />
+                                <span aria-hidden="true">{{ market.currency.toUpperCase() }}</span>
+                                <span class="sr-only">{{ t(`components.card_preview.prices.${market.key}`) }}</span>
+                            </dt>
+                            <dd>{{ market.listing }}</dd>
+                        </template>
+                    </dl>
+                </div>
                 <div v-if="card.collection?.same_printing.length" class="cardstack-preview__collection">
                     <headline :size="4">{{ t("components.card_preview.collection.same_printing") }}</headline>
                     <ul class="cardstack-preview__copies cardstack-preview__copies--same">
@@ -185,6 +240,7 @@ onMounted(async () => {
                                 </em>
                                 <template v-else>{{ entry.container_name }}</template>
                             </span>
+                            <deck-card-copies-badge :copies="copiesOf(entry)" tooltip-container="#modal-body" />
                             <span class="cardstack-preview__copies-amount"> {{ formatDecimals(entry.amount) }}× </span>
                         </li>
                     </ul>
@@ -221,6 +277,7 @@ onMounted(async () => {
                                 </em>
                                 <template v-else>{{ entry.container_name }}</template>
                             </span>
+                            <deck-card-copies-badge :copies="copiesOf(entry)" tooltip-container="#modal-body" />
                             <span class="cardstack-preview__copies-amount"> {{ formatDecimals(entry.amount) }}× </span>
                         </li>
                     </ul>

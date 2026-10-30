@@ -3,12 +3,15 @@
 namespace App\Services;
 
 use App\Enums\CardFormat;
+use App\Enums\CardLanguage;
 use App\Enums\CardLegality;
 use App\Enums\Currency;
+use App\Enums\Finish;
 use App\Http\Controllers\Api\CardStackPreviewController;
 use App\Models\CardStack;
 use App\Models\DefaultCard;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Collection;
 
 /**
  * Builds the card-level preview payload shared by the stack preview
@@ -17,8 +20,8 @@ use App\Models\User;
  * The returned shape mirrors the card-level fields of the
  * {@see CardStackPreviewController} response:
  * name, images, set, artist, collector_number, single-card price for
- * the requested currency (nonfoil), scryfall_uri and the full
- * legalities matrix. Stack-specific extras (`amount`, `condition`,
+ * the requested currency (nonfoil), the market prices of each finish in
+ * both currencies, scryfall_uri and the full legalities matrix. Stack-specific extras (`amount`, `condition`,
  * `finish`, `language`, `created_at`, `updated_at`, `total_price`,
  * `claims`) live in the stack controller and are merged on top.
  */
@@ -35,6 +38,12 @@ class CardPreviewService
     public static function payloadFor(DefaultCard $card, Currency $currency): array
     {
         $priceColumn = 'price_'.$currency->value;
+        $priceOf = fn (string $column): ?float => $card->{$column} === null ? null : (float) $card->{$column};
+        $pricesIn = fn (Currency $currency): array => [
+            'nonfoil' => $priceOf('price_'.$currency->value),
+            'foil' => $priceOf('price_'.$currency->value.'_foil'),
+            'etched' => $priceOf('price_'.$currency->value.'_etched'),
+        ];
 
         return [
             'name' => $card->name,
@@ -46,6 +55,14 @@ class CardPreviewService
             'collector_number' => $card->collector_number,
             'artist' => $card->artist?->name,
             'price' => (float) ($card->{$priceColumn} ?? 0),
+            // The market prices, whatever the viewer's own currency:
+            // Cardmarket's in euro, TCGplayer's in US dollar, one per
+            // finish, null where Scryfall has none — a nonfoil-only
+            // printing has no foil price, a foil-only one no nonfoil price.
+            'prices' => [
+                Currency::Eur->value => $pricesIn(Currency::Eur),
+                Currency::Usd->value => $pricesIn(Currency::Usd),
+            ],
             'scryfall_uri' => $card->oracle?->scryfall_uri,
             'produced_mana' => $card->oracle?->produced_mana
                 ? str_split($card->oracle->produced_mana)
@@ -76,14 +93,16 @@ class CardPreviewService
      * Build the viewer-collection block for the preview modal.
      *
      * Returns two lists from the viewer's own collection:
-     *  - `same_printing`: every stack the user owns whose
-     *    `default_card_id` equals the previewed card. One row per
-     *    stack — distinct finishes/conditions of the same printing
-     *    therefore appear on separate rows.
-     *  - `other_printings`: every stack the user owns of a
-     *    *different* printing of the same oracle card (same
-     *    `oracle_id`, different `default_card_id`). One row per
-     *    stack.
+     *  - `same_printing`: the stacks the user owns whose
+     *    `default_card_id` equals the previewed card.
+     *  - `other_printings`: the stacks the user owns of a *different*
+     *    printing of the same oracle card (same `oracle_id`, different
+     *    `default_card_id`).
+     *
+     * One row per container and kind of copy — finish, language, proxy
+     * flag — so foils, proxies and a German copy each get a row of their
+     * own and the modal can mark them; stacks that differ only in
+     * condition add up in one row.
      *
      * Always tied to the authenticated viewer — never to the stack
      * owner — so a viewer browsing someone else's public stack still
@@ -91,7 +110,7 @@ class CardPreviewService
      * user owns nothing relevant.
      *
      * @return array{
-     *     same_printing: list<array{container_name: string|null, amount: int}>,
+     *     same_printing: list<array{container_name: string|null, finish: string, language: string, proxy: bool, amount: int}>,
      *     other_printings: list<array{
      *         default_card_id: string,
      *         set_code: string|null,
@@ -100,6 +119,9 @@ class CardPreviewService
      *         collector_number: string,
      *         card_image_0: string|null,
      *         container_name: string|null,
+     *         finish: string,
+     *         language: string,
+     *         proxy: bool,
      *         amount: int
      *     }>
      * }
@@ -112,9 +134,10 @@ class CardPreviewService
             ->with('container:id,name')
             ->orderBy('created_at')
             ->get()
-            ->map(fn (CardStack $stack) => [
-                'container_name' => $stack->container?->name,
-                'amount' => $stack->amount,
+            ->groupBy(fn (CardStack $stack): string => self::kindOf($stack))
+            ->map(fn (Collection $stacks): array => [
+                'container_name' => $stacks->first()->container?->name,
+                ...self::copiesOf($stacks),
             ])
             ->values()
             ->all();
@@ -132,16 +155,21 @@ class CardPreviewService
                 ])
                 ->orderBy('created_at')
                 ->get()
-                ->map(fn (CardStack $stack) => [
-                    'default_card_id' => $stack->default_card_id,
-                    'set_code' => $stack->defaultCard?->set?->code,
-                    'set_name' => $stack->defaultCard?->set?->name,
-                    'set_path' => $stack->defaultCard?->set?->path,
-                    'collector_number' => $stack->defaultCard?->collector_number ?? '',
-                    'card_image_0' => $stack->defaultCard?->card_image_0,
-                    'container_name' => $stack->container?->name,
-                    'amount' => $stack->amount,
-                ])
+                ->groupBy(fn (CardStack $stack): string => $stack->default_card_id.'|'.self::kindOf($stack))
+                ->map(function (Collection $stacks): array {
+                    $stack = $stacks->first();
+
+                    return [
+                        'default_card_id' => $stack->default_card_id,
+                        'set_code' => $stack->defaultCard?->set?->code,
+                        'set_name' => $stack->defaultCard?->set?->name,
+                        'set_path' => $stack->defaultCard?->set?->path,
+                        'collector_number' => $stack->defaultCard?->collector_number ?? '',
+                        'card_image_0' => $stack->defaultCard?->card_image_0,
+                        'container_name' => $stack->container?->name,
+                        ...self::copiesOf($stacks),
+                    ];
+                })
                 ->values()
                 ->all();
         }
@@ -149,6 +177,30 @@ class CardPreviewService
         return [
             'same_printing' => $samePrinting,
             'other_printings' => $otherPrintings,
+        ];
+    }
+
+    /** The container and kind of copy a stack holds — the rows of {@see collectionInfoFor}. */
+    private static function kindOf(CardStack $stack): string
+    {
+        return implode('|', [$stack->container_id, $stack->finish?->value, $stack->language?->value, (int) $stack->proxy]);
+    }
+
+    /**
+     * What a row's stacks are and how many copies they hold together.
+     *
+     * @param  Collection<int, CardStack>  $stacks  Stacks of one kind ({@see kindOf}).
+     * @return array{finish: string, language: string, proxy: bool, amount: int}
+     */
+    private static function copiesOf(Collection $stacks): array
+    {
+        $stack = $stacks->first();
+
+        return [
+            'finish' => $stack->finish?->label() ?? Finish::Nonfoil->label(),
+            'language' => $stack->language?->value ?? CardLanguage::En->value,
+            'proxy' => (bool) $stack->proxy,
+            'amount' => (int) $stacks->sum('amount'),
         ];
     }
 }

@@ -94,11 +94,11 @@ class CardStackOwnedAmountsTest extends TestCase
     }
 
     /**
-     * @return array{nonfoil: int, foil: int, etched: int}
+     * @return array{nonfoil: int, foil: int, etched: int, proxy: int}
      */
-    private function owned(int $nonfoil, int $foil = 0, int $etched = 0): array
+    private function owned(int $nonfoil, int $foil = 0, int $etched = 0, int $proxy = 0): array
     {
-        return ['nonfoil' => $nonfoil, 'foil' => $foil, 'etched' => $etched];
+        return ['nonfoil' => $nonfoil, 'foil' => $foil, 'etched' => $etched, 'proxy' => $proxy];
     }
 
     #[Test]
@@ -221,16 +221,18 @@ class CardStackOwnedAmountsTest extends TestCase
     }
 
     #[Test]
-    public function it_counts_proxies_like_any_other_copy(): void
+    public function it_counts_proxies_apart_from_the_real_cards(): void
     {
-        // Deliberate: a proxy is a card in a sleeve as far as "do I have
-        // this to hand" goes, and every other collection count agrees.
+        // A proxy is a card in a sleeve as far as "do I have this to hand"
+        // goes, so the badge's total counts it — but as a proxy, whatever
+        // its finish, never as one more real foil.
         $user = User::factory()->create();
         $printing = $this->makePrinting();
         $this->stack($user, $printing, 1);
         $this->stack($user, $printing, 2, proxy: true);
+        $this->stack($user, $printing, 1, proxy: true, finish: Finish::Foil);
 
-        $this->assertSame([$printing->id => $this->owned(3)], CardStackService::ownedAmountsFor($user, [$printing->id]));
+        $this->assertSame([$printing->id => $this->owned(1, proxy: 3)], CardStackService::ownedAmountsFor($user, [$printing->id]));
     }
 
     #[Test]

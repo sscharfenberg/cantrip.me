@@ -146,12 +146,17 @@ test("editing one claimed copy foil splits its stack in the collection and re-pr
     await expect(stacks.filter({ has: page.locator("svg.star") })).toHaveCount(1);
 });
 
-test("the collection count on a card image tells foil and nonfoil apart", async ({ page }) => {
-    /* Two nonfoil and one foil Lurrus (IKO #355), in two stacks; the edit page shows the printing's panel. */
+test("the collection count on a card image counts every copy and tells foil and nonfoil apart in words", async ({
+    page
+}) => {
+    /*
+     * Two nonfoil and one foil Lurrus (IKO #355), in two stacks; the edit page
+     * shows the printing's panel. One number on the badge; what it is made of
+     * is the tooltip's, and the same words reach a screen reader.
+     */
     await page.goto(`/collection/cardstack/${FOIL_STACK}/edit`);
     const owned = page.locator(".face-image__panel-owned");
 
-    await expect(owned.locator(".face-image__panel-count--nonfoil")).toHaveText("2");
-    await expect(owned.locator(".face-image__panel-count--foil")).toHaveText("1");
-    await expect(owned.locator(".face-image__panel-count--etched")).toHaveCount(0);
+    await expect(owned.locator(".face-image__panel-count")).toHaveText("3");
+    await expect(owned.locator(".sr-only")).toHaveText("In deiner Sammlung: 2× Normal, 1× Foil");
 });

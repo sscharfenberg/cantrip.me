@@ -27,47 +27,38 @@ const { t } = useI18n();
 /** Resolve the flag image URL for a given language code. */
 const flagSrc = (lang: string): string => new URL(`../../assets/flags/${lang}.svg`, import.meta.url).href;
 /**
- * Copies of this printing in the viewer's collection, per finish, or null
- * when there is nothing worth showing. The backend leaves `owned` null for a
- * guest, while the collection-integration master switch is off, and for a
- * printing the viewer owns none of — so the badge as a whole is a positive
- * signal only.
- *
- * Inside it, one count per finish the printing exists in — a foil and a
- * nonfoil are different cards to own, and a deck planned foil needs the
- * foil — so a dual-finish printing can show "★0" next to its nonfoils, but
- * a nonfoil-only one never offers a foil count it could not have. A finish
- * owned beyond what the printing data lists still shows. Foil wears the
- * collection's `star`, etched its `texture`; nonfoil goes bare.
+ * Copies of this printing in the viewer's collection, or null when there is
+ * nothing worth showing. The backend leaves `owned` null for a guest, while
+ * the collection-integration master switch is off, and for a printing the
+ * viewer owns none of — so the badge as a whole is a positive signal only.
  */
 const owned = computed<OwnedCopies | null>(() => {
     const copies = props.card.owned;
     if (!copies) return null;
-    return copies.nonfoil + copies.foil + copies.etched > 0 ? copies : null;
+    return ownedTotal(copies) > 0 ? copies : null;
 });
-const FINISHES = [
-    { key: "nonfoil", icon: null },
-    { key: "foil", icon: "star" },
-    { key: "etched", icon: "texture" }
-] as const;
-/** The counts the badge shows, in finish order. */
-const ownedCounts = computed(() => {
-    const copies = owned.value;
-    if (copies === null) return [];
-    return FINISHES.filter(finish => copies[finish.key] > 0 || props.card.finishes.includes(finish.key)).map(
-        finish => ({ ...finish, count: copies[finish.key] })
-    );
-});
-/** "2× Nonfoil", one per finish owned — the tooltip's lines and the screen-reader text. */
+/** Every copy owned, proxies included: a proxy is a card in a sleeve as far as "do I have this to hand" goes. */
+const ownedTotal = (copies: OwnedCopies): number => copies.nonfoil + copies.foil + copies.etched + copies.proxy;
+/**
+ * The badge shows the one total; what it is made of — "2× Nonfoil", one line
+ * per finish owned, then the proxies — goes to the tooltip and the
+ * screen-reader text. A foil and a nonfoil are different cards to own, so
+ * the lines keep them apart; proxies count apart from the real cards,
+ * whatever their finish.
+ */
 const ownedLines = computed(() => {
     const copies = owned.value;
     if (copies === null) return [];
-    return FINISHES.filter(finish => copies[finish.key] > 0).map(finish =>
-        t("components.card_face_image.owned_finish", {
-            count: copies[finish.key],
-            finish: t(`enums.finishes.${finish.key}`)
-        })
-    );
+    const lines = (["nonfoil", "foil", "etched"] as const)
+        .filter(finish => copies[finish] > 0)
+        .map(finish =>
+            t("components.card_face_image.owned_finish", {
+                count: copies[finish],
+                finish: t(`enums.finishes.${finish}`)
+            })
+        );
+    if (copies.proxy > 0) lines.push(t("components.card_face_image.owned_proxy", { count: copies.proxy }));
+    return lines;
 });
 /** HTML tooltip — FloatingVue runs with `html: true` (main.ts) — one line per finish owned. */
 const ownedTooltip = computed(() => [t("components.card_face_image.owned_title"), ...ownedLines.value].join("<br />"));
@@ -138,15 +129,7 @@ function onFlip() {
                     }"
                 >
                     <icon name="storage" :size="0" />
-                    <span
-                        v-for="entry in ownedCounts"
-                        :key="entry.key"
-                        class="face-image__panel-count"
-                        :class="`face-image__panel-count--${entry.key}`"
-                        aria-hidden="true"
-                    >
-                        <icon v-if="entry.icon" :name="entry.icon" :size="0" />{{ entry.count }}
-                    </span>
+                    <span class="face-image__panel-count" aria-hidden="true">{{ ownedTotal(owned) }}</span>
                     <span class="sr-only">{{ ownedLabel }}</span>
                 </span>
             </span>

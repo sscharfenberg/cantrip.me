@@ -4,7 +4,7 @@ import { useI18n } from "vue-i18n";
 export type UseFormattingReturn = {
     formatDecimals: (num: number) => string;
     formatBytes: (bytes: number, si?: boolean, dp?: number) => string;
-    formatPrice: (amount: number) => string;
+    formatPrice: (amount: number, currency?: string) => string;
     formatDate: (iso: string) => string;
     formatDateTime: (iso: string) => string;
 };
@@ -62,10 +62,11 @@ export const useFormatting = (): UseFormattingReturn => {
      * Format a monetary amount using the user's selected currency and locale.
      *
      * @param amount - The numeric amount to format.
+     * @param currency - A currency code to format in instead (`"usd"`), for a
+     *   price that is in its own currency whatever the user's — a market's.
      * @return Formatted currency string (e.g. "125,56 €" or "$125.56").
      */
-    const formatPrice = (amount: number): string => {
-        const currency = (usePage().props.currency as string) ?? "eur";
+    const formatPrice = (amount: number, currency: string = (usePage().props.currency as string) ?? "eur"): string => {
 
         return amount.toLocaleString(locale.value, {
             style: "currency",

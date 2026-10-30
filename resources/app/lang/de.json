@@ -1752,11 +1752,18 @@
         },
         "card_face_image": {
             "owned_title": "In deiner Sammlung:",
-            "owned_finish": "{count}× {finish}"
+            "owned_finish": "{count}× {finish}",
+            "owned_proxy": "{count}× Proxy"
         },
         "card_preview": {
             "title": "Kartendetails",
             "total_price": "Gesamt ({amount}×)",
+            "prices": {
+                "title": "Preise",
+                "cardmarket": "Cardmarket, Preis in Euro",
+                "tcgplayer": "TCGplayer, Preis in US-Dollar",
+                "finish": "{price} {finish}"
+            },
             "scryfall": "Auf Scryfall ansehen",
             "loading": "Lade Kartendetails…",
             "error": "Kartendetails konnten nicht geladen werden.",

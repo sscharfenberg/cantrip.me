@@ -27,16 +27,17 @@ class CardStackService
      * "nothing to show" into the same nullish value. The badge is a
      * positive signal only; it never announces a zero.
      *
-     * Proxies count. A proxy is a card in a sleeve as far as "do I have
-     * this to hand" goes, and every other collection count in the app
-     * treats it the same way.
+     * Proxies count, apart from the real cards. A proxy is a card in a
+     * sleeve as far as "do I have this to hand" goes, so the badge's one
+     * number includes them, as every other collection count in the app
+     * does — but its tooltip says how many are proxies.
      *
-     * Split by finish because a foil and a nonfoil of one printing are
-     * different cards to own — a deck planned foil needs the foil. All three
-     * finishes are always present, 0 where the user owns none of that one.
+     * The real cards are split by finish because a foil and a nonfoil of
+     * one printing are different cards to own — a deck planned foil needs
+     * the foil. Every key is always present, 0 where the user owns none.
      *
      * @param  list<string>  $defaultCardIds
-     * @return array<string, array{nonfoil: int, foil: int, etched: int}> Printing id → copies owned per finish.
+     * @return array<string, array{nonfoil: int, foil: int, etched: int, proxy: int}> Printing id → real copies owned per finish, and proxies.
      */
     public static function ownedAmountsFor(?User $user, array $defaultCardIds): array
     {
@@ -48,8 +49,8 @@ class CardStackService
         CardStack::query()
             ->where('user_id', $user->id)
             ->whereIn('default_card_id', array_values(array_unique($defaultCardIds)))
-            ->groupBy('default_card_id', 'finish')
-            ->selectRaw('default_card_id, finish, SUM(amount) as total')
+            ->groupBy('default_card_id', 'finish', 'proxy')
+            ->selectRaw('default_card_id, finish, proxy, SUM(amount) as total')
             ->toBase()
             ->get()
             ->each(function (object $row) use (&$owned): void {
@@ -57,8 +58,8 @@ class CardStackService
                 if ($finish === null) {
                     return;
                 }
-                $owned[$row->default_card_id] ??= ['nonfoil' => 0, 'foil' => 0, 'etched' => 0];
-                $owned[$row->default_card_id][$finish->label()] += (int) $row->total;
+                $owned[$row->default_card_id] ??= ['nonfoil' => 0, 'foil' => 0, 'etched' => 0, 'proxy' => 0];
+                $owned[$row->default_card_id][$row->proxy ? 'proxy' : $finish->label()] += (int) $row->total;
             });
 
         return $owned;

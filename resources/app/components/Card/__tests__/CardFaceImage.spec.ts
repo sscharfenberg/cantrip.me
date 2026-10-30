@@ -21,84 +21,52 @@ const render = (overrides: Partial<DefaultCardImage> = {}, props: Record<string,
 
 const badge = (wrapper: ReturnType<typeof render>) => wrapper.find(".face-image__panel-owned");
 
-/** Copies owned per finish. */
-const owned = (nonfoil: number, foil = 0, etched = 0): OwnedCopies => ({ nonfoil, foil, etched });
+/** Real copies owned per finish, and the proxies. */
+const owned = (nonfoil: number, foil = 0, etched = 0, proxy = 0): OwnedCopies => ({ nonfoil, foil, etched, proxy });
 
-describe("CardFaceImage — collection ownership badge", () => {
-    const dual = { finishes: ["nonfoil", "foil"] };
-
-    it("shows a count for each finish the printing exists in", () => {
-        const wrapper = render({ ...dual, owned: owned(3, 1) });
-
-        expect(badge(wrapper).find(".face-image__panel-count--nonfoil").text()).toBe("3");
-        expect(badge(wrapper).find(".face-image__panel-count--foil").text()).toBe("1");
-    });
-
-    it("marks the foil count with the foil star, as the collection does", () => {
-        expect(
-            badge(render({ ...dual, owned: owned(1, 2) }))
-                .find(".face-image__panel-count--foil use")
-                .attributes("href")
-        ).toBe("#star");
-    });
-
-    it("shows a dual-finish printing's 0 foil, so the counts keep their places", () => {
-        const wrapper = render({ ...dual, owned: owned(2) });
-
-        expect(badge(wrapper).find(".face-image__panel-count--foil").text()).toBe("0");
-    });
-
-    it("offers no foil count on a printing that has no foil", () => {
-        const wrapper = render({ finishes: ["nonfoil"], owned: owned(2) });
-
-        expect(badge(wrapper).find(".face-image__panel-count--nonfoil").text()).toBe("2");
-        expect(badge(wrapper).find(".face-image__panel-count--foil").exists()).toBe(false);
-    });
-
-    it("shows a finish owned even where the printing data does not list it", () => {
-        const wrapper = render({ finishes: ["nonfoil"], owned: owned(0, 1) });
-
-        expect(badge(wrapper).find(".face-image__panel-count--nonfoil").text()).toBe("0");
-        expect(badge(wrapper).find(".face-image__panel-count--foil").text()).toBe("1");
-    });
-
-    it("adds the etched count for an etched printing or etched copies", () => {
-        expect(
-            badge(render({ ...dual, owned: owned(1, 1) }))
-                .find(".face-image__panel-count--etched")
-                .exists()
-        ).toBe(false);
-
-        const etched = badge(render({ finishes: ["etched"], owned: owned(0, 0, 2) })).find(
-            ".face-image__panel-count--etched"
-        );
-        expect(etched.text()).toBe("2");
-        expect(etched.find("use").attributes("href")).toBe("#texture");
-    });
-
-    it("hides the bare digits from a screen reader and tells it in words instead", () => {
-        setTestMessages({
-            de: {
-                enums: { finishes: { nonfoil: "Normal", foil: "Foil", etched: "Geätzt" } },
-                components: {
-                    card_face_image: { owned_title: "In deiner Sammlung:", owned_finish: "{count}× {finish}" }
+const messages = () =>
+    setTestMessages({
+        de: {
+            enums: { finishes: { nonfoil: "Normal", foil: "Foil", etched: "Geätzt" } },
+            components: {
+                card_face_image: {
+                    owned_title: "In deiner Sammlung:",
+                    owned_finish: "{count}× {finish}",
+                    owned_proxy: "{count}× Proxy"
                 }
             }
-        });
-        const wrapper = badge(render({ ...dual, owned: owned(2, 1) }));
-
-        expect(
-            wrapper.findAll(".face-image__panel-count").every(count => count.attributes("aria-hidden") === "true")
-        ).toBe(true);
-        expect(wrapper.find(".sr-only").text()).toBe("In deiner Sammlung: 2× Normal, 1× Foil");
+        }
     });
 
-    it("uses the storage icon", () => {
+describe("CardFaceImage — collection ownership badge", () => {
+    it("shows one number: every copy owned, proxies included", () => {
+        const counts = badge(render({ finishes: ["nonfoil", "foil"], owned: owned(2, 1, 0, 1) })).findAll(
+            ".face-image__panel-count"
+        );
+
+        expect(counts.map(count => count.text())).toEqual(["4"]);
+    });
+
+    it("shows a badge for proxies alone", () => {
         expect(
-            badge(render({ owned: owned(1) }))
-                .find("use")
-                .attributes("href")
-        ).toBe("#storage");
+            badge(render({ owned: owned(0, 0, 0, 2) }))
+                .find(".face-image__panel-count")
+                .text()
+        ).toBe("2");
+    });
+
+    it("marks the number with the storage icon only — no finish or proxy symbol", () => {
+        const icons = badge(render({ finishes: ["nonfoil", "foil"], owned: owned(1, 1, 1, 1) })).findAll("use");
+
+        expect(icons.map(icon => icon.attributes("href"))).toEqual(["#storage"]);
+    });
+
+    it("hides the bare number from a screen reader and tells it in words instead", () => {
+        messages();
+        const wrapper = badge(render({ owned: owned(2, 1, 0, 1) }));
+
+        expect(wrapper.find(".face-image__panel-count").attributes("aria-hidden")).toBe("true");
+        expect(wrapper.find(".sr-only").text()).toBe("In deiner Sammlung: 2× Normal, 1× Foil, 1× Proxy");
     });
 
     it.each([
@@ -141,21 +109,14 @@ describe("CardFaceImage — collection ownership badge", () => {
 });
 
 describe("CardFaceImage — ownership tooltip", () => {
-    it("names each finish owned, one line each, and leaves out the ones not owned", () => {
-        setTestMessages({
-            de: {
-                enums: { finishes: { nonfoil: "Normal", foil: "Foil", etched: "Geätzt" } },
-                components: {
-                    card_face_image: { owned_title: "In deiner Sammlung:", owned_finish: "{count}× {finish}" }
-                }
-            }
-        });
+    it("names each finish owned and the proxies, one line each, and leaves out what is not owned", () => {
+        messages();
 
         expect(badge(render({ finishes: ["nonfoil", "foil"], owned: owned(2, 1) })).attributes("data-tooltip")).toBe(
             "In deiner Sammlung:<br />2× Normal<br />1× Foil"
         );
-        expect(badge(render({ owned: owned(0, 0, 3) })).attributes("data-tooltip")).toBe(
-            "In deiner Sammlung:<br />3× Geätzt"
+        expect(badge(render({ owned: owned(0, 0, 3, 2) })).attributes("data-tooltip")).toBe(
+            "In deiner Sammlung:<br />3× Geätzt<br />2× Proxy"
         );
     });
 

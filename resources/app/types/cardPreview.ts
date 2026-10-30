@@ -1,6 +1,9 @@
 import type { StackClaim } from "Types/cardStackRow";
 import type { OwnedCopies } from "Types/defaultCardImage.ts";
 
+/** One market's price of a printing per finish, null where it has none. */
+export type FinishPrices = { nonfoil: number | null; foil: number | null; etched: number | null };
+
 /** A single legality entry for a card format. */
 export interface CardLegality {
     format: string;
@@ -14,15 +17,23 @@ export interface CardRuling {
     comment: string;
 }
 
-/** One stack of the previewed printing in the viewer's own collection. */
-export interface CollectionSamePrintingEntry {
+/** What a row of the viewer's copies are — the modal marks them as the deck page does. */
+export interface CollectionCopyKind {
+    finish: "nonfoil" | "foil" | "etched";
+    /** A `CardLanguage` code (`en`, `de`, `zhs`, …). */
+    language: string;
+    proxy: boolean;
+}
+
+/** The viewer's copies of the previewed printing in one container, of one kind. */
+export interface CollectionSamePrintingEntry extends CollectionCopyKind {
     /** Container name or null when the stack is unsorted. */
     container_name: string | null;
     amount: number;
 }
 
-/** One stack of a *different* printing of the same oracle card in the viewer's collection. */
-export interface CollectionOtherPrintingEntry {
+/** The viewer's copies of a *different* printing of the same oracle card in one container, of one kind. */
+export interface CollectionOtherPrintingEntry extends CollectionCopyKind {
     default_card_id: string;
     set_code: string | null;
     set_name: string | null;
@@ -68,6 +79,12 @@ export interface CardPreview {
     collector_number: string;
     artist: string | null;
     price: number;
+    /**
+     * The printing's market prices — Cardmarket's in euro, TCGplayer's in US
+     * dollar, whatever the viewer's currency — per finish, null where it has
+     * none.
+     */
+    prices: Record<"eur" | "usd", FinishPrices>;
     scryfall_uri: string | null;
     /**
      * Mana this card can produce (single-letter codes: W/U/B/R/G/C),

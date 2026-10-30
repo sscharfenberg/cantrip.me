@@ -22,6 +22,8 @@ const props = defineProps<{
     copies: DeckCardCopyGroup[];
     /** Layout variant — text rows use `inline`, image grid uses `corner`. */
     variant?: "inline" | "corner";
+    /** CSS selector for the FloatingVue tooltip container — `#modal-body` inside a modal. Defaults to `body`. */
+    tooltipContainer?: string;
 }>();
 
 const { t } = useI18n();
@@ -88,7 +90,7 @@ const label = computed(() => markers.value.map(marker => marker.text).join(", ")
 <template>
     <span
         v-if="markers.length"
-        v-tooltip="tooltip"
+        v-tooltip="{ content: tooltip, container: tooltipContainer ?? 'body' }"
         class="deck-copies"
         :class="`deck-copies--${variant ?? 'inline'}`"
         role="img"
