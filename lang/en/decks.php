@@ -24,6 +24,7 @@ return [
 
     'deck_created' => 'Deck ":name" has been created.',
     'deck_updated' => 'Deck ":name" has been updated.',
+    'freed_copies_need_a_place' => ':count× :name will leave the deck. They are reserved for it from :container — where should they go now?',
     'deck_deleted' => 'Deck ":name" has been deleted.',
     'deck_hero_changed' => 'Changed hero image of deck ":name" to ":card".',
     'deck_visibility_public' => 'Deck ":name" is now public - anyone with the link can view it.',

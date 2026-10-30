@@ -4,6 +4,7 @@ namespace App\Http\Requests\Decks;
 
 use App\Models\Deck;
 use App\Models\OracleCard;
+use App\Traits\MovesFreedStacks;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -14,6 +15,8 @@ use Illuminate\Validation\Rule;
  */
 class ChangeDeckCommandZoneRequest extends FormRequest
 {
+    use MovesFreedStacks;
+
     public function authorize(): bool
     {
         $deck = $this->route('deck');
@@ -30,6 +33,7 @@ class ChangeDeckCommandZoneRequest extends FormRequest
             'commander_id' => ['required', 'string', Rule::exists(OracleCard::class, 'id')],
             'companion_id' => ['nullable', 'string', Rule::exists(OracleCard::class, 'id')],
             'signature_spell_id' => ['nullable', 'string', Rule::exists(OracleCard::class, 'id')],
+            ...$this->moveToRules(),
         ];
     }
 }

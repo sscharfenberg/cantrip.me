@@ -21,6 +21,7 @@ use App\Http\Requests\Decks\DeckQrSvgRequest;
 use App\Http\Requests\Decks\DeleteDeckRequest;
 use App\Http\Requests\Decks\EditDeckRequest;
 use App\Http\Requests\Decks\GenerateDeckQrRequest;
+use App\Http\Requests\Decks\ModifyDeckCardRequest;
 use App\Http\Requests\Decks\SetDeckCollectionModeRequest;
 use App\Http\Requests\Decks\SetDeckHeroImageRequest;
 use App\Http\Requests\Decks\SetDeckRulebreakerColorRequest;
@@ -59,6 +60,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -1211,24 +1213,25 @@ class DecksController extends Controller
                     'string',
                     Rule::exists('containers', 'id')->where('user_id', $request->user()->id),
                 ],
+                // Where the claimed copies of cards leaving the command
+                // zone go, once the form has asked (see below).
+                'move_to' => [
+                    'nullable',
+                    'string',
+                    function (string $attribute, mixed $value, \Closure $fail) use ($request): void {
+                        if ($value !== ModifyDeckCardRequest::UNSORTED
+                            && ! Container::query()->whereKey($value)->where('user_id', $request->user()->id)->exists()) {
+                            $fail(__('collection.errors.container_not_found'));
+                        }
+                    },
+                ],
             ]);
         });
 
-        $bracket = $request->input('bracket');
-        $deck->update([
-            'name' => $request->input('deck_name'),
-            'description' => $request->input('deck_description'),
-            'visibility' => ContainerVisibility::from($request->input('deck_visibility')),
-            'bracket' => $bracket === null || $bracket === '' ? null : (int) $bracket,
-            'default_card_id' => $request->input('default_card_id') ?: null,
-            'container_id' => $request->input('container_id') ?: null,
-        ]);
-
-        // Compare the requested command zone against the current pivot rows
-        // and only re-set when something differs. setCommandZone() detaches
-        // every existing commander and re-attaches with the newest default
-        // card — calling it for a no-op edit would silently overwrite a
-        // printing choice the user made elsewhere.
+        // Compare the requested command zone against the current rows and
+        // only re-set when something differs. setCommandZone() keeps a card
+        // that stays, but calling it for a no-op edit would still recompute
+        // the colours and the hero image for nothing.
         $newCommanderId = $request->input('commander_id');
         $newCompanionId = $request->input('companion_id');
         $newSignatureSpellId = $request->input('signature_spell_id');
@@ -1248,12 +1251,47 @@ class DecksController extends Controller
         $currentSpell = $profile->hasSignatureSpell() ? $secondaryRow?->oracle_card_id : null;
         $currentCompanion = $profile->hasSignatureSpell() ? null : $secondaryRow?->oracle_card_id;
 
-        if (
-            $newCommanderId !== $currentCommander
+        $commandZoneChanged = $newCommanderId !== $currentCommander
             || $newCompanionId !== $currentCompanion
-            || $newSignatureSpellId !== $currentSpell
-        ) {
-            DeckService::setCommandZone($deck, $newCommanderId, $newCompanionId, $newSignatureSpellId);
+            || $newSignatureSpellId !== $currentSpell;
+
+        // Cards leaving the command zone free their claimed copies, and
+        // those lying in the deck's deckbox — the one this edit leaves it
+        // with — need a place first: the form asks with a `move_to` field,
+        // as "Remove" asks on the deck page. Checked before anything is
+        // written.
+        $moveTo = match ($request->input('move_to')) {
+            null, '' => false,
+            ModifyDeckCardRequest::UNSORTED => null,
+            default => (string) $request->input('move_to'),
+        };
+        if ($commandZoneChanged) {
+            $deck->container_id = $request->input('container_id') ?: null;
+            $leaving = DeckService::commandZoneLeaving($deck, $newCommanderId, $newCompanionId, $newSignatureSpellId)
+                ->map(fn (DeckCard $row): array => [$row, 0])
+                ->all();
+            $freed = CardStackClaimService::freedCopiesNeedingAPlace($deck, $leaving, $moveTo);
+            if ($freed !== null) {
+                throw ValidationException::withMessages(['move_to' => __('decks.freed_copies_need_a_place', [
+                    'count' => $freed['count'],
+                    'name' => $freed['name'],
+                    'container' => Container::query()->whereKey($freed['container_id'])->value('name'),
+                ])]);
+            }
+        }
+
+        $bracket = $request->input('bracket');
+        $deck->update([
+            'name' => $request->input('deck_name'),
+            'description' => $request->input('deck_description'),
+            'visibility' => ContainerVisibility::from($request->input('deck_visibility')),
+            'bracket' => $bracket === null || $bracket === '' ? null : (int) $bracket,
+            'default_card_id' => $request->input('default_card_id') ?: null,
+            'container_id' => $request->input('container_id') ?: null,
+        ]);
+
+        if ($commandZoneChanged) {
+            DeckService::setCommandZone($deck, $newCommanderId, $newCompanionId, $newSignatureSpellId, $moveTo);
         }
 
         $request->session()->flash('message', __('decks.deck_updated', ['name' => $deck->name]));

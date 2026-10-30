@@ -3,9 +3,11 @@ import { Link, router, usePage } from "@inertiajs/vue3";
 import { ref, useId } from "vue";
 import Icon from "Components/UI/Icon.vue";
 import PopOver from "Components/UI/PopOver.vue";
+import { useFreedCopiesQuestion } from "Composables/useFreedCopiesQuestion";
 import type { DeckPrinting } from "Types/defaultCardImage.ts";
 import DeckCardAssignStackModal from "../Modals/DeckCardAssignStackModal.vue";
 import DeckCardCopiesModal from "../Modals/DeckCardCopiesModal.vue";
+import DeckCardFreedCopiesModal from "../Modals/DeckCardFreedCopiesModal.vue";
 import DeckCardSwitchPrintingModal from "../Modals/DeckCardSwitchPrintingModal.vue";
 const props = defineProps<{
     /** UUID of the deck. */
@@ -29,6 +31,8 @@ const props = defineProps<{
 const popoverId = useId();
 const page = usePage();
 const removing = ref(false);
+/** "Where should the cards go?" — asked when the removed companion's claimed copies lie in the deckbox. */
+const freedCopies = useFreedCopiesQuestion();
 const showSwitchPrintingModal = ref(false);
 const showAssignStackModal = ref(false);
 /** Dismiss the popover menu via the native popover API. */
@@ -83,19 +87,26 @@ async function assignStack(stackId: string | null): Promise<void> {
  * dropping a restrictive companion (e.g. Lurrus) can flip previously-illegal
  * cards back to legal — the legality panel and per-card `is_illegal` flag
  * have to refresh too.
+ *
+ * Its claimed copies are freed; while they lie in the deck's deckbox the
+ * server asks where they go first, and cancelling keeps the companion.
  */
 async function removeCompanion(): Promise<void> {
     if (removing.value) return;
     removing.value = true;
     closePopover();
-    const response = await fetch(`/api/decks/${props.deckId}/companion`, {
-        method: "DELETE",
-        headers: {
-            "X-CSRF-TOKEN": page.props.csrfToken as string,
-            Accept: "application/json"
-        }
-    });
-    if (!response.ok) {
+    const response = await freedCopies.send(moveTo =>
+        fetch(`/api/decks/${props.deckId}/companion`, {
+            method: "DELETE",
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRF-TOKEN": page.props.csrfToken as string,
+                Accept: "application/json"
+            },
+            body: moveTo === undefined ? undefined : JSON.stringify({ move_to: moveTo })
+        })
+    );
+    if (!response?.ok) {
         removing.value = false;
         return;
     }
@@ -200,5 +211,13 @@ async function switchPrinting(printing: DeckPrinting): Promise<void> {
         :deck-card-id="props.deckCardId"
         :name="props.companionName"
         @close="showCopiesModal = false"
+    />
+    <deck-card-freed-copies-modal
+        v-if="freedCopies.question.value"
+        :name="props.companionName"
+        :count="freedCopies.question.value.count"
+        :deckbox-id="freedCopies.question.value.container_id"
+        @place="freedCopies.answer"
+        @close="freedCopies.answer(null)"
     />
 </template>

@@ -24,6 +24,7 @@ return [
 
     'deck_created' => 'Deck ":name" wurde erstellt.',
     'deck_updated' => 'Deck ":name" wurde aktualisiert.',
+    'freed_copies_need_a_place' => ':count× :name kommt aus dem Deck. Die Karten sind dafür aus :container reserviert — wohin sollen sie jetzt?',
     'deck_deleted' => 'Deck ":name" wurde gelöscht.',
     'deck_hero_changed' => 'Bannerbild des Decks ":name" wurde auf ":card" geändert.',
     'deck_visibility_public' => 'Deck ":name" ist jetzt öffentlich - jeder mit dem Link kann es ansehen.',

@@ -24,7 +24,6 @@ use App\Models\Deck;
 use App\Models\DeckCard;
 use App\Models\DefaultCard;
 use App\Models\OracleCard;
-use App\Models\User;
 use App\Services\CardStackClaimService;
 use App\Services\DeckCardAssignmentService;
 use App\Services\DeckCardCopiesService;
@@ -87,7 +86,7 @@ class DeckCardController extends Controller
         $moveTo = $request->moveTarget();
 
         if ($delta < 0) {
-            $question = $this->askWhereFreedCopiesGo($request->user(), $deck, $deckCard, $newQuantity, $moveTo);
+            $question = $this->askWhereFreedCopiesGo($deck, $deckCard, $newQuantity, $moveTo);
             if ($question !== null) {
                 return $question;
             }
@@ -122,33 +121,23 @@ class DeckCardController extends Controller
     }
 
     /**
-     * Before copies leave the deck: the claimed copies they free
-     * ({@see CardStackClaimService::copiesToRelease}) may lie in the deck's
-     * deckbox, and then have to go somewhere else. Until the request names
-     * the place (`move_to`), answer 409 with how many copies go and from
-     * which container, so the page can ask; null means go ahead. Freed
-     * copies lying elsewhere stay where they are without asking.
-     *
-     * While the collection master switch is off, claims are invisible, so
-     * nothing is asked — the claims are still freed, as deleting a card
-     * always did, and the copies stay put.
+     * Before copies leave the deck: answer 409 with how many claimed copies
+     * go and from which container while they lie in the deck's deckbox and
+     * the request names no place (`move_to`), so the page can ask
+     * ({@see CardStackClaimService::freedCopiesNeedingAPlace}); null means
+     * go ahead.
      */
-    private function askWhereFreedCopiesGo(User $user, Deck $deck, DeckCard $deckCard, int $quantity, string|false|null $moveTo): ?JsonResponse
+    private function askWhereFreedCopiesGo(Deck $deck, DeckCard $deckCard, int $quantity, string|false|null $moveTo): ?JsonResponse
     {
-        if ($moveTo !== false || $deck->container_id === null || ! $user->collection_integration_enabled) {
-            return null;
-        }
-
-        $release = CardStackClaimService::copiesToRelease($deckCard, $quantity);
-        $fromDeckbox = array_filter($release, fn (array $entry): bool => $entry['stack']->container_id === $deck->container_id);
-        if ($fromDeckbox === []) {
+        $freed = CardStackClaimService::freedCopiesNeedingAPlace($deck, [[$deckCard, $quantity]], $moveTo);
+        if ($freed === null) {
             return null;
         }
 
         return response()->json([
             'reason' => 'freed_copies_need_a_place',
-            'count' => array_sum(array_column($release, 'amount')),
-            'container_id' => $deck->container_id,
+            'count' => $freed['count'],
+            'container_id' => $freed['container_id'],
         ], 409);
     }
 
@@ -182,7 +171,7 @@ class DeckCardController extends Controller
     public function destroy(ModifyDeckCardRequest $request, Deck $deck, DeckCard $deckCard): JsonResponse
     {
         $moveTo = $request->moveTarget();
-        $question = $this->askWhereFreedCopiesGo($request->user(), $deck, $deckCard, 0, $moveTo);
+        $question = $this->askWhereFreedCopiesGo($deck, $deckCard, 0, $moveTo);
         if ($question !== null) {
             return $question;
         }
@@ -233,6 +222,12 @@ class DeckCardController extends Controller
      * can't have one, and main rows landing here via "move from
      * sideboard" weren't categorised either).
      *
+     * Claims travel with their copies: the moved copy takes its claim
+     * along when every copy of the source is claimed
+     * ({@see CardStackClaimService::moveClaimedCopy}), and the claims of
+     * consolidated rows pass to the survivor
+     * ({@see CardStackClaimService::moveClaims}).
+     *
      * Colors are zone-agnostic so no recalculation is needed.
      *
      * Returns the post-move identity of both rows so the frontend can
@@ -240,8 +235,9 @@ class DeckCardController extends Controller
      * source's already-rendered data when it didn't exist yet — instead
      * of having to reload the full `cards` prop: the rows the merge
      * absorbed (`merged_ids`, so the page drops exactly those and not a
-     * sibling with another plan) and both rows' `copies` groups, which
-     * the move changes and a synthesised row can't take from its source.
+     * sibling with another plan) and both rows' `copies` groups and
+     * `claimed_stacks`, which the move changes and a synthesised row
+     * can't take from its source.
      */
     public function moveZone(MoveDeckCardZoneRequest $request, Deck $deck, DeckCard $deckCard): JsonResponse
     {
@@ -267,6 +263,7 @@ class DeckCardController extends Controller
                 $mergedIds = $matches->pluck('id')->all();
                 $extra = (int) $matches->sum('quantity');
                 foreach ($matches as $duplicate) {
+                    CardStackClaimService::moveClaims($duplicate, $target);
                     $duplicate->delete();
                 }
                 $target->update(['quantity' => $target->quantity + $extra + 1]);
@@ -281,6 +278,7 @@ class DeckCardController extends Controller
                     ...$deckCard->planAttributes(),
                 ]);
             }
+            CardStackClaimService::moveClaimedCopy($deckCard, $target);
 
             $sourceQuantity = $deckCard->quantity - 1;
             if ($sourceQuantity <= 0) {
@@ -294,14 +292,36 @@ class DeckCardController extends Controller
             return [
                 'source_quantity' => max(0, $sourceQuantity),
                 'source_copies' => $sourceQuantity > 0 ? $copies[$deckCard->id] : [],
+                'source_claimed_stacks' => $sourceQuantity > 0 ? $this->claimedStacksOf($deckCard, $withClaims) : [],
                 'target_id' => $target->id,
                 'target_quantity' => $target->quantity,
                 'target_copies' => $copies[$target->id],
+                'target_claimed_stacks' => $this->claimedStacksOf($target, $withClaims),
                 'merged_ids' => $mergedIds,
             ];
         });
 
         return response()->json($result);
+    }
+
+    /**
+     * A row's claimed stacks in the deck page's `claimed_stacks` shape
+     * ({@see CardStackClaimService::claimedStacksForDeck}), empty while the
+     * collection master switch hides claims.
+     *
+     * @return list<array{id: string, container_id: string|null}>
+     */
+    private function claimedStacksOf(DeckCard $deckCard, bool $withClaims): array
+    {
+        if (! $withClaims) {
+            return [];
+        }
+
+        return $deckCard->cardStacks()
+            ->orderBy('card_stacks.created_at')
+            ->get(['card_stacks.id', 'card_stacks.container_id'])
+            ->map(fn (CardStack $stack): array => ['id' => $stack->id, 'container_id' => $stack->container_id])
+            ->all();
     }
 
     /**
@@ -312,7 +332,9 @@ class DeckCardController extends Controller
      * and additional rows are inserted for the remaining entries with
      * matching `zone`, `category_id` and plan (`finish`, `language`,
      * `proxy`). A printing that lacks the planned finish gets its own first
-     * finish instead ({@see DeckCard::booted}).
+     * finish instead ({@see DeckCard::booted}). The claimed copies follow
+     * the printings the split gives them
+     * ({@see CardStackClaimService::followSplit}).
      *
      * Copy limits cannot be violated because the sum of split quantities is
      * required by the FormRequest to equal the existing quantity.
@@ -327,14 +349,16 @@ class DeckCardController extends Controller
             // without the planned finish re-fits it, and the other rows must
             // start from the plan the user had, not from that fallback.
             $plan = $deckCard->planAttributes();
+            $oldPrinting = $deckCard->default_card_id;
             $first = array_shift($splits);
             $deckCard->update([
                 'default_card_id' => $first['default_card_id'],
                 'quantity' => $first['quantity'],
             ]);
 
+            $rows = [$deckCard];
             foreach ($splits as $entry) {
-                DeckCard::create([
+                $rows[] = DeckCard::create([
                     'deck_id' => $deckCard->deck_id,
                     'oracle_card_id' => $deckCard->oracle_card_id,
                     'default_card_id' => $entry['default_card_id'],
@@ -344,6 +368,7 @@ class DeckCardController extends Controller
                     ...$plan,
                 ]);
             }
+            CardStackClaimService::followSplit($oldPrinting, $rows);
         });
 
         $deck->syncHeroImage();
@@ -357,14 +382,12 @@ class DeckCardController extends Controller
      * The chosen `default_card_id` must belong to the same oracle card as
      * the deck card (enforced in the FormRequest). Color identity and
      * legality are therefore unchanged, so no deck-level recalculation
-     * is needed.
+     * is needed. Its claimed copies take the printing too
+     * ({@see CardStackClaimService::switchPrinting}).
      */
     public function updatePrinting(UpdateDeckCardPrintingRequest $request, Deck $deck, DeckCard $deckCard): JsonResponse
     {
-        $oldPrinting = $deckCard->default_card_id;
-        $deckCard->update($request->validated());
-
-        $deck->remapHeroImage($oldPrinting, $deckCard->default_card_id);
+        CardStackClaimService::switchPrinting($deckCard, $request->validated()['default_card_id']);
 
         return response()->json(status: 204);
     }

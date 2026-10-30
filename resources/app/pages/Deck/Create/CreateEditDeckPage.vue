@@ -143,6 +143,17 @@ const visibility = ref<string>(initialVisibility);
  */
 const containerId = ref<string>(props.existingDeck?.container_id ?? "");
 /**
+ * Where the claimed copies of cards leaving the command zone go, edit-only.
+ * The server asks (a `move_to` error) only while they lie in the deck's
+ * deckbox; the picker then offers Unsorted — preselected, so submitting
+ * again is the answer — or any container but that deckbox.
+ */
+const moveTo = ref<string>("unsorted");
+const moveToOptions = computed(() => [
+    { value: "unsorted", label: t("pages.collection.unsorted") },
+    ...props.containers.filter(c => c.id !== containerId.value).map(c => ({ value: c.id, label: c.name }))
+]);
+/**
  * Currently chosen Commander Bracket — optional, no preselection on
  * create. Stored as a string ("1".."5" or "") so it round-trips through
  * the MonoSelect's string-keyed options and the hidden input cleanly;
@@ -264,6 +275,23 @@ setBreadcrumbs(
             :errors="errors"
             @confirmed="card => prefillDeckName(card.name)"
         />
+        <form-group
+            v-if="isEdit && errors.move_to"
+            :label="$t('pages.deck.freed_copies.label')"
+            :error="errors.move_to"
+            :invalid="true"
+        >
+            <mono-select
+                :options="moveToOptions"
+                :selected="moveTo"
+                :sort="false"
+                :clearable="false"
+                addon-icon="storage"
+                max="100%"
+                @change="moveTo = $event || 'unsorted'"
+            />
+            <input type="hidden" name="move_to" :value="moveTo" />
+        </form-group>
         <form-group
             for-id="deck_name"
             :label="$t('form.fields.deck_name')"

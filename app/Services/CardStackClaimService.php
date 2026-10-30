@@ -3,9 +3,11 @@
 namespace App\Services;
 
 use App\Enums\DeckCardRole;
+use App\Enums\Finish;
 use App\Models\CardStack;
 use App\Models\Deck;
 use App\Models\DeckCard;
+use App\Models\DefaultCard;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -233,6 +235,46 @@ class CardStackClaimService
     }
 
     /**
+     * Before copies leave a deck: the claimed copies they free
+     * ({@see copiesToRelease}) may lie in the deck's deckbox, and then have
+     * to go somewhere else. Until the request names the place (`$moveTo` is
+     * not false), this says how many copies go, of which cards and from
+     * which container, so the page can ask; null means go ahead. Freed
+     * copies lying elsewhere stay where they are without asking.
+     *
+     * While the collection master switch is off, claims are invisible, so
+     * nothing is asked — the claims are still freed and the copies stay put.
+     *
+     * @param  list<array{0: DeckCard, 1: int}>  $leaving  Each deck card with the quantity it keeps.
+     * @return array{count: int, container_id: string, name: string}|null
+     */
+    public static function freedCopiesNeedingAPlace(Deck $deck, array $leaving, string|false|null $moveTo): ?array
+    {
+        if ($moveTo !== false || $deck->container_id === null || ! $deck->user?->collection_integration_enabled) {
+            return null;
+        }
+
+        $count = 0;
+        $names = [];
+        $fromDeckbox = false;
+        foreach ($leaving as [$deckCard, $quantity]) {
+            $release = self::copiesToRelease($deckCard, $quantity);
+            if ($release === []) {
+                continue;
+            }
+            $count += array_sum(array_column($release, 'amount'));
+            $names[] = $deckCard->oracleCard?->name;
+            foreach ($release as ['stack' => $stack]) {
+                $fromDeckbox = $fromDeckbox || $stack->container_id === $deck->container_id;
+            }
+        }
+
+        return $fromDeckbox
+            ? ['count' => $count, 'container_id' => $deck->container_id, 'name' => implode(' & ', array_filter($names))]
+            : null;
+    }
+
+    /**
      * Free the claimed copies a deck card gives up on shrinking to
      * `$quantity` ({@see copiesToRelease}) — call before writing the new
      * quantity or deleting the card. A stack given up whole loses this
@@ -273,6 +315,170 @@ class CardStackClaimService
             }
 
             return $freedCopies;
+        });
+    }
+
+    /**
+     * Hand a claim on with the copy that leaves a deck card for another row
+     * of the same deck — moving a card to another zone keeps it the same
+     * physical card in the same deck. Call before writing the source's new
+     * quantity. While the source has a copy no stack claims, that copy goes
+     * and every claim stays. Otherwise the newest claim goes
+     * ({@see copiesToRelease}): a stack of more copies splits, and the
+     * split-off copy keeps the claims other deck cards had on the stack.
+     */
+    public static function moveClaimedCopy(DeckCard $from, DeckCard $to): void
+    {
+        foreach (self::copiesToRelease($from, $from->quantity - 1) as ['stack' => $stack, 'amount' => $amount]) {
+            $moved = $stack;
+            if ($amount < $stack->amount) {
+                $moved = CardStackService::splitStack($stack, $amount);
+                $moved->deckCards()->attach(
+                    $stack->deckCards()->where('deck_cards.id', '!=', $from->id)->pluck('deck_cards.id')->all()
+                );
+            } else {
+                $from->cardStacks()->detach($stack->id);
+            }
+            $to->cardStacks()->syncWithoutDetaching([$moved->id => ['created_at' => $stack->pivot->created_at]]);
+        }
+    }
+
+    /**
+     * Move every claim of a deck card onto another row of the same card,
+     * each keeping when it was made — for a row merged into its twin, whose
+     * copies become the twin's.
+     */
+    public static function moveClaims(DeckCard $from, DeckCard $to): void
+    {
+        $claims = $from->cardStacks()->get()->mapWithKeys(
+            fn (CardStack $stack): array => [$stack->id => ['created_at' => $stack->pivot->created_at]]
+        )->all();
+        if ($claims === []) {
+            return;
+        }
+        $to->cardStacks()->syncWithoutDetaching($claims);
+        $from->cardStacks()->detach();
+    }
+
+    /**
+     * Share a split deck card's claims out over the rows it was split into —
+     * "split printing" says which printing each copy is, and the claimed
+     * copies follow it as they follow "switch printing". `$rows` are the
+     * rows after the split, the original first; call it after writing them.
+     *
+     * Oldest claim first, each stack's copies go to the row of their own
+     * printing while it has room. What is left goes to the rows that still
+     * have room, in order: copies of the old printing take the row's
+     * printing ({@see switchPrinting} — while the master switch is on),
+     * copies that already were another printing keep theirs. A stack shared
+     * out over several rows splits; every part keeps the claims other deck
+     * cards had on it. Copies no row has room for — only an over-claimed
+     * card has those — lose this card's claim.
+     *
+     * @param  list<DeckCard>  $rows
+     */
+    public static function followSplit(string $oldPrinting, array $rows): void
+    {
+        $original = $rows[0];
+        $reprint = (bool) $original->deck->user?->collection_integration_enabled;
+        $stacks = $original->cardStacks()
+            ->orderBy('deck_card_card_stack.created_at')
+            ->orderBy('card_stacks.id')
+            ->get();
+        $room = array_map(fn (DeckCard $row): int => (int) $row->quantity, $rows);
+        $left = $stacks->map(fn (CardStack $stack): int => (int) $stack->amount)->all();
+
+        $shares = [];
+        foreach ([true, false] as $ownPrintingOnly) {
+            foreach ($stacks as $s => $stack) {
+                foreach ($rows as $r => $row) {
+                    if ($left[$s] === 0 || $room[$r] === 0
+                        || ($ownPrintingOnly && $row->default_card_id !== $stack->default_card_id)) {
+                        continue;
+                    }
+                    $take = min($left[$s], $room[$r]);
+                    $shares[$s][] = ['row' => $r, 'amount' => $take];
+                    $room[$r] -= $take;
+                    $left[$s] -= $take;
+                }
+            }
+        }
+
+        $original->cardStacks()->detach();
+        foreach ($stacks as $s => $stack) {
+            $parts = $shares[$s] ?? [];
+            if ($parts === []) {
+                continue;
+            }
+            $others = $stack->deckCards()->pluck('deck_cards.id')->all();
+            if ($left[$s] > 0) {
+                CardStackService::splitStack($stack, $left[$s])->deckCards()->attach($others);
+            }
+            // Last share first: the parts split off a stack still of its own
+            // printing, and the stack itself stays with its first share —
+            // the row of its printing, when there is one.
+            foreach (array_reverse($parts, true) as $p => ['row' => $r, 'amount' => $amount]) {
+                $part = $stack;
+                if ($p > 0) {
+                    $part = CardStackService::splitStack($stack, $amount);
+                    $part->deckCards()->attach($others);
+                }
+                $rows[$r]->cardStacks()->attach($part->id, ['created_at' => $stack->pivot->created_at]);
+                if ($reprint && $part->default_card_id === $oldPrinting && $rows[$r]->default_card_id !== $oldPrinting) {
+                    $part->update([
+                        'default_card_id' => $rows[$r]->default_card_id,
+                        'finish' => Finish::fitTo(
+                            (int) DefaultCard::query()->whereKey($rows[$r]->default_card_id)->value('finishes'),
+                            $part->finish,
+                        ),
+                    ]);
+                    DeckCardCopiesService::foldIntoTwinStack($part);
+                }
+            }
+        }
+    }
+
+    /**
+     * Switch a deck card to another printing of its card, its claimed copies
+     * with it — "switch printing" in all three card menus. A claimed stack
+     * of the old printing is the deck's copies, so it takes the new printing
+     * too, its finish fitted to the ones the printing exists in, and folds
+     * into a twin that is now the same cards in the same decks: the claim
+     * never turns into a "different printing" one. A stack that already was
+     * another printing than the card stays as it is. A stack another deck
+     * claims as well changes for that deck too — they are the same physical
+     * cards.
+     *
+     * While the collection master switch is off, claims are invisible and
+     * the collection is left alone. The deck's hero image follows the
+     * printing it showed.
+     */
+    public static function switchPrinting(DeckCard $deckCard, string $printingId): void
+    {
+        $oldPrinting = $deckCard->default_card_id;
+        if ($oldPrinting === $printingId) {
+            return;
+        }
+
+        DB::transaction(function () use ($deckCard, $oldPrinting, $printingId): void {
+            $deckCard->update(['default_card_id' => $printingId]);
+
+            if ($deckCard->deck->user?->collection_integration_enabled) {
+                $finishes = (int) DefaultCard::query()->whereKey($printingId)->value('finishes');
+                $stacks = $deckCard->cardStacks()
+                    ->where('card_stacks.default_card_id', $oldPrinting)
+                    ->lockForUpdate()
+                    ->get();
+                foreach ($stacks as $stack) {
+                    $stack->update([
+                        'default_card_id' => $printingId,
+                        'finish' => Finish::fitTo($finishes, $stack->finish),
+                    ]);
+                    DeckCardCopiesService::foldIntoTwinStack($stack);
+                }
+            }
+
+            $deckCard->deck->remapHeroImage($oldPrinting, $printingId);
         });
     }
 }

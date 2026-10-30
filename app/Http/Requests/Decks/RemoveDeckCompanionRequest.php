@@ -3,10 +3,13 @@
 namespace App\Http\Requests\Decks;
 
 use App\Models\Deck;
+use App\Traits\MovesFreedStacks;
 use Illuminate\Foundation\Http\FormRequest;
 
 class RemoveDeckCompanionRequest extends FormRequest
 {
+    use MovesFreedStacks;
+
     /**
      * The user may clear a companion only on their own deck.
      */
@@ -23,6 +26,6 @@ class RemoveDeckCompanionRequest extends FormRequest
      */
     public function rules(): array
     {
-        return [];
+        return $this->moveToRules();
     }
 }

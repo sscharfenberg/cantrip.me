@@ -4,6 +4,7 @@ import CommanderCommandZonePickerModal from "@/pages/Deck/Create/CommanderComman
 import OathbreakerCommandZonePickerModal from "@/pages/Deck/Create/OathbreakerCommandZonePickerModal.vue";
 import { installFetchMock, type FetchMock } from "@/test/http.ts";
 import { routerMock, setPageProps } from "@/test/inertia.ts";
+import DeckCardFreedCopiesModal from "../DeckCardFreedCopiesModal.vue";
 import DeckCommandZoneModal from "../DeckCommandZoneModal.vue";
 
 vi.mock("@inertiajs/vue3", async () => (await import("@/test/inertia.ts")).inertiaModuleMock());
@@ -23,7 +24,13 @@ beforeEach(() => {
 const render = (format: string) =>
     mount(DeckCommandZoneModal, {
         props: { deckId: "d1", format },
-        global: { stubs: { CommanderCommandZonePickerModal: true, OathbreakerCommandZonePickerModal: true } }
+        global: {
+            stubs: {
+                CommanderCommandZonePickerModal: true,
+                OathbreakerCommandZonePickerModal: true,
+                DeckCardFreedCopiesModal: true
+            }
+        }
     });
 
 describe("DeckCommandZoneModal", () => {
@@ -82,6 +89,67 @@ describe("DeckCommandZoneModal", () => {
 
         wrapper.findComponent(CommanderCommandZonePickerModal).vm.$emit("close");
 
+        expect(wrapper.emitted("close")).toHaveLength(1);
+    });
+});
+
+describe("DeckCommandZoneModal — copies of a card that leaves", () => {
+    const FREED = { reason: "freed_copies_need_a_place", count: 1, container_id: "deckbox", name: "Krenko" };
+    /** 409 until the request names a place, then 204. */
+    const askUntilPlaced = () =>
+        http.on(ENDPOINT, call =>
+            (call.body as { move_to?: string }).move_to === undefined
+                ? Response.json(FREED, { status: 409 })
+                : new Response(null, { status: 204 })
+        );
+    const confirm = async (wrapper: ReturnType<typeof render>) => {
+        const picker = wrapper.findComponent(CommanderCommandZonePickerModal);
+        picker.vm.$emit("confirm", card("tymna"), null);
+        picker.vm.$emit("close");
+        await flushPromises();
+    };
+
+    it("stays open after the picker closes, to ask where the cards go", async () => {
+        askUntilPlaced();
+        const wrapper = render("commander");
+
+        await confirm(wrapper);
+
+        expect(wrapper.emitted("close")).toBeUndefined();
+        expect(wrapper.findComponent(CommanderCommandZonePickerModal).exists()).toBe(false);
+        expect(wrapper.findComponent(DeckCardFreedCopiesModal).props()).toEqual({
+            name: "Krenko",
+            count: 1,
+            deckboxId: "deckbox"
+        });
+    });
+
+    it("sends the change again with the place, then reloads and closes", async () => {
+        askUntilPlaced();
+        const wrapper = render("commander");
+        await confirm(wrapper);
+
+        wrapper.findComponent(DeckCardFreedCopiesModal).vm.$emit("place", "binder");
+        await flushPromises();
+
+        expect(http.calls.map(call => call.body)).toEqual([
+            { commander_id: "tymna" },
+            { commander_id: "tymna", move_to: "binder" }
+        ]);
+        expect(routerMock.reload).toHaveBeenCalledWith(RELOAD);
+        expect(wrapper.emitted("close")).toHaveLength(1);
+    });
+
+    it("changes nothing when the question is cancelled", async () => {
+        askUntilPlaced();
+        const wrapper = render("commander");
+        await confirm(wrapper);
+
+        wrapper.findComponent(DeckCardFreedCopiesModal).vm.$emit("close");
+        await flushPromises();
+
+        expect(http.calls).toHaveLength(1);
+        expect(routerMock.reload).not.toHaveBeenCalled();
         expect(wrapper.emitted("close")).toHaveLength(1);
     });
 });

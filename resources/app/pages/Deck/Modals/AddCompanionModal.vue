@@ -4,7 +4,9 @@ import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { isSubsetCI } from "@/utils/colorIdentity.ts";
 import Modal from "Components/Modal/Modal.vue";
+import { useFreedCopiesQuestion } from "Composables/useFreedCopiesQuestion";
 import type { DeckCompanion } from "Types/deckPage.ts";
+import DeckCardFreedCopiesModal from "./DeckCardFreedCopiesModal.vue";
 const emit = defineEmits<{ close: [] }>();
 const props = defineProps<{
     deckId: string;
@@ -19,6 +21,8 @@ const { t } = useI18n();
 const page = usePage();
 const processing = ref(false);
 const errorMessage = ref<string | null>(null);
+/** "Where should the cards go?" — asked when the replaced companion's claimed copies lie in the deckbox. */
+const freedCopies = useFreedCopiesQuestion();
 /** Short slug for the i18n key, derived from the first word of the oracle name. */
 const slugFor = (name: string): string => name.split(/[\s,]/)[0].toLowerCase();
 interface Tile {
@@ -45,20 +49,30 @@ const tiles = computed<Tile[]>(() =>
  * a companion's per-card restriction (e.g. Lurrus's mana-value cap) can
  * retroactively flip many deck cards illegal, so the legality panel and
  * each card's `is_illegal` flag have to come back too.
+ *
+ * The companion it replaces frees its claimed copies; while they lie in the
+ * deck's deckbox the server asks where they go first, and cancelling keeps
+ * the old companion and this picker open.
  */
 const pickCompanion = async (card: DeckCompanion): Promise<void> => {
     if (processing.value) return;
     processing.value = true;
     errorMessage.value = null;
-    const response = await fetch(`/api/decks/${props.deckId}/companion`, {
-        method: "PATCH",
-        headers: {
-            "Content-Type": "application/json",
-            "X-CSRF-TOKEN": page.props.csrfToken as string,
-            Accept: "application/json"
-        },
-        body: JSON.stringify({ oracle_card_id: card.oracle_card_id })
-    });
+    const response = await freedCopies.send(moveTo =>
+        fetch(`/api/decks/${props.deckId}/companion`, {
+            method: "PATCH",
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRF-TOKEN": page.props.csrfToken as string,
+                Accept: "application/json"
+            },
+            body: JSON.stringify({ oracle_card_id: card.oracle_card_id, ...(moveTo === undefined ? {} : { move_to: moveTo }) })
+        })
+    );
+    if (response === null) {
+        processing.value = false;
+        return;
+    }
     if (response.status === 422) {
         const data = (await response.json()) as { errors?: Record<string, string[]> };
         const first = Object.values(data.errors ?? {})[0];
@@ -106,6 +120,14 @@ const pickCompanion = async (card: DeckCompanion): Promise<void> => {
             </button>
         </div>
         <p v-if="errorMessage" class="companion-picker__error">{{ errorMessage }}</p>
+        <deck-card-freed-copies-modal
+            v-if="freedCopies.question.value"
+            :name="freedCopies.question.value.name"
+            :count="freedCopies.question.value.count"
+            :deckbox-id="freedCopies.question.value.container_id"
+            @place="freedCopies.answer"
+            @close="freedCopies.answer(null)"
+        />
     </modal>
 </template>
 

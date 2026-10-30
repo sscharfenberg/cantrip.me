@@ -10,6 +10,7 @@ use App\Models\DeckCard;
 use App\Models\DefaultCard;
 use App\Models\OracleCard;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 
 class DeckService
@@ -219,11 +220,15 @@ class DeckService
     /**
      * Replace the deck's command zone with the given oracle cards.
      *
-     * Deletes every existing command-zone deck_card row and inserts new
-     * ones for the primary commander plus the optional secondary slot
-     * (partner-type companion or signature spell), then recomputes the
-     * deck's `colors` from the combined color identity. Wrapped in a
-     * transaction so a partial failure rolls back cleanly.
+     * A card that stays keeps its row — its printing, plan and claimed
+     * copies — even when it moves to the other slot. A card that leaves
+     * frees its claims ({@see CardStackClaimService::releaseClaimedCopies}),
+     * the freed copies going to `$moveTo` (a container id, null for
+     * unsorted, false to stay where they lie — the caller asks first, see
+     * {@see commandZoneLeaving}). A new card gets a row on its newest
+     * printing. Then the deck's `colors` are recomputed from the combined
+     * color identity. Wrapped in a transaction so a partial failure rolls
+     * back cleanly.
      *
      * No format-legality re-check happens here — the picker is the gate:
      * non-legal commander candidates are surfaced only when the user
@@ -243,62 +248,50 @@ class DeckService
         ?string $commanderOracleId,
         ?string $companionOracleId,
         ?string $signatureSpellOracleId,
+        string|false|null $moveTo = false,
     ): void {
-        $format = $deck->format;
-        $profile = $format->rules();
-
-        if (! $profile->requiresCommander() || $commanderOracleId === null) {
+        $slots = self::commandZoneSlots($deck, $commanderOracleId, $companionOracleId, $signatureSpellOracleId);
+        if ($slots === []) {
             return;
         }
 
-        DB::transaction(function () use ($deck, $profile, $commanderOracleId, $companionOracleId, $signatureSpellOracleId): void {
-            // Wipe any existing command-zone deck_cards before inserting
-            // new ones so partner/spell flips don't leave stragglers.
-            DeckCard::query()
+        DB::transaction(function () use ($deck, $slots, $moveTo, $commanderOracleId, $companionOracleId, $signatureSpellOracleId): void {
+            $rows = DeckCard::query()
                 ->where('deck_id', $deck->id)
                 ->where('zone', DeckZone::Command->value)
-                ->delete();
-
-            $commanderDefault = self::newestDefaultCard($commanderOracleId);
-            if ($commanderDefault === null) {
-                // Defensive: every oracle in the DB should have at least
-                // one printing. If not, the Scryfall data sync is broken
-                // — surface as a 500 rather than a user-facing form error.
-                throw new \RuntimeException("No printing found for commander oracle {$commanderOracleId}.");
+                ->get();
+            foreach ($rows as $row) {
+                $role = array_search($row->oracle_card_id, $slots, true);
+                if ($role === false) {
+                    CardStackClaimService::releaseClaimedCopies($row, 0, $moveTo);
+                    $row->delete();
+                } elseif ($row->role?->value !== $role) {
+                    // Off its old slot first: unique(deck_id, role) would
+                    // refuse a commander and partner trading places.
+                    $row->update(['role' => null]);
+                }
             }
-            DeckCard::create([
-                'deck_id' => $deck->id,
-                'oracle_card_id' => $commanderOracleId,
-                'default_card_id' => $commanderDefault->id,
-                'zone' => DeckZone::Command->value,
-                'role' => DeckCardRole::Commander->value,
-                'quantity' => 1,
-            ]);
 
-            if ($profile->hasSignatureSpell() && $signatureSpellOracleId) {
-                $spellDefault = self::newestDefaultCard($signatureSpellOracleId);
-                if ($spellDefault === null) {
-                    throw new \RuntimeException("No printing found for signature spell oracle {$signatureSpellOracleId}.");
+            foreach ($slots as $role => $oracleId) {
+                $kept = $rows->first(fn (DeckCard $row): bool => $row->exists && $row->oracle_card_id === $oracleId);
+                if ($kept !== null) {
+                    $kept->update(['role' => $role]);
+
+                    continue;
+                }
+                $default = self::newestDefaultCard($oracleId);
+                if ($default === null) {
+                    // Defensive: every oracle in the DB should have at least
+                    // one printing. If not, the Scryfall data sync is broken
+                    // — surface as a 500 rather than a user-facing form error.
+                    throw new \RuntimeException("No printing found for {$role} oracle {$oracleId}.");
                 }
                 DeckCard::create([
                     'deck_id' => $deck->id,
-                    'oracle_card_id' => $signatureSpellOracleId,
-                    'default_card_id' => $spellDefault->id,
+                    'oracle_card_id' => $oracleId,
+                    'default_card_id' => $default->id,
                     'zone' => DeckZone::Command->value,
-                    'role' => DeckCardRole::SignatureSpell->value,
-                    'quantity' => 1,
-                ]);
-            } elseif ($companionOracleId) {
-                $partnerDefault = self::newestDefaultCard($companionOracleId);
-                if ($partnerDefault === null) {
-                    throw new \RuntimeException("No printing found for partner oracle {$companionOracleId}.");
-                }
-                DeckCard::create([
-                    'deck_id' => $deck->id,
-                    'oracle_card_id' => $companionOracleId,
-                    'default_card_id' => $partnerDefault->id,
-                    'zone' => DeckZone::Command->value,
-                    'role' => DeckCardRole::Partner->value,
+                    'role' => $role,
                     'quantity' => 1,
                 ]);
             }
@@ -317,8 +310,64 @@ class DeckService
             $deck->update(['colors' => $merged ?: null]);
         });
 
-        // Wiping the prior command zone may have removed the printing
-        // the hero image points at; clear it if it's now orphaned.
+        // A card that left may have taken the printing the hero image
+        // points at; clear it if it's now orphaned.
         $deck->syncHeroImage();
+    }
+
+    /**
+     * The command-zone rows a new command zone leaves out: the cards
+     * {@see setCommandZone} takes out of the deck, so the caller can ask
+     * where their claimed copies go first. Empty when the format has no
+     * command zone or no commander is given — nothing changes then.
+     *
+     * @return Collection<int, DeckCard>
+     */
+    public static function commandZoneLeaving(
+        Deck $deck,
+        ?string $commanderOracleId,
+        ?string $companionOracleId,
+        ?string $signatureSpellOracleId,
+    ): Collection {
+        $slots = self::commandZoneSlots($deck, $commanderOracleId, $companionOracleId, $signatureSpellOracleId);
+        if ($slots === []) {
+            return new Collection;
+        }
+
+        return DeckCard::query()
+            ->where('deck_id', $deck->id)
+            ->where('zone', DeckZone::Command->value)
+            ->whereNotIn('oracle_card_id', array_values($slots))
+            ->with('oracleCard:id,name')
+            ->get();
+    }
+
+    /**
+     * The command zone's slots — role value => oracle id — for the given
+     * cards in the deck's format: the commander, then a signature spell
+     * (formats that have one) or a partner. Empty for a format without a
+     * command zone, or without a commander.
+     *
+     * @return array<string, string>
+     */
+    private static function commandZoneSlots(
+        Deck $deck,
+        ?string $commanderOracleId,
+        ?string $companionOracleId,
+        ?string $signatureSpellOracleId,
+    ): array {
+        $profile = $deck->format->rules();
+        if (! $profile->requiresCommander() || $commanderOracleId === null) {
+            return [];
+        }
+
+        $slots = [DeckCardRole::Commander->value => $commanderOracleId];
+        if ($profile->hasSignatureSpell() && $signatureSpellOracleId) {
+            $slots[DeckCardRole::SignatureSpell->value] = $signatureSpellOracleId;
+        } elseif ($companionOracleId) {
+            $slots[DeckCardRole::Partner->value] = $companionOracleId;
+        }
+
+        return $slots;
     }
 }

@@ -308,9 +308,12 @@ export function useDeckCardActions(params: DeckCardActionParams, closePopover: (
         const data = (await response.json().catch(() => null)) as {
             source_quantity: number;
             source_copies: DeckCardCopyGroup[];
+            source_claimed_stacks: DeckCardRow["claimed_stacks"];
             target_id: string;
             target_quantity: number;
             target_copies: DeckCardCopyGroup[];
+            /** A claimed copy takes its claim along, so the target's claims can change too. */
+            target_claimed_stacks: DeckCardRow["claimed_stacks"];
             /** Target-zone rows the server folded into the target — the ones to drop here. */
             merged_ids: string[];
         } | null;
@@ -333,20 +336,21 @@ export function useDeckCardActions(params: DeckCardActionParams, closePopover: (
             // sibling planned differently.
             survivor.quantity = data.target_quantity;
             survivor.copies = data.target_copies;
+            survivor.claimed_stacks = data.target_claimed_stacks;
             for (let i = cards.length - 1; i >= 0; i--) {
                 if (data.merged_ids.includes(cards[i].id)) cards.splice(i, 1);
             }
         } else {
             // No matching target row pre-existed; synthesise from source.
-            // A new row has no claims, so neither the source's claimed
-            // stacks nor its copies carry over.
+            // Its copies and claims are the server's: only the moved copy's
+            // claim, if it took one along.
             cards.push({
                 ...source,
                 id: data.target_id,
                 zone: targetZone,
                 quantity: data.target_quantity,
                 category_id: null,
-                claimed_stacks: [],
+                claimed_stacks: data.target_claimed_stacks,
                 copies: data.target_copies
             });
         }
@@ -356,6 +360,7 @@ export function useDeckCardActions(params: DeckCardActionParams, closePopover: (
         } else {
             source.quantity = data.source_quantity;
             source.copies = data.source_copies;
+            source.claimed_stacks = data.source_claimed_stacks;
         }
 
         router.reload({ only: ["violations", "hasUnclaimedCards"] });

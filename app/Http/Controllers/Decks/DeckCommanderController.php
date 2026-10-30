@@ -8,7 +8,9 @@ use App\Http\Requests\Decks\ChangeDeckCommandZoneRequest;
 use App\Http\Requests\Decks\ShowDeckCommanderPrintingsRequest;
 use App\Http\Requests\Decks\UpdateDeckCommanderPrintingRequest;
 use App\Models\Deck;
+use App\Models\DeckCard;
 use App\Models\OracleCard;
+use App\Services\CardStackClaimService;
 use App\Services\DeckPrintingsService;
 use App\Services\DeckService;
 use Illuminate\Http\JsonResponse;
@@ -46,25 +48,20 @@ class DeckCommanderController extends Controller
     /**
      * Swap the printing shown for a single commander.
      *
-     * Updates the command-zone deck_card row's `default_card_id`. Color
-     * identity, partner / signature-spell pairing, and bracket are all
+     * Updates the command-zone deck_card row's `default_card_id`, its
+     * claimed copies with it ({@see CardStackClaimService::switchPrinting}).
+     * Color identity, partner / signature-spell pairing, and bracket are all
      * derived from the oracle card and stay unchanged.
      */
     public function updatePrinting(UpdateDeckCommanderPrintingRequest $request, Deck $deck, OracleCard $oracleCard): JsonResponse
     {
-        $newPrinting = $request->validated()['default_card_id'];
         $deckCard = $deck->deckCards()
             ->where('zone', DeckZone::Command->value)
             ->where('oracle_card_id', $oracleCard->id)
             ->first();
-        $oldPrinting = $deckCard?->default_card_id;
 
         if ($deckCard !== null) {
-            $deckCard->update(['default_card_id' => $newPrinting]);
-        }
-
-        if ($oldPrinting !== null) {
-            $deck->remapHeroImage($oldPrinting, $newPrinting);
+            CardStackClaimService::switchPrinting($deckCard, $request->validated()['default_card_id']);
         }
 
         return response()->json(status: 204);
@@ -73,8 +70,12 @@ class DeckCommanderController extends Controller
     /**
      * Replace the deck's entire command zone with a new commander (and
      * optional partner-type companion or signature spell, depending on
-     * format). Existing commanders are detached, the new ones attached,
-     * and the deck's combined-color-identity `colors` field is recomputed.
+     * format). A card that stays keeps its row, the new ones are added,
+     * and the deck's combined-color-identity `colors` field is recomputed
+     * ({@see DeckService::setCommandZone}). A card that leaves frees its
+     * claimed copies; while they lie in the deck's deckbox, the answer is
+     * 409 (`freed_copies_need_a_place`, count, container, the cards' name)
+     * until the request names a `move_to`, as "Remove" asks.
      *
      * Per-card legality (color identity, format pool) is server-recomputed
      * on the next deck-page render — the user will see freshly illegal
@@ -84,13 +85,22 @@ class DeckCommanderController extends Controller
     public function change(ChangeDeckCommandZoneRequest $request, Deck $deck): JsonResponse
     {
         $validated = $request->validated();
-
-        DeckService::setCommandZone(
-            $deck,
+        $commandZone = [
             $validated['commander_id'],
             $validated['companion_id'] ?? null,
             $validated['signature_spell_id'] ?? null,
-        );
+        ];
+        $moveTo = $request->moveTarget();
+
+        $leaving = DeckService::commandZoneLeaving($deck, ...$commandZone)
+            ->map(fn (DeckCard $row): array => [$row, 0])
+            ->all();
+        $freed = CardStackClaimService::freedCopiesNeedingAPlace($deck, $leaving, $moveTo);
+        if ($freed !== null) {
+            return response()->json(['reason' => 'freed_copies_need_a_place', ...$freed], 409);
+        }
+
+        DeckService::setCommandZone($deck, ...$commandZone, moveTo: $moveTo);
 
         return response()->json(status: 204);
     }

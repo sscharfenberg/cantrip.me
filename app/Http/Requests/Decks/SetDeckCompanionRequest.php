@@ -5,12 +5,15 @@ namespace App\Http\Requests\Decks;
 use App\Companions\CompanionRegistry;
 use App\Models\Deck;
 use App\Models\OracleCard;
+use App\Traits\MovesFreedStacks;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
 class SetDeckCompanionRequest extends FormRequest
 {
+    use MovesFreedStacks;
+
     /**
      * The user may set a companion only on their own deck.
      */
@@ -29,6 +32,7 @@ class SetDeckCompanionRequest extends FormRequest
     {
         return [
             'oracle_card_id' => ['required', 'uuid', Rule::exists(OracleCard::class, 'id')],
+            ...$this->moveToRules(),
         ];
     }
 

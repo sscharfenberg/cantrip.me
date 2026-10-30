@@ -133,3 +133,63 @@ describe("DeckCompanionActionsMenu — assign physical copy", () => {
         expect(routerMock.reload).toHaveBeenCalledWith({ only: ["companion", "deck", "hasUnclaimedCards"] });
     });
 });
+
+describe("DeckCompanionActionsMenu — removing the companion", () => {
+    const COMPANION_URL = `/api/decks/${DECK_ID}/companion`;
+    const RELOAD = ["deck", "companion", "cards", "violations", "tokens", "hasUnclaimedCards"];
+    const FREED = { reason: "freed_copies_need_a_place", count: 1, container_id: "deckbox", name: "Lurrus" };
+    const remove = async (wrapper: ReturnType<typeof render>): Promise<void> => {
+        const entry = wrapper.findAll(".popover-list-item").find(n => n.text().includes("companion.remove"));
+        if (!entry) throw new Error("no remove entry in the companion menu");
+        await entry.trigger("click");
+        await flushPromises();
+    };
+    /** 409 until the request names a place, then the removal goes through. */
+    const askUntilPlaced = () =>
+        http.on(
+            COMPANION_URL,
+            call =>
+                (call.body as { move_to?: string } | undefined)?.move_to === undefined
+                    ? Response.json(FREED, { status: 409 })
+                    : Response.json({ companion_oracle_card_id: null }),
+            "DELETE"
+        );
+    const question = (wrapper: ReturnType<typeof render>) => wrapper.findComponent({ name: "DeckCardFreedCopiesModal" });
+
+    it("removes it without a body when nothing needs a place", async () => {
+        http.json(COMPANION_URL, { companion_oracle_card_id: null }, 200, "DELETE");
+        const wrapper = render();
+
+        await remove(wrapper);
+
+        expect(http.callsTo(COMPANION_URL).map(call => call.body)).toEqual([undefined]);
+        expect(question(wrapper).exists()).toBe(false);
+        expect(routerMock.reload).toHaveBeenCalledWith(expect.objectContaining({ only: RELOAD }));
+    });
+
+    it("asks where its claimed copies go, then removes it with the answer", async () => {
+        askUntilPlaced();
+        const wrapper = render();
+        await remove(wrapper);
+
+        expect(question(wrapper).props()).toEqual({ name: "Lurrus of the Dream-Den", count: 1, deckboxId: "deckbox" });
+        question(wrapper).vm.$emit("place", "binder");
+        await flushPromises();
+
+        expect(http.callsTo(COMPANION_URL).map(call => call.body)).toEqual([undefined, { move_to: "binder" }]);
+        expect(routerMock.reload).toHaveBeenCalledWith(expect.objectContaining({ only: RELOAD }));
+    });
+
+    it("keeps the companion when the question is cancelled", async () => {
+        askUntilPlaced();
+        const wrapper = render();
+        await remove(wrapper);
+
+        question(wrapper).vm.$emit("close");
+        await flushPromises();
+
+        expect(http.callsTo(COMPANION_URL)).toHaveLength(1);
+        expect(question(wrapper).exists()).toBe(false);
+        expect(routerMock.reload).not.toHaveBeenCalled();
+    });
+});
