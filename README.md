@@ -13,7 +13,7 @@ A Magic: The Gathering card collection manager with a focus on UX: Dark/Light mo
 
 * PHP 8.4+
 * Composer
-* Node 26.1+ / npm 11.13+
+* Node 26.13+ / npm 12.2+
 * MariaDB
 * `~28 GB` of harddisk space for cached Scryfall images (art crops + card images). Will increase over time. Bulk JSONs are streamed, not cached.
 * Docker — **only** to run the end-to-end test database (`npm run e2e:db:up`). Nothing else in this project uses it, and you do not need it to develop. See [docs/testing.md](docs/testing.md).

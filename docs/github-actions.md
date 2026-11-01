@@ -71,6 +71,25 @@ Changes that touch shared code are best done on a branch with a pull request: CI
 3. (Optional) Trigger **Deploy to staging** manually to verify `main` works on a real environment before deploying to prod.
 4. Trigger **Deploy to production** manually. Approve in the Actions tab when prompted.
 
+## Raising Node or npm in `engines`
+
+`package.json#engines` is a requirement, not a hint: the `preinstall` hook (`resources/build/checkVersions.ts`) exits 1 when the running Node or npm is outside its range, and npm 12 runs that hook before `npm ci` installs anything. The deploy scripts source the `deploy` user's nvm and never call `nvm use`, so they run whatever nvm's `default` alias points at — one install, shared by staging and production.
+
+**A commit that raises `engines` needs the new versions on the server before it is deployed.** The checkout only receives the new `package.json` during the deploy, and the deploy is what then fails: `npm ci` stops at the hook, by which point the site is already in maintenance mode — which a failed deploy deliberately leaves on. So install them first, as the deploy user:
+
+```bash
+ssh cantrip
+sudo -u deploy -H bash -c 'export NVM_DIR=/home/deploy/.nvm; . "$NVM_DIR/nvm.sh" \
+  && nvm install 26.13.0 \
+  && nvm alias default 26.13.0 \
+  && npm install --global "npm@^12.2.1" \
+  && node -v && npm -v'
+```
+
+`nvm install` switches the shell to the new Node, so the `npm install --global` lands in that Node's own tree. **Every Node nvm installs brings its own npm** — Node 26 bundles npm 11 — so the npm upgrade follows every `nvm install`. The alias is pinned to an exact version rather than `26` for the same reason: with `26`, the next `nvm install` of a 26.x would move the deploys onto a Node whose npm is still 11.
+
+Your own nvm on the box needs the same versions too: `npm run dev` for the staging Vite server runs the same check. Once both deploys have passed, the old Node can go: `nvm uninstall <old version>` as the deploy user.
+
 ## Configuration
 
 Server addresses, ports, deploy users, and SSH keys are stored as **environment-scoped** secrets and variables under repo Settings → Environments → `staging` / `production`. They are not committed to the repo. Splitting them per environment means staging and production can move independently (different host, different port, different key) without touching workflow YAML.

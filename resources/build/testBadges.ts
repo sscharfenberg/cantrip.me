@@ -17,10 +17,9 @@
  * XML, and the honest badge says so; leaving the previous run's green in place would be the
  * one outcome worse than either colour.
  *
- * NODE BUILT-INS ONLY, WHICH IS WHY THERE IS NO `chalk` HERE as the sibling scripts have. This
- * one runs in a job that has installed nothing — its whole purpose is to read the XML files a
- * previous job uploaded — and an `npm ci` to colour a few lines of output would cost more than
- * the job itself.
+ * NODE BUILT-INS ONLY. This one runs in a job that has installed nothing — its whole purpose is
+ * to read the XML files a previous job uploaded — so nothing an `npm ci` provides is within
+ * reach, and installing it would cost more than the job itself.
  *****************************************************************************/
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";

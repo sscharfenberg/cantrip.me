@@ -44,7 +44,9 @@ export default defineConfig({
         globals: false,
 
         setupFiles: ["./resources/app/test/setup.ts"],
-        include: ["resources/app/**/__tests__/**/*.spec.ts"],
+        // The app, and the Node scripts in resources/build that the install and the
+        // build run (the `preinstall` version check).
+        include: ["resources/app/**/__tests__/**/*.spec.ts", "resources/build/**/__tests__/**/*.spec.ts"],
 
         // Every spy/stub is undone between tests, so a forgotten cleanup in one
         // spec cannot leak into the next. `clearMocks` is the one that matters

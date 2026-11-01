@@ -78,6 +78,11 @@ jobs:
           node-version: "26"
           cache: npm
 
+      # Node 26 bundles npm 11, while engines.npm asks for 12 and the preinstall hook refuses
+      # anything else. The range is read from package.json, so bumping it there is enough.
+      - name: Upgrade npm
+        run: npm install --global "npm@$(node -p 'require("./package.json").engines.npm')"
+
       - name: Install npm dependencies
         run: npm ci
 
@@ -95,6 +100,11 @@ jobs:
         with:
           node-version: "26"
           cache: npm
+
+      # Node 26 bundles npm 11, while engines.npm asks for 12 and the preinstall hook refuses
+      # anything else. The range is read from package.json, so bumping it there is enough.
+      - name: Upgrade npm
+        run: npm install --global "npm@$(node -p 'require("./package.json").engines.npm')"
 
       - name: Install npm dependencies
         run: npm ci
@@ -149,6 +159,11 @@ jobs:
         with:
           node-version: "26"
           cache: npm
+
+      # Node 26 bundles npm 11, while engines.npm asks for 12 and the preinstall hook refuses
+      # anything else. The range is read from package.json, so bumping it there is enough.
+      - name: Upgrade npm
+        run: npm install --global "npm@$(node -p 'require("./package.json").engines.npm')"
 
       - name: Install npm dependencies
         run: npm ci

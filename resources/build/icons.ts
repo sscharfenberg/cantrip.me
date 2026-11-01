@@ -8,7 +8,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { argv, cwd, exit, hrtime } from "node:process";
-import chalk from "chalk";
+import { styleText } from "node:util";
 import processAgs from "minimist";
 import { optimize } from "svgo";
 import svgStore from "svgstore";
@@ -20,33 +20,33 @@ const OUT_DIR: string = path.resolve(PROJECTROOT, "storage/app/public");
 const OUT_PATH: string = path.resolve(OUT_DIR, "sprite.svg");
 
 /** the global prefix for all icon log messages */
-const logPrefix: string | false = !args.w && chalk.bgCyan.black("[" + chalk.italic("icons") + "]");
+const logPrefix: string | false = !args.w && styleText(["bgCyan", "black"], "[" + styleText("italic", "icons") + "]");
 
 /** info prefix for all icon log messages */
-const infoPrefix: string = chalk.bgWhiteBright.black(" 🧐 nfo ");
+const infoPrefix: string = styleText(["bgWhiteBright", "black"], " 🧐 nfo ");
 
 /** debug prefix for all icon log messages */
-const debugPrefix: string = chalk.bgYellow.black(" 😏 dbg ");
+const debugPrefix: string = styleText(["bgYellow", "black"], " 😏 dbg ");
 
 /** error prefix for all icon log messages */
-const errorPrefix: string = chalk.bgRed.white(" 🫣 err ");
+const errorPrefix: string = styleText(["bgRed", "white"], " 🫣 err ");
 
 /** log object with [info|debug|error] methods */
 const log = {
     info: (text: string): void => {
         let msg = "";
         if (!args.w) msg += logPrefix;
-        console.log(`${msg}${infoPrefix} ${chalk.whiteBright(text)}`);
+        console.log(`${msg}${infoPrefix} ${styleText("whiteBright", text)}`);
     },
     debug: (text: string): void => {
         let msg = "";
         if (!args.w) msg += logPrefix;
-        console.log(`${msg}${debugPrefix} ${chalk.yellowBright(text)}`);
+        console.log(`${msg}${debugPrefix} ${styleText("yellowBright", text)}`);
     },
     error: (text: string): void => {
         let msg = "";
         if (!args.w) msg += logPrefix;
-        console.log(`${msg}${errorPrefix} ${chalk.redBright(text)}`);
+        console.log(`${msg}${errorPrefix} ${styleText("redBright", text)}`);
     }
 };
 
@@ -60,18 +60,20 @@ const getSvgFileNames = (): string[] => {
 /** write sprite to disk */
 const writeSpriteToDisk = (data: string, length: number, start: bigint): void => {
     if (!fs.existsSync(OUT_DIR)) {
-        if (args.v) log.info(`creating output directory ${chalk.yellow(path.basename(OUT_DIR))}`);
+        if (args.v) log.info(`creating output directory ${styleText("yellow", path.basename(OUT_DIR))}`);
         fs.mkdirSync(OUT_DIR);
     }
-    log.info(`writing icon sprite with ${chalk.bgRed.white(" " + length + " ")} symbols`);
+    log.info(`writing icon sprite with ${styleText(["bgRed", "white"], " " + length + " ")} symbols`);
     fs.writeFile(OUT_PATH, data, err => {
         if (err) {
             log.error(err.message);
             exit(1);
         } else {
-            log.info(chalk.bgGreenBright.black(" 🥳 success! "));
+            log.info(styleText(["bgGreenBright", "black"], " 🥳 success! "));
             const end = hrtime.bigint();
-            log.debug(`processing took ${chalk.bgYellow.black(" " + formatHrTime(end - start) + " ")} seconds.`);
+            log.debug(
+                `processing took ${styleText(["bgYellow", "black"], " " + formatHrTime(end - start) + " ")} seconds.`
+            );
         }
     });
 };
@@ -83,7 +85,7 @@ const formatHrTime = (time: bigint): string => {
 
 /** event handler for firing a watch event */
 const onIconChanged = (event: string, fileName: string | null): void => {
-    log.info(`file ${chalk.bgYellow.black(" " + fileName + " ")} triggered watcher`);
+    log.info(`file ${styleText(["bgYellow", "black"], " " + fileName + " ")} triggered watcher`);
     createIconSprite();
 };
 
@@ -118,7 +120,7 @@ export const createIconSprite = (): void => {
     });
     const time = hrtime.bigint();
     log.info("preparing svg icon sprite sheet.");
-    if (args.v) log.info(`found ${chalk.bgRed.white(" " + svgFiles.length + " ")} svg icon files`);
+    if (args.v) log.info(`found ${styleText(["bgRed", "white"], " " + svgFiles.length + " ")} svg icon files`);
     // only proceed if we do have icons.
     if (svgFiles.length > 0) {
         svgFiles.forEach(svgFile => {

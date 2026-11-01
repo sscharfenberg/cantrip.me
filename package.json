@@ -6,8 +6,8 @@
     "version": "1.8.1",
     "type": "module",
     "engines": {
-        "node": "^26.1.0",
-        "npm": "^11.13.0"
+        "node": "^26.13.0",
+        "npm": "^12.2.1"
     },
     "author": {
         "name": "Sven Scharfenberg",
@@ -30,7 +30,7 @@
         "i18n:check": "node ./resources/scripts/checkTranslations.ts",
         "icons": "node ./resources/build/icons.ts -v -i",
         "format": "prettier --write 'resources/app/**/*.{ts,vue,scss,json,md}'",
-        "preinstall": "node ./resources/build/checkNodeVersion.ts"
+        "preinstall": "node ./resources/build/checkVersions.ts"
     },
     "dependencies": {
         "@inertiajs/vue3": "^3.9.1",
@@ -48,14 +48,12 @@
         "@types/jsdom": "^30.0.0",
         "@types/minimist": "^1.2.5",
         "@types/node": "^26.6.5",
-        "@types/semver": "^7.8.0",
         "@vitejs/plugin-vue": "^6.0.10",
         "@vitest/coverage-v8": "^5.0.3",
         "@vue/eslint-config-prettier": "^10.2.0",
         "@vue/eslint-config-typescript": "^14.9.0",
         "@vue/test-utils": "^2.5.1",
         "@vue/tsconfig": "^0.9.1",
-        "chalk": "^6.0.1",
         "eslint": "^10.13.0",
         "eslint-config-prettier": "^10.1.8",
         "eslint-import-resolver-typescript": "^4.4.5",
@@ -69,7 +67,6 @@
         "npm-run-all2": "^9.0.4",
         "prettier": "3.9.10",
         "sass-embedded": "^1.106.1",
-        "semver": "^7.8.5",
         "sharp": "^0.35.5",
         "start-server-and-test": "^3.0.13",
         "stylelint": "^17.16.0",

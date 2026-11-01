@@ -6,7 +6,7 @@
 |---------------------|-------------------------------------------------------------|---------------------------|------------------------|
 | PHPUnit `Local`     | `tests/Unit` + `tests/Feature` *(excl. `Feature/Services`)* | SQLite in-memory          | `composer test`        |
 | PHPUnit `Staging`   | `tests/Feature/Services` only                                | MariaDB (`mbos`)          | `composer test:mysql`  |
-| Vitest              | `resources/app/**/__tests__/*.spec.ts`                       | jsdom, no server          | `npm run test`         |
+| Vitest              | `resources/{app,build}/**/__tests__/*.spec.ts`               | jsdom, no server          | `npm run test`         |
 | Playwright          | `tests/e2e/**/*.spec.ts`                                     | Chromium + the real app   | `npm run e2e`          |
 
 The two PHPUnit testsuites in `phpunit.xml` are physically separate and split along DB-engine lines. Each composer script targets exactly one suite, so running the wrong command on the wrong host can't ever drop a `RefreshDatabase` test onto the live MariaDB.

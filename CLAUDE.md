@@ -49,7 +49,7 @@ php artisan tinker
 composer setup        # composer install + .env.production + key + migrate + npm install + build
 ```
 
-Requires Node 26.1+ and npm 11.13+.
+Requires Node 26.13+ and npm 12.2+. Node 26 bundles npm 11, so upgrade npm after installing Node (`npm install --global npm@^12.2.1`) — the `preinstall` hook (`resources/build/checkVersions.ts`, Node built-ins only, because npm 12 runs it before `npm ci` installs anything) refuses any Node or npm outside `engines`. A commit raising `engines` needs the new versions on the server first: `docs/github-actions.md` § "Raising Node or npm in `engines`".
 
 ## Architecture
 
@@ -175,7 +175,7 @@ When adding new tests:
 
 **Frontend testing (Vitest):**
 
-- Specs live in `__tests__/` folders **next to the code they cover** (`resources/app/utils/__tests__/colorIdentity.spec.ts`), named `*.spec.ts`. `tests/` at the repo root stays PHP-only.
+- Specs live in `__tests__/` folders **next to the code they cover** (`resources/app/utils/__tests__/colorIdentity.spec.ts`), named `*.spec.ts`. `tests/` at the repo root stays PHP-only. The Node scripts the install and the build run are covered the same way (`resources/build/__tests__/checkVersions.spec.ts`); `vitest.config.ts#include` globs both trees.
 - `vitest.config.ts` is deliberately separate from `vite.config.ts` — the build config's `laravel-vite-plugin`, image optimizer and devtools plugins are all wrong under test. What must not drift between the two (the alias map) lives in `resources/build/aliases.ts` and is imported by both; the Vue compiler options are mirrored by hand. Adding an alias means touching `resources/build/aliases.ts` **and** `tsconfig.json#compilerOptions.paths`.
 - No test globals: import `describe`/`it`/`expect`/`vi` from `"vitest"` explicitly, so ESLint and `tsconfig.json` need no test-specific config.
 - `resources/app/test/setup.ts` runs before every spec file. It patches the jsdom gaps this app trips over — the two observer APIs, `Element.scrollIntoView`, `matchMedia`, `AnimationEvent`, the `<dialog>` and popover methods, and an in-memory `localStorage`/`sessionStorage` (Node 26 ships a *disabled* `localStorage` global that shadows jsdom's) — and installs the Vue Test Utils defaults: a fresh i18n instance per test, a `v-tooltip` stub, `enableAutoUnmount`, and a reset of the Inertia doubles.
