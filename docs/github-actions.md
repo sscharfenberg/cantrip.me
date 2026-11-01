@@ -79,16 +79,16 @@ Changes that touch shared code are best done on a branch with a pull request: CI
 
 ```bash
 ssh cantrip
-sudo -u deploy -H bash -c 'export NVM_DIR=/home/deploy/.nvm; . "$NVM_DIR/nvm.sh" \
+sudo -u deploy -H bash -c 'cd && export NVM_DIR=/home/deploy/.nvm; . "$NVM_DIR/nvm.sh" \
   && nvm install 26.13.0 \
   && nvm alias default 26.13.0 \
   && npm install --global "npm@^12.2.1" \
   && node -v && npm -v'
 ```
 
-`nvm install` switches the shell to the new Node, so the `npm install --global` lands in that Node's own tree. **Every Node nvm installs brings its own npm** — Node 26 bundles npm 11 — so the npm upgrade follows every `nvm install`. The alias is pinned to an exact version rather than `26` for the same reason: with `26`, the next `nvm install` of a 26.x would move the deploys onto a Node whose npm is still 11.
+The leading `cd` moves into the deploy user's home: `sudo` keeps your working directory, which the deploy user cannot read, and nvm's internal `find` then prints `Failed to restore initial working directory` (harmless, but noise). `nvm install` switches the shell to the new Node, so the `npm install --global` lands in that Node's own tree. **Every Node nvm installs brings its own npm** — Node 26 bundles npm 11 — so the npm upgrade follows every `nvm install`. The alias is pinned to an exact version rather than `26` for the same reason: with `26`, the next `nvm install` of a 26.x would move the deploys onto a Node whose npm is still 11.
 
-Your own nvm on the box needs the same versions too: `npm run dev` for the staging Vite server runs the same check. Once both deploys have passed, the old Node can go: `nvm uninstall <old version>` as the deploy user.
+Your own nvm on the box needs the same versions too: `npm run dev` for the staging Vite server runs the same check. Once both deploys have passed, the old Node can go, the same way: `sudo -u deploy -H bash -c 'cd && export NVM_DIR=/home/deploy/.nvm; . "$NVM_DIR/nvm.sh"; nvm uninstall <old version>; nvm ls'`.
 
 ## Configuration
 
