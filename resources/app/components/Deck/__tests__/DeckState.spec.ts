@@ -117,7 +117,7 @@ describe("DeckState — changing the state", () => {
         const wrapper = picker("planned");
 
         expect(entries(wrapper).map(entry => entry.attributes("disabled") !== undefined)).toEqual([true, false, false]);
-        expect(wrapper.findAll('use[href="#check"]')).toHaveLength(1);
+        expect(wrapper.findAll("use").filter(use => use.attributes("href") === "#check")).toHaveLength(1);
     });
 
     it("sets another state", async () => {

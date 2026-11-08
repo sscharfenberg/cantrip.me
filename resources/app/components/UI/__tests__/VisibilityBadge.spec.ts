@@ -73,7 +73,7 @@ describe("VisibilityBadge — changing the visibility", () => {
         expect(current.attributes("aria-current")).toBe("true");
         expect(current.findAll("use").map(use => use.attributes("href"))).toEqual(["#visibility-on", "#check"]);
         expect(other.attributes("disabled")).toBeUndefined();
-        expect(other.find('use[href="#check"]').exists()).toBe(false);
+        expect(other.findAll("use").map(use => use.attributes("href"))).not.toContain("#check");
     });
 
     it("sets the other visibility at the endpoint", async () => {
