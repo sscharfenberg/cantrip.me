@@ -139,10 +139,12 @@ It also rebuilds the banned & restricted lists behind the public `/b+r` page (`B
 
 ### `php artisan scryfall:gc-images`
 
-Garbage-collects art crop and card image files whose UUID is no longer in `default_cards`. Two sources of orphans:
+Garbage-collects art crop and card image files that no card points at. Per-card stale versions in a card's current set folder are handled inline by `ImageDownloadService::cleanupOldVersions()` during `scryfall:images` and are not in this command's scope. It catches the rest — rare, but it accumulates over months:
 
-- **Per-card stale versions** of cards still in the bulk are handled inline by `ImageDownloadService::cleanupOldVersions()` during `scryfall:images`. Not in this command's scope.
-- **Cards entirely removed from `default_cards`** (Scryfall data corrections, foreign-language reshuffles, etc.). Rare but accumulates over months — this command catches them.
+- **Cards entirely removed from `default_cards`** (Scryfall data corrections, foreign-language reshuffles, etc.).
+- **Cards moved to another set.** Images live under `{set code}/`, so the next run downloads the image into the new set's folder and the copy in the old folder is never cleaned up inline.
+
+Run it on production: the image folders are shared with staging, whose dataset lags behind, so a prune there would delete images that production's newer data points at.
 
 Defaults to **dry-run** (reports counts, deletes nothing). Pass `--prune` to actually delete. `--art-crops-only` / `--card-images-only` to limit scope. Run periodically — monthly cron is plenty.
 

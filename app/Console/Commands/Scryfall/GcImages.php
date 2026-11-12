@@ -11,18 +11,17 @@ use Illuminate\Support\Facades\Storage;
 /**
  * Garbage-collect orphan art crop and card image files.
  *
- * Walks the art-crops and card-images disks, extracts the UUID prefix
- * from each basename, and reports / deletes any file whose UUID is not
- * present in `default_cards.id`.
+ * Walks the art-crops and card-images disks and reports / deletes every
+ * file no card can point at ({@see ImageOrphanScanner}).
  *
- * Two sources of orphans:
+ * Per-card cleanup (ImageDownloadService::cleanupOldVersions) already
+ * deletes stale-timestamp versions in a card's current set folder. This
+ * command catches the rest, rare but accumulating:
  *
- *  - Per-card cleanup (handled by ImageDownloadService::cleanupOldVersions)
- *    catches stale-timestamp versions of cards that ARE still in the
- *    bulk. The shadow-table flow doesn't change that.
- *  - This command catches the second class: files for cards that have
- *    been removed from default_cards entirely (Scryfall data corrections,
- *    foreign-language printing reshuffles, etc.). Rare but accumulates.
+ *  - files for cards removed from default_cards entirely (Scryfall data
+ *    corrections, foreign-language printing reshuffles, etc.);
+ *  - files left in a set folder the card no longer belongs to, after
+ *    Scryfall moved the printing to another set.
  *
  * Defaults to dry-run (reports counts, deletes nothing). Pass `--prune`
  * to actually delete. Run periodically (cron monthly is plenty).
@@ -40,7 +39,7 @@ class GcImages extends Command
     /**
      * @var string
      */
-    protected $description = 'Garbage-collect art crop and card image files whose UUID is no longer in default_cards.';
+    protected $description = 'Garbage-collect art crop and card image files that no card points at.';
 
     private FormatService $formatService;
 

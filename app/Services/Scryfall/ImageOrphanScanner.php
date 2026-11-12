@@ -7,8 +7,14 @@ use Illuminate\Support\Facades\Storage;
 
 /**
  * Walks the art-crops and card-images storage disks, identifies files
- * whose UUID prefix is no longer in `default_cards.id`, and returns
- * counts and (optionally) the file list.
+ * no card can point at, and returns counts and (optionally) the file list.
+ *
+ * A file is an orphan when its UUID prefix is no longer in
+ * `default_cards.id`, or when it lies outside the folder of the card's
+ * current set. Images live under `{set code}/`, so when Scryfall moves a
+ * printing to another set the next run downloads it into the new folder,
+ * and the copy in the old one is left behind: `cleanupOldVersions()` only
+ * looks in the current folder.
  *
  * Used by:
  *   - `scryfall:gc-images` — to delete orphans (or dry-run report).
@@ -33,11 +39,14 @@ class ImageOrphanScanner
      */
     public function scan(bool $collectFiles = false): array
     {
-        $validIds = array_flip(DB::table('default_cards')->pluck('id')->all());
+        $setFolders = DB::table('default_cards as dc')
+            ->join('sets as s', 'dc.set_id', '=', 's.id')
+            ->pluck('s.code', 'dc.id')
+            ->all();
 
         $result = [
-            'art-crops' => $this->scanDisk('art-crops', $validIds, $collectFiles),
-            'card-images' => $this->scanDisk('card-images', $validIds, $collectFiles),
+            'art-crops' => $this->scanDisk('art-crops', $setFolders, $collectFiles),
+            'card-images' => $this->scanDisk('card-images', $setFolders, $collectFiles),
         ];
 
         $result['total'] = [
@@ -50,10 +59,10 @@ class ImageOrphanScanner
     }
 
     /**
-     * @param  array<string, int>  $validIds  array_flip'd UUID → 1 lookup.
+     * @param  array<string, string>  $setFolders  card UUID → code of its current set, the folder its images belong in.
      * @return array{files: list<string>, orphans: int, bytes: int, scanned: int}
      */
-    private function scanDisk(string $disk, array $validIds, bool $collectFiles): array
+    private function scanDisk(string $disk, array $setFolders, bool $collectFiles): array
     {
         $orphanFiles = [];
         $orphanCount = 0;
@@ -62,9 +71,9 @@ class ImageOrphanScanner
         $imageService = new ScryfallImageService;
 
         foreach ($files as $file) {
-            // Filename: <uuid>(--<timestamp>)?(--<faceIndex>)?.<ext>
+            // Path: <set code>/<uuid>(--<timestamp>)?(--<faceIndex>)?.<ext>
             $uuid = $imageService->uuidFromFilename(basename($file));
-            if ($uuid === '' || isset($validIds[$uuid])) {
+            if ($uuid === '' || ($setFolders[$uuid] ?? null) === dirname($file)) {
                 continue;
             }
             $orphanCount++;
