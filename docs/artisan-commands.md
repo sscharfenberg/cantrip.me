@@ -36,17 +36,24 @@ gc-images dry scan      → reports orphan files; warns with the --prune command
 end-of-run summary      → row counts per table, oracle-tag classifications, FK preservation, image-orphan totals, runtime
 ```
 
-The summary block is emitted at the very end of the run as a single formatted block (dividers + grouped sections) so the totals are visible at a glance without scrolling back through 232k+ image-resolution log lines. It's written **both** to the console (terminal runs) and to the `scryfall` daily logfile as one multi-line entry — so cron runs, which discard stdout, still record it. The **Images** sections break down card faces and art crops separately into processed / downloaded / skipped / failed (sourced from `ScryfallRunStats`, populated by `ImageDownloadService`).
+The summary block is emitted at the very end of the run as a single formatted block (dividers + grouped sections) so the totals are visible at a glance without scrolling back through 232k+ image-resolution log lines. It's written **both** to the console and to the `scryfall` daily logfile as one multi-line entry; the scheduled run appends its console output to `storage/logs/cron-scryfall.log` as well. The **Images** sections break down card faces and art crops separately into processed / downloaded / skipped / failed (sourced from `ScryfallRunStats`, populated by `ImageDownloadService`).
 
-**Scheduling.** Runs **daily at 02:00** in production via the web-server user's OS crontab — *not* the Laravel scheduler in `routes/console.php`:
+**Scheduling.** Runs **daily at 04:00** (app timezone, Europe/Berlin) in production, through the Laravel scheduler in `routes/console.php` (see [Scheduled tasks](#scheduled-tasks)):
 
-```cron
-0 2 * * * /usr/bin/flock -n /tmp/scryfall-update.lock php /var/www/mbop/artisan scryfall:update > /dev/null 2>&1
+```php
+Schedule::command('scryfall:update')
+    ->dailyAt('04:00')
+    ->environments(['production'])
+    ->withoutOverlapping(60)
+    ->appendOutputTo(storage_path('logs/cron-scryfall.log'))
+    ->onFailure(/* logs an error to the scryfall channel */);
 ```
 
-Daily is the useful maximum: Scryfall regenerates its bulk files (and card prices) roughly every 24 h, so a faster cadence has nothing new to fetch. Bandwidth is a non-issue — ~3 GB/day ingress ≈ 90 GB/month against the 20 TB cap, and image downloads are incremental (only genuinely new printings are fetched; anything already cached is skipped). A full run is ~40 min with zero user-facing downtime thanks to the shadow swap.
+Daily is the useful maximum: Scryfall regenerates its bulk files (and card prices) roughly every 24 h, so a faster cadence has nothing new to fetch. Bandwidth is a non-issue — ~3 GB/day ingress ≈ 90 GB/month against the 20 TB cap, and image downloads are incremental (only genuinely new printings are fetched; anything already cached is skipped). A full run usually takes 15–50 minutes, with zero user-facing downtime thanks to the shadow swap.
 
-`flock -n` is the overlap guard. The run *starts* by dropping any leftover `*__shadow` / `*__retired` tables (crash recovery) — so if a hung run (e.g. a stalled stream of the 2.5 GB `all_cards` download) were still holding tables when the next day's cron fired, it would have its in-progress shadow build dropped out from under it. `-n` makes the second invocation exit immediately instead of overlapping. Live data is safe either way (untouched until the atomic RENAME), but the colliding run would fail. stdout is sent to `/dev/null` because the end-of-run summary already lands in the `scryfall` logfile. Staging does not run this job — it shares most Scryfall assets with prod.
+`withoutOverlapping(60)` is the overlap guard. The run *starts* by dropping any leftover `*__shadow` / `*__retired` tables (crash recovery), so a second run starting while one is still building would drop its shadow tables out from under it. The guard is a cache lock the app owns; its 60-minute TTL lets a hard-killed run, which never releases the lock, block nothing beyond that hour. A manual run does not take the lock, so don't start one shortly before 04:00. Console output is appended to `storage/logs/cron-scryfall.log`, so a failure before the command can log anything still leaves a trace.
+
+Manual runs on production use the scheduler's user: `sudo -u deploy php /var/www/mbop/artisan scryfall:update`. Staging does not run this job on a schedule — it shares most Scryfall assets with prod — and is synced by a manual run when needed.
 
 ### `php artisan scryfall:sets`
 
@@ -216,17 +223,18 @@ Logs to the `schedule` channel: info on start/done, debug on archive extraction 
 
 ## Scheduled tasks
 
-Laravel's task scheduler handles recurring jobs. To activate, add this cron entry for the web server user:
+Laravel's task scheduler handles recurring jobs. On the server, `/etc/cron.d/cantrip` runs it every minute as the `deploy` user, one line per environment:
 
-```bash
-* * * * * php /path/to/artisan schedule:run >> /dev/null 2>&1
+```cron
+* * * * * deploy /usr/bin/php /var/www/mbop/artisan schedule:run >> /dev/null 2>&1
+* * * * * deploy /usr/bin/php /var/www/mbos/artisan schedule:run >> /dev/null 2>&1
 ```
 
-Runs `schedule:run` every minute; Laravel determines internally which scheduled tasks are due. Scheduled tasks are defined in `routes/console.php`:
+Runs `schedule:run` every minute; Laravel determines internally which scheduled tasks are due. Scheduled tasks are defined in `routes/console.php`; times are in the app timezone (Europe/Berlin):
 
 | Schedule | When | Environments |
 |---|---|---|
 | `CleanupTempUploads` job | daily at 00:00 | all |
 | `db:backup` command | daily at 00:15 | production only |
-
-`scryfall:update` is **not** in this scheduler — it's a standalone, `flock`-guarded crontab entry (daily at 02:00, production only). See [its Scheduling note](#php-artisan-scryfallupdate) for why it runs outside `routes/console.php`.
+| `session-gc` (expired session rows) | daily at 03:00 | all |
+| `scryfall:update` command | daily at 04:00 | production only |
