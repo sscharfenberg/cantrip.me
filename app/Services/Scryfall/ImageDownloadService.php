@@ -335,11 +335,11 @@ class ImageDownloadService extends ScryfallService
      * The cached file holding the same image version as $diskPath — same
      * card, timestamp and face — in any format, or null.
      *
-     * The format does not decide whether a cached image is current: a JPEG
-     * cached before Scryfall's WebP switch shows the same image as the WebP
-     * now in the bulk (both carry the same timestamp), so it is kept rather
-     * than fetched again. {@see upgradeToWebp()} replaces those JPEGs a
-     * capped number per run.
+     * The format does not decide whether a cached image is current: when the
+     * bulk names the same image version (same timestamp) in another format
+     * than the cached one — a JPEG from before Scryfall's 2026-10 WebP
+     * switch, or a PNG fetched while a card had no smaller key — the cached
+     * file is kept rather than fetched again.
      *
      * @param  string  $disk  `art-crops` or `card-images`.
      * @param  string  $diskPath  The path the current Scryfall URL maps to.
@@ -354,121 +354,6 @@ class ImageDownloadService extends ScryfallService
         }
 
         return null;
-    }
-
-    /**
-     * Replace up to $limit cached JPEGs with the WebP of the same image.
-     *
-     * Scryfall serves WebP since 2026-10 and drops most JPEGs on 2027-01-01,
-     * while the cache holds ~240,000 JPEGs from before. Those stay valid —
-     * {@see cachedVersion()} accepts them — and this pass upgrades them a
-     * capped number per run, so the one-time re-fetch (~17 GB) is spread
-     * over weeks instead of landing on Scryfall in a single night. Download
-     * attempts count against the cap, failed ones included, so a broken
-     * state cannot turn into unbounded traffic.
-     *
-     * Works from the Scryfall URLs, which a row only carries before path
-     * resolution — inside `scryfall:update` (target `shadow`) it finds the
-     * cards, on an already resolved live table it finds none. The JPEG is
-     * deleted once the WebP is on disk, and the resolve step that follows
-     * points the card at the WebP before the swap.
-     *
-     * @param  string  $target  `live` or `shadow`.
-     * @param  int  $limit  Most files to download in this run; 0 disables the pass.
-     */
-    public function upgradeToWebp(string $target, int $limit): void
-    {
-        if ($limit <= 0) {
-            ScryfallRunStats::$webpBackfillComplete = false;
-
-            return;
-        }
-
-        $start = now();
-        $upgraded = 0;
-        $failed = 0;
-        $staleBefore = ScryfallRunStats::$staleFilesUndeletable;
-
-        Log::channel('scryfall')->notice("begin replacing cached JPEGs with WebP (target={$target}, limit={$limit}).");
-
-        [$cardsTable, $setsTable] = $this->resolveTables($target);
-
-        foreach ([['art-crops', 'art_crop', null], ['card-images', 'card_image_0', 0], ['card-images', 'card_image_1', 1]] as [$disk, $column, $faceIndex]) {
-            if ($upgraded + $failed >= $limit) {
-                break;
-            }
-
-            DB::table("{$cardsTable} as dc")
-                ->join("{$setsTable} as s", 'dc.set_id', '=', 's.id')
-                ->select('dc.id', 'dc.name', "dc.{$column} as url", 's.code as set_code')
-                ->where("dc.{$column}", 'like', 'https://%.webp%')
-                ->orderBy('dc.id')
-                ->chunkById(500, function ($cards) use ($disk, $faceIndex, $limit, &$upgraded, &$failed) {
-                    foreach ($cards as $card) {
-                        match ($this->upgradeOneToWebp($disk, $card, $faceIndex)) {
-                            'upgraded' => $upgraded++,
-                            'failed' => $failed++,
-                            'none' => null,
-                        };
-                        if ($upgraded + $failed >= $limit) {
-                            return false;
-                        }
-                    }
-                }, 'dc.id', 'id');
-        }
-
-        ScryfallRunStats::$webpUpgraded = $upgraded;
-        ScryfallRunStats::$webpFailed = $failed;
-        // Under the cap means every row was looked at: nothing left to upgrade
-        // apart from what failed this time.
-        ScryfallRunStats::$webpBackfillComplete = $upgraded + $failed < $limit && $failed === 0;
-
-        $ms = $start->diffInMilliseconds(now());
-        Log::channel('scryfall')->notice(
-            "finished replacing cached JPEGs with WebP: $upgraded replaced, $failed failed"
-            .(ScryfallRunStats::$webpBackfillComplete ? ', none left' : '')
-            .' in '.$this->formatService->formatMs($ms).'.'
-            .$this->undeletableSuffix($staleBefore)
-        );
-    }
-
-    /**
-     * Replace one cached JPEG with the WebP its Scryfall URL now points at.
-     *
-     * @param  int|null  $faceIndex  Card image face, or null for an art crop.
-     * @return 'upgraded'|'failed'|'none' `none` when nothing is cached yet
-     *                                    (the download pass handles that) or the cached file is a WebP already.
-     */
-    private function upgradeOneToWebp(string $disk, stdClass $card, ?int $faceIndex): string
-    {
-        $timestamp = $this->imageService->parseTimestamp($card->url);
-        $filename = $faceIndex === null
-            ? $this->imageService->buildArtCropFilename($card->id, $timestamp, 'webp')
-            : $this->imageService->buildCardImageFilename($card->id, $timestamp, $faceIndex, 'webp');
-        $webpPath = "{$card->set_code}/$filename";
-
-        $cached = $this->cachedVersion($disk, $webpPath);
-        if ($cached === null || $cached === $webpPath) {
-            return 'none';
-        }
-
-        try {
-            $response = $this->http()->get($card->url);
-            if (! $response->successful()) {
-                Log::channel('scryfall')->error("failed to fetch WebP for {$card->name} ($disk): HTTP {$response->status()}");
-
-                return 'failed';
-            }
-            $this->prepareSetDirectory($disk, $card->set_code);
-            Storage::disk($disk)->put($webpPath, $response->body());
-            $this->deleteStaleFile($disk, $cached);
-
-            return 'upgraded';
-        } catch (\Exception $e) {
-            Log::channel('scryfall')->error("failed to fetch WebP for {$card->name} ($disk): {$e->getMessage()}");
-
-            return 'failed';
-        }
     }
 
     /**

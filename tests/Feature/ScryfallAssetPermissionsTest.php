@@ -86,19 +86,6 @@ class ScryfallAssetPermissionsTest extends TestCase
         }
     }
 
-    #[Test]
-    public function a_backfilled_webp_is_group_writable(): void
-    {
-        $set = $this->makeSet();
-        $card = $this->makeDefaultCard('Upgraded', $set, ['art_crop' => 'https://img.test/art/upgraded.webp?222']);
-        Storage::disk('art-crops')->put("{$set->code}/{$card->id}--222.jpg", 'jpeg');
-        Http::fake(['*' => Http::response('webp-bytes', 200)]);
-
-        (new ImageDownloadService)->upgradeToWebp('live', 10);
-
-        $this->assertSame('664', $this->mode('art-crops', "{$set->code}/{$card->id}--222.webp"));
-    }
-
     /**
      * Permission bits of a path on a faked disk, in octal, setuid/setgid
      * included ("2775", "664").

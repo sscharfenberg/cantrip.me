@@ -119,7 +119,7 @@ Long-running:
 
 Total image cache currently ~28 GB.
 
-**WebP.** Scryfall serves WebP since 2026-10 and drops most JPEG keys on 2027-01-01. New images are downloaded in whatever format their URL names (WebP for current data). A cached image counts as current when card, timestamp and face match, whatever its format — a JPEG cached before the switch carries the same timestamp as the WebP in the bulk, so it is not fetched again. After the downloads, a capped backfill replaces cached JPEGs with their WebP: `--webp-backfill=N` (default 10 000 per run, `0` disables), download attempts — failed ones included — counted against the cap. It needs the Scryfall URLs, so it only finds work with `--target=shadow`. The run summary reports how many were replaced and whether any JPEGs are left.
+**WebP.** Scryfall serves WebP since 2026-10 and drops most JPEG keys on 2027-01-01. New images are downloaded in whatever format their URL names (WebP for current data). A cached image counts as current when card, timestamp and face match, whatever its format — a JPEG cached before the switch carries the same timestamp as the WebP in the bulk, so it is not fetched again.
 
 Supports `--target=live|shadow`. The orchestrator invokes this with `--target=shadow` so newly-imported cards (sitting in `default_cards__shadow` with `https://…` URLs) are discoverable — querying live during a shadow build would return zero rows (every live row has already been resolved to a local path by the previous swap), and the new cards would survive the upcoming swap pointing at the Scryfall CDN with no local cache. The shadow query joins `sets__shadow` on `set_id` so brand-new sets are resolvable too.
 
