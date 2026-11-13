@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Notifications\ScryfallUpdateFailedNotification;
 use App\Services\Scryfall\ScryfallFailureAlert;
 use Illuminate\Http\Client\Request;
+use Illuminate\Notifications\AnonymousNotifiable;
 use Illuminate\Notifications\ChannelManager;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -64,6 +65,27 @@ class ScryfallFailureAlertTest extends TestCase
             ScryfallUpdateFailedNotification::class,
             fn ($notification, array $channels): bool => $channels !== ['mail'] && $notification->commandName === 'scryfall:rulings',
         );
+    }
+
+    /**
+     * Staging and production share a server and staging runs APP_ENV=local,
+     * so neither the hostname nor the environment says where an alert
+     * came from — the site does.
+     */
+    #[Test]
+    public function the_alert_names_the_site_it_comes_from(): void
+    {
+        config(['app.url' => 'https://staging.cantrip.me']);
+        $notification = new ScryfallUpdateFailedNotification('scryfall:rulings', new RuntimeException('boom'));
+        $notifiable = new AnonymousNotifiable;
+
+        $mail = $notification->toMail($notifiable);
+        $discord = $notification->toDiscord($notifiable)['embeds'][0];
+
+        $this->assertStringStartsWith('[staging.cantrip.me] ', $mail->subject);
+        $this->assertStringContainsString('staging.cantrip.me', $mail->introLines[0]);
+        $this->assertStringContainsString('staging.cantrip.me', $discord['title']);
+        $this->assertContains(['name' => 'Site', 'value' => 'staging.cantrip.me', 'inline' => true], $discord['fields']);
     }
 
     #[Test]

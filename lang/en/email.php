@@ -31,8 +31,8 @@ return [
     ],
 
     'scryfall_failure' => [
-        'subject' => '[cantrip.me] Scryfall update failed: :command',
-        'intro' => 'A scryfall update step failed on :host.',
+        'subject' => '[:site] Scryfall update failed: :command',
+        'intro' => 'A scryfall update step failed on :site (server :host).',
         'command_label' => 'Failing command:',
         'exception_label' => 'Exception:',
         'message_label' => 'Message:',

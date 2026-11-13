@@ -31,8 +31,8 @@ return [
     ],
 
     'scryfall_failure' => [
-        'subject' => '[cantrip.me] Scryfall-Update fehlgeschlagen: :command',
-        'intro' => 'Ein Scryfall-Update-Schritt ist auf :host fehlgeschlagen.',
+        'subject' => '[:site] Scryfall-Update fehlgeschlagen: :command',
+        'intro' => 'Ein Scryfall-Update-Schritt ist auf :site (Server :host) fehlgeschlagen.',
         'command_label' => 'Fehlgeschlagener Befehl:',
         'exception_label' => 'Exception:',
         'message_label' => 'Nachricht:',
