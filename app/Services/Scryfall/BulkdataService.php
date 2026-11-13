@@ -6,6 +6,7 @@ use App\Models\BulkData;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use RuntimeException;
 
 class BulkdataService extends ScryfallService
 {
@@ -19,15 +20,22 @@ class BulkdataService extends ScryfallService
      *
      * Single source of truth for the four streaming bulk imports
      * ({@see OracleCardsService}, {@see DefaultCardsService},
-     * {@see RulingsService}, {@see TranslationsService}). Returns null
-     * if no row exists for the type — caller should log and abort.
+     * {@see RulingsService}, {@see TranslationsService}).
+     *
+     * Throws when the type has no row, before the caller touches any
+     * table. Logging and returning instead let the step exit 0: in a
+     * shadow build its tables stayed empty and the swap then replaced
+     * the live rulings or translations with nothing — which is what a
+     * Scryfall rename of one bulk type would have done.
+     *
+     * @throws RuntimeException When `bulk_data(__shadow)` has no usable row for the type.
      */
-    public function resolveDownloadUri(string $type, bool $shadow = false): ?string
+    public function downloadUri(string $type, bool $shadow = false): string
     {
         $table = $this->tableName('bulk_data', $shadow);
         $row = DB::table($table)->where('type', '=', $type)->first();
-        if ($row === null || ! isset($row->download_uri)) {
-            return null;
+        if ($row === null || ! isset($row->download_uri) || $row->download_uri === '') {
+            throw new RuntimeException("no '$type' row found in $table — Scryfall's bulk-data catalog no longer lists it, or `scryfall:bulk` has not run.");
         }
 
         return (string) $row->download_uri;
@@ -85,7 +93,7 @@ class BulkdataService extends ScryfallService
         $missing = array_diff(self::REQUIRED_FIELDS, array_keys($bulk));
         if ($missing !== []) {
             $type = is_string($bulk['type'] ?? null) ? $bulk['type'] : 'unknown';
-            throw new \RuntimeException(
+            throw new RuntimeException(
                 "scryfall /bulk-data entry '$type' is missing expected field(s): ".implode(', ', $missing)
                 .'. The Scryfall bulk-data schema has changed.'
             );
@@ -126,7 +134,7 @@ class BulkdataService extends ScryfallService
             ->get('https://api.scryfall.com/bulk-data');
         if ($response->failed()) {
             Log::channel('scryfall')->error('Failed scryfall api request: '.$response->body());
-            throw new \RuntimeException('scryfall /bulk-data request failed with HTTP '.$response->status());
+            throw new RuntimeException('scryfall /bulk-data request failed with HTTP '.$response->status());
         }
         $json = $response->json();
         Log::channel('scryfall')->debug('API request to scryfall successful.: '.json_encode($json, JSON_PRETTY_PRINT));

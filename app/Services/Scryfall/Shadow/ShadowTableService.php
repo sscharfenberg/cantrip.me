@@ -6,6 +6,10 @@ namespace App\Services\Scryfall\Shadow;
 
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
+use JsonException;
+use RuntimeException;
+use Throwable;
 
 /**
  * Low-level shadow-table operations: cleanup, create-LIKE, atomic swap,
@@ -16,6 +20,16 @@ use Illuminate\Support\Facades\Log;
  */
 class ShadowTableService
 {
+    /**
+     * Where {@see rememberForeignKeys()} keeps the FK constraints dropped
+     * around the swap until they are back, on the `local` disk
+     * (storage/app/private — per environment, unlike the shared image
+     * folders). At the disk root on purpose: that folder already exists
+     * as 2775 deploy:www-data, while a subfolder Flysystem creates would
+     * be 0700 and unreadable for a run under another user.
+     */
+    public const PENDING_FOREIGN_KEYS = 'scryfall-pending-foreign-keys.json';
+
     /**
      * Drop any leftover __shadow / __retired tables for every registered
      * scryfall table. Called at the start of every scryfall:update run so
@@ -110,26 +124,132 @@ class ShadowTableService
     }
 
     /**
-     * Add every FK constraint in the given list back. Run AFTER the swap
-     * and AFTER dropRetired so the parent table names resolve to the
-     * new live tables. FK checks disabled during ALTER so existing data
-     * isn't re-validated (it was already validated by
-     * {@see ShadowValidationService} pre-swap).
+     * Add every FK constraint in the given list back. Run after the swap
+     * so the parent table names resolve to the new live tables — or, when
+     * the swap failed, to the old ones, which still own them. FK checks
+     * disabled during ALTER so existing data isn't re-validated (it was
+     * already validated by {@see ShadowValidationService} pre-swap).
+     *
+     * A constraint that already exists pointing at the right table is
+     * skipped, so the call can finish a re-add that broke off halfway, or
+     * follow a drop that did. One that exists but points elsewhere — a
+     * survivor of the drop that the RENAME rotated onto a `__retired`
+     * table — is dropped and re-added: skipped, it would dangle once the
+     * retired table is dropped.
      *
      * @param  array<int, object>  $fks  As returned by {@see captureForeignKeys()}.
+     * @return int Constraints actually added.
      */
-    public function addForeignKeys(array $fks): void
+    public function addForeignKeys(array $fks): int
     {
-        $this->withForeignKeyChecksDisabled(function () use ($fks): void {
+        $existing = [];
+        $rows = DB::select(
+            'SELECT TABLE_NAME, CONSTRAINT_NAME, REFERENCED_TABLE_NAME FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS WHERE CONSTRAINT_SCHEMA = ?',
+            [DB::connection()->getDatabaseName()]
+        );
+        foreach ($rows as $row) {
+            $existing["$row->TABLE_NAME.$row->CONSTRAINT_NAME"] = $row->REFERENCED_TABLE_NAME;
+        }
+
+        $added = 0;
+        $this->withForeignKeyChecksDisabled(function () use ($fks, $existing, &$added): void {
             foreach ($fks as $fk) {
+                $references = $existing["$fk->TABLE_NAME.$fk->CONSTRAINT_NAME"] ?? null;
+                if ($references === $fk->REFERENCED_TABLE_NAME) {
+                    continue;
+                }
+                if ($references !== null) {
+                    DB::statement("ALTER TABLE `{$fk->TABLE_NAME}` DROP FOREIGN KEY `{$fk->CONSTRAINT_NAME}`");
+                }
                 DB::statement(
                     "ALTER TABLE `{$fk->TABLE_NAME}` ADD CONSTRAINT `{$fk->CONSTRAINT_NAME}` "
                     ."FOREIGN KEY (`{$fk->COLUMN_NAME}`) REFERENCES `{$fk->REFERENCED_TABLE_NAME}` (`{$fk->REFERENCED_COLUMN_NAME}`) "
                     ."ON DELETE {$fk->DELETE_RULE} ON UPDATE {$fk->UPDATE_RULE}"
                 );
+                $added++;
             }
         });
-        Log::channel('scryfall')->debug('ShadowTableService: re-added '.count($fks).' FK constraints after swap.');
+        Log::channel('scryfall')->debug("ShadowTableService: re-added $added of ".count($fks).' FK constraints.');
+
+        return $added;
+    }
+
+    /**
+     * Write the FK constraints about to be dropped to disk, so a run that
+     * dies before {@see addForeignKeys()} has put them back — a failed
+     * re-add, an out-of-memory kill — does not lose them. The next run's
+     * {@see restorePendingForeignKeys()} re-adds them. Without it they
+     * were gone for good: that run's capture finds nothing to capture,
+     * re-adds nothing and reports success.
+     *
+     * @param  array<int, object>  $fks  As returned by {@see captureForeignKeys()}.
+     */
+    public function rememberForeignKeys(array $fks): void
+    {
+        if (! Storage::disk('local')->put(self::PENDING_FOREIGN_KEYS, json_encode($fks, JSON_THROW_ON_ERROR), 'public')) {
+            throw new RuntimeException('could not write '.self::PENDING_FOREIGN_KEYS.' to storage/app/private — refusing to drop FK constraints without a record of them.');
+        }
+    }
+
+    /** Clear the record once the constraints are back. */
+    public function forgetForeignKeys(): void
+    {
+        Storage::disk('local')->delete(self::PENDING_FOREIGN_KEYS);
+    }
+
+    /**
+     * Re-add the FK constraints an earlier run dropped and never put back,
+     * see {@see rememberForeignKeys()}. Run before anything else in
+     * `scryfall:update`. Whether that run died before or after its swap,
+     * the constraints name the live tables, which exist either way.
+     *
+     * Each constraint is tried on its own and the record is cleared
+     * whatever happens. A constraint that cannot come back — a migration
+     * since then dropped its column, say — is reported for the caller to
+     * alert about rather than thrown, so one stale record cannot stop
+     * every following night's sync at its first step.
+     *
+     * @return array{restored: int, failed: list<string>} `failed` names each
+     *                                                    constraint that could
+     *                                                    not be re-added, and why.
+     */
+    public function restorePendingForeignKeys(): array
+    {
+        $disk = Storage::disk('local');
+        if (! $disk->exists(self::PENDING_FOREIGN_KEYS)) {
+            return ['restored' => 0, 'failed' => []];
+        }
+
+        try {
+            $fks = array_map(
+                fn (array $fk): object => (object) $fk,
+                json_decode((string) $disk->get(self::PENDING_FOREIGN_KEYS), true, flags: JSON_THROW_ON_ERROR),
+            );
+        } catch (JsonException $e) {
+            $this->forgetForeignKeys();
+
+            return ['restored' => 0, 'failed' => [self::PENDING_FOREIGN_KEYS.' is unreadable ('.$e->getMessage().')']];
+        }
+
+        $restored = 0;
+        $failed = [];
+        foreach ($fks as $fk) {
+            try {
+                $restored += $this->addForeignKeys([$fk]);
+            } catch (Throwable $e) {
+                $failed[] = "$fk->TABLE_NAME.$fk->CONSTRAINT_NAME ({$e->getMessage()})";
+            }
+        }
+        $this->forgetForeignKeys();
+
+        if ($restored > 0) {
+            Log::channel('scryfall')->warning("ShadowTableService: re-added $restored FK constraints an earlier run dropped and never restored.");
+        }
+        if ($failed !== []) {
+            Log::channel('scryfall')->error('ShadowTableService: could not re-add FK constraints an earlier run dropped: '.implode('; ', $failed));
+        }
+
+        return ['restored' => $restored, 'failed' => $failed];
     }
 
     /**

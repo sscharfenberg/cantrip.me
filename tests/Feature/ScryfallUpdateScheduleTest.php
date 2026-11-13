@@ -2,9 +2,15 @@
 
 namespace Tests\Feature;
 
+use App\Notifications\ScryfallUpdateFailedNotification;
+use App\Services\Scryfall\ScryfallFailureAlert;
 use Illuminate\Console\Scheduling\Event;
 use Illuminate\Console\Scheduling\Schedule;
+use Illuminate\Notifications\AnonymousNotifiable;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Notification;
 use PHPUnit\Framework\Attributes\Test;
+use RuntimeException;
 use Tests\TestCase;
 
 /**
@@ -19,7 +25,8 @@ use Tests\TestCase;
  * drop by accident and invisible when they are, so they are asserted here.
  *
  * No database: registering the schedule touches neither the DB nor the
- * cache, so this runs on either testsuite.
+ * cache, and the failure-hook tests use the array cache store, so this
+ * runs on either testsuite.
  */
 class ScryfallUpdateScheduleTest extends TestCase
 {
@@ -60,6 +67,64 @@ class ScryfallUpdateScheduleTest extends TestCase
             'discarding output is exactly what hid the 2026-08-16..23 failures'
         );
         $this->assertTrue($event->shouldAppendOutput, 'each night must add to the log, not overwrite it');
+    }
+
+    #[Test]
+    public function a_run_that_dies_without_alerting_is_alerted_by_the_schedule(): void
+    {
+        Notification::fake();
+        Log::shouldReceive('channel')->with('scryfall')->andReturnSelf();
+        Log::shouldReceive('error');
+        $event = $this->scryfallEvent();
+
+        $event->callBeforeCallbacks(app());
+        $event->exitCode = 255;
+        $event->callAfterCallbacks(app());
+
+        Notification::assertSentOnDemand(
+            ScryfallUpdateFailedNotification::class,
+            fn ($notification): bool => $notification->commandName === 'scryfall:update',
+        );
+    }
+
+    #[Test]
+    public function a_run_that_alerted_itself_is_not_alerted_twice(): void
+    {
+        Notification::fake();
+        Log::shouldReceive('channel')->with('scryfall')->andReturnSelf();
+        Log::shouldReceive('error');
+        $event = $this->scryfallEvent();
+
+        $event->callBeforeCallbacks(app());
+        (new ScryfallFailureAlert)->send('scryfall:rulings', new RuntimeException('boom'));
+        $event->exitCode = 1;
+        $event->callAfterCallbacks(app());
+
+        Notification::assertSentOnDemandTimes(ScryfallUpdateFailedNotification::class, 2);
+        Notification::assertNotSentTo(
+            new AnonymousNotifiable,
+            ScryfallUpdateFailedNotification::class,
+            fn ($notification): bool => $notification->commandName === 'scryfall:update',
+        );
+    }
+
+    #[Test]
+    public function an_earlier_runs_alert_does_not_hide_tonights_death(): void
+    {
+        Notification::fake();
+        Log::shouldReceive('channel')->with('scryfall')->andReturnSelf();
+        Log::shouldReceive('error');
+        $event = $this->scryfallEvent();
+        (new ScryfallFailureAlert)->send('scryfall:rulings', new RuntimeException('a manual run yesterday'));
+
+        $event->callBeforeCallbacks(app());
+        $event->exitCode = 255;
+        $event->callAfterCallbacks(app());
+
+        Notification::assertSentOnDemand(
+            ScryfallUpdateFailedNotification::class,
+            fn ($notification): bool => $notification->commandName === 'scryfall:update',
+        );
     }
 
     private function scryfallEvent(): Event

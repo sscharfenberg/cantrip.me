@@ -354,24 +354,18 @@ class OracleCardsService extends ScryfallService
                 $message = "$this->oracleCardsTable is missing the `$column` column — run `php artisan migrate` before importing.";
                 Log::channel('scryfall')->error("$message Aborting before the bulk download.");
 
-                // Thrown rather than returned, unlike the missing-bulk path
-                // below. UpdateEverything::runStep() catches, raises the mail +
-                // Discord alert and rethrows, so this stops the orchestrator
-                // here instead of letting it walk default_cards, rulings and
-                // images against an empty table for several minutes and then
-                // fail at the orphan validator — which reports an orphan count,
-                // not the schema drift that caused it.
+                // Thrown, not returned. UpdateEverything::runStep() catches,
+                // raises the mail + Discord alert and rethrows, so this stops
+                // the orchestrator here instead of letting it walk
+                // default_cards, rulings and images against an empty table for
+                // several minutes and then fail at the orphan validator —
+                // which reports an orphan count, not the schema drift that
+                // caused it.
                 throw new RuntimeException($message);
             }
         }
 
-        $downloadUri = $this->bulkdataService->resolveDownloadUri('oracle_cards', $shadow);
-        if ($downloadUri === null) {
-            $bulkTable = $this->tableName('bulk_data', $shadow);
-            Log::channel('scryfall')->error("no 'oracle_cards' row found in $bulkTable — run `scryfall:bulk` first.");
-
-            return;
-        }
+        $downloadUri = $this->bulkdataService->downloadUri('oracle_cards', $shadow);
         $this->preRunCleanup();
         $this->traverseJson($downloadUri);
     }

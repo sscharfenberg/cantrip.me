@@ -8,6 +8,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\Test;
+use RuntimeException;
 use Tests\Feature\DeckBulkClaimControllerTest;
 use Tests\TestCase;
 
@@ -378,12 +379,20 @@ class TranslationsServiceTest extends TestCase
         $this->assertSame(1, $count);
     }
 
+    /**
+     * No bulk_data row, no fixture file. The step must fail, not log and
+     * exit 0 — in a shadow build, exiting 0 swapped empty translation
+     * tables into live.
+     */
     #[Test]
     public function it_aborts_when_all_cards_bulk_row_is_missing(): void
     {
-        // No bulk_data row, no fixture file. Service should log + return
-        // cleanly without throwing.
-        (new TranslationsService)->updateTranslations(shadow: false);
+        try {
+            (new TranslationsService)->updateTranslations(shadow: false);
+            $this->fail('a missing all_cards bulk row must fail the import');
+        } catch (RuntimeException $e) {
+            $this->assertStringContainsString("no 'all_cards' row found", $e->getMessage());
+        }
 
         $this->assertSame(0, DB::table('oracle_card_translations')->count());
         $this->assertSame(0, DB::table('oracle_card_face_translations')->count());

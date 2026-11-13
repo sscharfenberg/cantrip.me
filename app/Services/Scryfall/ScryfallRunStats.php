@@ -49,9 +49,19 @@ class ScryfallRunStats
      */
     public static int $bulkReconnects = 0;
 
+    /**
+     * `oracle_cards` columns whose oracle-tag sync failed, found nothing
+     * or classified nothing, and so kept the previous run's values, see
+     * {@see OracleTagsService::keepPreviousValues()}. Column → reason.
+     *
+     * @var array<string, string>
+     */
+    public static array $oracleTagColumnsCarriedOver = [];
+
     public static function reset(): void
     {
         self::$bulkReconnects = 0;
+        self::$oracleTagColumnsCarriedOver = [];
         self::$relationsRetargeted = 0;
         self::$relationsSkippedComponent = 0;
         self::$relationsSkippedOrphan = 0;

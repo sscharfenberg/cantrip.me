@@ -173,13 +173,7 @@ class RulingsService extends ScryfallService
         $this->rulingsTable = $this->tableName('rulings', $shadow);
         $this->oracleCardsTable = $this->tableName('oracle_cards', $shadow);
 
-        $downloadUri = $this->bulkdataService->resolveDownloadUri('rulings', $shadow);
-        if ($downloadUri === null) {
-            $bulkTable = $this->tableName('bulk_data', $shadow);
-            Log::channel('scryfall')->error("no 'rulings' row found in $bulkTable — run `scryfall:bulk` first.");
-
-            return;
-        }
+        $downloadUri = $this->bulkdataService->downloadUri('rulings', $shadow);
         $this->preRunCleanup();
         $this->loadKnownOracleIds();
         $this->traverseJson($downloadUri);

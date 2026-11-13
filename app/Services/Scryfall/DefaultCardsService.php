@@ -312,6 +312,7 @@ class DefaultCardsService extends ScryfallService
             $this->bufferRelations($card);
         });
         $this->flushRelationsBuffer();
+        ScryfallRunStats::$relationsSkippedComponent += $this->relationsSkippedComponent;
         $ms = $start->diffInMilliseconds(now());
         $numCards = number_format($count, 0, ',', '.');
         $numRelations = number_format($this->relationsInserted, 0, ',', '.');
@@ -338,13 +339,7 @@ class DefaultCardsService extends ScryfallService
         $this->defaultCardRelationsTable = $this->tableName('default_card_relations', $shadow);
         $this->artistsService->useTarget($shadow);
 
-        $downloadUri = $this->bulkdataService->resolveDownloadUri('default_cards', $shadow);
-        if ($downloadUri === null) {
-            $bulkTable = $this->tableName('bulk_data', $shadow);
-            Log::channel('scryfall')->error("no 'default_cards' row found in $bulkTable — run `scryfall:bulk` first.");
-
-            return;
-        }
+        $downloadUri = $this->bulkdataService->downloadUri('default_cards', $shadow);
         $this->preRunCleanup();
         $this->traverseJson($downloadUri);
     }

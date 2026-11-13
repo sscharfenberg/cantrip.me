@@ -155,13 +155,7 @@ class TranslationsService extends ScryfallService
 
         $this->resetState();
 
-        $downloadUri = $this->bulkdataService->resolveDownloadUri('all_cards', $shadow);
-        if ($downloadUri === null) {
-            $bulkTable = $this->tableName('bulk_data', $shadow);
-            Log::channel('scryfall')->error("no 'all_cards' row found in $bulkTable — run `scryfall:bulk` first.");
-
-            return;
-        }
+        $downloadUri = $this->bulkdataService->downloadUri('all_cards', $shadow);
 
         $this->preRunCleanup();
         $this->loadKnownOracleIds();

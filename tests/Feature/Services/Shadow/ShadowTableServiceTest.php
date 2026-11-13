@@ -7,6 +7,7 @@ namespace Tests\Feature\Services\Shadow;
 use App\Services\Scryfall\Shadow\ShadowTableRegistry;
 use App\Services\Scryfall\Shadow\ShadowTableService;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -146,6 +147,95 @@ class ShadowTableServiceTest extends TestCase
     }
 
     #[Test]
+    public function add_foreign_keys_skips_constraints_that_still_exist(): void
+    {
+        $captured = $this->createThrowawayForeignKey();
+
+        $this->assertSame(0, $this->service->addForeignKeys($captured), 'an existing FK must be skipped, not re-added (which would throw).');
+
+        $this->service->dropForeignKeys($captured);
+        $this->assertSame(1, $this->service->addForeignKeys($captured));
+        $this->assertSame(1, $this->foreignKeyCount());
+    }
+
+    #[Test]
+    public function a_crashed_runs_dropped_foreign_keys_are_restored_by_the_next_run(): void
+    {
+        Storage::fake('local');
+        $captured = $this->createThrowawayForeignKey();
+
+        $this->service->rememberForeignKeys($captured);
+        $this->service->dropForeignKeys($captured);
+        // The run dies here. The next one starts with:
+        $restored = $this->service->restorePendingForeignKeys();
+
+        $this->assertSame(['restored' => 1, 'failed' => []], $restored);
+        $this->assertSame(1, $this->foreignKeyCount());
+        Storage::disk('local')->assertMissing(ShadowTableService::PENDING_FOREIGN_KEYS);
+        $this->assertSame(['restored' => 0, 'failed' => []], $this->service->restorePendingForeignKeys(), 'nothing is pending any more.');
+    }
+
+    #[Test]
+    public function a_constraint_the_rename_rotated_onto_another_table_is_re_pointed(): void
+    {
+        $captured = $this->createThrowawayForeignKey();
+        // A survivor of the drop: the RENAME rotated it onto the retired parent.
+        DB::statement('RENAME TABLE _shadow_test_a TO _shadow_test_a__retired');
+        DB::statement('CREATE TABLE _shadow_test_a (id INT UNSIGNED PRIMARY KEY)');
+        $this->assertSame(0, $this->foreignKeyCount(), 'precondition: the FK now points at the retired table.');
+
+        $this->assertSame(1, $this->service->addForeignKeys($captured));
+
+        $this->assertSame(1, $this->foreignKeyCount(), 'the FK must point at the live parent again.');
+    }
+
+    #[Test]
+    public function a_pending_constraint_that_cannot_come_back_is_reported_and_cleared(): void
+    {
+        Storage::fake('local');
+        $captured = $this->createThrowawayForeignKey();
+        $this->service->rememberForeignKeys($captured);
+        $this->service->dropForeignKeys($captured);
+        // A migration since then dropped the column.
+        DB::statement('ALTER TABLE _shadow_test_b DROP COLUMN parent_id');
+
+        $result = $this->service->restorePendingForeignKeys();
+
+        $this->assertSame(0, $result['restored']);
+        $this->assertCount(1, $result['failed']);
+        $this->assertStringStartsWith('_shadow_test_b._shadow_test_b_fk', $result['failed'][0]);
+        Storage::disk('local')->assertMissing(ShadowTableService::PENDING_FOREIGN_KEYS);
+    }
+
+    #[Test]
+    public function an_unreadable_pending_record_is_reported_and_cleared(): void
+    {
+        Storage::fake('local');
+        Storage::disk('local')->put(ShadowTableService::PENDING_FOREIGN_KEYS, '[{"TABLE_NAME":');
+
+        $result = $this->service->restorePendingForeignKeys();
+
+        $this->assertSame(0, $result['restored']);
+        $this->assertCount(1, $result['failed']);
+        Storage::disk('local')->assertMissing(ShadowTableService::PENDING_FOREIGN_KEYS);
+    }
+
+    #[Test]
+    public function a_finished_run_leaves_nothing_to_restore(): void
+    {
+        Storage::fake('local');
+        $captured = $this->createThrowawayForeignKey();
+
+        $this->service->rememberForeignKeys($captured);
+        $this->service->dropForeignKeys($captured);
+        $this->service->addForeignKeys($captured);
+        $this->service->forgetForeignKeys();
+
+        $this->assertSame(['restored' => 0, 'failed' => []], $this->service->restorePendingForeignKeys());
+        $this->assertSame(1, $this->foreignKeyCount());
+    }
+
+    #[Test]
     public function cleanup_drops_only_known_scryfall_shadows(): void
     {
         $sample = ShadowTableRegistry::TABLES[0];
@@ -185,6 +275,31 @@ class ShadowTableServiceTest extends TestCase
         } finally {
             DB::statement('SET FOREIGN_KEY_CHECKS=1');
         }
+    }
+
+    /**
+     * A throwaway parent + child with one FK between them, captured the
+     * way the orchestrator captures the real ones.
+     *
+     * @return array<int, object>
+     */
+    private function createThrowawayForeignKey(): array
+    {
+        DB::statement('CREATE TABLE _shadow_test_a (id INT UNSIGNED PRIMARY KEY)');
+        DB::statement('CREATE TABLE _shadow_test_b (id INT UNSIGNED PRIMARY KEY, parent_id INT UNSIGNED, '
+            .'CONSTRAINT _shadow_test_b_fk FOREIGN KEY (parent_id) REFERENCES _shadow_test_a (id) ON DELETE CASCADE)');
+
+        return $this->service->captureForeignKeys(['_shadow_test_a']);
+    }
+
+    private function foreignKeyCount(): int
+    {
+        return DB::table('information_schema.REFERENTIAL_CONSTRAINTS')
+            ->where('CONSTRAINT_SCHEMA', DB::connection()->getDatabaseName())
+            ->where('TABLE_NAME', '_shadow_test_b')
+            ->where('CONSTRAINT_NAME', '_shadow_test_b_fk')
+            ->where('REFERENCED_TABLE_NAME', '_shadow_test_a')
+            ->count();
     }
 
     private function tableExists(string $name): bool

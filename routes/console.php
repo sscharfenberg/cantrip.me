@@ -1,6 +1,7 @@
 <?php
 
 use App\Jobs\CleanupTempUploads;
+use App\Services\Scryfall\ScryfallFailureAlert;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Log;
@@ -56,13 +57,20 @@ Schedule::call(function () {
 // is 02:00 UTC in summer, which is when that line fired; the scheduler
 // works in the app timezone, so this shifts by an hour across DST. Doesn't
 // matter for a data sync, and it stays clear of db:backup and session-gc.
+//
+// The command alerts (mail + Discord) on every step that fails. What it
+// cannot report is its own death — a fatal error, an out-of-memory kill —
+// so onFailure alerts for a non-zero exit the run did not already alert
+// about; before() clears the previous run's marker first.
 Schedule::command('scryfall:update')
     ->dailyAt('04:00')
     ->environments(['production'])
     ->withoutOverlapping(60)
     ->appendOutputTo(storage_path('logs/cron-scryfall.log'))
+    ->before(fn () => app(ScryfallFailureAlert::class)->forgetSent())
     ->onFailure(function (): void {
         Log::channel('scryfall')->error(
             'scheduled scryfall:update exited non-zero — see storage/logs/cron-scryfall.log.'
         );
+        app(ScryfallFailureAlert::class)->sendUnlessAlreadySent();
     });

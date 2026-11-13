@@ -10,6 +10,7 @@ use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Sleep;
 use Throwable;
 
 /**
@@ -21,9 +22,13 @@ use Throwable;
  * transaction (clear column → bulk-update grouped values).
  *
  * Each sync is processed independently — a failure on one tag never
- * touches another tag's column. Zero results from a tag (most likely
- * a Scryfall taxonomy rename) are treated as a sync failure and the
- * column is **left untouched** rather than zeroed.
+ * touches another tag's column. A sync that fails, finds no cards (most
+ * likely a Scryfall taxonomy rename) or cannot classify a single one of
+ * them (Scryfall reworded the cards the parser reads) **keeps the
+ * previous values**: standalone, the live column is left untouched; in a
+ * `scryfall:update` shadow build, whose freshly imported table starts
+ * out cleared, they are copied over from the live table. The run summary
+ * names every column that was carried over.
  *
  * Rate-limiting is enforced at the service level so the ≥1s pacing
  * survives across multiple tag searches in the same run, not just
@@ -74,6 +79,8 @@ class OracleTagsService extends ScryfallService
 
     private string $oracleCardsTable = 'oracle_cards';
 
+    private bool $shadow = false;
+
     public function __construct()
     {
         $this->syncs = [
@@ -86,8 +93,8 @@ class OracleTagsService extends ScryfallService
     /**
      * Resync every registered tag. Each is processed independently;
      * a failed search for one tag does not abort the others, and the
-     * corresponding column is left untouched on failure (rather than
-     * zeroed) so a transient outage can't wipe valid data.
+     * corresponding column keeps its previous values on failure (rather
+     * than being zeroed) so a transient outage can't wipe valid data.
      *
      * @throws Throwable Propagated from {@see applySync} when the
      *                   wrapped DB transaction fails. HTTP-level
@@ -96,10 +103,38 @@ class OracleTagsService extends ScryfallService
      */
     public function syncOracleTags(bool $shadow = false): void
     {
+        $this->shadow = $shadow;
         $this->oracleCardsTable = $this->tableName('oracle_cards', $shadow);
+        $keptBefore = ScryfallRunStats::$oracleTagColumnsCarriedOver;
         foreach ($this->syncs as $sync) {
             $this->runSync($sync);
         }
+
+        $kept = array_diff_key(ScryfallRunStats::$oracleTagColumnsCarriedOver, $keptBefore);
+        if ($shadow && $kept !== []) {
+            $this->alertAboutKeptColumns($kept);
+        }
+    }
+
+    /**
+     * Alert when a nightly build kept previous values. The run carries on
+     * — the values are valid, only not refreshed — but nobody reads the
+     * summary of a run that succeeded, and a renamed tag would otherwise
+     * go stale for good: every fetchland printed after the rename would
+     * show no mana. A standalone run is watched; its warnings suffice.
+     *
+     * @param  array<string, string>  $kept  Column → reason.
+     */
+    private function alertAboutKeptColumns(array $kept): void
+    {
+        $reasons = [];
+        foreach ($kept as $column => $reason) {
+            $reasons[] = "$column: $reason";
+        }
+        (new ScryfallFailureAlert)->warn(
+            'scryfall:oracle-tags',
+            "kept the previous run's values for ".implode('; ', $reasons).'.'
+        );
     }
 
     /**
@@ -107,15 +142,13 @@ class OracleTagsService extends ScryfallService
      * the derived values. Logs at info on success, warning on a tag
      * miss / parser miss, error on HTTP failure.
      *
-     * @throws Throwable Propagated from {@see applySync}.
+     * @throws Throwable Propagated from {@see writeColumn}.
      */
     private function runSync(OracleTagSync $sync): void
     {
         $cards = $this->fetchTaggedCards($sync->query());
         if ($cards === null) {
-            Log::channel('scryfall')->warning(
-                "skipping update for column '".$sync->column()."' — Scryfall search for ".$sync->query().' failed.'
-            );
+            $this->keepPreviousValues($sync, 'the Scryfall search for '.$sync->query().' failed');
 
             return;
         }
@@ -125,14 +158,19 @@ class OracleTagsService extends ScryfallService
             // "no cards exist" — most likely cause is Scryfall renaming
             // the tag slug, and zeroing the column would silently
             // break downstream features.
-            Log::channel('scryfall')->warning(
-                "query '".$sync->query()."' returned zero cards — Scryfall taxonomy may have changed. Column '".$sync->column()."' left untouched."
-            );
+            $this->keepPreviousValues($sync, "query '".$sync->query()."' returned zero cards — Scryfall taxonomy may have changed");
 
             return;
         }
 
-        [$applied, $skipped] = $this->applySync($sync, $cards);
+        [$byValue, $skipped] = $this->deriveValues($sync, $cards);
+        if ($byValue === []) {
+            $this->keepPreviousValues($sync, 'none of the '.count($cards)." cards found by '".$sync->query()."' could be classified — Scryfall may have reworded them");
+
+            return;
+        }
+
+        $applied = $this->writeColumn($sync, $byValue);
 
         Log::channel('scryfall')->info(
             "query '".$sync->query()."' synced — $applied cards classified into column '".$sync->column()."'."
@@ -199,26 +237,19 @@ class OracleTagsService extends ScryfallService
     }
 
     /**
-     * Atomically clear the sync's column and re-apply derived values
-     * for every classified card. Cards whose `deriveValue()` returns
-     * null are skipped (their column stays at the cleared value) and
-     * returned to the caller for logging.
+     * Derive the column value of every found card, grouped by value so
+     * each distinct value lands as a single (chunked) UPDATE. Cards whose
+     * `deriveValue()` returns null are left out (their column stays at the
+     * cleared value) and returned by name for logging.
      *
-     * Bulk-update strategy: cards are grouped by their derived value
-     * so each distinct value lands as a single (chunked) UPDATE. For
-     * the boolean tag this is one UPDATE; for the fetch-pattern tag
-     * with ~52 cards across ~30 distinct patterns, it's ~30 small
-     * UPDATEs — still cheap.
+     * Runs before {@see writeColumn}'s transaction so the parser doesn't
+     * hold the table lock longer than necessary.
      *
      * @param  list<array<string, mixed>>  $cards
-     * @return array{int, list<string>} `[appliedCount, skippedNames]`
-     *
-     * @throws Throwable Propagated from {@see DB::transaction}.
+     * @return array{array<string, array{value: mixed, ids: list<string>}>, list<string>} `[byValue, skippedNames]`
      */
-    private function applySync(OracleTagSync $sync, array $cards): array
+    private function deriveValues(OracleTagSync $sync, array $cards): array
     {
-        // Pre-derive outside the transaction so the parser doesn't
-        // hold the table lock longer than necessary.
         $byValue = [];
         $skipped = [];
         foreach ($cards as $card) {
@@ -228,28 +259,97 @@ class OracleTagsService extends ScryfallService
 
                 continue;
             }
-            $key = $this->bucketKey($value);
-            if (! isset($byValue[$key])) {
-                $byValue[$key] = ['value' => $value, 'ids' => []];
-            }
-            $byValue[$key]['ids'][] = $card['oracle_id'];
+            $this->addToBucket($byValue, $value, $card['oracle_id']);
         }
 
+        return [$byValue, $skipped];
+    }
+
+    /**
+     * Keep the column's previous values when this run has nothing
+     * trustworthy to replace them with.
+     *
+     * Standalone (live target) that means doing nothing. A shadow build
+     * has to copy them: its `oracle_cards__shadow` was freshly imported, so
+     * the column holds the cleared value on every row and the swap would
+     * otherwise put that live — no fetchland colours, no land-search ramp,
+     * no mass-land-denial hint, and a run that reports success. Rows are
+     * matched by oracle id; a card new to this import has no previous
+     * value and stays cleared until a sync succeeds again.
+     *
+     * @throws Throwable Propagated from {@see writeColumn}.
+     */
+    private function keepPreviousValues(OracleTagSync $sync, string $reason): void
+    {
+        $column = $sync->column();
+        ScryfallRunStats::$oracleTagColumnsCarriedOver[$column] = $reason;
+
+        if (! $this->shadow) {
+            Log::channel('scryfall')->warning("$reason. Column '$column' left untouched.");
+
+            return;
+        }
+
+        $previous = DB::table('oracle_cards')->select(['id', $column]);
+        if ($sync->clearValue() === null) {
+            $previous->whereNotNull($column);
+        } else {
+            $previous->where($column, '!=', $sync->clearValue());
+        }
+
+        $byValue = [];
+        foreach ($previous->get() as $row) {
+            $this->addToBucket($byValue, $row->{$column}, $row->id);
+        }
+        $copied = $this->writeColumn($sync, $byValue);
+
+        Log::channel('scryfall')->warning(
+            "$reason. Carried column '$column' over from the live table instead ($copied cards)."
+        );
+    }
+
+    /**
+     * @param  array<string, array{value: mixed, ids: list<string>}>  $byValue
+     */
+    private function addToBucket(array &$byValue, mixed $value, string $oracleId): void
+    {
+        $key = $this->bucketKey($value);
+        if (! isset($byValue[$key])) {
+            $byValue[$key] = ['value' => $value, 'ids' => []];
+        }
+        $byValue[$key]['ids'][] = $oracleId;
+    }
+
+    /**
+     * Atomically clear the sync's column and write the grouped values.
+     *
+     * Bulk-update strategy: one (chunked) UPDATE per distinct value. For
+     * the boolean tag this is one UPDATE; for the fetch-pattern tag
+     * with ~52 cards across ~30 distinct patterns, it's ~30 small
+     * UPDATEs — still cheap.
+     *
+     * @param  array<string, array{value: mixed, ids: list<string>}>  $byValue
+     * @return int Rows the values were written to — ids no longer in the
+     *             table don't count.
+     *
+     * @throws Throwable Propagated from {@see DB::transaction}.
+     */
+    private function writeColumn(OracleTagSync $sync, array $byValue): int
+    {
         $applied = 0;
         $table = $this->oracleCardsTable;
         DB::transaction(function () use ($sync, $byValue, $table, &$applied): void {
             DB::table($table)->update([$sync->column() => $sync->clearValue()]);
             foreach ($byValue as $bucket) {
                 foreach (array_chunk($bucket['ids'], self::UPDATE_CHUNK) as $chunk) {
-                    DB::table($table)
+                    $applied += DB::table($table)
                         ->whereIn('id', $chunk)
                         ->update([$sync->column() => $bucket['value']]);
-                    $applied += count($chunk);
                 }
             }
         });
 
-        return [$applied, $skipped];
+        return $applied;
     }
 
     /**
@@ -281,7 +381,7 @@ class OracleTagsService extends ScryfallService
     private function rateLimitedGet(string $url): Response
     {
         if (! $this->firstRequest) {
-            sleep(self::REQUEST_DELAY_SECONDS);
+            Sleep::for(self::REQUEST_DELAY_SECONDS)->seconds();
         }
         $this->firstRequest = false;
 

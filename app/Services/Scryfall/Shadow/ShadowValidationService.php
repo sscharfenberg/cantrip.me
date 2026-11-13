@@ -20,6 +20,17 @@ use Illuminate\Support\Facades\DB;
 class ShadowValidationService
 {
     /**
+     * Live row count from which {@see findShrunkTables()} also checks the
+     * proportion lost, not just emptiness. Below it (`bulk_data` with 7
+     * rows, `symbols` with 84) one legitimately removed row is already a
+     * large share.
+     */
+    public const SHRINK_CHECK_MIN_ROWS = 1000;
+
+    /** Share of a table's live rows the shadow build may lack. */
+    public const SHRINK_TOLERANCE = 0.1;
+
+    /**
      * Run every FK check from the registry and return the violations.
      *
      * @param  array<int, array{0: string, 1: string, 2: string, 3: 'shadow'|'live'}>|null  $checks
@@ -57,5 +68,44 @@ class ShadowValidationService
         }
 
         return $violations;
+    }
+
+    /**
+     * Compare every shadow table's row count with its live table and
+     * return the ones that shrank implausibly.
+     *
+     * The orphan check above only sees tables user data points into. A
+     * step that wrote nothing — an empty `rulings__shadow` or translation
+     * table — passes it, and the swap would replace the live rows with
+     * none. Scryfall's dataset only ever loses a handful of rows a night,
+     * so two rules cover it:
+     *
+     *   - a shadow table may not be empty while its live table has rows
+     *     (this one also guards the small `bulk_data` and `symbols`), and
+     *   - a table with at least {@see SHRINK_CHECK_MIN_ROWS} live rows may
+     *     not lose more than {@see SHRINK_TOLERANCE} of them.
+     *
+     * A deliberate shrink (an import rule that now skips more rows) gets
+     * past it with `scryfall:update --allow-shrink`.
+     *
+     * @param  array<int, string>|null  $tables  Live table names; defaults to {@see ShadowTableRegistry::TABLES}.
+     *                                           Provided so tests can use throwaway tables.
+     * @return list<array{table: string, live: int, shadow: int}> Empty when every table is plausible.
+     */
+    public function findShrunkTables(?array $tables = null): array
+    {
+        $shrunk = [];
+        foreach ($tables ?? ShadowTableRegistry::TABLES as $table) {
+            $live = DB::table($table)->count();
+            $shadow = DB::table(ShadowTableRegistry::shadow($table))->count();
+
+            $emptied = $live > 0 && $shadow === 0;
+            $lostTooMany = $live >= self::SHRINK_CHECK_MIN_ROWS && $shadow < $live * (1 - self::SHRINK_TOLERANCE);
+            if ($emptied || $lostTooMany) {
+                $shrunk[] = ['table' => $table, 'live' => $live, 'shadow' => $shadow];
+            }
+        }
+
+        return $shrunk;
     }
 }

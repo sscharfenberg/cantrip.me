@@ -6,13 +6,14 @@ Project-specific commands for Scryfall data sync and image management. Standard 
 
 ### `php artisan scryfall:update`
 
-Orchestrates the full Scryfall sync via the **shadow-table swap flow**: builds every truncate-rebuild table in `*__shadow` siblings, validates FK integrity, captures+drops FKs around an atomic multi-table RENAME, then re-adds FKs to the new live tables. The site stays fully usable throughout — DB churn is invisible to users, the swap itself is sub-second, and a mid-flight failure leaves the live tables byte-for-byte untouched. **No maintenance mode** (`down`/`up`).
+Orchestrates the full Scryfall sync via the **shadow-table swap flow**: builds every truncate-rebuild table in `*__shadow` siblings, validates FK integrity and row counts, captures+drops FKs around an atomic multi-table RENAME, then re-adds FKs to the new live tables. The site stays fully usable throughout — DB churn is invisible to users, the swap itself is sub-second, and a mid-flight failure leaves the live tables byte-for-byte untouched. **No maintenance mode** (`down`/`up`).
 
 Warning: streams ~475 MB of gzipped bulk data from Scryfall per run (~23 MB `oracle_cards` + ~73 MB `default_cards` + ~5 MB `rulings` + ~372 MB `all_cards`). Every run re-fetches from Scryfall — no on-disk caching of bulk data in any environment. Scryfall serves the bulks as gzipped JSON Lines (`.jsonl.gz`); `ScryfallService::streamJsonl()` inflates and decodes them one line at a time, so peak memory stays in the tens of MB regardless of bulk size. A download that ends early (a dropped connection on Scryfall's CDN) is resumed from the byte it reached, and a connection that fails to open or answers 429/5xx is tried again — five attempts in a row without data, then the step fails; the end-of-run summary counts the extra connections under "Bulk downloads".
 
 Execution order:
 
 ```
+restoreForeignKeys      → re-add FKs a crashed prior run dropped around its swap and never put back
 cleanup                 → (drop any leftover __shadow / __retired from a crashed prior run)
 createLike              → create all 12 shadow tables (empty)
 scryfall:bulk           → bulk_data__shadow (writes download URIs)
@@ -26,15 +27,22 @@ scryfall:rulings        → rulings__shadow
 scryfall:images         → downloads art crops + card images to disk (no DB writes)
 scryfall:resolve-paths  → UPDATEs default_cards__shadow.image columns to local paths
 validate orphans        → LEFT JOINs every FK relation against the shadow build
-captureForeignKeys      → snapshot every FK referencing the 12 swap tables
+validate row counts     → no shadow table empty while live has rows, none lost >10% of ≥1 000 rows
+captureForeignKeys      → snapshot every FK referencing the 12 swap tables, and write it to storage/app/private
 dropForeignKeys         → drop them so the RENAME doesn't auto-rotate references
 swap                    → atomic multi-table RENAME (12 lives → __retired, 12 shadows → live)
+addForeignKeys          → re-add the captured FKs to the new live tables — runs even when the drop or swap failed
 dropRetired             → drop the 12 __retired tables
-addForeignKeys          → re-add the captured FKs to the new live tables
 scryfall:cache          → refresh welcome-page Scryfall stats cache + banned & restricted lists
 gc-images dry scan      → reports orphan files; warns with the --prune command if any (never deletes from this flow)
 end-of-run summary      → row counts per table, oracle-tag classifications, FK preservation, image-orphan totals, runtime
 ```
+
+**Pre-swap checks.** The swap only happens when both checks pass; otherwise the run fails with an alert and live stays as it was. The orphan check covers every FK, including user data pointing at Scryfall cards. The row-count check catches a step that wrote nothing or far too little: a shadow table may not be empty while its live table has rows, and a table with at least 1 000 live rows may not lose more than 10% of them. When a change to what is imported shrinks a table on purpose, run `php artisan scryfall:update --allow-shrink` once; it logs the shrink and swaps anyway.
+
+**FK constraints around the swap.** The captured list is written to `storage/app/private/scryfall-pending-foreign-keys.json` before the first drop and deleted once every constraint is back. The re-add runs whether or not the drop and swap succeeded; it skips constraints that still exist and re-points one that exists but references another table. If the run dies in between anyway (a failed re-add, an out-of-memory kill), the next run's `restoreForeignKeys` step re-adds the constraints from that file before it does anything else; the summary counts them under "FK preservation". A constraint that can no longer be re-added (a migration dropped its column since) or an unreadable file is alerted about, the file is cleared and the run carries on.
+
+**Failure alerts.** Every step that fails sends `ScryfallUpdateFailedNotification` by mail and to Discord, each on its own, so a mail server that is down cannot swallow the Discord message. A scheduled run that exits non-zero without having alerted (a fatal error, a killed process) is alerted by the schedule's `onFailure` hook instead. A step that cannot complete — a bulk type missing from Scryfall's catalog, for example — fails rather than logging and carrying on. Two problems the run survives alert too, without failing it: an oracle-tag column kept from the previous run, and FK constraints a crashed run left dropped that could not be restored.
 
 The summary block is emitted at the very end of the run as a single formatted block (dividers + grouped sections) so the totals are visible at a glance without scrolling back through 232k+ image-resolution log lines. It's written **both** to the console and to the `scryfall` daily logfile as one multi-line entry; the scheduled run appends its console output to `storage/logs/cron-scryfall.log` as well. The **Images** sections break down card faces and art crops separately into processed / downloaded / skipped / failed (sourced from `ScryfallRunStats`, populated by `ImageDownloadService`).
 
@@ -85,7 +93,7 @@ Three strategies ship today:
   - `any` — any land card, no type filter (Urza's Cave)
 - **`LandSearchPatternOracleTagSync`** — the same parse and grammar for non-land cards that search their own library for a land. Powers `otag:tutor-land -type:land o:"search your library"` → `oracle_cards.land_search_pattern` (Three Visits → `typed:G`, Farseek → `typed:WUBR`, Rampant Growth / Cultivate → `basic`). Lands stay on the curated `fetchland` tag because the wider `tutor-land` tag also holds Ghost Quarter and Flagstones of Trokair. `o:` skips reminder text, so landcyclers and opponent-search removal (Path to Exile) drop out of the query; reminder text is also stripped before parsing. Only searches that end onto the battlefield or in hand are parsed — a land that is exiled (Strata Scythe), put on top (Treefolk Harbinger) or milled supplies no colour. The ~40 cards the parser cannot classify are logged at info rather than warning (`expectsUnclassified()`), so the fetchland sync's warnings stay meaningful. Feeds the deck page's Karsten source weighting (two-mana ramp ¾ of a source from MV 3, three-mana ramp ¼ at MV 4 and ½ from MV 5).
 
-Tags are not in Scryfall's bulk data — only reachable via `/cards/search?q=otag:<slug>`. The orchestrator paginates with ≥1s delay between every Scryfall call (across pages AND across syncs in the same run) and applies in a single transaction per sync (clear column → bulk-update grouped values in 1 000-id chunks). Zero results from a tag are treated as a sync failure (taxonomy probably renamed) and the column is **left untouched** rather than zeroed.
+Tags are not in Scryfall's bulk data — only reachable via `/cards/search?q=otag:<slug>`. The orchestrator paginates with ≥1s delay between every Scryfall call (across pages AND across syncs in the same run) and applies in a single transaction per sync (clear column → bulk-update grouped values in 1 000-id chunks). A sync that fails, finds no cards (taxonomy probably renamed) or cannot classify a single one of them (cards reworded) **keeps the previous values** rather than zeroing the column: run standalone, the live column is left untouched; inside `scryfall:update`, whose freshly imported shadow table starts out cleared, the values are copied over from the live table and an alert names the column and the reason, since a renamed tag would otherwise go stale unnoticed. The end-of-run summary lists those columns under "Oracle tags — kept from the previous run".
 
 Runs in `scryfall:update` immediately after `scryfall:oracle` so the freshly inserted `oracle_cards` rows can be flagged in place. Supports `--target=live|shadow`.
 

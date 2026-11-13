@@ -3,12 +3,19 @@
 namespace Tests\Unit\Services\Scryfall;
 
 use App\Services\Scryfall\BulkdataService;
+use App\Services\Scryfall\DefaultCardsService;
+use App\Services\Scryfall\OracleCardsService;
+use App\Services\Scryfall\RulingsService;
+use App\Services\Scryfall\TranslationsService;
+use Closure;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Sleep;
 use Illuminate\Support\Str;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
+use RuntimeException;
 use Tests\Feature\DeckBulkClaimControllerTest;
 use Tests\TestCase;
 
@@ -142,7 +149,7 @@ class BulkdataServiceTest extends TestCase
         $legacy['download_uri'] = 'https://data.scryfall.io/rulings/rulings-20260728210037.json';
         $this->fakeCatalog($legacy);
 
-        $this->expectException(\RuntimeException::class);
+        $this->expectException(RuntimeException::class);
         $this->expectExceptionMessageMatches('/missing expected field\(s\): compressed_size, jsonl_download_uri/');
 
         (new BulkdataService)->getBulkMetadata(shadow: true);
@@ -166,8 +173,46 @@ class BulkdataServiceTest extends TestCase
 
         $this->assertSame(
             'https://data.scryfall.io/default-cards/default-cards-20260728235710.jsonl.gz',
-            $service->resolveDownloadUri('default_cards')
+            $service->downloadUri('default_cards')
         );
-        $this->assertNull($service->resolveDownloadUri('all_cards'));
+    }
+
+    #[Test]
+    public function a_type_missing_from_the_catalog_is_an_error_not_an_empty_import(): void
+    {
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage("no 'all_cards' row found in bulk_data");
+
+        (new BulkdataService)->downloadUri('all_cards');
+    }
+
+    /**
+     * Each bulk importer must fail — not log and exit 0 — when its bulk
+     * type is gone. Exiting 0 let the nightly shadow build swap empty
+     * rulings and translations tables into live.
+     *
+     * @param  Closure(): void  $import
+     */
+    #[Test]
+    #[DataProvider('bulkImporters')]
+    public function every_bulk_importer_fails_when_its_bulk_type_is_missing(string $type, Closure $import): void
+    {
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage("no '$type' row found");
+
+        $import();
+    }
+
+    /**
+     * @return array<string, array{string, Closure(): void}>
+     */
+    public static function bulkImporters(): array
+    {
+        return [
+            'oracle cards' => ['oracle_cards', fn () => (new OracleCardsService)->updateOracleCards()],
+            'default cards' => ['default_cards', fn () => (new DefaultCardsService)->updateAllCards()],
+            'rulings' => ['rulings', fn () => (new RulingsService)->updateRulings()],
+            'translations' => ['all_cards', fn () => (new TranslationsService)->updateTranslations()],
+        ];
     }
 }
