@@ -3,6 +3,7 @@
 namespace App\Services\Scryfall;
 
 use App\Services\Scryfall\Shadow\ShadowTableRegistry;
+use Exception;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\RequestException;
@@ -503,12 +504,101 @@ class ScryfallService
     }
 
     /**
+     * Download one SVG (a set icon or a mana symbol) onto a disk.
+     *
+     * Never throws: a timeout or an error status used to escape and abort
+     * the whole `scryfall:sets` / `scryfall:symbols` step — and with it the
+     * nightly run — over a single icon. A failure is logged and counted in
+     * {@see ScryfallRunStats::$svgDownloadsFailed}; the caller decides
+     * what the row points at instead.
+     *
+     * @return bool Whether the file is now on the disk.
+     */
+    protected function downloadSvg(string $uri, string $disk, string $fileName): bool
+    {
+        try {
+            $response = $this->http()->get($uri);
+            if ($response->successful() && $this->storeAtomically($disk, $fileName, $response->body())) {
+                Log::channel('scryfall')->debug("created SVG in storage disk '$disk': $fileName");
+
+                return true;
+            }
+            $problem = $response->successful() ? 'empty response or write failed' : "HTTP {$response->status()}";
+        } catch (Exception $e) {
+            $problem = $e->getMessage();
+        }
+
+        ScryfallRunStats::$svgDownloadsFailed++;
+        Log::channel('scryfall')->error("could not download SVG '$uri' to disk '$disk': $problem");
+
+        return false;
+    }
+
+    /**
+     * Write a downloaded asset so that it is either complete or absent.
+     *
+     * Every cache check is "does the file exist", so a file cut short by a
+     * full disk or a killed process would count as cached forever. The
+     * bytes therefore go to a hidden `.<name>.part` sibling first and are
+     * renamed into place — a rename within one folder is atomic. A
+     * leftover `.part` file matches no card (its name starts with a dot):
+     * `scryfall:gc-images` counts it as an orphan on the image disks, and
+     * {@see deletePartialDownloads()} clears the set and symbol disks. An
+     * empty body is refused outright: Scryfall never serves an empty image.
+     *
+     * @param  string  $disk  The filesystem disk name.
+     * @param  string  $path  Final path on that disk.
+     * @return bool Whether the file is now in place.
+     */
+    protected function storeAtomically(string $disk, string $path, string $contents): bool
+    {
+        if ($contents === '') {
+            return false;
+        }
+
+        $storage = Storage::disk($disk);
+        $folder = dirname($path);
+        $partial = ($folder === '.' ? '' : "$folder/").'.'.basename($path).'.part';
+        try {
+            return $storage->put($partial, $contents) && $storage->move($partial, $path);
+        } finally {
+            try {
+                if ($storage->exists($partial)) {
+                    $storage->delete($partial);
+                }
+            } catch (Throwable) {
+                // Must not replace the write's own exception; the leftover
+                // is collected later (see the docblock).
+            }
+        }
+    }
+
+    /**
+     * Delete the `.part` files killed downloads left in the root of a flat
+     * disk (`set`, `symbol`). Run by `scryfall:update` after its swap, when
+     * no download is in flight.
+     *
+     * @return int Files deleted.
+     */
+    public function deletePartialDownloads(string $disk): int
+    {
+        $deleted = 0;
+        foreach (Storage::disk($disk)->files() as $file) {
+            if (str_starts_with($file, '.') && str_ends_with($file, '.part') && $this->deleteStaleFile($disk, $file)) {
+                $deleted++;
+            }
+        }
+
+        return $deleted;
+    }
+
+    /**
      * Delete a stale cached asset, treating failure as non-fatal.
      *
      * Every caller deletes a *superseded* file — an art crop, card face or
-     * set icon whose Scryfall timestamp has moved on. The fresh version is
-     * downloaded to a new filename immediately afterwards, so a leftover
-     * old file costs disk space and nothing else. Letting Flysystem's
+     * set icon whose Scryfall timestamp has moved on, deleted once the swap
+     * has put the rows pointing at its successor live. A leftover old file
+     * costs disk space and nothing else. Letting Flysystem's
      * `UnableToDeleteFile` escape, by contrast, aborts the whole import
      * step and with it the nightly `scryfall:update` — the outcome is
      * wildly out of proportion to the problem.

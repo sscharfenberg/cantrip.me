@@ -82,6 +82,10 @@ class CachedImageFormatsTest extends TestCase
     {
         $set = $this->makeSet();
         $known = $this->makeDefaultCard('Known', $set);
+        $known->update([
+            'art_crop' => "/art-crops/{$set->code}/{$known->id}--222.webp",
+            'card_image_0' => "/card-images/{$set->code}/{$known->id}--222--0.jpg",
+        ]);
         $gone = (string) Str::uuid();
         Storage::disk('art-crops')->put("{$set->code}/{$known->id}--222.webp", 'webp');
         Storage::disk('art-crops')->put("{$set->code}/{$known->id}.webp", 'untimestamped');
@@ -93,6 +97,8 @@ class CachedImageFormatsTest extends TestCase
 
         $this->assertSame(["{$set->code}/{$gone}--222.webp"], $result['art-crops']['files']);
         $this->assertSame(["{$set->code}/{$gone}--222--0.jpg"], $result['card-images']['files']);
+        // The untimestamped file is an older version of the known card's crop, not an orphan.
+        $this->assertSame(["{$set->code}/{$known->id}.webp"], $result['art-crops']['superseded']);
     }
 
     private function makeSet(): Set

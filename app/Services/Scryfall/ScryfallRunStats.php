@@ -42,6 +42,18 @@ class ScryfallRunStats
     public static int $staleFilesUndeletable = 0;
 
     /**
+     * Set icon and symbol SVGs that could not be downloaded. Non-fatal,
+     * see {@see ScryfallService::downloadSvg()}.
+     */
+    public static int $svgDownloadsFailed = 0;
+
+    /**
+     * Superseded image versions and set icons deleted after the swap,
+     * see {@see ImageDownloadService::deleteSuperseded()}.
+     */
+    public static int $supersededFilesDeleted = 0;
+
+    /**
      * Connections a bulk download needed beyond its first — a resume after
      * a dropped connection, or another try after one that failed to open.
      * Non-zero means Scryfall's CDN stumbled and the run got past it, see
@@ -72,5 +84,7 @@ class ScryfallRunStats
         self::$artCropsSkipped = 0;
         self::$artCropsFailed = 0;
         self::$staleFilesUndeletable = 0;
+        self::$svgDownloadsFailed = 0;
+        self::$supersededFilesDeleted = 0;
     }
 }

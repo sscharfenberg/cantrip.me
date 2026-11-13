@@ -3,9 +3,11 @@
 namespace App\Console\Commands\Scryfall;
 
 use App\Services\FormatService;
+use App\Services\Scryfall\ImageDownloadService;
 use App\Services\Scryfall\ImageOrphanScanner;
 use App\Services\Scryfall\ScryfallFailureAlert;
 use App\Services\Scryfall\ScryfallRunStats;
+use App\Services\Scryfall\SetsService;
 use App\Services\Scryfall\Shadow\ShadowSwapper;
 use App\Services\Scryfall\Shadow\ShadowTableRegistry;
 use App\Services\Scryfall\Shadow\ShadowTableService;
@@ -41,6 +43,10 @@ class UpdateEverything extends Command
 
     private ImageOrphanScanner $imageOrphanScanner;
 
+    private ImageDownloadService $imageDownloads;
+
+    private SetsService $sets;
+
     private ShadowSwapper $swapper;
 
     private ScryfallFailureAlert $alert;
@@ -60,6 +66,8 @@ class UpdateEverything extends Command
         $this->shadow = new ShadowTableService;
         $this->validation = new ShadowValidationService;
         $this->imageOrphanScanner = new ImageOrphanScanner;
+        $this->imageDownloads = new ImageDownloadService;
+        $this->sets = new SetsService;
         $this->swapper = new ShadowSwapper($this->shadow);
         $this->alert = new ScryfallFailureAlert;
     }
@@ -270,8 +278,10 @@ class UpdateEverything extends Command
      *   8. Swap ({@see ShadowSwapper}): capture and drop every FK into the
      *      swap tables, atomic multi-table RENAME (old → __retired,
      *      shadows → live), re-add the FKs, drop the __retired tables.
-     *   9. Refresh welcome-page Scryfall stats cache from the new live data.
-     *  10. Dry-run scan for orphaned image files.
+     *   9. Delete the image versions and set icons the swap superseded —
+     *      kept until now because the old live rows pointed at them — and
+     *      scan for orphaned image files (reported, never deleted here).
+     *  10. Refresh welcome-page Scryfall stats cache from the new live data.
      *
      * Before any of it, FK constraints a crashed earlier run dropped and
      * never put back are re-added.
@@ -388,18 +398,36 @@ class UpdateEverything extends Command
             .count(ShadowTableRegistry::TABLES).' __retired tables dropped, '
             ."$capturedFks FK constraints dropped around it and re-added.");
 
-        // 9. Refresh the welcome-page Scryfall stats cache against the
+        // 9. Scan the image disks against the now-live default_cards.
+        //    Superseded versions (an older image of a card that now points
+        //    at a newer one) and superseded set icons are deleted — they
+        //    were only kept so the old live rows had something to show
+        //    until the swap — and so are .part leftovers on the SVG disks.
+        //    Orphans are reported only: surface a hint with the prune
+        //    command if any are found, never delete them from the auto
+        //    flow. Housekeeping: the new data is already live, so a
+        //    failure here alerts and the run carries on to the cache.
+        $imageOrphans = [
+            'art-crops' => ['files' => [], 'orphans' => 0, 'bytes' => 0, 'superseded' => [], 'scanned' => 0],
+            'card-images' => ['files' => [], 'orphans' => 0, 'bytes' => 0, 'superseded' => [], 'scanned' => 0],
+            'total' => ['orphans' => 0, 'bytes' => 0, 'superseded' => 0, 'scanned' => 0],
+        ];
+        try {
+            $imageOrphans = $this->imageOrphanScanner->scan();
+            ScryfallRunStats::$supersededFilesDeleted = $this->imageDownloads->deleteSuperseded($imageOrphans)
+                + $this->sets->deleteSupersededIcons()
+                + $this->sets->deletePartialDownloads('set')
+                + $this->sets->deletePartialDownloads('symbol');
+        } catch (Throwable $e) {
+            Log::channel('scryfall')->error("post-swap cleanup failed: {$e->getMessage()}", ['exception' => $e::class]);
+            $this->error("post-swap cleanup failed: {$e->getMessage()}");
+            $this->alert->warn('orchestrator:pruneSuperseded', "the swap succeeded, but deleting superseded files failed: {$e->getMessage()}");
+        }
+
+        // 10. Refresh the welcome-page Scryfall stats cache against the
         //     now-live data so the next visitor doesn't pay the
         //     recursive `find` + `du` cost.
         $this->runStep('scryfall:cache');
-
-        // 10. Image-orphan dry scan against the now-live default_cards.
-        //     Reports counts only — surface a hint with the prune command
-        //     if any are found, but never delete from the auto flow.
-        $imageOrphans = ['art-crops' => ['orphans' => 0, 'bytes' => 0], 'card-images' => ['orphans' => 0, 'bytes' => 0], 'total' => ['orphans' => 0, 'bytes' => 0]];
-        $this->runOrchestratorStep('scanImageOrphans', function () use (&$imageOrphans): void {
-            $imageOrphans = $this->imageOrphanScanner->scan();
-        });
         if ($imageOrphans['total']['orphans'] > 0) {
             $this->newLine();
             $this->warn(sprintf(
@@ -422,7 +450,7 @@ class UpdateEverything extends Command
      * Build the end-of-run summary by querying the now-live tables and
      * pulling cross-step counters from {@see ScryfallRunStats}.
      *
-     * @param  array{art-crops: array{orphans: int, bytes: int}, card-images: array{orphans: int, bytes: int}, total: array{orphans: int, bytes: int}}  $imageOrphans
+     * @param  array{art-crops: array{files: list<string>, orphans: int, bytes: int, superseded: list<string>, scanned: int}, card-images: array{files: list<string>, orphans: int, bytes: int, superseded: list<string>, scanned: int}, total: array{orphans: int, bytes: int, superseded: int, scanned: int}}  $imageOrphans
      */
     private function buildAndEmitSummary(int $totalMs, int $waitTime, int $capturedFkCount, int $restoredFkCount, array $imageOrphans): void
     {
@@ -459,7 +487,9 @@ class UpdateEverything extends Command
         $this->pushSummary('Images downloaded — art crops', 'downloaded', $this->fmtCount(ScryfallRunStats::$artCropsDownloaded));
         $this->pushSummary('Images downloaded — art crops', 'skipped (already cached)', $this->fmtCount(ScryfallRunStats::$artCropsSkipped));
         $this->pushSummary('Images downloaded — art crops', 'failed', $this->fmtCount(ScryfallRunStats::$artCropsFailed));
-        $this->pushSummary('Images downloaded — art crops', 'stale files left undeleted', $this->fmtCount(ScryfallRunStats::$staleFilesUndeletable));
+        $this->pushSummary('Superseded after the swap', 'old versions + leftovers deleted', $this->fmtCount(ScryfallRunStats::$supersededFilesDeleted));
+        $this->pushSummary('Superseded after the swap', 'left in place (could not delete)', $this->fmtCount(ScryfallRunStats::$staleFilesUndeletable));
+        $this->pushSummary('Set icons + symbols', 'SVG downloads failed', $this->fmtCount(ScryfallRunStats::$svgDownloadsFailed));
 
         // Image path resolution.
         $artLocal = (int) DB::table('default_cards')->whereNotNull('art_crop')->where('art_crop', 'not like', 'https://%')->count();

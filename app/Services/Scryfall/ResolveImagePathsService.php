@@ -91,55 +91,87 @@ class ResolveImagePathsService extends ScryfallService
     }
 
     /**
-     * Find a file on disk matching a UUID prefix for an art crop.
+     * Find the cached art crop for a card.
      *
      * Art crop filenames: {uuid}--{timestamp}.{ext} or {uuid}.{ext}
-     * A card has exactly one art crop, so any file starting with the UUID is a match.
+     * The version the bulk's URL names is preferred, in any format; when
+     * it is not on disk (its download failed) an older version is taken
+     * rather than leaving the card on Scryfall's CDN. Both can be on disk
+     * at once, because a new version is downloaded next to the old one.
      *
      * @param  string  $disk  The Storage disk name.
      * @param  string  $setCode  The set code directory.
      * @param  string  $uuid  The card UUID.
+     * @param  string  $url  The Scryfall URL the column holds.
      * @return string|null The relative disk path if found, null otherwise.
      */
-    private function findArtCropOnDisk(string $disk, string $setCode, string $uuid): ?string
+    private function findArtCropOnDisk(string $disk, string $setCode, string $uuid, string $url): ?string
     {
-        $index = $this->getFileIndex($disk, $setCode);
+        $wanted = $this->imageService->buildArtCropFilename(
+            $uuid,
+            $this->imageService->parseTimestamp($url),
+            $this->imageService->imageExtension($url),
+        );
 
-        return $index[$uuid][0] ?? null;
+        return $this->preferVersion($this->getFileIndex($disk, $setCode)[$uuid] ?? [], $wanted);
     }
 
     /**
-     * Find a file on disk matching a UUID and face index for a card image.
+     * Find the cached image of one face of a card.
      *
      * Card image filenames: {uuid}--{timestamp}--{faceIndex}.{ext} or {uuid}--{faceIndex}.{ext}
      * Must match the specific face index suffix to avoid returning face 0's
-     * file when looking for face 1 (and vice versa).
+     * file when looking for face 1 (and vice versa). Prefers the version
+     * the URL names, like {@see findArtCropOnDisk()}.
      *
      * @param  string  $disk  The Storage disk name.
      * @param  string  $setCode  The set code directory.
      * @param  string  $uuid  The card UUID.
      * @param  int  $faceIndex  The face index (0 = front, 1 = back).
+     * @param  string  $url  The Scryfall URL the column holds.
      * @return string|null The relative disk path if found, null otherwise.
      */
-    private function findCardImageOnDisk(string $disk, string $setCode, string $uuid, int $faceIndex): ?string
+    private function findCardImageOnDisk(string $disk, string $setCode, string $uuid, int $faceIndex, string $url): ?string
     {
-        $index = $this->getFileIndex($disk, $setCode);
-        foreach ($index[$uuid] ?? [] as $file) {
-            if ($this->imageService->isCardImageFace(basename($file), $uuid, $faceIndex)) {
+        $faceFiles = array_values(array_filter(
+            $this->getFileIndex($disk, $setCode)[$uuid] ?? [],
+            fn (string $file): bool => $this->imageService->isCardImageFace(basename($file), $uuid, $faceIndex),
+        ));
+        $wanted = $this->imageService->buildCardImageFilename(
+            $uuid,
+            $this->imageService->parseTimestamp($url),
+            $faceIndex,
+            $this->imageService->imageExtension($url),
+        );
+
+        return $this->preferVersion($faceFiles, $wanted);
+    }
+
+    /**
+     * The file holding the same version as $wanted — same stem, any
+     * format — or else the first candidate, or null when there is none.
+     *
+     * @param  list<string>  $candidates  Paths on the disk, all versions of one image.
+     */
+    private function preferVersion(array $candidates, string $wanted): ?string
+    {
+        $wantedStem = $this->imageService->stem($wanted);
+        foreach ($candidates as $file) {
+            if ($this->imageService->stem(basename($file)) === $wantedStem) {
                 return $file;
             }
         }
 
-        return null;
+        return $candidates[0] ?? null;
     }
 
     /**
      * Update art_crop paths for default cards that still point to Scryfall URLs
      * but already have a cached image on disk.
      *
-     * Instead of building the expected filename from the URL timestamp, scans
-     * the disk for any file matching the card UUID. This makes resolution
-     * resilient to timestamp mismatches between the bulk data and disk.
+     * Prefers the file of the version the URL names and falls back to any
+     * other version of the card's art crop, so a failed download leaves the
+     * card on its previous image rather than on Scryfall's CDN.
      *
      * @return int Number of paths resolved.
      */
@@ -156,7 +188,7 @@ class ResolveImagePathsService extends ScryfallService
         DB::table($defaultCardsTable)
             ->whereNotNull('art_crop')
             ->where('art_crop', 'like', 'https://%')
-            ->select('id', 'set_id')
+            ->select('id', 'set_id', 'art_crop')
             ->chunkById(500, function ($cards) use (&$resolved, $setCodes, $defaultCardsTable) {
                 foreach ($cards as $card) {
                     $setCode = $setCodes[$card->set_id] ?? null;
@@ -164,7 +196,7 @@ class ResolveImagePathsService extends ScryfallService
                         continue;
                     }
 
-                    $diskPath = $this->findArtCropOnDisk('art-crops', $setCode, $card->id);
+                    $diskPath = $this->findArtCropOnDisk('art-crops', $setCode, $card->id, $card->art_crop);
                     if ($diskPath) {
                         DB::table($defaultCardsTable)
                             ->where('id', $card->id)
@@ -209,7 +241,7 @@ class ResolveImagePathsService extends ScryfallService
                             continue;
                         }
 
-                        $diskPath = $this->findCardImageOnDisk('card-images', $setCode, $card->id, $index);
+                        $diskPath = $this->findCardImageOnDisk('card-images', $setCode, $card->id, $index, $card->{$column});
                         if ($diskPath) {
                             DB::table($defaultCardsTable)
                                 ->where('id', $card->id)

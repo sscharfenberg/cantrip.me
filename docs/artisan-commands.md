@@ -33,9 +33,11 @@ dropForeignKeys         → drop them so the RENAME doesn't auto-rotate referenc
 swap                    → atomic multi-table RENAME (12 lives → __retired, 12 shadows → live)
 addForeignKeys          → re-add the captured FKs to the new live tables — runs even when the drop or swap failed
 dropRetired             → drop the 12 __retired tables
+pruneSuperseded         → delete the image versions and set icons the swap superseded and .part leftovers on the SVG disks; scan
+                          for orphans and warn with the --prune command if any (orphans are never deleted from this flow);
+                          a failure here alerts but does not fail the run — the new data is already live
 scryfall:cache          → refresh welcome-page Scryfall stats cache + banned & restricted lists
-gc-images dry scan      → reports orphan files; warns with the --prune command if any (never deletes from this flow)
-end-of-run summary      → row counts per table, oracle-tag classifications, FK preservation, image-orphan totals, runtime
+end-of-run summary      → row counts per table, oracle-tag classifications, FK preservation, superseded files, image-orphan totals, runtime
 ```
 
 **Pre-swap checks.** The swap only happens when both checks pass; otherwise the run fails with an alert and live stays as it was. The orphan check covers every FK, including user data pointing at Scryfall cards. The row-count check catches a step that wrote nothing or far too little: a shadow table may not be empty while its live table has rows, and a table with at least 1 000 live rows may not lose more than 10% of them. When a change to what is imported shrinks a table on purpose, run `php artisan scryfall:update --allow-shrink` once; it logs the shrink and swaps anyway.
@@ -65,11 +67,11 @@ Manual runs on production use the scheduler's user, started from the app directo
 
 ### `php artisan scryfall:sets`
 
-Fetches all sets from `/sets` and inserts into `sets`. Downloads set icon SVGs to the `set` storage disk if not already cached. Supports `--target=live|shadow` (default `live`).
+Fetches all sets from `/sets` and inserts into `sets`. Downloads set icon SVGs to the `set` storage disk if not already cached. A set's icon file carries Scryfall's timestamp (`{code}--{timestamp}.svg`); a new one is downloaded next to the old one, which `scryfall:update` deletes after its swap. An icon that cannot be downloaded (timeout, error status) is logged and counted ("SVG downloads failed" in the run summary) and the set keeps its older icon; the step carries on. Supports `--target=live|shadow` (default `live`).
 
 ### `php artisan scryfall:symbols`
 
-Fetches all mana and ability symbols from `/symbology` and inserts into `symbols`. Downloads symbol SVGs to the `symbol` storage disk if not already cached. Supports `--target=live|shadow`.
+Fetches all mana and ability symbols from `/symbology` and inserts into `symbols`. Downloads symbol SVGs to the `symbol` storage disk if not already cached. A symbol that cannot be downloaded is logged and counted, and the next run tries again; the step carries on. Supports `--target=live|shadow`.
 
 ### `php artisan scryfall:bulk`
 
@@ -134,13 +136,15 @@ Long-running:
 
 Total image cache currently ~28 GB.
 
+**New versions.** When Scryfall re-dates an image, the new version is downloaded next to the old one, never in its place: during a shadow build the live rows still point at the old file, and if the download fails it is still the best image there is. `scryfall:update` deletes the superseded version after its swap. Every download is written to a hidden `.<name>.part` file and renamed into place, so a full disk or a killed process cannot leave a cut-short image that would count as cached forever; an empty response counts as a failure.
+
 **WebP.** Scryfall serves WebP since 2026-10 and drops most JPEG keys on 2027-01-01. New images are downloaded in whatever format their URL names (WebP for current data). A cached image counts as current when card, timestamp and face match, whatever its format — a JPEG cached before the switch carries the same timestamp as the WebP in the bulk, so it is not fetched again.
 
 Supports `--target=live|shadow`. The orchestrator invokes this with `--target=shadow` so newly-imported cards (sitting in `default_cards__shadow` with `https://…` URLs) are discoverable — querying live during a shadow build would return zero rows (every live row has already been resolved to a local path by the previous swap), and the new cards would survive the upcoming swap pointing at the Scryfall CDN with no local cache. The shadow query joins `sets__shadow` on `set_id` so brand-new sets are resolvable too.
 
 ### `php artisan scryfall:resolve-paths`
 
-Walks `default_cards` looking for rows that still have Scryfall URLs in their image columns. For each row, checks if the corresponding local file exists on disk and, if so, updates the database column to the local path (e.g. `/art-crops/lea/uuid--1709234567.webp`, or `.jpg` for an image cached before the WebP switch). Uses `chunkById()` (NOT `chunk()`) — OFFSET pagination silently skips rows once the WHERE result-set shrinks under updates. Supports `--target=live|shadow`.
+Walks `default_cards` looking for rows that still have Scryfall URLs in their image columns. For each row, checks if the corresponding local file exists on disk and, if so, updates the database column to the local path (e.g. `/art-crops/lea/uuid--1709234567.webp`, or `.jpg` for an image cached before the WebP switch). When a card has several versions on disk, the one its URL names wins (in any format); an older one is taken only when the new download failed, so the card keeps its previous image instead of linking Scryfall's CDN. Uses `chunkById()` (NOT `chunk()`) — OFFSET pagination silently skips rows once the WHERE result-set shrinks under updates. Supports `--target=live|shadow`.
 
 ### `php artisan scryfall:cache`
 
@@ -154,10 +158,13 @@ It also rebuilds the banned & restricted lists behind the public `/b+r` page (`B
 
 ### `php artisan scryfall:gc-images`
 
-Garbage-collects art crop and card image files that no card points at. Per-card stale versions in a card's current set folder are handled inline by `ImageDownloadService::cleanupOldVersions()` during `scryfall:images` and are not in this command's scope. It catches the rest — rare, but it accumulates over months:
+Garbage-collects art crop and card image files that no live card points at (`ImageOrphanScanner`):
 
 - **Cards entirely removed from `default_cards`** (Scryfall data corrections, foreign-language reshuffles, etc.).
-- **Cards moved to another set.** Images live under `{set code}/`, so the next run downloads the image into the new set's folder and the copy in the old folder is never cleaned up inline.
+- **Cards moved to another set.** Images live under `{set code}/`, so the next run downloads the image into the new set's folder and the copy in the old folder is left behind.
+- **Images the card no longer has** — a back face after a printing lost it, an art crop Scryfall dropped.
+- **`.part` files** a killed download left.
+- **Superseded versions** — an image older (by the timestamp in its filename) than the one the card's row names, while that one is on disk. `scryfall:update` deletes these itself after its swap; they only pile up when a run aborted after its image step. A newer version that is not live yet, a card's last remaining image, and every version of an image whose row still holds a Scryfall URL are kept.
 
 Run it on production: the image folders are shared with staging, whose dataset lags behind, so a prune there would delete images that production's newer data points at.
 

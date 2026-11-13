@@ -196,6 +196,22 @@ class ScryfallImageService
     }
 
     /**
+     * The Scryfall timestamp of a cached image's version, or 0 for a file
+     * cached before filenames carried one (`{uuid}.{ext}` art crops,
+     * `{uuid}--{face}.{ext}` card faces) — older than any timestamped file.
+     *
+     * @param  bool  $cardFace  Whether the file is a card face (`card-images`),
+     *                          whose last segment is the face index.
+     */
+    public function versionFromFilename(string $basename, bool $cardFace): int
+    {
+        $parts = explode('--', $this->stem($basename));
+        $timestamp = $cardFace ? (count($parts) === 3 ? $parts[1] : null) : ($parts[1] ?? null);
+
+        return $timestamp !== null && ctype_digit($timestamp) ? (int) $timestamp : 0;
+    }
+
+    /**
      * Whether a cached card image belongs to this card face, in any format.
      * Face 0 and face 1 of a card share a UUID, so the face suffix decides.
      */

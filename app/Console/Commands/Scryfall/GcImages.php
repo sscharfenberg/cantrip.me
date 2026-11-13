@@ -12,16 +12,16 @@ use Illuminate\Support\Facades\Storage;
  * Garbage-collect orphan art crop and card image files.
  *
  * Walks the art-crops and card-images disks and reports / deletes every
- * file no card can point at ({@see ImageOrphanScanner}).
- *
- * Per-card cleanup (ImageDownloadService::cleanupOldVersions) already
- * deletes stale-timestamp versions in a card's current set folder. This
- * command catches the rest, rare but accumulating:
+ * file no live card points at ({@see ImageOrphanScanner}):
  *
  *  - files for cards removed from default_cards entirely (Scryfall data
  *    corrections, foreign-language printing reshuffles, etc.);
  *  - files left in a set folder the card no longer belongs to, after
- *    Scryfall moved the printing to another set.
+ *    Scryfall moved the printing to another set;
+ *  - `.part` files a killed download left behind;
+ *  - superseded versions of a card's image. `scryfall:update` deletes
+ *    those itself after its swap; they only pile up here when a run
+ *    aborted after its image step.
  *
  * Defaults to dry-run (reports counts, deletes nothing). Pass `--prune`
  * to actually delete. Run periodically (cron monthly is plenty).
@@ -83,34 +83,38 @@ class GcImages extends Command
         $totalBytes = 0;
         $totalScanned = 0;
         $totalOrphans = 0;
+        $totalSuperseded = 0;
 
         foreach ($disks as $disk) {
             $entry = $scan[$disk];
+            $superseded = count($entry['superseded']);
             $totalScanned += $entry['scanned'];
             $totalOrphans += $entry['orphans'];
+            $totalSuperseded += $superseded;
             $totalBytes += $entry['bytes'];
 
             if ($prune) {
-                foreach ($entry['files'] as $file) {
+                foreach ([...$entry['files'], ...$entry['superseded']] as $file) {
                     Storage::disk($disk)->delete($file);
                     $totalDeleted++;
-                    Log::channel('scryfall')->debug("gc-images: deleted orphan $disk/$file.");
+                    Log::channel('scryfall')->debug("gc-images: deleted $disk/$file.");
                 }
             }
 
             $bytesFormatted = $this->formatService->formatBytes($entry['bytes']);
-            $deletedThisDisk = $prune ? $entry['orphans'] : 0;
-            $this->line("$disk: scanned {$entry['scanned']} files, {$entry['orphans']} orphan(s), $action $deletedThisDisk ($bytesFormatted).");
+            $deletedThisDisk = $prune ? $entry['orphans'] + $superseded : 0;
+            $this->line("$disk: scanned {$entry['scanned']} files, {$entry['orphans']} orphan(s) ($bytesFormatted), $superseded superseded version(s), $action $deletedThisDisk.");
         }
 
         $scannedFmt = number_format($totalScanned, 0, ',', '.');
         $orphansFmt = number_format($totalOrphans, 0, ',', '.');
+        $supersededFmt = number_format($totalSuperseded, 0, ',', '.');
         $deletedFmt = number_format($totalDeleted, 0, ',', '.');
         $bytesFmt = $this->formatService->formatBytes($totalBytes);
 
         $this->line('---');
-        $this->line("scanned $scannedFmt files, found $orphansFmt orphan(s), $action $deletedFmt file(s) reclaiming $bytesFmt.");
-        Log::channel('scryfall')->notice("scryfall:gc-images: scanned $scannedFmt files, found $orphansFmt orphans, $action $deletedFmt ($bytesFmt).");
+        $this->line("scanned $scannedFmt files, found $orphansFmt orphan(s) taking $bytesFmt and $supersededFmt superseded version(s), $action $deletedFmt file(s).");
+        Log::channel('scryfall')->notice("scryfall:gc-images: scanned $scannedFmt files, found $orphansFmt orphans ($bytesFmt) and $supersededFmt superseded versions, $action $deletedFmt.");
 
         $ms = $start->diffInMilliseconds(now());
         $this->info("artisan command 'scryfall:gc-images' finished in ".$this->formatService->formatMs($ms).'.');

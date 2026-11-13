@@ -6,6 +6,7 @@ use App\Models\DefaultCard;
 use App\Models\OracleCard;
 use App\Models\Set;
 use App\Services\Scryfall\ImageDownloadService;
+use App\Services\Scryfall\ImageOrphanScanner;
 use App\Services\Scryfall\ScryfallRunStats;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -22,10 +23,13 @@ use Tests\TestCase;
  * pass, the static counters reflect what happened on disk (downloaded /
  * skipped / failed), separately for card faces and art crops.
  *
- * Also covers the resilience contract around stale-file cleanup: a cached
- * file the running user cannot delete must not abort the pass. It used to —
- * Flysystem's UnableToDeleteFile escaped cleanupOldVersions() and killed the
- * whole nightly scryfall:update on the first undeletable file it met.
+ * Also covers how a new version of an image arrives: next to the old one,
+ * never in its place — during a shadow build the live rows still point at
+ * the old file, and a failed download must not cost it — and that the old
+ * one goes once the swap has made it superseded, where a file the running
+ * user cannot delete must not abort the pass. It used to: Flysystem's
+ * UnableToDeleteFile killed the whole nightly scryfall:update on the first
+ * undeletable file it met.
  *
  * Skipped on the staging suite — uses RefreshDatabase.
  */
@@ -134,51 +138,73 @@ class ImageDownloadServiceTest extends TestCase
     }
 
     #[Test]
-    public function an_undeletable_stale_file_does_not_abort_the_pass(): void
+    public function an_unwritable_set_folder_fails_that_card_not_the_pass(): void
     {
         $lockedSet = $this->makeSet();
         $writableSet = $this->makeSet();
-
-        // A superseded crop (timestamp 111) in a set directory the process
-        // cannot write to — mirrors production, where the shared asset dirs
-        // were owned by the previous cron user and not group-writable.
         $stranded = $this->makeDefaultCard('Stranded Crop', $lockedSet, [
             'art_crop' => 'https://img.test/stranded.jpg?999',
         ]);
-        $staleFile = "{$lockedSet->code}/{$stranded->id}--111.jpg";
-        Storage::disk('art-crops')->put($staleFile, 'superseded');
-
-        // An unrelated card in a healthy directory: the pass must reach it.
+        Storage::disk('art-crops')->put("{$lockedSet->code}/{$stranded->id}--111.jpg", 'old');
         $healthy = $this->makeDefaultCard('Healthy Crop', $writableSet, [
             'art_crop' => 'https://img.test/healthy.jpg?222',
         ]);
-
         $this->lockDirectory(Storage::disk('art-crops')->path($lockedSet->code));
-
         Http::fake(['*' => Http::response('fake-image-bytes', 200)]);
 
         (new ImageDownloadService)->downloadArtCrops();
 
-        $this->assertSame(
-            1,
-            ScryfallRunStats::$staleFilesUndeletable,
-            'the undeletable stale crop must be counted, not thrown'
-        );
-        $this->assertTrue(
-            Storage::disk('art-crops')->exists($staleFile),
-            'the stale file stays on disk — cleanup failure is tolerated, not retried'
-        );
-
-        // The pass continued past the failure and cached the other card.
-        $this->assertSame(1, ScryfallRunStats::$artCropsDownloaded);
-        $this->assertTrue(
-            Storage::disk('art-crops')->exists("{$writableSet->code}/{$healthy->id}--222.jpg"),
-            'the healthy card must still be downloaded'
-        );
-
-        // The locked card could not be written either, so it counts as failed
-        // rather than downloaded — degraded, but the run survives.
         $this->assertSame(1, ScryfallRunStats::$artCropsFailed);
+        $this->assertSame(1, ScryfallRunStats::$artCropsDownloaded);
+        Storage::disk('art-crops')->assertExists("{$writableSet->code}/{$healthy->id}--222.jpg");
+    }
+
+    #[Test]
+    public function a_failed_download_keeps_the_old_version(): void
+    {
+        $set = $this->makeSet();
+        $card = $this->makeDefaultCard('Rescanned', $set, [
+            'card_image_0' => 'https://img.test/display/rescanned-0.webp?999',
+            'art_crop' => 'https://img.test/art/rescanned.webp?999',
+        ]);
+        Storage::disk('card-images')->put("{$set->code}/{$card->id}--111--0.jpg", 'old');
+        Storage::disk('art-crops')->put("{$set->code}/{$card->id}--111.jpg", 'old');
+        Http::fake(['*' => Http::response('', 503)]);
+
+        $service = new ImageDownloadService;
+        $service->downloadCardImages();
+        $service->downloadArtCrops();
+
+        $this->assertSame(1, ScryfallRunStats::$cardImagesFailed);
+        $this->assertSame(1, ScryfallRunStats::$artCropsFailed);
+        Storage::disk('card-images')->assertExists("{$set->code}/{$card->id}--111--0.jpg");
+        Storage::disk('art-crops')->assertExists("{$set->code}/{$card->id}--111.jpg");
+    }
+
+    #[Test]
+    public function an_empty_response_is_a_failure_and_leaves_no_file(): void
+    {
+        $set = $this->makeSet();
+        $card = $this->makeDefaultCard('Empty', $set, ['art_crop' => 'https://img.test/art/empty.webp?999']);
+        Http::fake(['*' => Http::response('', 200)]);
+
+        (new ImageDownloadService)->downloadArtCrops();
+
+        $this->assertSame(1, ScryfallRunStats::$artCropsFailed);
+        $this->assertSame([], Storage::disk('art-crops')->allFiles(), 'neither the image nor a .part file');
+    }
+
+    #[Test]
+    public function a_download_lands_complete_under_its_final_name_only(): void
+    {
+        $set = $this->makeSet();
+        $card = $this->makeDefaultCard('Fresh', $set, ['card_image_0' => 'https://img.test/display/fresh-0.webp?999']);
+        Http::fake(['*' => Http::response('webp-bytes', 200)]);
+
+        (new ImageDownloadService)->downloadCardImages();
+
+        $this->assertSame(["{$set->code}/{$card->id}--999--0.webp"], Storage::disk('card-images')->allFiles());
+        $this->assertSame('webp-bytes', Storage::disk('card-images')->get("{$set->code}/{$card->id}--999--0.webp"));
     }
 
     /**
@@ -215,7 +241,7 @@ class ImageDownloadServiceTest extends TestCase
     }
 
     #[Test]
-    public function a_changed_image_replaces_the_cached_jpeg_with_the_new_webp(): void
+    public function a_changed_image_is_downloaded_next_to_the_old_version(): void
     {
         $set = $this->makeSet();
         $card = $this->makeDefaultCard('Rescanned', $set, [
@@ -232,10 +258,44 @@ class ImageDownloadServiceTest extends TestCase
         $service->downloadArtCrops();
 
         Storage::disk('card-images')->assertExists("{$set->code}/{$card->id}--999--0.webp");
-        Storage::disk('card-images')->assertMissing("{$set->code}/{$card->id}--111--0.jpg");
+        // The old versions stay: live still points at them until the swap.
+        Storage::disk('card-images')->assertExists("{$set->code}/{$card->id}--111--0.jpg");
         Storage::disk('card-images')->assertExists("{$set->code}/{$card->id}--111--1.jpg");
         Storage::disk('art-crops')->assertExists("{$set->code}/{$card->id}--999.webp");
-        Storage::disk('art-crops')->assertMissing("{$set->code}/{$card->id}--111.jpg");
+        Storage::disk('art-crops')->assertExists("{$set->code}/{$card->id}--111.jpg");
+    }
+
+    #[Test]
+    public function after_the_swap_the_superseded_version_goes_and_an_undeletable_one_is_counted(): void
+    {
+        $lockedSet = $this->makeSet();
+        $writableSet = $this->makeSet();
+        $stranded = $this->makeDefaultCard('Stranded', $lockedSet);
+        $this->resolveArtCrop($stranded, $lockedSet, '222.webp');
+        Storage::disk('art-crops')->put("{$lockedSet->code}/{$stranded->id}--111.jpg", 'superseded');
+        $healthy = $this->makeDefaultCard('Healthy', $writableSet);
+        $this->resolveArtCrop($healthy, $writableSet, '222.webp');
+        Storage::disk('art-crops')->put("{$writableSet->code}/{$healthy->id}--111.jpg", 'superseded');
+        $this->lockDirectory(Storage::disk('art-crops')->path($lockedSet->code));
+
+        $deleted = (new ImageDownloadService)->deleteSuperseded((new ImageOrphanScanner)->scan());
+
+        $this->assertSame(1, $deleted);
+        $this->assertSame(1, ScryfallRunStats::$staleFilesUndeletable, 'counted, not thrown');
+        Storage::disk('art-crops')->assertMissing("{$writableSet->code}/{$healthy->id}--111.jpg");
+        Storage::disk('art-crops')->assertExists("{$writableSet->code}/{$healthy->id}--222.webp");
+        Storage::disk('art-crops')->assertExists("{$lockedSet->code}/{$stranded->id}--111.jpg");
+    }
+
+    /**
+     * Put the card's art crop on disk under $version and point its row at
+     * it, the way resolve-paths leaves a card after the swap.
+     */
+    private function resolveArtCrop(DefaultCard $card, Set $set, string $version): void
+    {
+        $path = "{$set->code}/{$card->id}--$version";
+        Storage::disk('art-crops')->put($path, 'current');
+        $card->update(['art_crop' => "/art-crops/$path"]);
     }
 
     /**

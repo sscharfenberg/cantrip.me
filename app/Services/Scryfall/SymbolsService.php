@@ -3,7 +3,6 @@
 namespace App\Services\Scryfall;
 
 use App\Models\Symbol;
-use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -58,25 +57,17 @@ class SymbolsService extends ScryfallService
      * Download a symbol SVG if it is not already cached locally.
      *
      * Returns the public-facing path regardless of whether a fresh
-     * download was needed.
+     * download was needed or succeeded: a failed one is logged and
+     * counted, and the next run tries again because the file is missing.
      *
      * @param  array  $symbol  A single symbol object from the Scryfall /symbology response.
      * @return string The public-facing path to the stored SVG, e.g. "/symbol/R.svg".
-     *
-     * @throws ConnectionException
      */
     private function getSymbolSvg(array $symbol): string
     {
         $fileName = $this->buildFileName($symbol);
         if (Storage::disk('symbol')->missing($fileName)) {
-            $response = $this->http()
-                ->get($symbol['svg_uri']);
-            if ($response->successful()) {
-                Storage::disk('symbol')->put($fileName, $response->body());
-                Log::channel('scryfall')->debug("created SVG in storage disk 'symbol': $fileName");
-            } else {
-                Log::channel('scryfall')->error("error downloading symbol SVG '{$symbol['svg_uri']}': ".$response->body());
-            }
+            $this->downloadSvg($symbol['svg_uri'], 'symbol', $fileName);
         }
 
         return '/symbol/'.$fileName;
@@ -86,8 +77,6 @@ class SymbolsService extends ScryfallService
      * Persist a single symbol from the Scryfall API response to the database.
      *
      * @param  array  $symbol  A single symbol object from the Scryfall /symbology response.
-     *
-     * @throws ConnectionException
      */
     private function insertSymbol(array $symbol): void
     {

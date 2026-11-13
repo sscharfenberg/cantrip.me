@@ -3,7 +3,6 @@
 namespace App\Services\Scryfall;
 
 use App\Models\Set;
-use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -16,8 +15,8 @@ class SetsService extends ScryfallService
 
     /**
      * Cached list of files on the "set" disk, loaded lazily on first access.
-     * Used to identify stale icon versions to delete when Scryfall updates
-     * the icon for a set (new timestamp in icon_svg_uri).
+     * Used to find an older icon of a set to fall back on when the current
+     * one cannot be downloaded.
      *
      * @var string[]|null
      */
@@ -85,14 +84,17 @@ class SetsService extends ScryfallService
 
     /**
      * Download a set icon SVG if the current (timestamped) version is not
-     * already cached locally. When a newer timestamp is detected, stale
-     * versions of the icon for the same set code are deleted first.
+     * already cached locally.
+     *
+     * Older versions stay: until the swap, the live `sets.path` still
+     * points at one, and {@see deleteSupersededIcons()} removes them
+     * after it. When the download fails — a timeout, an error status — the
+     * set keeps its newest older icon if there is one; the step carries on
+     * either way, and the next run tries again.
      *
      * @param  string  $uri  The Scryfall icon_svg_uri for the set.
      * @param  string  $code  The set code, used as the local filename.
      * @return string The public-facing path to the stored SVG.
-     *
-     * @throws ConnectionException
      */
     private function getSetIcon(string $uri, string $code): string
     {
@@ -103,26 +105,60 @@ class SetsService extends ScryfallService
             return "/set/$fileName";
         }
 
-        // Delete any stale versions of this set's icon (old timestamp, or
-        // legacy non-timestamped file) before downloading the fresh one.
-        foreach ($this->getCachedSetIcons() as $existing) {
-            $basename = basename($existing);
-            if ($basename === "$code.svg" || str_starts_with($basename, "$code--")) {
-                if ($this->deleteStaleFile('set', $existing)) {
-                    Log::channel('scryfall')->debug("deleted stale set icon: $basename");
+        if ($this->downloadSvg($uri, 'set', $fileName)) {
+            return "/set/$fileName";
+        }
+
+        $older = $this->iconsOf($code);
+        usort($older, fn (string $a, string $b): int => $this->iconVersion($b) <=> $this->iconVersion($a));
+
+        return '/set/'.($older[0] ?? $fileName);
+    }
+
+    /**
+     * The Scryfall timestamp in an icon's filename (`{code}--{timestamp}.svg`),
+     * or 0 for a legacy `{code}.svg` — older than any timestamped icon.
+     */
+    private function iconVersion(string $file): int
+    {
+        return preg_match('/--(\d+)\.svg$/', $file, $m) ? (int) $m[1] : 0;
+    }
+
+    /**
+     * Every cached icon file of a set: `{code}.svg` and `{code}--*.svg`.
+     *
+     * @return list<string>
+     */
+    private function iconsOf(string $code): array
+    {
+        return array_values(array_filter(
+            $this->getCachedSetIcons(),
+            fn (string $file): bool => $file === "$code.svg" || str_starts_with($file, "$code--"),
+        ));
+    }
+
+    /**
+     * Delete the icons the live sets no longer point at — the older
+     * versions {@see getSetIcon()} left in place. Run by `scryfall:update`
+     * after the swap; the `set` disk is per environment, so only this
+     * environment's rows decide.
+     *
+     * @return int Files deleted.
+     */
+    public function deleteSupersededIcons(): int
+    {
+        $this->cachedSetIcons = null;
+        $deleted = 0;
+        foreach (DB::table('sets')->pluck('path', 'code') as $code => $path) {
+            foreach ($this->iconsOf((string) $code) as $file) {
+                if ("/set/$file" !== $path && $this->deleteStaleFile('set', $file)) {
+                    Log::channel('scryfall')->debug("deleted superseded set icon: $file");
+                    $deleted++;
                 }
             }
         }
 
-        $response = $this->http()->get($uri);
-        if ($response->successful()) {
-            Storage::disk('set')->put($fileName, $response->body());
-            Log::channel('scryfall')->debug("created SVG in storage disk 'set': $fileName");
-        } else {
-            Log::channel('scryfall')->error("error calling icon uri '$uri' from scryfall: ".$response->body());
-        }
-
-        return "/set/$fileName";
+        return $deleted;
     }
 
     /**
@@ -133,8 +169,6 @@ class SetsService extends ScryfallService
      * Also downloads the set icon via getSetIcon().
      *
      * @param  array  $set  A single set object from the Scryfall /sets response.
-     *
-     * @throws ConnectionException
      */
     private function insertSet(array $set): void
     {

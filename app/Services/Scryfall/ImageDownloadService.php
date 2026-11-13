@@ -13,12 +13,20 @@ use stdClass;
  * Handles downloading Scryfall images to the local filesystem.
  *
  * This service only writes to disk — it does not update the database.
- * Path resolution (Scryfall URL → local path) is handled by DefaultCardsService
- * during the next card import, which checks the disk for cached images.
+ * Path resolution (Scryfall URL → local path) is handled by
+ * {@see ResolveImagePathsService}, which checks the disk for cached images.
  *
  * Separation of concerns:
- *   - DefaultCardsService → database (import, path resolution)
+ *   - DefaultCardsService → database (import)
  *   - ImageDownloadService → filesystem (downloading images to disk)
+ *   - ResolveImagePathsService → database (URL → local path)
+ *
+ * A new version of an image is downloaded next to the old one, never in
+ * its place. During a shadow build the live rows still point at the old
+ * file, and if the download fails the old file is still the best image
+ * there is. The superseded version goes once the swap has put rows
+ * pointing at its successor live: {@see deleteSuperseded()}, fed by
+ * {@see ImageOrphanScanner}.
  *
  * Target-aware: when invoked with `'shadow'`, queries `default_cards__shadow`
  * joined to `sets__shadow` instead of the live tables. That's the path used
@@ -63,8 +71,6 @@ class ImageDownloadService extends ScryfallService
         $skipped = 0;
         $failed = 0;
 
-        $staleBefore = ScryfallRunStats::$staleFilesUndeletable;
-
         Log::channel('scryfall')->notice("begin downloading art crop images (target={$target}).");
 
         [$cardsTable, $setsTable] = $this->resolveTables($target);
@@ -96,16 +102,16 @@ class ImageDownloadService extends ScryfallService
             "finished art crop download: $total cards processed "
             ."($downloaded downloaded, $skipped skipped, $failed failed) "
             .'in '.$this->formatService->formatMs($ms).'.'
-            .$this->undeletableSuffix($staleBefore)
         );
     }
 
     /**
      * Process a single card's art crop image.
      *
-     * Checks if the local disk already has the correct version (by timestamp),
-     * downloads from Scryfall if not, and cleans up old versions.
-     * Does not update the database — path resolution happens in DefaultCardsService.
+     * Checks if the local disk already has the correct version (by timestamp)
+     * and downloads it from Scryfall if not, next to any older version.
+     * Does not update the database — path resolution happens in
+     * ResolveImagePathsService.
      *
      * @return string 'downloaded', 'skipped', or 'failed'
      */
@@ -130,18 +136,18 @@ class ImageDownloadService extends ScryfallService
             return 'skipped';
         }
 
-        // Clean up old versions of this card's art crop
-        $this->cleanupOldVersions($setCode, $card->id);
-
-        // Download from Scryfall
         try {
             $response = $this->http()->get($scryfallUrl);
             if ($response->successful()) {
                 $this->prepareSetDirectory('art-crops', $setCode);
-                Storage::disk('art-crops')->put($diskPath, $response->body());
-                Log::channel('scryfall')->debug("downloaded art crop for [{$setCode}] {$card->name}.");
+                if ($this->storeAtomically('art-crops', $diskPath, $response->body())) {
+                    Log::channel('scryfall')->debug("downloaded art crop for [{$setCode}] {$card->name}.");
 
-                return 'downloaded';
+                    return 'downloaded';
+                }
+                Log::channel('scryfall')->error("failed to store art crop for {$card->name}: empty response or write failed.");
+
+                return 'failed';
             }
             Log::channel('scryfall')->error("failed to download art crop for {$card->name}: HTTP {$response->status()}");
 
@@ -150,26 +156,6 @@ class ImageDownloadService extends ScryfallService
             Log::channel('scryfall')->error("failed to download art crop for {$card->name}: {$e->getMessage()}");
 
             return 'failed';
-        }
-    }
-
-    /**
-     * Delete any previously cached art crop versions for a given card.
-     *
-     * Finds files matching the card UUID pattern in the set directory
-     * and removes them before downloading the new version.
-     *
-     * @param  string  $setCode  The set code directory.
-     * @param  string  $uuid  The card UUID.
-     */
-    private function cleanupOldVersions(string $setCode, string $uuid): void
-    {
-        $files = Storage::disk('art-crops')->files($setCode);
-        foreach ($files as $file) {
-            $basename = basename($file);
-            if ($this->imageService->uuidFromFilename($basename) === $uuid) {
-                $this->deleteStaleFile('art-crops', $file);
-            }
         }
     }
 
@@ -188,8 +174,6 @@ class ImageDownloadService extends ScryfallService
         $downloaded = 0;
         $skipped = 0;
         $failed = 0;
-
-        $staleBefore = ScryfallRunStats::$staleFilesUndeletable;
 
         Log::channel('scryfall')->notice("begin downloading card images (target={$target}).");
 
@@ -222,7 +206,6 @@ class ImageDownloadService extends ScryfallService
             "finished card image download: $total images processed "
             ."($downloaded downloaded, $skipped skipped, $failed failed) "
             .'in '.$this->formatService->formatMs($ms).'.'
-            .$this->undeletableSuffix($staleBefore)
         );
     }
 
@@ -263,15 +246,17 @@ class ImageDownloadService extends ScryfallService
                 continue;
             }
 
-            $this->cleanupOldCardImages($setCode, $card->id, $index);
-
             try {
                 $response = $this->http()->get($scryfallUrl);
                 if ($response->successful()) {
                     $this->prepareSetDirectory('card-images', $setCode);
-                    Storage::disk('card-images')->put($diskPath, $response->body());
-                    Log::channel('scryfall')->debug("downloaded card image for [{$setCode}] {$card->name} (face $index).");
-                    $counts['downloaded']++;
+                    if ($this->storeAtomically('card-images', $diskPath, $response->body())) {
+                        Log::channel('scryfall')->debug("downloaded card image for [{$setCode}] {$card->name} (face $index).");
+                        $counts['downloaded']++;
+                    } else {
+                        Log::channel('scryfall')->error("failed to store card image for {$card->name} (face $index): empty response or write failed.");
+                        $counts['failed']++;
+                    }
                 } else {
                     Log::channel('scryfall')->error("failed to download card image for {$card->name} (face $index): HTTP {$response->status()}");
                     $counts['failed']++;
@@ -286,24 +271,29 @@ class ImageDownloadService extends ScryfallService
     }
 
     /**
-     * Delete any previously cached card image versions for a given card face.
+     * Delete the image versions the live cards no longer point at, as
+     * found by {@see ImageOrphanScanner::scan()} — run after the swap,
+     * against the now-live rows. A file that cannot be deleted is counted
+     * and left, see {@see ScryfallService::deleteStaleFile()}.
      *
-     * Finds files matching the card UUID and face index pattern in the set
-     * directory and removes them before downloading the new version.
-     * Only deletes files for the specific face index, leaving other faces intact.
-     *
-     * @param  string  $setCode  The set code directory.
-     * @param  string  $uuid  The card UUID.
-     * @param  int  $faceIndex  The face index (0 = front, 1 = back).
+     * @param  array<string, mixed>  $scan  The scanner's result.
+     * @return int Files deleted.
      */
-    private function cleanupOldCardImages(string $setCode, string $uuid, int $faceIndex): void
+    public function deleteSuperseded(array $scan): int
     {
-        $files = Storage::disk('card-images')->files($setCode);
-        foreach ($files as $file) {
-            if ($this->imageService->isCardImageFace(basename($file), $uuid, $faceIndex)) {
-                $this->deleteStaleFile('card-images', $file);
+        $deleted = 0;
+        foreach (ImageOrphanScanner::DISKS as $disk) {
+            foreach ($scan[$disk]['superseded'] ?? [] as $file) {
+                if ($this->deleteStaleFile($disk, $file)) {
+                    $deleted++;
+                }
             }
         }
+        if ($deleted > 0) {
+            Log::channel('scryfall')->notice("deleted $deleted superseded image version(s).");
+        }
+
+        return $deleted;
     }
 
     /**
@@ -354,26 +344,6 @@ class ImageDownloadService extends ScryfallService
         }
 
         return null;
-    }
-
-    /**
-     * Report stale files this step could not delete, if any.
-     *
-     * Reads the run-wide counter rather than a local one so the number also
-     * covers deletes attempted from other services in the same run; the
-     * baseline is captured per step so each step reports only its own.
-     *
-     * @param  int  $staleBefore  Counter value before this step ran.
-     */
-    private function undeletableSuffix(int $staleBefore): string
-    {
-        $undeletable = ScryfallRunStats::$staleFilesUndeletable - $staleBefore;
-
-        if ($undeletable === 0) {
-            return '';
-        }
-
-        return " could not delete $undeletable stale file(s) — check filesystem permissions.";
     }
 
     /**
