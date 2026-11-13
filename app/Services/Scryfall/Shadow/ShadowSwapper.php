@@ -18,6 +18,8 @@ namespace App\Services\Scryfall\Shadow;
  *     ({@see ShadowTableService::restorePendingForeignKeys()});
  *   - the re-add runs whether or not the drop and the swap succeeded,
  *     and it skips constraints that still exist;
+ *   - the last check before the RENAME runs inside that window, so no
+ *     failure there can leave the constraints dropped;
  *   - it runs before the `__retired` tables are dropped, which is only
  *     housekeeping and must not stand between the live tables and their
  *     constraints.
@@ -27,12 +29,17 @@ class ShadowSwapper
     public function __construct(private readonly ShadowTableService $tables) {}
 
     /**
-     * @param  callable(string, callable(): void): void  $step  Runs one named step and
-     *                                                          rethrows its failure — the
-     *                                                          orchestrator's alerting wrapper.
+     * $beforeRename runs as the step `validateSchema` directly before the
+     * RENAME, once the constraints are dropped: the last moment a check
+     * can still stop the swap, so a deploy migrating a swap table has the
+     * smallest possible window to slip in unseen. When it throws, the
+     * constraints are re-added like after any other failure.
+     *
+     * @param  callable(string, callable(): void): void  $step  Runs one named step and rethrows its failure — the orchestrator's alerting wrapper.
+     * @param  callable(): void  $beforeRename  Throws to stop the swap.
      * @return int FK constraints dropped around the swap and re-added.
      */
-    public function swapIntoLive(callable $step): int
+    public function swapIntoLive(callable $step, callable $beforeRename): int
     {
         $fks = [];
         $step('captureForeignKeys', function () use (&$fks): void {
@@ -42,6 +49,7 @@ class ShadowSwapper
 
         try {
             $step('dropForeignKeys', fn () => $this->tables->dropForeignKeys($fks));
+            $step('validateSchema', $beforeRename);
             $step('swap', fn () => $this->tables->swap());
         } finally {
             $step('addForeignKeys', function () use ($fks): void {

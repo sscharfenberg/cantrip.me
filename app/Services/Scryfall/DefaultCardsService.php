@@ -55,7 +55,7 @@ class DefaultCardsService extends ScryfallService
     /**
      * Buffered all_parts edges, flushed at the end of the file walk.
      *
-     * @var array<array{source_default_card_id: string, related_default_card_id: string, component: string}>
+     * @var array<array{source_default_card_id: string, source_set: string, related_default_card_id: string, related_name: ?string, related_type_line: ?string, component: string}>
      */
     private array $relationsBuffer = [];
 
@@ -169,9 +169,9 @@ class DefaultCardsService extends ScryfallService
      *
      * Periodic mid-walk flushing is deliberately NOT done — a relation
      * row whose related_id sits later in the bulk would FK-fail if
-     * flushed before its target card was inserted. ~120 k rows × ~80 B
-     * (with the name field) = ~10 MB peak, freed after the single
-     * end-of-walk flush.
+     * flushed before its target card was inserted. The buffer is large —
+     * about 155k edges, ~170 MB measured, the UUID and name strings
+     * dominating — and freed after the single end-of-walk flush.
      *
      * @param  array  $card  A single card object from the bulk JSON.
      */
@@ -194,8 +194,10 @@ class DefaultCardsService extends ScryfallService
             }
             $this->relationsBuffer[] = [
                 'source_default_card_id' => $card['id'],
+                'source_set' => $card['set'] ?? '',
                 'related_default_card_id' => $relatedId,
                 'related_name' => $part['name'] ?? null,
+                'related_type_line' => $part['type_line'] ?? null,
                 'component' => $component->value,
             ];
         }
@@ -214,11 +216,11 @@ class DefaultCardsService extends ScryfallService
      * language UUID, excluded layout, printing variant Scryfall didn't pick
      * for the bulk, etc.). Rather than drop these silently like the old
      * live flow did via FK-violation-as-IGNORE, we re-target them to a
-     * valid printing of the same oracle: look up the related card's
-     * display name (captured by {@see bufferRelations()}) in a
-     * `searchable_name → default_cards.id` map, and rewrite the FK to
-     * point at that printing. Edges whose oracle has no matching
-     * default_cards entry at all are dropped as a last resort.
+     * valid printing of the same card, found by the related card's name
+     * and type line (captured by {@see bufferRelations()}) and, where a
+     * name has several cards behind it, the source card's set — see
+     * {@see RelationRetargeter}. Edges with no printing of the related
+     * card in default_cards, or no single right one, are dropped.
      */
     private function flushRelationsBuffer(): void
     {
@@ -230,17 +232,7 @@ class DefaultCardsService extends ScryfallService
             DB::table($this->defaultCardsTable)->pluck('id')->all()
         );
 
-        // Build a "searchable_name → default_card.id" lookup so orphan
-        // edges can be re-targeted to a valid printing of the same oracle.
-        // MIN(dc.id) picks an arbitrary-but-stable printing per oracle.
-        $oracleCardsTable = $this->tableName('oracle_cards', $this->shadow);
-        $nameToDefaultCard = DB::table("$oracleCardsTable as oc")
-            ->join("{$this->defaultCardsTable} as dc", 'dc.oracle_id', '=', 'oc.id')
-            ->select('oc.searchable_name', DB::raw('MIN(dc.id) as default_card_id'))
-            ->groupBy('oc.searchable_name')
-            ->pluck('default_card_id', 'searchable_name')
-            ->all();
-
+        $retargeter = null;
         $resolved = [];
         $retargeted = 0;
         $dropped = 0;
@@ -254,13 +246,8 @@ class DefaultCardsService extends ScryfallService
             }
             $relatedId = $edge['related_default_card_id'];
             if (! isset($validIds[$relatedId])) {
-                // Orphan — try to re-target via name lookup.
-                $name = $edge['related_name'];
-                $newId = null;
-                if ($name !== null) {
-                    $normalized = CardNameNormalizer::normalize($name);
-                    $newId = $nameToDefaultCard[$normalized] ?? null;
-                }
+                $retargeter ??= $this->buildRetargeter();
+                $newId = $retargeter->retarget($edge['related_name'], $edge['related_type_line'], $edge['source_set']);
                 if ($newId === null) {
                     $dropped++;
 
@@ -285,13 +272,35 @@ class DefaultCardsService extends ScryfallService
             Log::channel('scryfall')->notice("re-targeted $retargeted orphan default_card_relations edges to default printings of the same oracle.");
         }
         if ($dropped > 0) {
-            Log::channel('scryfall')->notice("dropped $dropped default_card_relations edges (no matching oracle in default_cards).");
+            Log::channel('scryfall')->notice("dropped $dropped default_card_relations edges (no printing of the related card in default_cards, or no single right one).");
         }
 
         foreach (array_chunk($resolved, 5000) as $chunk) {
             $this->relationsInserted += DB::table($this->defaultCardRelationsTable)->insertOrIgnore($chunk);
         }
         $this->relationsBuffer = [];
+    }
+
+    /**
+     * The candidates for re-targeting orphan edges: one row per oracle and
+     * set, with that set's lowest-id printing of it. Built on the first
+     * orphan only. Sets are left-joined so a printing whose set row is
+     * missing (a set Scryfall added after the sets step ran) stays a
+     * candidate, just without a set to match on.
+     */
+    private function buildRetargeter(): RelationRetargeter
+    {
+        $oracleCardsTable = $this->tableName('oracle_cards', $this->shadow);
+        $setsTable = $this->tableName('sets', $this->shadow);
+
+        return new RelationRetargeter(
+            DB::table("$oracleCardsTable as oc")
+                ->join("{$this->defaultCardsTable} as dc", 'dc.oracle_id', '=', 'oc.id')
+                ->leftJoin("$setsTable as s", 's.id', '=', 'dc.set_id')
+                ->select('oc.id as oracle_id', 'oc.searchable_name', 'oc.type_line', DB::raw("COALESCE(s.code, '') as set_code"), DB::raw('MIN(dc.id) as default_card_id'))
+                ->groupBy('oc.id', 'oc.searchable_name', 'oc.type_line', 's.code')
+                ->get()
+        );
     }
 
     /**

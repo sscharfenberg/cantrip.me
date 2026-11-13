@@ -52,10 +52,10 @@ class ShadowTableService
     /**
      * Create an empty <table>__shadow with the same schema as <table>.
      *
-     * `CREATE TABLE LIKE` copies columns, indexes, and FK *definitions*.
-     * The copied FKs still reference the live table names by string, so
-     * the import must run with FK checks disabled and the orchestrator
-     * must call {@see ShadowValidationService} before swap.
+     * `CREATE TABLE LIKE` copies columns and indexes but no FK constraints
+     * (verified on MariaDB 11.8), so the shadow build is unconstrained: the
+     * orchestrator checks integrity with {@see ShadowValidationService}
+     * before the swap and re-adds the live tables' constraints after it.
      */
     public function createLike(string $table): void
     {

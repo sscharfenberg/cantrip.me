@@ -70,10 +70,11 @@ class ShadowTableRegistry
         //
         // This list must cover EVERY FK that references a swap table from a
         // non-swap (user-data) table. Any such FK is captured and re-added
-        // around the swap, so an unvalidated orphan would slip past this gate
-        // and instead make addForeignKeys() throw (errno 1452) AFTER the swap
-        // and dropRetired — a far worse partial-state failure than a clean
-        // pre-swap abort. `decks.default_card_id` and `containers.default_card_id`
+        // around the swap with FOREIGN_KEY_CHECKS=0, and MariaDB re-adds a
+        // constraint over orphan rows without complaint (verified on 11.8) —
+        // so an unvalidated orphan would not fail anything: it would go live
+        // silently, a dangling reference under a constraint that claims
+        // there is none. `decks.default_card_id` and `containers.default_card_id`
         // are the deck/container display-card printings (nullable; the
         // validator skips NULLs via whereNotNull).
         ['deck_cards', 'oracle_card_id', 'oracle_cards', 'live'],

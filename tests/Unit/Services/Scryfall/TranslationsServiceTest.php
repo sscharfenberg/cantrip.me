@@ -354,6 +354,44 @@ class TranslationsServiceTest extends TestCase
         $this->assertSame('Verzauberter Reisender', $face->printed_name);
     }
 
+    /**
+     * A reversible card has no top-level oracle_id; each side carries its
+     * own. Each side is a single-faced card, so whichever side of the
+     * printing it is on, it is its card's face 0.
+     */
+    #[Test]
+    public function it_translates_a_reversible_card_through_its_faces_oracles(): void
+    {
+        $front = '55555555-5555-5555-5555-555555555555';
+        $back = '66666666-6666-6666-6666-666666666666';
+        $fixture = $this->writeFixture([
+            [
+                'oracle_id' => null,
+                'layout' => 'reversible_card',
+                'lang' => 'de',
+                'card_faces' => [
+                    ['oracle_id' => $front, 'printed_name' => 'Ugin, der Geisterdrache'],
+                    ['oracle_id' => $back, 'printed_name' => 'Ugin, Augen des Hüters'],
+                ],
+            ],
+        ]);
+        $this->seedKnown($fixture, [
+            ['id' => $front, 'name' => 'Ugin, the Spirit Dragon', 'faces' => ['Ugin, the Spirit Dragon']],
+            ['id' => $back, 'name' => 'Ugin, Eye of the Storms', 'faces' => ['Ugin, Eye of the Storms']],
+        ]);
+
+        (new TranslationsService)->updateTranslations(shadow: false);
+
+        $this->assertSame(
+            [$front => 'Ugin, der Geisterdrache', $back => 'Ugin, Augen des Hüters'],
+            DB::table('oracle_card_translations')->orderBy('oracle_card_id')->pluck('printed_name', 'oracle_card_id')->all(),
+        );
+        $this->assertSame(
+            [$front => 0, $back => 0],
+            DB::table('oracle_card_face_translations')->orderBy('oracle_card_id')->pluck('face_index', 'oracle_card_id')->all(),
+        );
+    }
+
     #[Test]
     public function it_skips_faces_not_present_in_oracle_card_faces(): void
     {

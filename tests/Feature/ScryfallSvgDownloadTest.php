@@ -134,6 +134,29 @@ class ScryfallSvgDownloadTest extends TestCase
         Storage::disk('symbol')->assertExists('U.svg');
     }
 
+    #[Test]
+    public function a_failed_catalog_request_leaves_the_live_sets_and_symbols_as_they_were(): void
+    {
+        DB::table('sets')->insert(['id' => (string) Str::uuid(), 'code' => 'abc', 'name' => 'ABC', 'scryfall_uri' => 'x', 'set_type' => 'core', 'path' => '/set/abc--111.svg', 'card_count' => 1, 'digital' => false]);
+        DB::table('symbols')->insert(array_merge(
+            array_diff_key($this->symbol('{W}', 'W'), ['colors' => true]),
+            ['id' => (string) Str::uuid(), 'colors' => 'W', 'path' => '/symbol/W.svg'],
+        ));
+        Http::fake(['api.scryfall.com/*' => Http::response(['object' => 'error'], 503)]);
+
+        foreach (['/sets request failed' => fn () => (new SetsService)->updateSets(), '/symbology request failed' => fn () => (new SymbolsService)->updateSymbols()] as $message => $run) {
+            try {
+                $run();
+                $this->fail('expected the run to fail');
+            } catch (\RuntimeException $e) {
+                $this->assertStringContainsString($message, $e->getMessage());
+            }
+        }
+
+        $this->assertSame(1, DB::table('sets')->count());
+        $this->assertSame(1, DB::table('symbols')->count());
+    }
+
     /**
      * Fake Scryfall's /sets catalog with one set whose icon carries
      * timestamp 222, and answer the icon download with $icon.

@@ -218,6 +218,21 @@ class UpdateEverything extends Command
     }
 
     /**
+     * Abort the swap when a live swap table no longer has its shadow's
+     * shape, see {@see ShadowValidationService::findSchemaDrift()}.
+     */
+    private function validateSchemaOrAbort(): void
+    {
+        $drifted = $this->validation->findSchemaDrift();
+        if ($drifted !== []) {
+            throw new RuntimeException(
+                'shadow validation aborted the swap — the schema of '.implode(', ', $drifted)
+                .' changed while this run was building (most likely a deploy migrated it); the swap would undo that. Run `php artisan scryfall:update` again.'
+            );
+        }
+    }
+
+    /**
      * Abort the swap when a shadow table came out empty or implausibly
      * small, see {@see ShadowValidationService::findShrunkTables()}.
      * `--allow-shrink` turns the abort into a warning for a run that
@@ -276,7 +291,8 @@ class UpdateEverything extends Command
      *   7. Validate row counts: no shadow table may come out empty or
      *      implausibly small (`--allow-shrink` overrides).
      *   8. Swap ({@see ShadowSwapper}): capture and drop every FK into the
-     *      swap tables, atomic multi-table RENAME (old → __retired,
+     *      swap tables, check that no live table changed shape since its
+     *      shadow was created, atomic multi-table RENAME (old → __retired,
      *      shadows → live), re-add the FKs, drop the __retired tables.
      *   9. Delete the image versions and set icons the swap superseded —
      *      kept until now because the old live rows pointed at them — and
@@ -390,9 +406,12 @@ class UpdateEverything extends Command
         //    deck_cards / card_stacks / etc.) is dropped first, because
         //    MariaDB auto-rotates FK references when the parent table is
         //    renamed, and re-added after — see ShadowSwapper for how none
-        //    of them can get lost in between.
+        //    of them can get lost in between. Right before the RENAME, no
+        //    live table may have changed shape since its shadow was created
+        //    LIKE it: a deploy migrating it mid-run would be undone.
         $capturedFks = $this->swapper->swapIntoLive(
-            fn (string $name, callable $work) => $this->runOrchestratorStep($name, $work)
+            fn (string $name, callable $work) => $this->runOrchestratorStep($name, $work),
+            fn () => $this->validateSchemaOrAbort(),
         );
         $this->info('shadow swap: atomic RENAME completed (live = previous shadow); '
             .count(ShadowTableRegistry::TABLES).' __retired tables dropped, '

@@ -269,6 +269,10 @@ class TranslationsService extends ScryfallService
      *  - face entries whose `(oracleId, faceIndex)` isn't in the
      *    oracle_card_faces lookup
      *
+     * Reversible cards ship a NULL top-level oracle_id; each face carries
+     * its own, and face 0's stands for the printing, as in
+     * DefaultCardsService.
+     *
      * @param  array<string, mixed>  $printing  A single card object from the bulk.
      */
     private function bufferPrinting(array $printing): void
@@ -280,7 +284,7 @@ class TranslationsService extends ScryfallService
             return;
         }
 
-        $oracleId = $printing['oracle_id'] ?? null;
+        $oracleId = $printing['oracle_id'] ?? ($printing['card_faces'][0]['oracle_id'] ?? null);
         if (! is_string($oracleId) || ! isset($this->knownOracleIds[$oracleId])) {
             $this->skippedUnknownOracle++;
 
@@ -337,11 +341,15 @@ class TranslationsService extends ScryfallService
      * Buffer per-face translation rows for a printing's
      * `card_faces` array.
      *
-     * For reversible layouts the parent oracle differs from the
-     * printing's `oracle_id` — Scryfall puts the per-face oracle on
-     * `card_faces[i].oracle_id`. Fall back to the printing's
-     * `oracle_id` for non-reversible multi-faced layouts (transform,
-     * MDFC, split, adventure) where the parent oracle is shared.
+     * For reversible layouts each face is a card of its own — Scryfall
+     * puts its oracle on `card_faces[i].oracle_id` — and that card is
+     * single-faced, so the face is its oracle's face 0 whatever side of
+     * the printing it is on (both sides are often the same card), and its
+     * printed name is that card's name: it gets an oracle-level row too,
+     * or a back side that is another card would be unsearchable. Fall
+     * back to the printing's `oracle_id` and the face's position for
+     * non-reversible multi-faced layouts (transform, MDFC, split,
+     * adventure) where the parent oracle is shared.
      *
      * @param  array<string, mixed>  $printing
      */
@@ -361,10 +369,13 @@ class TranslationsService extends ScryfallService
                 continue;
             }
 
-            $faceOracleId = (isset($face['oracle_id']) && is_string($face['oracle_id']))
-                ? $face['oracle_id']
-                : $printingOracleId;
-            $faceIndex = (int) $index;
+            $ownOracle = isset($face['oracle_id']) && is_string($face['oracle_id']);
+            $faceOracleId = $ownOracle ? $face['oracle_id'] : $printingOracleId;
+            $faceIndex = $ownOracle ? 0 : (int) $index;
+
+            if ($ownOracle && isset($this->knownOracleIds[$faceOracleId])) {
+                $this->bufferOracleTranslation(['printed_name' => $printedName], $faceOracleId, $lang);
+            }
 
             if (! isset($this->knownFaces[$faceOracleId][$faceIndex])) {
                 $this->skippedUnknownFace++;

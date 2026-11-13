@@ -90,15 +90,6 @@ class BulkdataService extends ScryfallService
      */
     private function insertBulkData(array $bulk): void
     {
-        $missing = array_diff(self::REQUIRED_FIELDS, array_keys($bulk));
-        if ($missing !== []) {
-            $type = is_string($bulk['type'] ?? null) ? $bulk['type'] : 'unknown';
-            throw new RuntimeException(
-                "scryfall /bulk-data entry '$type' is missing expected field(s): ".implode(', ', $missing)
-                .'. The Scryfall bulk-data schema has changed.'
-            );
-        }
-
         $arr = [
             'id' => $bulk['id'],
             'type' => $bulk['type'],
@@ -120,16 +111,17 @@ class BulkdataService extends ScryfallService
     /**
      * Fetch and store the bulk-data catalog from the Scryfall API.
      *
-     * Truncates existing live entries (or builds the shadow set) and
-     * replaces them with the latest catalog so subsequent imports use
-     * up-to-date download URIs and sizes.
+     * Replaces the live entries (or builds the shadow set) with the latest
+     * catalog so subsequent imports use up-to-date download URIs and
+     * sizes. The live table is only truncated once the catalog has arrived
+     * and every entry carries the expected fields — truncating first left
+     * a standalone run that failed with an empty table.
      */
     public function getBulkMetadata(bool $shadow = false): void
     {
         $this->shadow = $shadow;
         $this->bulkDataTable = $this->tableName('bulk_data', $shadow);
         Log::channel('scryfall')->debug('Updating bulk metadata from scryfall.');
-        $this->preRunCleanup();
         $response = $this->api()
             ->get('https://api.scryfall.com/bulk-data');
         if ($response->failed()) {
@@ -137,7 +129,23 @@ class BulkdataService extends ScryfallService
             throw new RuntimeException('scryfall /bulk-data request failed with HTTP '.$response->status());
         }
         $json = $response->json();
+        if (! is_array($json['data'] ?? null)) {
+            throw new RuntimeException("scryfall /bulk-data response missing 'data' field");
+        }
+        foreach ($json['data'] as $bulk) {
+            $missing = is_array($bulk)
+                ? array_values(array_filter(self::REQUIRED_FIELDS, fn (string $field): bool => ! isset($bulk[$field])))
+                : self::REQUIRED_FIELDS;
+            if ($missing !== []) {
+                $type = is_string($bulk['type'] ?? null) ? $bulk['type'] : 'unknown';
+                throw new RuntimeException(
+                    "scryfall /bulk-data entry '$type' is missing expected field(s): ".implode(', ', $missing)
+                    .'. The Scryfall bulk-data schema has changed.'
+                );
+            }
+        }
         Log::channel('scryfall')->debug('API request to scryfall successful.: '.json_encode($json, JSON_PRETTY_PRINT));
+        $this->preRunCleanup();
         collect($json['data'])->each(fn ($item) => $this->insertBulkData($item));
     }
 }

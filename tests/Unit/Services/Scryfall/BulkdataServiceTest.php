@@ -155,6 +155,74 @@ class BulkdataServiceTest extends TestCase
         (new BulkdataService)->getBulkMetadata(shadow: true);
     }
 
+    /**
+     * A standalone run truncated the live table before asking Scryfall,
+     * so a failed request left it empty. (On SQLite the truncation's
+     * MariaDB-only `SET FOREIGN_KEY_CHECKS` would throw instead — either
+     * way the request error must come first.)
+     */
+    #[Test]
+    public function a_failed_catalog_request_leaves_the_live_table_as_it_was(): void
+    {
+        Sleep::fake();
+        $this->seedLiveRow();
+        Http::fake(['api.scryfall.com/bulk-data' => Http::response(['object' => 'error'], 503)]);
+
+        $this->assertFailsWith('/bulk-data request failed', fn () => (new BulkdataService)->getBulkMetadata());
+
+        $this->assertSame(1, DB::table('bulk_data')->count());
+    }
+
+    #[Test]
+    public function a_catalog_with_a_renamed_field_leaves_the_live_table_as_it_was(): void
+    {
+        $this->seedLiveRow();
+        $legacy = $this->currentApiEntry();
+        unset($legacy['jsonl_download_uri']);
+        $this->fakeCatalog($legacy);
+
+        $this->assertFailsWith('missing expected field(s): jsonl_download_uri', fn () => (new BulkdataService)->getBulkMetadata());
+
+        $this->assertSame(1, DB::table('bulk_data')->count());
+    }
+
+    #[Test]
+    public function a_catalog_entry_with_a_null_field_leaves_the_live_table_as_it_was(): void
+    {
+        $this->seedLiveRow();
+        $entry = $this->currentApiEntry();
+        $entry['jsonl_download_uri'] = null;
+        $this->fakeCatalog($entry);
+
+        $this->assertFailsWith('missing expected field(s): jsonl_download_uri', fn () => (new BulkdataService)->getBulkMetadata());
+
+        $this->assertSame(1, DB::table('bulk_data')->count());
+    }
+
+    private function seedLiveRow(): void
+    {
+        DB::table('bulk_data')->insert([
+            'id' => (string) Str::uuid(),
+            'type' => 'rulings',
+            'updated_at' => now()->toDateTimeString(),
+            'uri' => 'https://api.scryfall.com/bulk-data/x',
+            'name' => 'Rulings',
+            'description' => 'yesterday',
+            'size' => 5_000_000,
+            'download_uri' => 'https://data.scryfall.io/rulings/rulings.jsonl.gz',
+        ]);
+    }
+
+    private function assertFailsWith(string $message, callable $run): void
+    {
+        try {
+            $run();
+            $this->fail('expected the run to fail');
+        } catch (RuntimeException $e) {
+            $this->assertStringContainsString($message, $e->getMessage());
+        }
+    }
+
     #[Test]
     public function it_resolves_a_stored_download_uri_by_type(): void
     {

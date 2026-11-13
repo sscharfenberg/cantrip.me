@@ -3,6 +3,7 @@
 namespace App\Services\Scryfall\Shadow;
 
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * Pre-swap orphan validation. Walks every FK relation declared in
@@ -107,5 +108,50 @@ class ShadowValidationService
         }
 
         return $shrunk;
+    }
+
+    /**
+     * Return the swap tables whose live schema no longer matches the shadow
+     * build's — columns or indexes.
+     *
+     * The shadow tables are created `LIKE` the live ones at the start of the
+     * run. A deploy that migrates a swap table while the run is building (a
+     * new column, a changed index) changes only the live table, and the swap
+     * would then replace it with a table in the old shape: the migration is
+     * undone while `migrations` says it ran. Foreign keys are not compared —
+     * shadow tables never carry them, see {@see ShadowTableService}.
+     *
+     * @param  array<int, string>|null  $tables  Live table names; defaults to {@see ShadowTableRegistry::TABLES}.
+     *                                           Provided so tests can use throwaway tables.
+     * @return list<string> Tables whose schema drifted; empty when none did.
+     */
+    public function findSchemaDrift(?array $tables = null): array
+    {
+        $drifted = [];
+        foreach ($tables ?? ShadowTableRegistry::TABLES as $table) {
+            $shadow = ShadowTableRegistry::shadow($table);
+            if (Schema::getColumns($table) !== Schema::getColumns($shadow)
+                || $this->indexes($table) !== $this->indexes($shadow)) {
+                $drifted[] = $table;
+            }
+        }
+
+        return $drifted;
+    }
+
+    /**
+     * A table's indexes by structure — columns, uniqueness, type — sorted,
+     * names left out: what matters for the swap is the shape, and the name
+     * is not portable (SQLite derives it from the table's own name).
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function indexes(string $table): array
+    {
+        return collect(Schema::getIndexes($table))
+            ->map(fn (array $index): array => array_diff_key($index, ['name' => true]))
+            ->sortBy(fn (array $index): string => json_encode($index))
+            ->values()
+            ->all();
     }
 }

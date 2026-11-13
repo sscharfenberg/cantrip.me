@@ -207,16 +207,17 @@ class SetsService extends ScryfallService
      * Fetch all sets from the Scryfall API and replace the local database
      * (live mode) or build the shadow table (shadow mode).
      *
-     * Filters out sets with zero cards. Runs setup() first which truncates
-     * the live table; in shadow mode setup() is a no-op because the
-     * orchestrator already created an empty `sets__shadow`.
+     * Filters out sets with zero cards. Runs setup() — which truncates the
+     * live table — only once the catalog has arrived, so a failed request
+     * leaves a standalone run's table as it was; in shadow mode setup() is
+     * a no-op because the orchestrator already created an empty
+     * `sets__shadow`.
      */
     public function updateSets(bool $shadow = false): void
     {
         $this->shadow = $shadow;
         $this->setsTable = $this->tableName('sets', $shadow);
         $this->cachedSetIcons = null;
-        $this->setup();
         $response = $this->api()
             ->get('https://api.scryfall.com/sets');
         if ($response->failed()) {
@@ -228,6 +229,7 @@ class SetsService extends ScryfallService
             Log::channel('scryfall')->error("Scryfall response successful, but json does not have a field 'data'.");
             throw new \RuntimeException("scryfall /sets response missing 'data' field");
         }
+        $this->setup();
         collect($sets['data'])
             ->filter(fn ($set) => $set['card_count'] > 0)
             ->each(fn ($set) => $this->insertSet($set));

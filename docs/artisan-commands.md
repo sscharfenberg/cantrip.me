@@ -30,6 +30,8 @@ validate orphans        → LEFT JOINs every FK relation against the shadow buil
 validate row counts     → no shadow table empty while live has rows, none lost >10% of ≥1 000 rows
 captureForeignKeys      → snapshot every FK referencing the 12 swap tables, and write it to storage/app/private
 dropForeignKeys         → drop them so the RENAME doesn't auto-rotate references
+validateSchema          → no live swap table changed columns or indexes since its shadow was created (a deploy migrating it
+                          mid-run would be undone by the swap) — rerun the sync if this aborts
 swap                    → atomic multi-table RENAME (12 lives → __retired, 12 shadows → live)
 addForeignKeys          → re-add the captured FKs to the new live tables — runs even when the drop or swap failed
 dropRetired             → drop the 12 __retired tables
@@ -105,7 +107,7 @@ Imports foreign-language card-name translations from Scryfall's `all_cards` bulk
 
 Streams the gzipped `all_cards` bulk (~372 MB, ~2.5 GB inflated) directly from Scryfall — same pattern as the other three bulk imports, just with a much larger payload that makes streaming non-negotiable rather than merely preferable.
 
-Skips English printings (already in `oracle_cards.name`), printings whose `oracle_id` is unknown (defensive — tokens, etc.), and reprints with a duplicate `(oracle, lang)` or `(oracle, face_index, lang)` key (first occurrence wins). Bulk-inserts deduped rows in 1 000-row chunks at end of walk.
+Reversible cards (no top-level `oracle_id`) are read through their faces: each side is its own single-faced card and gets that card's name translation and face-0 translation. Skips English printings (already in `oracle_cards.name`), printings whose `oracle_id` is unknown (defensive — tokens, etc.), and reprints with a duplicate `(oracle, lang)` or `(oracle, face_index, lang)` key (first occurrence wins). Bulk-inserts deduped rows in 1 000-row chunks at end of walk.
 
 Peak RAM ≈ ~65 MB (both buffers kept in scope across the full walk so dedupe can't be partial). End-of-run log line summarizes skip counts and dedupe hits.
 
@@ -117,7 +119,7 @@ Streams the gzipped `default_cards` bulk (~73 MB) directly from Scryfall — no 
 
 `all_parts` (Scryfall's printing-level edges to related cards — tokens, meld parts, meld results, combo pieces) is captured during the same file walk into `default_card_relations`. Edges are buffered in memory and bulk-inserted (in 5 000-row chunks to stay under MySQL's 65 535-placeholder per-statement cap) once at end-of-walk.
 
-**Orphan re-targeting.** Scryfall emits ~1 979 edges per bulk where `all_parts.id` references a printing not in `default_cards` (foreign-language UUID, excluded layout, printing variant Scryfall didn't pick for the bulk, etc.). `flushRelationsBuffer` builds a `searchable_name → default_cards.id` lookup and rewrites these orphan edges to point at a valid printing of the same oracle. Surfaced in console output as `re-targeted N orphan default_card_relations edges to default printings of the same oracle.`
+**Orphan re-targeting.** Scryfall emits ~1 979 edges per bulk where `all_parts.id` references a printing not in `default_cards` (foreign-language UUID, excluded layout, printing variant Scryfall didn't pick for the bulk, etc.). `flushRelationsBuffer` rewrites these orphan edges to point at a valid printing of the same card: one whose name and type line match the `all_parts` entry, or — where several cards share them, as tokens do — one printed in the source card's set or its token set. An edge with no single right target is dropped (3 of ~2 100 orphans on the 2026-11-12 bulk) rather than pointed at a token with the wrong power or colour. A re-targeted edge points at the card's printing in the source card's set or token set when there is one, so the deck view shows the matching token art. Surfaced in console output as `re-targeted N orphan default_card_relations edges to default printings of the same oracle.`
 
 Supports `--target=live|shadow`.
 

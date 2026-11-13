@@ -23,6 +23,8 @@ class ShadowSwapperTest extends TestCase
     /** @var list<string> */
     private array $steps = [];
 
+    private bool $failBeforeRename = false;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -40,10 +42,21 @@ class ShadowSwapperTest extends TestCase
             $this->tables->calls,
         );
         $this->assertSame(
-            ['captureForeignKeys', 'dropForeignKeys', 'swap', 'addForeignKeys', 'dropRetired'],
+            ['captureForeignKeys', 'dropForeignKeys', 'validateSchema', 'swap', 'addForeignKeys', 'dropRetired'],
             $this->steps,
             'each step runs through the alerting wrapper under its own name',
         );
+    }
+
+    #[Test]
+    public function a_failed_check_before_the_rename_stops_the_swap_and_re_adds_the_constraints(): void
+    {
+        $this->failBeforeRename = true;
+
+        $this->expectSwapToFail('schema drifted');
+
+        $this->assertSame(['capture', 'remember', 'drop', 'add', 'forget'], $this->tables->calls);
+        $this->assertSame(['captureForeignKeys', 'dropForeignKeys', 'validateSchema', 'addForeignKeys'], $this->steps);
     }
 
     #[Test]
@@ -89,10 +102,17 @@ class ShadowSwapperTest extends TestCase
 
     private function swap(): int
     {
-        return (new ShadowSwapper($this->tables))->swapIntoLive(function (string $name, callable $work): void {
-            $this->steps[] = $name;
-            $work();
-        });
+        return (new ShadowSwapper($this->tables))->swapIntoLive(
+            function (string $name, callable $work): void {
+                $this->steps[] = $name;
+                $work();
+            },
+            function (): void {
+                if ($this->failBeforeRename) {
+                    throw new RuntimeException('schema drifted');
+                }
+            },
+        );
     }
 
     private function expectSwapToFail(string $message): void
