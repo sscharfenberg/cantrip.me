@@ -416,6 +416,9 @@ class UpdateEverything extends Command
         $this->pushSummary('Oracle tags', 'fetch_pattern', $this->fmtCount($fetch).' cards');
         $this->pushSummary('Oracle tags', 'land_search_pattern', $this->fmtCount($landSearch).' cards');
 
+        // Bulk downloads (cross-step counter from ScryfallService).
+        $this->pushSummary('Bulk downloads', 'reconnects (dropped or failed connection)', $this->fmtCount(ScryfallRunStats::$bulkReconnects));
+
         // Image download (cross-step counters from ImageDownloadService).
         $cardImagesProcessed = ScryfallRunStats::$cardImagesDownloaded + ScryfallRunStats::$cardImagesSkipped + ScryfallRunStats::$cardImagesFailed;
         $artCropsProcessed = ScryfallRunStats::$artCropsDownloaded + ScryfallRunStats::$artCropsSkipped + ScryfallRunStats::$artCropsFailed;

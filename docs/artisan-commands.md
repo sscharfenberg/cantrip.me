@@ -8,7 +8,7 @@ Project-specific commands for Scryfall data sync and image management. Standard 
 
 Orchestrates the full Scryfall sync via the **shadow-table swap flow**: builds every truncate-rebuild table in `*__shadow` siblings, validates FK integrity, captures+drops FKs around an atomic multi-table RENAME, then re-adds FKs to the new live tables. The site stays fully usable throughout — DB churn is invisible to users, the swap itself is sub-second, and a mid-flight failure leaves the live tables byte-for-byte untouched. **No maintenance mode** (`down`/`up`).
 
-Warning: streams ~475 MB of gzipped bulk data from Scryfall per run (~23 MB `oracle_cards` + ~73 MB `default_cards` + ~5 MB `rulings` + ~372 MB `all_cards`). Every run re-fetches from Scryfall — no on-disk caching of bulk data in any environment. Scryfall serves the bulks as gzipped JSON Lines (`.jsonl.gz`); `ScryfallService::streamJsonl()` inflates and decodes them one line at a time, so peak memory stays in the tens of MB regardless of bulk size.
+Warning: streams ~475 MB of gzipped bulk data from Scryfall per run (~23 MB `oracle_cards` + ~73 MB `default_cards` + ~5 MB `rulings` + ~372 MB `all_cards`). Every run re-fetches from Scryfall — no on-disk caching of bulk data in any environment. Scryfall serves the bulks as gzipped JSON Lines (`.jsonl.gz`); `ScryfallService::streamJsonl()` inflates and decodes them one line at a time, so peak memory stays in the tens of MB regardless of bulk size. A download that ends early (a dropped connection on Scryfall's CDN) is resumed from the byte it reached, and a connection that fails to open or answers 429/5xx is tried again — five attempts in a row without data, then the step fails; the end-of-run summary counts the extra connections under "Bulk downloads".
 
 Execution order:
 
@@ -53,7 +53,7 @@ Daily is the useful maximum: Scryfall regenerates its bulk files (and card price
 
 `withoutOverlapping(60)` is the overlap guard. The run *starts* by dropping any leftover `*__shadow` / `*__retired` tables (crash recovery), so a second run starting while one is still building would drop its shadow tables out from under it. The guard is a cache lock the app owns; its 60-minute TTL lets a hard-killed run, which never releases the lock, block nothing beyond that hour. A manual run does not take the lock, so don't start one shortly before 04:00. Console output is appended to `storage/logs/cron-scryfall.log`, so a failure before the command can log anything still leaves a trace.
 
-Manual runs on production use the scheduler's user: `sudo -u deploy php /var/www/mbop/artisan scryfall:update`. Staging does not run this job on a schedule — it shares most Scryfall assets with prod — and is synced by a manual run when needed.
+Manual runs on production use the scheduler's user, started from the app directory: `cd /var/www/mbop && sudo -u deploy php artisan scryfall:update`. Started from your home directory instead, `scryfall:cache` prints `find: Failed to restore initial working directory: … Permission denied` — `deploy` cannot read that directory; the counts come out right anyway. Staging does not run this job on a schedule — it shares most Scryfall assets with prod — and is synced by a manual run when needed.
 
 ### `php artisan scryfall:sets`
 

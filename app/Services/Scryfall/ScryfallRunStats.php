@@ -41,8 +41,17 @@ class ScryfallRunStats
      */
     public static int $staleFilesUndeletable = 0;
 
+    /**
+     * Connections a bulk download needed beyond its first — a resume after
+     * a dropped connection, or another try after one that failed to open.
+     * Non-zero means Scryfall's CDN stumbled and the run got past it, see
+     * {@see ScryfallService::streamJsonl()}.
+     */
+    public static int $bulkReconnects = 0;
+
     public static function reset(): void
     {
+        self::$bulkReconnects = 0;
         self::$relationsRetargeted = 0;
         self::$relationsSkippedComponent = 0;
         self::$relationsSkippedOrphan = 0;
