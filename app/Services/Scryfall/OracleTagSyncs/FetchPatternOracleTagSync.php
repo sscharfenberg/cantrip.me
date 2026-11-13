@@ -38,6 +38,18 @@ class FetchPatternOracleTagSync extends OracleTagSync
     /** Canonical WUBRG order for sorting parsed color letters. */
     private const WUBRG_ORDER = ['W', 'U', 'B', 'R', 'G'];
 
+    /** One basic land type, lowercased. */
+    private const TYPE = '(?:plains|island|swamp|mountain|forest)';
+
+    /** A list of basic types: "forest", "island or swamp", "plains, island, swamp, or mountain". */
+    private const TYPE_RUN = self::TYPE.'(?:[, ]+(?:or )?'.self::TYPE.')*';
+
+    /**
+     * One other type closing a type list — "a Mountain or Cave card",
+     * "a Plains, Island, or Cave card" — but not "a Forest or more cards".
+     */
+    private const OTHER_TYPE = '(?:,? or (?!more\b|fewer\b)[a-z]+)?';
+
     public function tag(): string
     {
         return 'fetchland';
@@ -74,11 +86,16 @@ class FetchPatternOracleTagSync extends OracleTagSync
      *  1. `"basic land card"` (alone) → `basic`.
      *  2. `"basic <Type>"` (one or more) → `basic:<colors>`.
      *  3. `"<Type> card"` without a leading "basic" → `typed:<colors>`.
-     *  4. `"a land card"` (no type, no basic) → `any`.
+     *  4. `"a land card with a basic land type"` → `typed:WUBRG`.
+     *  5. `"a land card"` (no type, no basic) → `any`.
      *
      * Returns NULL if none of the above match. The text is normalized
      * to lowercase + single-space whitespace before pattern-matching
      * so reflow / line-break variations don't break the regexes.
+     *
+     * Only the five basic land types are expressible: a list that also
+     * names another land type ("a Mountain or Cave card") yields the
+     * colours of its basic types only, so a deck's Caves go uncounted.
      */
     protected function parsePattern(string $oracleText): ?string
     {
@@ -93,7 +110,7 @@ class FetchPatternOracleTagSync extends OracleTagSync
         // 2. "basic <Type>" — one or more types separated by `,` / `or`.
         //    Catches Panoramas (`basic Forest, Plains, or Island`) and
         //    Khans-cycle Landscapes (`basic Forest, Island, or Mountain`).
-        if (preg_match('/basic (?:plains|island|swamp|mountain|forest)/', $text)) {
+        if (preg_match('/basic '.self::TYPE.'/', $text)) {
             $colors = $this->collectTypesFromBasicClause($text);
             if ($colors === '') {
                 return null;
@@ -104,8 +121,8 @@ class FetchPatternOracleTagSync extends OracleTagSync
 
         // 3. Typed "<Type> card" without a "basic" prefix — Onslaught /
         //    Mirage fetches and Krosan-Verge-style two-land searches.
-        if (preg_match('/(?:plains|island|swamp|mountain|forest) card/', $text)) {
-            $colors = $this->collectTypesFromTypedClause($text);
+        if (preg_match('/'.self::TYPE_RUN.self::OTHER_TYPE.' cards?/', $text)) {
+            $colors = $this->collectTypes('/('.self::TYPE_RUN.')'.self::OTHER_TYPE.'\s+cards?/', $text);
             if ($colors === '') {
                 return null;
             }
@@ -113,8 +130,17 @@ class FetchPatternOracleTagSync extends OracleTagSync
             return 'typed:'.$colors;
         }
 
-        // 4. "a land card" — pure tutor with no type filter (Urza's Cave).
-        if (preg_match('/library for (?:a|an|up to \w+) land cards?/', $text)) {
+        // 4. "a land card with a basic land type" — any land carrying a
+        //    basic type, basic or not (Potential Horizon, Perilous Forays).
+        //    Ahead of the next rule, whose "a land card" it also matches.
+        if (preg_match('/land cards? with a basic land type/', $text)) {
+            return 'typed:WUBRG';
+        }
+
+        // 5. "a land card" — pure tutor with no type filter (Urza's Cave),
+        //    also as one choice among card types ("a creature or land
+        //    card", "an artifact, creature, or land card").
+        if (preg_match('/library for (?:a|an|up to \w+) (?:[a-z]+(?:, [a-z]+)*,? or )?land cards?/', $text)) {
             return 'any';
         }
 
@@ -122,41 +148,36 @@ class FetchPatternOracleTagSync extends OracleTagSync
     }
 
     /**
-     * Collect every `basic <Type>` mention from the lowercased text and
-     * return the unique color letters in WUBRG order. Used by the
-     * `basic:<colors>` branch — Panoramas list 3 types
-     * (`basic Forest, Plains, or Island`) and Mirage-style Landscapes
-     * list 3 (`basic Plains, Swamp, or Mountain`). The repeated word
-     * "basic" only appears once per clause; the rest of the types are
-     * inferred from the comma- or "or"-separated tail.
+     * Collect the `basic <Type>` mentions of the search and return the
+     * unique color letters in WUBRG order. Used by the `basic:<colors>`
+     * branch — Panoramas list 3 types (`basic Forest, Plains, or Island`)
+     * and Mirage-style Landscapes list 3 (`basic Plains, Swamp, or
+     * Mountain`). The repeated word "basic" only appears once per clause;
+     * the rest of the types are inferred from the comma- or "or"-separated
+     * tail.
      *
-     * Implementation note: Scryfall's wording is consistent — the
-     * "basic" qualifier applies to the first land type and is
-     * implicitly inherited by each subsequent type in the same list.
-     * So we capture the first land type after "basic" and then look
-     * for additional types separated by `,` or `or` until the closing
-     * "card".
+     * A search can name several clauses, each with its own "basic" ("a
+     * basic Forest card and a basic Plains card" — Yasharn), so every
+     * clause of the sentence holding the first one counts. Other
+     * sentences do not: the fetchland sync hands over a land's whole
+     * text, where a "basic Plains card" elsewhere is not what it fetches.
      */
     private function collectTypesFromBasicClause(string $text): string
     {
-        // Match a "basic <Type1>(, <Type2>)*( or <TypeN>)? card" run.
-        if (! preg_match(
-            '/basic ((?:plains|island|swamp|mountain|forest)(?:[, ]+(?:or )?(?:plains|island|swamp|mountain|forest))*) cards?/',
-            $text,
-            $m
-        )) {
-            return '';
+        foreach (preg_split('/(?<=\.)\s+/', $text) ?: [] as $sentence) {
+            if (preg_match('/basic '.self::TYPE.'/', $sentence)) {
+                return $this->collectTypes('/basic ('.self::TYPE_RUN.') cards?/', $sentence);
+            }
         }
-        preg_match_all('/(plains|island|swamp|mountain|forest)/', $m[1], $tm);
 
-        return $this->canonicalizeColors($tm[1]);
+        return '';
     }
 
     /**
-     * Collect every typed-land mention from a "no-basic" clause and
-     * return the unique color letters in WUBRG order.
+     * Collect the land types of every type run $pattern captures (group
+     * 1) and return the unique color letters in WUBRG order.
      *
-     * Two clause shapes show up in the data:
+     * Typed clauses come in two shapes:
      *   - One run, multiple types: "an Island or Swamp card"
      *     (Polluted Delta). The shared "card" only follows the LAST
      *     type, so a naive "<Type> card" regex would only catch
@@ -164,25 +185,16 @@ class FetchPatternOracleTagSync extends OracleTagSync
      *   - Two runs, one type each, joined by "and a": "a Forest
      *     card and a Plains card" (Krosan Verge).
      *
-     * The matcher first locates each `<Type-run> card[s]` block (where
-     * a run is one or more types chained by `,` / `or`), then pulls
-     * every type letter from each block. Quoting the entire run
-     * pre-`card` ensures multi-type "or" clauses contribute every
-     * type, not just the trailing one.
+     * Capturing the entire run before `card` ensures multi-type "or"
+     * clauses contribute every type, not just the trailing one.
      */
-    private function collectTypesFromTypedClause(string $text): string
+    private function collectTypes(string $pattern, string $text): string
     {
-        preg_match_all(
-            '/((?:plains|island|swamp|mountain|forest)(?:[, ]+(?:or )?(?:plains|island|swamp|mountain|forest))*)\s+cards?/',
-            $text,
-            $matches
-        );
+        preg_match_all($pattern, $text, $matches);
         $types = [];
-        foreach ($matches[1] ?? [] as $run) {
+        foreach ($matches[1] as $run) {
             preg_match_all('/(plains|island|swamp|mountain|forest)/', $run, $tm);
-            foreach ($tm[1] ?? [] as $t) {
-                $types[] = $t;
-            }
+            array_push($types, ...$tm[1]);
         }
 
         return $this->canonicalizeColors($types);

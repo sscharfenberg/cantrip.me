@@ -53,6 +53,34 @@ class LandSearchPatternOracleTagSyncTest extends TestCase
                 "(As this Saga enters and after your draw step, add a lore counter. Sacrifice after III.)\nI — Search your library for a basic Plains card, reveal it, put it into your hand, then shuffle.\nII — Create a 0/4 colorless Wall artifact creature token with defender.\nIII — You gain 2 life.",
                 'basic:W',
             ],
+            'two basic clauses, each with its own "basic" (Yasharn, Implacable Earth)' => [
+                "When Yasharn enters, search your library for a basic Forest card and a basic Plains card, reveal those cards, put them into your hand, then shuffle.\nPlayers can't pay life or sacrifice nonland permanents to cast spells or activate abilities.",
+                'basic:WG',
+            ],
+            'any land with a basic land type is typed, not any (Perilous Forays)' => [
+                '{1}, Sacrifice a creature: Search your library for a land card with a basic land type, put it onto the battlefield tapped, then shuffle.',
+                'typed:WUBRG',
+            ],
+            'a type list ending in a non-basic type (The Cave of Two Lovers)' => [
+                "(As this Saga enters and after your draw step, add a lore counter. Sacrifice after III.)\nI — Create two 1/1 white Ally creature tokens.\nII — Search your library for a Mountain or Cave card, reveal it, put it into your hand, then shuffle.\nIII — Earthbend 3. (Target land you control becomes a 0/0 creature with haste that's still a land. Put three +1/+1 counters on it. When it dies or is exiled, return it to the battlefield tapped.)",
+                'typed:R',
+            ],
+            'land as one of two card types (Archdruid\'s Charm)' => [
+                "Choose one —\n• Search your library for a creature or land card and reveal it. Put it onto the battlefield tapped if it's a land card. Otherwise, put it into your hand. Then shuffle.\n• Put a +1/+1 counter on target creature you control. It deals damage equal to its power to target creature you don't control.\n• Exile target artifact or enchantment.",
+                'any',
+            ],
+            'library and graveyard (Journey for the Elixir)' => [
+                'Search your library and graveyard for a basic land card and a card named Jiang Yanggu, reveal them, put them into your hand, then shuffle.',
+                'basic',
+            ],
+            'more zones in another order (made up)' => [
+                'When this creature enters, search your graveyard, hand, and/or library for a basic land card, put it into your hand, then shuffle.',
+                'basic',
+            ],
+            'library and/or graveyard (Captain Kirk, Boldly Going)' => [
+                "Vigilance\nSpacecraft creatures you control get +3/+3.\nWhenever Captain Kirk enters or attacks, search your library and/or graveyard for a basic land card or a card named Starship Enterprise, reveal it, and put it into your hand. If you search your library this way, shuffle.",
+                'basic',
+            ],
         ];
     }
 

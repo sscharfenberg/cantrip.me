@@ -60,7 +60,9 @@ class LandSearchPatternOracleTagSync extends FetchPatternOracleTagSync
      * (Treefolk Harbinger) supplies no colour, and parsing the whole text
      * would still find its "land card".
      *
-     * A search runs from its "search your library for" sentence through
+     * A search runs from its "search your library for" sentence (or one
+     * naming more zones — "your library and graveyard", Journey for the
+     * Elixir; "your library and/or graveyard", Captain Kirk) through
      * the sentence that shuffles, because the destination is often the
      * next sentence ("…and reveal them. Put them onto the battlefield
      * tapped, then shuffle.") or two on (Tithe's conditional second
@@ -83,7 +85,7 @@ class LandSearchPatternOracleTagSync extends FetchPatternOracleTagSync
 
         $searches = [];
         for ($i = 0, $count = count($sentences); $i < $count; $i++) {
-            if (! preg_match('/\bsearch your library for\b/i', $sentences[$i])) {
+            if (! preg_match('/\bsearch your (?:library|graveyard|hand)(?:(?:,|,? and\/or|,? and|,? or) (?:library|graveyard|hand))* for\b/i', $sentences[$i])) {
                 continue;
             }
             $window = [];
