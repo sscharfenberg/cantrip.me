@@ -6,6 +6,7 @@ use App\Notifications\ScryfallUpdateFailedNotification;
 use App\Services\Scryfall\ScryfallFailureAlert;
 use Illuminate\Console\Scheduling\Event;
 use Illuminate\Console\Scheduling\Schedule;
+use Illuminate\Contracts\Foundation\MaintenanceMode;
 use Illuminate\Notifications\AnonymousNotifiable;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
@@ -125,6 +126,56 @@ class ScryfallUpdateScheduleTest extends TestCase
             ScryfallUpdateFailedNotification::class,
             fn ($notification): bool => $notification->commandName === 'scryfall:update',
         );
+    }
+
+    #[Test]
+    public function a_run_due_while_the_site_is_down_is_skipped_with_an_alert(): void
+    {
+        Notification::fake();
+        Log::shouldReceive('channel')->with('scryfall')->andReturnSelf();
+        Log::shouldReceive('warning')->once();
+        $this->siteIsDown(true);
+        $event = $this->scryfallEvent();
+
+        $this->assertTrue($event->runsInMaintenanceMode(), 'otherwise Laravel drops the event before any filter can alert');
+        $this->assertFalse($event->filtersPass(app()), 'the sync must not run while a deploy may be migrating');
+        Notification::assertSentOnDemand(
+            ScryfallUpdateFailedNotification::class,
+            fn ($notification): bool => $notification->commandName === 'scryfall:update'
+                && str_contains($notification->exception->getMessage(), 'maintenance mode'),
+        );
+    }
+
+    #[Test]
+    public function a_run_due_while_the_site_is_up_goes_ahead_without_an_alert(): void
+    {
+        Notification::fake();
+        $this->siteIsDown(false);
+
+        $this->assertTrue($this->scryfallEvent()->filtersPass(app()));
+        Notification::assertNothingSent();
+    }
+
+    private function siteIsDown(bool $down): void
+    {
+        $this->app->instance(MaintenanceMode::class, new class($down) implements MaintenanceMode
+        {
+            public function __construct(private readonly bool $down) {}
+
+            public function activate(array $payload): void {}
+
+            public function deactivate(): void {}
+
+            public function active(): bool
+            {
+                return $this->down;
+            }
+
+            public function data(): array
+            {
+                return [];
+            }
+        });
     }
 
     private function scryfallEvent(): Event

@@ -62,9 +62,16 @@ Schedule::call(function () {
 // cannot report is its own death — a fatal error, an out-of-memory kill —
 // so onFailure alerts for a non-zero exit the run did not already alert
 // about; before() clears the previous run's marker first.
+//
+// Nor can it report a run that never starts. Laravel drops an event in
+// maintenance mode silently, so this one stays due then
+// (evenInMaintenanceMode) and the skip() filter skips it with an alert —
+// it still does not run while a deploy may be migrating.
 Schedule::command('scryfall:update')
     ->dailyAt('04:00')
     ->environments(['production'])
+    ->evenInMaintenanceMode()
+    ->skip(fn (): bool => app(ScryfallFailureAlert::class)->skipWhileDownForMaintenance())
     ->withoutOverlapping(60)
     ->appendOutputTo(storage_path('logs/cron-scryfall.log'))
     ->before(fn () => app(ScryfallFailureAlert::class)->forgetSent())

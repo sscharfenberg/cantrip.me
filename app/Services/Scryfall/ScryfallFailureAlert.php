@@ -25,6 +25,9 @@ use Throwable;
  * oracle-tag column kept from the previous run, constraints a crashed run
  * left dropped that could not be restored. It sets no marker: the run
  * may still die afterwards, and that must still be reported.
+ *
+ * {@see skipWhileDownForMaintenance()} covers the run that never starts:
+ * Laravel drops a scheduled event in maintenance mode without a trace.
  */
 class ScryfallFailureAlert
 {
@@ -88,6 +91,31 @@ class ScryfallFailureAlert
         } catch (Throwable) {
             // Without a cache the hook alerts once more; nothing to fix here.
         }
+    }
+
+    /**
+     * The schedule's `skip()` filter: whether the site is down for
+     * maintenance, alerting when it is.
+     *
+     * A scheduled event that does not run in maintenance mode is not due
+     * then — Laravel drops it before any callback, so a deploy or a manual
+     * `php artisan down` at 04:00 used to cost a night's sync unnoticed.
+     * The event therefore stays due in maintenance mode and this filter
+     * skips it, saying so. The sync is not run anyway: a deploy may be
+     * mid-migration, and the shadow swap must not race it.
+     */
+    public function skipWhileDownForMaintenance(): bool
+    {
+        if (! app()->isDownForMaintenance()) {
+            return false;
+        }
+
+        $message = 'the scheduled run was skipped: the site is in maintenance mode. Once it is back up, run it by hand: '
+            .'cd '.base_path().' && sudo -u deploy php artisan scryfall:update';
+        Log::channel('scryfall')->warning("scryfall:update — $message");
+        $this->warn('scryfall:update', $message);
+
+        return true;
     }
 
     /**
