@@ -22,11 +22,11 @@ describe("CollectionStatusBadge — icons", () => {
         ["wrong_printing", "#planned"],
         ["not_owned", "#money"]
     ] as [CollectionStatus, string][])("shows %s as %s", (status, icon) => {
-        expect(render(status).find("use").attributes("href")).toBe(icon);
+        expect(render(status).find("use").attributes("xlink:href")).toBe(icon);
     });
 
     it("gives each status its own icon, so the five are distinguishable at a glance", () => {
-        const icons = ALL_STATUSES.map(status => render(status).find("use").attributes("href"));
+        const icons = ALL_STATUSES.map(status => render(status).find("use").attributes("xlink:href"));
 
         expect(new Set(icons).size).toBe(ALL_STATUSES.length);
     });

@@ -23,7 +23,7 @@ describe("CollectionModeBadge — the trigger", () => {
         ["B", "#storage"],
         ["C", "#key"]
     ] as ["A" | "B" | "C", string][])("shows mode %s with the %s icon", (mode, icon) => {
-        expect(render(mode).find(".collection-mode-badge__trigger use").attributes("href")).toBe(icon);
+        expect(render(mode).find(".collection-mode-badge__trigger use").attributes("xlink:href")).toBe(icon);
     });
 
     it("labels the trigger with the active mode", () => {

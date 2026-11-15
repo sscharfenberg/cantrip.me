@@ -40,7 +40,7 @@ describe("CollectionAvailabilityBadge — icon and colour", () => {
     ] as [CollectionAvailability["state"], string, string][])("shows %s as %s", (state, icon, colourClass) => {
         const wrapper = render(availability(state, 1, 0, 0));
 
-        expect(wrapper.find("use").attributes("href")).toBe(icon);
+        expect(wrapper.find("use").attributes("xlink:href")).toBe(icon);
         expect(wrapper.classes()).toContain(colourClass);
     });
 
@@ -48,7 +48,7 @@ describe("CollectionAvailabilityBadge — icon and colour", () => {
         const icons = (["available", "partial", "unavailable"] as CollectionAvailability["state"][]).map(state =>
             render(availability(state, 1, 0, 0))
                 .find("use")
-                .attributes("href")
+                .attributes("xlink:href")
         );
 
         expect(new Set(icons).size).toBe(3);

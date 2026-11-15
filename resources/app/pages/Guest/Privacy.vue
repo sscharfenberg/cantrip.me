@@ -67,8 +67,9 @@ setBreadcrumbs([{ labelKey: "pages.privacy.link" }]);
         </li>
     </ul>
     <paragraph>
-        <strong>{{ $t("pages.privacy.national_regulations_title") }} </strong
-        >{{ $t("pages.privacy.national_regulations_text") }}
+        <strong>{{ $t("pages.privacy.national_regulations_title") }} </strong>{{
+            $t("pages.privacy.national_regulations_text")
+        }}
     </paragraph>
     <headline :size="3">{{ $t("pages.privacy.security_measures") }}</headline>
     <paragraph>{{ $t("pages.privacy.security_measures_text_1") }}</paragraph>
@@ -96,8 +97,9 @@ setBreadcrumbs([{ labelKey: "pages.privacy.link" }]);
     <headline :size="4">{{ $t("pages.privacy.hosting_notes") }}</headline>
     <ul class="list">
         <li>
-            <strong>{{ $t("pages.privacy.hosting_rented_title") }} </strong
-            >{{ $t("pages.privacy.hosting_rented_text") }}
+            <strong>{{ $t("pages.privacy.hosting_rented_title") }} </strong>{{
+                $t("pages.privacy.hosting_rented_text")
+            }}
             <span
                 ><strong>{{ $t("pages.privacy.legal_basis_label") }}</strong>
                 {{ $t("pages.privacy.legal_basis_interest") }}</span
@@ -180,24 +182,28 @@ setBreadcrumbs([{ labelKey: "pages.privacy.link" }]);
     >
     <ul class="list">
         <li>
-            <strong>{{ $t("pages.privacy.registration_pseudonym_title") }} </strong
-            >{{ $t("pages.privacy.registration_pseudonym_text") }}
+            <strong>{{ $t("pages.privacy.registration_pseudonym_title") }} </strong>{{
+                $t("pages.privacy.registration_pseudonym_text")
+            }}
             <strong>{{ $t("pages.privacy.legal_basis_label") }}</strong>
             {{ $t("pages.privacy.registration_pseudonym_legal") }}
         </li>
         <li>
-            <strong>{{ $t("pages.privacy.registration_profiles_title") }} </strong
-            >{{ $t("pages.privacy.registration_profiles_text") }}
+            <strong>{{ $t("pages.privacy.registration_profiles_title") }} </strong>{{
+                $t("pages.privacy.registration_profiles_text")
+            }}
         </li>
         <li>
-            <strong>{{ $t("pages.privacy.registration_2fa_title") }} </strong
-            >{{ $t("pages.privacy.registration_2fa_text") }}
+            <strong>{{ $t("pages.privacy.registration_2fa_title") }} </strong>{{
+                $t("pages.privacy.registration_2fa_text")
+            }}
             <strong>{{ $t("pages.privacy.legal_basis_label") }}</strong>
             {{ $t("pages.privacy.registration_2fa_legal") }}
         </li>
         <li>
-            <strong>{{ $t("pages.privacy.registration_noretention_title") }} </strong
-            >{{ $t("pages.privacy.registration_noretention_text") }}
+            <strong>{{ $t("pages.privacy.registration_noretention_title") }} </strong>{{
+                $t("pages.privacy.registration_noretention_text")
+            }}
             <strong>{{ $t("pages.privacy.legal_basis_label") }}</strong>
             {{ $t("pages.privacy.registration_noretention_legal") }}
         </li>
@@ -207,8 +213,9 @@ setBreadcrumbs([{ labelKey: "pages.privacy.link" }]);
     >
     <ul class="list">
         <li>
-            <strong>{{ $t("pages.privacy.registration_protection_title") }} </strong
-            >{{ $t("pages.privacy.registration_protection_text") }}
+            <strong>{{ $t("pages.privacy.registration_protection_title") }} </strong>{{
+                $t("pages.privacy.registration_protection_text")
+            }}
             <strong>{{ $t("pages.privacy.legal_basis_label") }}</strong>
             {{ $t("pages.privacy.registration_protection_legal") }}
         </li>

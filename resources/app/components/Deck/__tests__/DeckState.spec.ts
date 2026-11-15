@@ -16,12 +16,12 @@ describe("DeckState", () => {
         const wrapper = render(state);
 
         expect(wrapper.classes()).toContain(badgeType);
-        expect(wrapper.find("use").attributes("href")).toBe(icon);
+        expect(wrapper.find("use").attributes("xlink:href")).toBe(icon);
     });
 
     it("maps built to the finished icon, which is the one that exists in the sprite", () => {
         // The only state whose icon name differs from the state name.
-        expect(render("built").find("use").attributes("href")).toBe("#finished");
+        expect(render("built").find("use").attributes("xlink:href")).toBe("#finished");
     });
 
     it("names the state in the label", () => {
@@ -37,7 +37,7 @@ describe("DeckState", () => {
         const wrapper = render("mothballed");
 
         expect(wrapper.classes()).toContain("info");
-        expect(wrapper.find("use").attributes("href")).toBe("#mothballed");
+        expect(wrapper.find("use").attributes("xlink:href")).toBe("#mothballed");
     });
 });
 
@@ -97,7 +97,7 @@ describe("DeckState — changing the state", () => {
             "enums.deck_state.built",
             "enums.deck_state.archived"
         ]);
-        expect(entries(wrapper).map(entry => entry.find("use").attributes("href"))).toEqual([
+        expect(entries(wrapper).map(entry => entry.find("use").attributes("xlink:href"))).toEqual([
             "#planned",
             "#finished",
             "#archived"
@@ -110,14 +110,14 @@ describe("DeckState — changing the state", () => {
         expect(current.attributes("disabled")).toBeDefined();
         expect(current.attributes("aria-current")).toBe("true");
         expect(current.classes()).toContain("popover-list-item--selected");
-        expect(current.findAll("use").map(use => use.attributes("href"))).toEqual(["#finished", "#check"]);
+        expect(current.findAll("use").map(use => use.attributes("xlink:href"))).toEqual(["#finished", "#check"]);
     });
 
     it("marks only the current state", () => {
         const wrapper = picker("planned");
 
         expect(entries(wrapper).map(entry => entry.attributes("disabled") !== undefined)).toEqual([true, false, false]);
-        expect(wrapper.findAll("use").filter(use => use.attributes("href") === "#check")).toHaveLength(1);
+        expect(wrapper.findAll("use").filter(use => use.attributes("xlink:href") === "#check")).toHaveLength(1);
     });
 
     it("sets another state", async () => {

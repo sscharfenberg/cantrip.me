@@ -89,9 +89,9 @@ describe("harness: single-file component compilation", () => {
         const wrapper = mount(Icon, { props: { name: "key", size: 3 } });
 
         expect(wrapper.find("svg").classes()).toContain("key");
-        // Vue sets `xlink:href` through the XLink namespace, so Vue Test Utils
-        // reports it under its local name.
-        expect(wrapper.find("use").attributes("href")).toBe("#key");
+        // Vue sets `xlink:href` through the XLink namespace, and Vue Test Utils
+        // reports an attribute under its qualified name, prefix included.
+        expect(wrapper.find("use").attributes("xlink:href")).toBe("#key");
     });
 
     it("applies scoped-style data attributes, proving the SFC style block compiled", () => {

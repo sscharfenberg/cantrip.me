@@ -90,12 +90,12 @@ describe("CollectionImplicitBadge — layout", () => {
         expect(
             render(status(1, 0, 0))
                 .find("use")
-                .attributes("href")
+                .attributes("xlink:href")
         ).toBe("#storage");
         expect(
             render(status(0, 0, 1))
                 .find("use")
-                .attributes("href")
+                .attributes("xlink:href")
         ).toBe("#storage");
     });
 

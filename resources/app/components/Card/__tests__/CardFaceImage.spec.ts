@@ -58,7 +58,7 @@ describe("CardFaceImage — collection ownership badge", () => {
     it("marks the number with the storage icon only — no finish or proxy symbol", () => {
         const icons = badge(render({ finishes: ["nonfoil", "foil"], owned: owned(1, 1, 1, 1) })).findAll("use");
 
-        expect(icons.map(icon => icon.attributes("href"))).toEqual(["#storage"]);
+        expect(icons.map(icon => icon.attributes("xlink:href"))).toEqual(["#storage"]);
     });
 
     it("hides the bare number from a screen reader and tells it in words instead", () => {

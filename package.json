@@ -65,15 +65,15 @@
         "lightningcss": "^1.33.0",
         "minimist": "^1.2.8",
         "npm-run-all2": "^9.0.4",
-        "prettier": "3.9.10",
+        "prettier": "3.10.1",
         "sass-embedded": "^1.106.1",
         "sharp": "^0.35.5",
         "start-server-and-test": "^3.0.13",
-        "stylelint": "^17.16.0",
-        "stylelint-config-standard-scss": "^17.0.0",
+        "stylelint": "^18.0.0",
+        "stylelint-config-standard-scss": "^18.0.0",
         "stylelint-config-standard-vue": "^2.0.0",
         "stylelint-order": "^8.1.2",
-        "stylelint-scss": "^7.3.0",
+        "stylelint-scss": "^7.5.0",
         "svgo": "^4.1.0",
         "svgstore": "^3.0.1",
         "typescript": "~6.0.3",
@@ -82,6 +82,15 @@
         "vite-plugin-vue-devtools": "^8.2.1",
         "vitest": "^5.0.0",
         "vue-tsc": "^3.3.13"
+    },
+    "overrides": {
+        "@typescript-eslint/typescript-estree": {
+            "minimatch": "^11.0.8"
+        },
+        "js-beautify": {
+            "editorconfig": "^4.0.1",
+            "glob": "^14.0.6"
+        }
     },
     "prettier": {
         "printWidth": 120,

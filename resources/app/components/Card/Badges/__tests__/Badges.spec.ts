@@ -21,7 +21,7 @@ const BADGES: [name: string, component: Component, icon: string, labelKey: strin
 
 describe.each(BADGES)("%s", (_name, component, icon, labelKey, tooltipKey) => {
     it("renders its own icon", () => {
-        expect(mount(component).find("use").attributes("href")).toBe(icon);
+        expect(mount(component).find("use").attributes("xlink:href")).toBe(icon);
     });
 
     it("is icon-only by default, with the long-form explanation in the tooltip", () => {
@@ -50,7 +50,7 @@ describe.each(BADGES)("%s", (_name, component, icon, labelKey, tooltipKey) => {
 
 describe("badge identity", () => {
     it("gives each badge a distinct icon and root class", () => {
-        const icons = BADGES.map(([, component]) => mount(component).find("use").attributes("href"));
+        const icons = BADGES.map(([, component]) => mount(component).find("use").attributes("xlink:href"));
         const classes = BADGES.map(([, component]) =>
             mount(component)
                 .classes()

@@ -6,7 +6,7 @@ vi.mock("@inertiajs/vue3", async () => (await import("@/test/inertia.ts")).inert
 
 /** The sprite id of the rendered icon, or null when there is none. */
 const iconOf = (wrapper: ReturnType<typeof mount>): string | null =>
-    wrapper.find("use").exists() ? (wrapper.find("use").attributes("href") ?? null) : null;
+    wrapper.find("use").exists() ? (wrapper.find("use").attributes("xlink:href") ?? null) : null;
 
 describe("LabelledLink — internal links", () => {
     it("routes through Inertia rather than a full page load", () => {

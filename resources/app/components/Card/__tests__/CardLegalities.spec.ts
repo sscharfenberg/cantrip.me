@@ -9,7 +9,7 @@ const legality = (format: string, legality: string): CardLegality => ({ format, 
 /** The sprite id shown for a given legality value. */
 const iconFor = (value: string): string | undefined => {
     const wrapper = mount(CardLegalities, { props: { legalities: [legality("modern", value)] } });
-    return wrapper.find("use").attributes("href");
+    return wrapper.find("use").attributes("xlink:href");
 };
 
 describe("CardLegalities — status icons", () => {

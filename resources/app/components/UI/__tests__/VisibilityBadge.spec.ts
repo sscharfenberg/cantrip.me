@@ -9,14 +9,14 @@ describe("VisibilityBadge", () => {
     it("shows a closed eye for a private deck", () => {
         const wrapper = mount(VisibilityBadge, { props: { visibility: "private" } });
 
-        expect(wrapper.find("use").attributes("href")).toBe("#visibility-off");
+        expect(wrapper.find("use").attributes("xlink:href")).toBe("#visibility-off");
         expect(wrapper.classes()).toContain("visibility-badge--private");
     });
 
     it("shows an open eye for a public deck", () => {
         const wrapper = mount(VisibilityBadge, { props: { visibility: "public" } });
 
-        expect(wrapper.find("use").attributes("href")).toBe("#visibility-on");
+        expect(wrapper.find("use").attributes("xlink:href")).toBe("#visibility-on");
         expect(wrapper.classes()).toContain("visibility-badge--public");
     });
 
@@ -32,7 +32,7 @@ describe("VisibilityBadge", () => {
         // an unknown value renders unstyled rather than mislabelled as public.
         const wrapper = mount(VisibilityBadge, { props: { visibility: "unlisted" } });
 
-        expect(wrapper.find("use").attributes("href")).toBe("#visibility-on");
+        expect(wrapper.find("use").attributes("xlink:href")).toBe("#visibility-on");
         expect(wrapper.classes()).toContain("visibility-badge--unlisted");
     });
 });
@@ -60,7 +60,7 @@ describe("VisibilityBadge — changing the visibility", () => {
             "enums.visibility.private",
             "enums.visibility.public"
         ]);
-        expect(entries(wrapper).map(entry => entry.find("use").attributes("href"))).toEqual([
+        expect(entries(wrapper).map(entry => entry.find("use").attributes("xlink:href"))).toEqual([
             "#visibility-off",
             "#visibility-on"
         ]);
@@ -71,9 +71,9 @@ describe("VisibilityBadge — changing the visibility", () => {
 
         expect(current.attributes("disabled")).toBeDefined();
         expect(current.attributes("aria-current")).toBe("true");
-        expect(current.findAll("use").map(use => use.attributes("href"))).toEqual(["#visibility-on", "#check"]);
+        expect(current.findAll("use").map(use => use.attributes("xlink:href"))).toEqual(["#visibility-on", "#check"]);
         expect(other.attributes("disabled")).toBeUndefined();
-        expect(other.findAll("use").map(use => use.attributes("href"))).not.toContain("#check");
+        expect(other.findAll("use").map(use => use.attributes("xlink:href"))).not.toContain("#check");
     });
 
     it("sets the other visibility at the endpoint", async () => {

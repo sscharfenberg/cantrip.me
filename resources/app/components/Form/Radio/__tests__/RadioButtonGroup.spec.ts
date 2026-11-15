@@ -44,7 +44,7 @@ describe("RadioButton", () => {
 
     it("shows an icon only alongside a label", () => {
         expect(render({ icon: "key" }).find("use").exists()).toBe(false);
-        expect(render({ label: "Recovery code", icon: "key" }).find("use").attributes("href")).toBe("#key");
+        expect(render({ label: "Recovery code", icon: "key" }).find("use").attributes("xlink:href")).toBe("#key");
     });
 
     it("forwards the native change event", async () => {

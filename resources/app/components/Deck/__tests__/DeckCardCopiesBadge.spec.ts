@@ -18,7 +18,7 @@ const render = (copies: DeckCardCopyGroup[], variant?: "inline" | "corner") =>
 
 /** The icon names, in order. */
 const icons = (wrapper: ReturnType<typeof render>): string[] =>
-    wrapper.findAll("use").map(use => use.attributes("href")!.replace("#", ""));
+    wrapper.findAll("use").map(use => use.attributes("xlink:href")!.replace("#", ""));
 
 const MESSAGES = {
     de: {
