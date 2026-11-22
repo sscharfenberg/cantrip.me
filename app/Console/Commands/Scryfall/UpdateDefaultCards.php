@@ -15,7 +15,7 @@ class UpdateDefaultCards extends Command
      *
      * @var string
      */
-    protected $signature = 'scryfall:default_cards {--target=live : Write target — `live` (default) or `shadow` (writes to default_cards/default_card_relations/artists __shadow built by the orchestrator)}';
+    protected $signature = 'scryfall:default_cards {--target=live : Write target — `shadow` (writes to default_cards/default_card_relations/artists __shadow built by the orchestrator); `live` is refused, because Postgres will not truncate a table user data references}';
 
     /**
      * The console command description.

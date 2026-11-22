@@ -15,7 +15,7 @@ class UpdateSets extends Command
      *
      * @var string
      */
-    protected $signature = 'scryfall:sets {--target=live : Write target — `live` (default, truncates+inserts on the live table) or `shadow` (inserts into sets__shadow built by the orchestrator)}';
+    protected $signature = 'scryfall:sets {--target=live : Write target — `shadow` (inserts into sets__shadow built by the orchestrator); `live` is refused, because Postgres will not truncate a table user data references}';
 
     /**
      * The console command description.

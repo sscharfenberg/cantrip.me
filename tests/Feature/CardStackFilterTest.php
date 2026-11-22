@@ -15,7 +15,6 @@ use App\Models\Set;
 use App\Models\User;
 use App\Services\CardStackFilterService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
 use Inertia\Testing\AssertableInertia;
@@ -63,10 +62,6 @@ class CardStackFilterTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-
-        if (DB::connection()->getDriverName() === 'mysql') {
-            $this->markTestSkipped('Skipped on MariaDB — RefreshDatabase would wipe live data. Run via the default `composer test` (SQLite).');
-        }
 
         $this->user = User::factory()->create(['currency' => 'eur']);
         $this->binder = $this->makeContainer('Binder');

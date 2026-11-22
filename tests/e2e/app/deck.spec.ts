@@ -5,8 +5,8 @@ import type { Page } from "@playwright/test";
  * A deck's own page.
  *
  * The centrepiece here is quick-add's COLOUR IDENTITY filter, and it is the
- * single strongest reason this suite runs against a real MariaDB rather than
- * sqlite: `DeckCardSearchService` filters identity with `REGEXP`, which sqlite
+ * single strongest reason this suite runs against a real Postgres rather than
+ * sqlite: `DeckCardSearchService` filters identity with a regex, which sqlite
  * cannot execute at all. There is no way to prove it works other than to ask a
  * real deck a real question.
  *

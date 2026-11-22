@@ -12,7 +12,7 @@ import type { Locator, Page } from "@playwright/test";
  *    only a real database proves the payload is the right one.
  *  - Quick add's printing preference is the one rule with no cheaper home at
  *    all: `searchOracleCardsForDeck` orders by `CHAR_LENGTH`, so it cannot run
- *    on sqlite, and its write-heavy fixture cannot live in the MariaDB suite.
+ *    on sqlite, and its write-heavy fixture cannot live in the Postgres suite.
  *    Its two halves are unit-tested; that they are wired together is proven
  *    here or nowhere.
  *  - The printing hover preview has to escape a native `<dialog>` opened with

@@ -9,7 +9,6 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\Test;
 use RuntimeException;
-use Tests\Feature\DeckBulkClaimControllerTest;
 use Tests\TestCase;
 
 /**
@@ -21,28 +20,10 @@ use Tests\TestCase;
  * tempfile written per test — same `.gz` + one-object-per-line shape
  * Scryfall serves, so {@see ScryfallService::streamJsonl()} exercises
  * its real inflate-and-decode path without any HTTP I/O.
- *
- * The Local PHPUnit suite uses SQLite. The defensive `mysql` skip
- * keeps the test out of a misconfigured `composer test:mysql`
- * invocation (which would wipe live data via `RefreshDatabase`).
  */
 class TranslationsServiceTest extends TestCase
 {
     use RefreshDatabase;
-
-    /**
-     * Hard-skip on real MariaDB connections. See
-     * {@see DeckBulkClaimControllerTest::setUp} for
-     * the rationale.
-     */
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        if (DB::connection()->getDriverName() === 'mysql') {
-            $this->markTestSkipped('Skipped on MariaDB — RefreshDatabase would wipe live data. Run via the default `composer test` (SQLite).');
-        }
-    }
 
     /**
      * Seed the minimum schema rows the service needs: bulk_data row

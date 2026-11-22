@@ -9,7 +9,6 @@ use App\Models\OracleCard;
 use App\Models\Set;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Inertia\Testing\AssertableInertia;
 use PHPUnit\Framework\Attributes\Test;
@@ -26,19 +25,6 @@ class CardStackReturnPathTest extends TestCase
     use RefreshDatabase;
 
     private const SEARCH = '/collection?search=sol+ring&sort=name&dir=asc&page=1';
-
-    /**
-     * Hard-skip on real MariaDB connections. See
-     * {@see DeckCardCardStackPivotTest::setUp} for the rationale.
-     */
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        if (DB::connection()->getDriverName() === 'mysql') {
-            $this->markTestSkipped('Skipped on MariaDB — RefreshDatabase would wipe live data. Run via the default `composer test` (SQLite).');
-        }
-    }
 
     #[Test]
     public function the_edit_form_carries_the_page_it_was_opened_from(): void

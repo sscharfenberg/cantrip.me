@@ -43,7 +43,7 @@ use Illuminate\Support\Facades\Log;
  * flushed key.
  *
  * After the walk, both buffers are chunk-inserted at
- * `DB::table()->insert()` in 1 000-row batches (well under MySQL's
+ * `DB::table()->insert()` in 1 000-row batches (well under the
  * 65 535-placeholder cap with 4 columns per row).
  *
  * Eloquent is unsuitable here — the `$table` property is hardcoded
@@ -54,7 +54,7 @@ use Illuminate\Support\Facades\Log;
 class TranslationsService extends ScryfallService
 {
     /**
-     * Number of rows per bulk INSERT. With 4 columns/row and MySQL's
+     * Number of rows per bulk INSERT. With 4 columns/row and the
      * 65 535-placeholder cap, 16k rows fits — but 1 000 is a
      * conservative chunk size matching sibling services and keeps
      * each statement well under any prepared-statement limits.
@@ -193,13 +193,9 @@ class TranslationsService extends ScryfallService
      * `oracle_card_face_translations__shadow` before invoking this
      * service.
      *
-     * No `SET FOREIGN_KEY_CHECKS=0` wrapping (unlike
-     * {@see RulingsService} / {@see OracleCardsService}) — those
-     * services wrap defensively but their tables also have no
-     * incoming FKs. The translation tables likewise only have
-     * outgoing FKs (to `oracle_cards`), so truncating them needs no
-     * FK toggle on MariaDB, and the bare `truncate()` call works
-     * uniformly on SQLite (used by the unit-test suite) as well.
+     * No table references the translation tables — their only FKs
+     * point outwards, at `oracle_cards` — so Postgres truncates them
+     * as readily as SQLite does in the unit-test suite.
      */
     private function preRunCleanup(): void
     {
@@ -403,7 +399,7 @@ class TranslationsService extends ScryfallService
     /**
      * Chunk-insert all buffered oracle translations and clear the
      * buffer. Single statement per chunk keeps placeholder count
-     * far below MySQL's 65 535-per-statement cap.
+     * far below the 65 535-per-statement cap.
      */
     private function flushOracleBuffer(): void
     {

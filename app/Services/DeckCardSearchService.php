@@ -59,8 +59,8 @@ final class DeckCardSearchService
      * Upper bound on the number of oracle cards considered in phase 1 of
      * {@see searchPrintingsForDeck}. Each oracle has a handful of printings,
      * so 200 oracles maps to ~1–2k printings — comfortably above the 60-row
-     * PRINTINGS_LIMIT, while keeping the IN(…) clause small enough that
-     * MariaDB picks the FK index over a hash join.
+     * PRINTINGS_LIMIT, while keeping the IN(…) clause small enough for an
+     * index lookup on the FK rather than a hash join.
      */
     public const ORACLE_PREFILTER_LIMIT = 200;
 
@@ -188,7 +188,7 @@ final class DeckCardSearchService
      *
      * Public because it is the quick-add preference rule and the only part
      * of it that can be tested directly: `searchOracleCardsForDeck` orders
-     * by `CHAR_LENGTH`, so the whole search path is MariaDB-only, while this
+     * by `CHAR_LENGTH`, so the whole search path is Postgres-only, while this
      * is a pure function over the two inputs.
      *
      * @param  array<string, int>  $freeCopies  Printing id → free copies, newest printing first.
@@ -585,11 +585,11 @@ final class DeckCardSearchService
             $q->whereNull('color_identity')
                 ->orWhere('color_identity', '');
 
-            // Only add the REGEXP branch when the deck actually has colors.
+            // Only add the regex branch when the deck actually has colors.
             // For colorless decks the NULL / empty checks above are enough,
             // and an empty character class (`[]`) is invalid regex anyway.
             if ($safeColors !== '') {
-                $q->orWhereRaw('color_identity REGEXP ?', ['^['.$safeColors.']*$']);
+                $q->orWhereRaw('color_identity ~ ?', ['^['.$safeColors.']*$']);
             }
 
             $rulebreaker?->applyExemptionsTo($q, $deck, $colors);

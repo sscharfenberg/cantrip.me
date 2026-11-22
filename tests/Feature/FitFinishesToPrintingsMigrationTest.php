@@ -33,19 +33,6 @@ class FitFinishesToPrintingsMigrationTest extends TestCase
     use RefreshDatabase;
 
     /**
-     * Hard-skip on real MariaDB connections. See
-     * {@see DeckCardCardStackPivotTest::setUp} for the rationale.
-     */
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        if (DB::connection()->getDriverName() === 'mysql') {
-            $this->markTestSkipped('Skipped on MariaDB — RefreshDatabase would wipe live data. Run via the default `composer test` (SQLite).');
-        }
-    }
-
-    /**
      * Printing finishes (bitmask), the finish written, the finish expected.
      *
      * @return array<string, array{0: int, 1: int, 2: int}>

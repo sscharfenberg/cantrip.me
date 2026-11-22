@@ -10,7 +10,7 @@ use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 /**
- * Integration tests for {@see ShadowValidationService}. MariaDB-only —
+ * Integration tests for {@see ShadowValidationService}. Postgres-only —
  * the validator builds LEFT JOIN queries on real shadow tables.
  *
  * Tests use throwaway tables (`_validation_test_*`) and pass a custom
@@ -24,9 +24,9 @@ class ShadowValidationServiceTest extends TestCase
     {
         parent::setUp();
 
-        if (DB::connection()->getDriverName() !== 'mysql') {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
             $this->markTestSkipped(
-                'ShadowValidationService requires MariaDB. Run on staging with composer test:mysql.'
+                'ShadowValidationService requires Postgres. Run on staging with composer test:pgsql.'
             );
         }
 
@@ -34,13 +34,13 @@ class ShadowValidationServiceTest extends TestCase
         $this->dropThrowawayTables();
         // Two table pairs: a "scryfall-style" parent (shadow build) and a
         // "user-data" child (live, references the shadow).
-        DB::statement('CREATE TABLE _validation_test_parent__shadow (id INT UNSIGNED PRIMARY KEY)');
-        DB::statement('CREATE TABLE _validation_test_child (id INT UNSIGNED PRIMARY KEY, parent_id INT UNSIGNED NULL)');
+        DB::statement('CREATE TABLE _validation_test_parent__shadow (id INT PRIMARY KEY)');
+        DB::statement('CREATE TABLE _validation_test_child (id INT PRIMARY KEY, parent_id INT NULL)');
     }
 
     protected function tearDown(): void
     {
-        if (DB::connection()->getDriverName() === 'mysql') {
+        if (DB::connection()->getDriverName() !== 'sqlite') {
             $this->dropThrowawayTables();
         }
         parent::tearDown();
@@ -107,14 +107,14 @@ class ShadowValidationServiceTest extends TestCase
         // Reuse the parent shadow as the *source* under shadow mode and
         // a sibling shadow as the target — proves the resolver picks
         // <source>__shadow when mode is 'shadow'.
-        DB::statement('CREATE TABLE _validation_test_target__shadow (id INT UNSIGNED PRIMARY KEY)');
+        DB::statement('CREATE TABLE _validation_test_target__shadow (id INT PRIMARY KEY)');
         DB::table('_validation_test_target__shadow')->insert([['id' => 1]]);
         DB::table('_validation_test_parent__shadow')->insert([
             ['id' => 1],
             ['id' => 2],
         ]);
         // Add an FK column on the parent shadow pointing at the target shadow.
-        DB::statement('ALTER TABLE _validation_test_parent__shadow ADD COLUMN target_id INT UNSIGNED NULL');
+        DB::statement('ALTER TABLE _validation_test_parent__shadow ADD COLUMN target_id INT NULL');
         DB::statement('UPDATE _validation_test_parent__shadow SET target_id = 99 WHERE id = 1');
         DB::statement('UPDATE _validation_test_parent__shadow SET target_id = 1 WHERE id = 2');
 
@@ -129,17 +129,12 @@ class ShadowValidationServiceTest extends TestCase
 
     private function dropThrowawayTables(): void
     {
-        DB::statement('SET FOREIGN_KEY_CHECKS=0');
-        try {
-            foreach ([
-                '_validation_test_child',
-                '_validation_test_parent__shadow',
-                '_validation_test_target__shadow',
-            ] as $name) {
-                DB::statement("DROP TABLE IF EXISTS `$name`");
-            }
-        } finally {
-            DB::statement('SET FOREIGN_KEY_CHECKS=1');
+        foreach ([
+            '_validation_test_child',
+            '_validation_test_parent__shadow',
+            '_validation_test_target__shadow',
+        ] as $name) {
+            DB::statement("DROP TABLE IF EXISTS \"$name\"");
         }
     }
 }

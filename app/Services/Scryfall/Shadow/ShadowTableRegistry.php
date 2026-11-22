@@ -20,7 +20,7 @@ class ShadowTableRegistry
      * and therefore needs a __shadow build target.
      *
      * Order is informational only — the orchestrator decides build order;
-     * the multi-table RENAME is atomic so swap order is irrelevant.
+     * the swap runs in one transaction, so swap order is irrelevant.
      *
      * @var array<int, string>
      */
@@ -69,12 +69,11 @@ class ShadowTableRegistry
         // Scryfall card has gone missing under user data; the swap aborts.
         //
         // This list must cover EVERY FK that references a swap table from a
-        // non-swap (user-data) table. Any such FK is captured and re-added
-        // around the swap with FOREIGN_KEY_CHECKS=0, and MariaDB re-adds a
-        // constraint over orphan rows without complaint (verified on 11.8) —
-        // so an unvalidated orphan would not fail anything: it would go live
-        // silently, a dangling reference under a constraint that claims
-        // there is none. `decks.default_card_id` and `containers.default_card_id`
+        // non-swap (user-data) table. Any such FK is dropped and re-added
+        // around the swap, and the re-add validates every row — so an orphan
+        // this list misses still stops the swap, but only at its very end,
+        // as a bare constraint violation instead of the missing card it is.
+        // `decks.default_card_id` and `containers.default_card_id`
         // are the deck/container display-card printings (nullable; the
         // validator skips NULLs via whereNotNull).
         ['deck_cards', 'oracle_card_id', 'oracle_cards', 'live'],

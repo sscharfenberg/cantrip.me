@@ -38,37 +38,16 @@ class ArtistsService extends ScryfallService
     }
 
     /**
-     * Truncate the live artists table before a fresh import.
-     *
-     * Skipped in shadow mode — the orchestrator created an empty
-     * `artists__shadow` before invoking {@see DefaultCardsService}.
-     *
-     * Called from {@see DefaultCardsService::preRunCleanup()} since
-     * artists are derived from card data and must be rebuilt alongside
-     * default_cards.
-     */
-    public function truncate(): void
-    {
-        if ($this->shadow) {
-            return;
-        }
-        DB::statement('SET FOREIGN_KEY_CHECKS=0;');
-        Artist::truncate();
-        Log::channel('scryfall')->debug("table 'artists' truncated.");
-        DB::statement('SET FOREIGN_KEY_CHECKS=1;');
-    }
-
-    /**
      * Resolve an artist name to its UUID, creating a new record if needed.
      *
      * Returns null when the card has no artist (e.g. tokens, art cards).
+     * Names are compared exactly, by the cache as by the unique index on
+     * `artists.name`, so two spellings Scryfall keeps apart ("Jose" and
+     * "José") are two artists.
      *
-     * The cache compares names byte for byte, the unique index on
-     * `artists.name` does not: its collation ignores case and accents. Two
-     * spellings Scryfall keeps apart but the index calls equal ("Jose" and
-     * "José") would make the second insert fail — and with it
-     * `scryfall:default_cards`, every night. The second spelling therefore
-     * joins the artist the first one created.
+     * A name the table already holds without the cache knowing — a row
+     * that was there before the import started — joins that artist
+     * instead of failing the insert, and with it `scryfall:default_cards`.
      *
      * @param  string|null  $name  The artist name from the Scryfall card object.
      * @return string|null The artist UUID.
@@ -95,7 +74,7 @@ class ArtistsService extends ScryfallService
                 throw $e;
             }
             $id = (string) $existing;
-            Log::channel('scryfall')->info("artist '$name' matches an existing artist under the table's collation; using that one.");
+            Log::channel('scryfall')->info("artist '$name' is already in the table; using that one.");
         }
         $this->cache[$name] = $id;
 

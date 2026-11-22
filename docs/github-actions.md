@@ -24,7 +24,7 @@ On the next deploy `php artisan config:cache` re-reads `package.json` and the ne
 - **Pint** — `composer pint` for PHP code style.
 - **Frontend build** — ESLint, Stylelint, the translation-key check, `vue-tsc`, and a production Vite build to catch type errors and broken imports before merge.
 - **Frontend tests** — the Vitest suite.
-- **End-to-end tests** — the Playwright suite (`npm run e2e`), with its own MariaDB, build and server.
+- **End-to-end tests** — the Playwright suite (`npm run e2e`), with its own Postgres, build and server.
 - **Publish test badges** — refreshes the README badges; runs on `main` only and is skipped on pull requests.
 
 CI must pass before deploying. Nothing in this workflow touches any server.

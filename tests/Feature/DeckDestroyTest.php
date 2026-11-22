@@ -6,7 +6,6 @@ use App\Enums\CardFormat;
 use App\Models\Deck;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\DB;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -21,15 +20,6 @@ use Tests\TestCase;
 class DeckDestroyTest extends TestCase
 {
     use RefreshDatabase;
-
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        if (DB::connection()->getDriverName() === 'mysql') {
-            $this->markTestSkipped('Skipped on MariaDB — RefreshDatabase would wipe live data.');
-        }
-    }
 
     #[Test]
     public function destroy_deletes_empty_deck_and_redirects_to_list_with_flash(): void

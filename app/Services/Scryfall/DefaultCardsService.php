@@ -5,8 +5,6 @@ namespace App\Services\Scryfall;
 use App\Enums\Finish;
 use App\Enums\Game;
 use App\Enums\Scryfall\ScryfallRelatedComponent;
-use App\Models\DefaultCard;
-use App\Models\DefaultCardRelation;
 use App\Services\CardNameNormalizer;
 use App\Services\FormatService;
 use Illuminate\Support\Facades\DB;
@@ -73,26 +71,6 @@ class DefaultCardsService extends ScryfallService
         $this->artistsService = new ArtistsService;
         $this->formatService = new FormatService;
         $this->bulkdataService = new BulkdataService;
-    }
-
-    /**
-     * Truncate the live default_cards, default_card_relations and artists
-     * tables before a fresh import.
-     *
-     * Skipped in shadow mode — the orchestrator created empty shadows
-     * for all three tables before invoking this service.
-     */
-    private function preRunCleanup(): void
-    {
-        if ($this->shadow) {
-            return;
-        }
-        DB::statement('SET FOREIGN_KEY_CHECKS=0;');
-        DefaultCardRelation::truncate();
-        DefaultCard::truncate();
-        DB::statement('SET FOREIGN_KEY_CHECKS=1;');
-        Log::channel('scryfall')->notice('truncated default_cards and default_card_relations tables.');
-        $this->artistsService->truncate();
     }
 
     /**
@@ -206,7 +184,7 @@ class DefaultCardsService extends ScryfallService
     /**
      * Resolve buffered edges and bulk-insert in chunks, then clear the buffer.
      *
-     * Chunked to stay under MySQL's 65 535-placeholder ceiling per prepared
+     * Chunked to stay under the 65 535-placeholder ceiling per prepared
      * statement (3 columns × 5 000 rows = 15 000 placeholders, comfortable
      * headroom). `insertOrIgnore` drops duplicate composite keys (Scryfall
      * sometimes emits the same edge twice across reprints).
@@ -286,7 +264,8 @@ class DefaultCardsService extends ScryfallService
      * set, with that set's lowest-id printing of it. Built on the first
      * orphan only. Sets are left-joined so a printing whose set row is
      * missing (a set Scryfall added after the sets step ran) stays a
-     * candidate, just without a set to match on.
+     * candidate, just without a set to match on. The id is compared as text
+     * because Postgres has no MIN() over uuids.
      */
     private function buildRetargeter(): RelationRetargeter
     {
@@ -297,7 +276,7 @@ class DefaultCardsService extends ScryfallService
             DB::table("$oracleCardsTable as oc")
                 ->join("{$this->defaultCardsTable} as dc", 'dc.oracle_id', '=', 'oc.id')
                 ->leftJoin("$setsTable as s", 's.id', '=', 'dc.set_id')
-                ->select('oc.id as oracle_id', 'oc.searchable_name', 'oc.type_line', DB::raw("COALESCE(s.code, '') as set_code"), DB::raw('MIN(dc.id) as default_card_id'))
+                ->select('oc.id as oracle_id', 'oc.searchable_name', 'oc.type_line', DB::raw("COALESCE(s.code, '') as set_code"), DB::raw('MIN(CAST(dc.id AS TEXT)) as default_card_id'))
                 ->groupBy('oc.id', 'oc.searchable_name', 'oc.type_line', 's.code')
                 ->get()
         );
@@ -343,13 +322,13 @@ class DefaultCardsService extends ScryfallService
      */
     public function updateAllCards(bool $shadow = false): void
     {
+        $this->refuseLiveImport($shadow, 'scryfall:default_cards');
         $this->shadow = $shadow;
         $this->defaultCardsTable = $this->tableName('default_cards', $shadow);
         $this->defaultCardRelationsTable = $this->tableName('default_card_relations', $shadow);
         $this->artistsService->useTarget($shadow);
 
         $downloadUri = $this->bulkdataService->downloadUri('default_cards', $shadow);
-        $this->preRunCleanup();
         $this->traverseJson($downloadUri);
     }
 }

@@ -16,7 +16,7 @@ use Tests\TestCase;
  * in-memory SQLite default — see DeckCardSearchServiceTest for the wider
  * rationale.
  *
- *     composer test:mysql -- --filter=DefaultCardSearchServiceTest
+ *     composer test:pgsql -- --filter=DefaultCardSearchServiceTest
  */
 class DefaultCardSearchServiceTest extends TestCase
 {
@@ -24,9 +24,9 @@ class DefaultCardSearchServiceTest extends TestCase
     {
         parent::setUp();
 
-        if (DB::connection()->getDriverName() !== 'mysql') {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
             $this->markTestSkipped(
-                'DefaultCardSearchService tests require MariaDB + a Scryfall-populated dataset.'
+                'DefaultCardSearchService tests require Postgres + a Scryfall-populated dataset.'
             );
         }
     }

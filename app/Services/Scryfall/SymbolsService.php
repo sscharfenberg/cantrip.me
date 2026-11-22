@@ -29,10 +29,8 @@ class SymbolsService extends ScryfallService
         if ($this->shadow) {
             return;
         }
-        DB::statement('SET FOREIGN_KEY_CHECKS=0;');
         Symbol::truncate();
         Log::channel('scryfall')->debug("table 'symbols' truncated.");
-        DB::statement('SET FOREIGN_KEY_CHECKS=1;');
     }
 
     /**

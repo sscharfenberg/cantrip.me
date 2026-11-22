@@ -39,7 +39,7 @@ use Throwable;
 class OracleTagsService extends ScryfallService
 {
     /**
-     * Maximum oracle ids per UPDATE — chosen well under MySQL's
+     * Maximum oracle ids per UPDATE — chosen well under the
      * 65 535-placeholder cap on prepared statements. Today's largest
      * tag (`mass-land-denial`) returns ~108 cards; the chunk-safe
      * path keeps headroom for future growth.

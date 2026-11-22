@@ -7,14 +7,14 @@
 
 A Magic: The Gathering card collection manager with a focus on UX: Dark/Light mode. Multi-language. Accessibility first. Responsive. Fast. 
 
-**Stack:** Laravel 13 / PHP 8.4 · Vue 3 + TypeScript · Inertia.js · Vite · SCSS · MariaDB · Vue-i18n (de/en) · Laravel Fortify (auth + 2FA TOTP)
+**Stack:** Laravel 13 / PHP 8.4 · Vue 3 + TypeScript · Inertia.js · Vite · SCSS · Postgres · Vue-i18n (de/en) · Laravel Fortify (auth + 2FA TOTP)
 
 ## Requirements
 
 * PHP 8.4+
 * Composer
 * Node 26.13+ / npm 12.2+
-* MariaDB
+* Postgres 17
 * `~28 GB` of harddisk space for cached Scryfall images (art crops + card images). Will increase over time. Bulk JSONs are streamed, not cached.
 * Docker — **only** to run the end-to-end test database (`npm run e2e:db:up`). Nothing else in this project uses it, and you do not need it to develop. See [docs/testing.md](docs/testing.md).
 
@@ -55,7 +55,7 @@ The end-to-end suite uses a different one — `E2ESeeder`, a fixed fixture that 
 In-depth docs live under `docs/`:
 
 * **[Development](docs/development.md)** — `composer dev`, NPM commands, IDE setup (Prettier / ESLint / Stylelint).
-* **[Testing](docs/testing.md)** — the four suites: `composer test` (Local / SQLite), `composer test:mysql` (Staging / MariaDB), `npm run test` (Vitest), `npm run e2e` (Playwright). Prerequisites and how to add new tests.
+* **[Testing](docs/testing.md)** — the four suites: `composer test` (Local / SQLite), `composer test:pgsql` (Staging / Postgres), `npm run test` (Vitest), `npm run e2e` (Playwright). Prerequisites and how to add new tests.
 * **[Artisan commands](docs/artisan-commands.md)** — every project-specific artisan command: the Scryfall sync flow (shadow-table swap), per-step commands, image GC, FK repair, scheduled tasks.
 * **[GitHub Actions](docs/github-actions.md)** — CI pipeline, staging deploy (manual), production deploy (manual, reviewer-gated), versioning, end-to-end release flow.
 * **[Makefile shortcuts](docs/makefile.md)** — `make logs-staging` / `make logs-prod` for pulling server logs locally.

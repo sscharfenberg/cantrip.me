@@ -36,13 +36,22 @@ final class RulebreakerExemption
     /**
      * The SQL counterpart of the layout narrowing in {@see cardTypesMention()}.
      *
-     * `SUBSTRING_INDEX(x, sep, 1)` returns the whole string when the separator
-     * is absent, so single-faced cards need no special case.
+     * `split_part(x, sep, 1)` returns the whole string when the separator is
+     * absent, so single-faced cards need no special case.
      */
     private const CARD_TYPES_SQL = "(CASE WHEN oracle_cards.layout = 'split'
             THEN oracle_cards.type_line
-            ELSE SUBSTRING_INDEX(oracle_cards.type_line, ' // ', 1)
+            ELSE split_part(oracle_cards.type_line, ' // ', 1)
         END)";
+
+    /**
+     * Word boundary in a Postgres regular expression. Postgres spells it `\y`:
+     * its `\b` is a backspace, so a `\b…\b` pattern silently matches nothing.
+     */
+    private const SQL_WORD_BOUNDARY = '\\y';
+
+    /** Word boundary in a PCRE pattern, for the row-at-a-time twin. */
+    private const PCRE_WORD_BOUNDARY = '\\b';
 
     /**
      * @param  string  $identity  Colour identity matching cards are judged against.
@@ -117,8 +126,8 @@ final class RulebreakerExemption
                         // are constants today, but a needle spliced into raw
                         // SQL is a bad habit to leave lying around.
                         $typeQuery->orWhereRaw(
-                            self::CARD_TYPES_SQL.' REGEXP ?',
-                            [self::wordBoundaryPattern($type)],
+                            self::CARD_TYPES_SQL.' ~* ?',
+                            [self::wholeWordPattern($type, self::SQL_WORD_BOUNDARY)],
                         );
                     }
                 });
@@ -145,7 +154,7 @@ final class RulebreakerExemption
                     $q->where(function (Builder $c) use ($safe): void {
                         $c->whereNull('oracle_cards.color_identity')
                             ->orWhere('oracle_cards.color_identity', '')
-                            ->orWhereRaw('oracle_cards.color_identity REGEXP ?', ['^['.$safe.']*$']);
+                            ->orWhereRaw('oracle_cards.color_identity ~ ?', ['^['.$safe.']*$']);
                     });
                 }
             }
@@ -154,7 +163,8 @@ final class RulebreakerExemption
 
     /**
      * A whole-word pattern for one type name, shared by both consumers so they
-     * cannot match differently.
+     * cannot match differently. Only the boundary token differs, because the
+     * two regex engines spell it differently.
      *
      * WHOLE WORD, not substring, and that is load-bearing rather than tidy.
      * "Lander" is a real Scryfall subtype — Lander Rizzi is
@@ -164,11 +174,13 @@ final class RulebreakerExemption
      * ones, and the two it removes are precisely those false positives.
      *
      * Type names are alphabetic and spaces today; quoting anyway so a future
-     * needle cannot smuggle regex syntax into either engine.
+     * needle cannot smuggle regex syntax into either engine. `preg_quote()`
+     * escapes only punctuation, which Postgres reads as the literal character
+     * too.
      */
-    private static function wordBoundaryPattern(string $type): string
+    private static function wholeWordPattern(string $type, string $boundary): string
     {
-        return '\\b'.preg_quote($type, '/').'\\b';
+        return $boundary.preg_quote($type, '/').$boundary;
     }
 
     /**
@@ -198,12 +210,12 @@ final class RulebreakerExemption
 
         foreach ($relevant as $face) {
             foreach ($this->types as $type) {
-                // Case-insensitive, matching the REGEXP in applyTo() under
-                // MariaDB's case-insensitive collation. Scryfall type lines are
-                // always title-cased so this changes nothing today, but the
-                // point of this class is that its two consumers cannot
-                // disagree, and case was one axis on which they still could.
-                if (preg_match('/'.self::wordBoundaryPattern($type).'/ui', $face) === 1) {
+                // Case-insensitive, matching the `~*` in applyTo(). Scryfall
+                // type lines are always title-cased so this changes nothing
+                // today, but the point of this class is that its two consumers
+                // cannot disagree, and case was one axis on which they still
+                // could.
+                if (preg_match('/'.self::wholeWordPattern($type, self::PCRE_WORD_BOUNDARY).'/ui', $face) === 1) {
                     return true;
                 }
             }

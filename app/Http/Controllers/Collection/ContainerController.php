@@ -22,6 +22,7 @@ use App\Services\CardStackClaimService;
 use App\Services\CardStackFilterService;
 use App\Services\ContainerService;
 use App\Services\DataTableService;
+use App\Services\FoldedSearch;
 use App\Services\QrCodeService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\JsonResponse;
@@ -289,8 +290,8 @@ class ContainerController extends Controller
 
                 foreach ($parsed['name_segments'] as $segment) {
                     $q->where(function ($q) use ($segment) {
-                        $q->where('default_cards.name', 'like', "%{$segment}%")
-                            ->orWhere('sets.name', 'like', "%{$segment}%");
+                        FoldedSearch::whereContains($q, 'default_cards.name', $segment);
+                        FoldedSearch::orWhereContains($q, 'sets.name', $segment);
                     });
                 }
             },

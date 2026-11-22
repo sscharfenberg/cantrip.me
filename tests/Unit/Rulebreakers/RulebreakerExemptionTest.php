@@ -16,7 +16,7 @@ use Tests\Feature\Services\DeckCardSearchServiceTest;
  * {@see RulebreakerExemption::applyTo()} decides whether search offers it. These
  * cover the matcher; the SQL half is exercised against real data in
  * {@see DeckCardSearchServiceTest}, because it needs
- * MariaDB (SUBSTRING_INDEX / REGEXP).
+ * Postgres (split_part / regular expressions).
  */
 class RulebreakerExemptionTest extends TestCase
 {

@@ -3,9 +3,6 @@
 namespace App\Services\Scryfall;
 
 use App\Enums\CardLegality;
-use App\Models\OracleCard;
-use App\Models\OracleCardFace;
-use App\Models\OracleCardLegality;
 use App\Services\CardNameNormalizer;
 use App\Services\FormatService;
 use Illuminate\Support\Facades\DB;
@@ -65,26 +62,6 @@ class OracleCardsService extends ScryfallService
     {
         $this->formatService = new FormatService;
         $this->bulkdataService = new BulkdataService;
-    }
-
-    /**
-     * Truncate the live oracle_cards, oracle_card_faces and legalities
-     * tables before a fresh import.
-     *
-     * Skipped in shadow mode — the orchestrator created empty shadows
-     * for all three tables before invoking this service.
-     */
-    private function preRunCleanup(): void
-    {
-        if ($this->shadow) {
-            return;
-        }
-        DB::statement('SET FOREIGN_KEY_CHECKS=0;');
-        OracleCardLegality::truncate();
-        OracleCardFace::truncate();
-        OracleCard::truncate();
-        DB::statement('SET FOREIGN_KEY_CHECKS=1;');
-        Log::channel('scryfall')->notice('truncated oracle_cards, oracle_card_faces and legalities tables.');
     }
 
     /**
@@ -156,10 +133,8 @@ class OracleCardsService extends ScryfallService
      * so the guard is not expected to fire.
      *
      * Public and static because it is a pure mapping from bulk JSON to one
-     * string, and the rest of this class cannot be exercised on SQLite —
-     * `preRunCleanup()` emits `SET FOREIGN_KEY_CHECKS`, which only MariaDB
-     * understands. Keeping this reachable lets the layout handling be tested
-     * directly instead of not at all.
+     * string: the layout handling is tested directly, without staging a
+     * bulk import around it.
      *
      * @param  array  $card  A single card object from the oracle_cards bulk JSON.
      */
@@ -325,17 +300,16 @@ class OracleCardsService extends ScryfallService
     /**
      * Run a full oracle-cards import from Scryfall.
      *
-     * Resolves the `oracle_cards` download URI from bulk_data(__shadow),
-     * truncates the existing live data (or skips in shadow mode where the
-     * orchestrator pre-created empty shadows), and stream-parses every
-     * card from the live Scryfall CDN.
+     * Resolves the `oracle_cards` download URI from bulk_data__shadow and
+     * stream-parses every card from the live Scryfall CDN into
+     * oracle_cards__shadow, oracle_card_faces__shadow and
+     * legalities__shadow, which the orchestrator created empty.
      *
-     * In shadow mode: rows are inserted into oracle_cards__shadow,
-     * oracle_card_faces__shadow, and legalities__shadow. The BulkdataService
-     * lookup reads from bulk_data__shadow so the latest download URI is used.
+     * @throws RuntimeException In live mode, see {@see refuseLiveImport()}.
      */
     public function updateOracleCards(bool $shadow = false): void
     {
+        $this->refuseLiveImport($shadow, 'scryfall:oracle');
         $this->shadow = $shadow;
         $this->oracleCardsTable = $this->tableName('oracle_cards', $shadow);
         $this->oracleCardFacesTable = $this->tableName('oracle_card_faces', $shadow);
@@ -366,7 +340,6 @@ class OracleCardsService extends ScryfallService
         }
 
         $downloadUri = $this->bulkdataService->downloadUri('oracle_cards', $shadow);
-        $this->preRunCleanup();
         $this->traverseJson($downloadUri);
     }
 }

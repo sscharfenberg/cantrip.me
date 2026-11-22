@@ -11,25 +11,16 @@ use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 /**
- * `artists.name` is unique under a collation that ignores case and
- * accents, while the import's cache compares bytes. Two spellings the
- * index calls equal used to fail the second insert, and with it
- * `scryfall:default_cards`. SQLite's index compares bytes, so the test
- * reaches the same state by putting the row there behind the cache's back.
+ * `artists.name` is unique, and the import's cache only knows the names it
+ * inserted itself. A name the table already holds must join that artist
+ * rather than fail the insert, and with it `scryfall:default_cards`; the
+ * test puts the row there behind the cache's back.
  *
  * Skipped on the staging suite — uses RefreshDatabase.
  */
 class ArtistsServiceTest extends TestCase
 {
     use RefreshDatabase;
-
-    protected function setUp(): void
-    {
-        parent::setUp();
-        if (DB::connection()->getDriverName() === 'mysql') {
-            $this->markTestSkipped('Uses RefreshDatabase; never run against MariaDB.');
-        }
-    }
 
     #[Test]
     public function a_name_the_unique_index_already_holds_joins_that_artist(): void

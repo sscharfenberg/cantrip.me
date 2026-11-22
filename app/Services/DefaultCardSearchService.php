@@ -46,8 +46,8 @@ final class DefaultCardSearchService
     /**
      * Upper bound on the oracle pre-filter (phase 1). Each oracle has a
      * handful of printings, so this comfortably overshoots the printing-side
-     * RESULT_LIMIT while keeping the IN(…) list small enough that MariaDB
-     * picks the FK index for phase 2.
+     * RESULT_LIMIT while keeping the IN(…) list small enough for an index
+     * lookup on the FK in phase 2.
      */
     public const ORACLE_PREFILTER_LIMIT = 200;
 

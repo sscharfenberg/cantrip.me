@@ -224,8 +224,8 @@ class CommandZoneService
     }
 
     /**
-     * Match the SQL `oracle_text REGEXP '\bPartner\b|Legendary partner'` —
-     * the `\b` word-boundary excludes "Partner—X" / "Partner with X" forms,
+     * Plain Partner: the keyword as a whole word, or "Legendary partner".
+     * The `\b` word boundary excludes "Partner—X" / "Partner with X" forms,
      * which have their own filters and shouldn't fall through to plain
      * Partner.
      */

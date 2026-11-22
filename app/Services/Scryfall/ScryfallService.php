@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Sleep;
+use RuntimeException;
 use Throwable;
 
 class ScryfallService
@@ -328,7 +329,7 @@ class ScryfallService
                     $received += strlen($chunk);
                     $inflated = @inflate_add($inflate, $chunk);
                     if ($inflated === false) {
-                        throw new \RuntimeException("gzip inflate failed while reading '$uri' — corrupt bulk stream.");
+                        throw new RuntimeException("gzip inflate failed while reading '$uri' — corrupt bulk stream.");
                     }
                     $complete = $complete || inflate_get_status($inflate) === ZLIB_STREAM_END;
                     $pending .= $inflated;
@@ -352,10 +353,10 @@ class ScryfallService
                 $handle = null;
                 $endedEarly = "gzip stream for '$uri' $how early after $rows rows ($received bytes)";
                 if ($size !== null && $received >= $size) {
-                    throw new \RuntimeException("$endedEarly, although all $size bytes arrived: the file is cut short".self::ABORT);
+                    throw new RuntimeException("$endedEarly, although all $size bytes arrived: the file is cut short".self::ABORT);
                 }
                 if ($received > 0 && $validator === null) {
-                    throw new \RuntimeException("$endedEarly; without an ETag or Last-Modified date there is no safe way to resume it".self::ABORT);
+                    throw new RuntimeException("$endedEarly; without an ETag or Last-Modified date there is no safe way to resume it".self::ABORT);
                 }
                 if ($received > $before) {
                     $failures = 0;
@@ -398,7 +399,7 @@ class ScryfallService
                 return;
             }
 
-            throw new \RuntimeException("failed to open bulk stream '$uri': HTTP $status.");
+            throw new RuntimeException("failed to open bulk stream '$uri': HTTP $status.");
         }
 
         $range = $response['headers']['content-range'] ?? '';
@@ -409,7 +410,7 @@ class ScryfallService
             return;
         }
 
-        throw new \RuntimeException(
+        throw new RuntimeException(
             "gzip stream for '$uri' ended early after $rows rows ($received bytes); asked for the rest, Scryfall answered HTTP "
             .($status ?? '?').($range !== '' ? " ($range)" : '').' — the file was probably replaced in between'.self::ABORT
         );
@@ -424,7 +425,7 @@ class ScryfallService
     {
         $attempts = count(self::RECONNECT_DELAYS_MS) + 1;
         if ($failures >= $attempts) {
-            throw new \RuntimeException($received === 0
+            throw new RuntimeException($received === 0
                 ? "failed to open bulk stream '$uri': $problem, $failures attempts in a row."
                 : "gzip stream for '$uri' ended early after $rows rows ($received bytes) and could not be resumed: "
                     ."$problem, $failures attempts in a row".self::ABORT);
@@ -447,7 +448,7 @@ class ScryfallService
     {
         $source = $this->openBulkSource($uri);
         if ($source === null) {
-            throw new \RuntimeException("failed to open bulk stream '$uri'.");
+            throw new RuntimeException("failed to open bulk stream '$uri'.");
         }
         [$handle, $headerLines] = $source;
 
@@ -456,7 +457,7 @@ class ScryfallService
         try {
             $status = self::finalResponse($headerLines)['status'];
             if ($status !== null && $status !== 200) {
-                throw new \RuntimeException("failed to open bulk stream '$uri': HTTP $status.");
+                throw new RuntimeException("failed to open bulk stream '$uri': HTTP $status.");
             }
             while (($raw = fgets($handle)) !== false) {
                 $lineNumber++;
@@ -483,7 +484,7 @@ class ScryfallService
     {
         $row = json_decode(trim($line), true);
         if (! is_array($row)) {
-            throw new \RuntimeException(
+            throw new RuntimeException(
                 "malformed JSON on line $lineNumber of '$uri' (".json_last_error_msg().'). '
                 .'Aborting rather than importing a partial dataset.'
             );
@@ -501,6 +502,25 @@ class ScryfallService
     protected function tableName(string $live, bool $shadow): string
     {
         return $shadow ? ShadowTableRegistry::shadow($live) : $live;
+    }
+
+    /**
+     * Refuse a standalone (live) import of tables other tables reference
+     * — sets, oracle cards, printings, artists. Postgres will not truncate
+     * a table an FK points at, and `TRUNCATE … CASCADE` would empty the
+     * user tables that point at it. These tables are only ever rebuilt as
+     * shadow tables by `scryfall:update`, which swaps them in with their
+     * constraints intact.
+     *
+     * Checked before anything is fetched from Scryfall.
+     *
+     * @throws RuntimeException In live mode.
+     */
+    protected function refuseLiveImport(bool $shadow, string $command): void
+    {
+        if (! $shadow) {
+            throw new RuntimeException("$command only builds shadow tables — Postgres will not truncate tables that user data references. Run `php artisan scryfall:update` instead.");
+        }
     }
 
     /**

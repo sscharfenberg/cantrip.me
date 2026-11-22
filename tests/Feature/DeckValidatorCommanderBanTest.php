@@ -13,7 +13,6 @@ use App\Models\Set;
 use App\Models\User;
 use App\Services\DeckValidator;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -30,14 +29,6 @@ use Tests\TestCase;
 class DeckValidatorCommanderBanTest extends TestCase
 {
     use RefreshDatabase;
-
-    protected function setUp(): void
-    {
-        parent::setUp();
-        if (DB::connection()->getDriverName() === 'mysql') {
-            $this->markTestSkipped('Uses RefreshDatabase; never run against MariaDB.');
-        }
-    }
 
     #[Test]
     public function flags_breya_as_banned_commander_in_duel(): void

@@ -31,19 +31,6 @@ class DeckCollectionStatusServiceTest extends TestCase
 {
     use RefreshDatabase;
 
-    /**
-     * Hard-skip on real MariaDB connections. See
-     * {@see DeckCardCardStackPivotTest::setUp} for the rationale.
-     */
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        if (DB::connection()->getDriverName() === 'mysql') {
-            $this->markTestSkipped('Skipped on MariaDB — RefreshDatabase would wipe live data. Run via the default `composer test` (SQLite).');
-        }
-    }
-
     private function makeOracleCard(string $name): OracleCard
     {
         return OracleCard::create([

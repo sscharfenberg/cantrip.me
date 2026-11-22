@@ -32,17 +32,17 @@ export const PORT = 8101;
 /** Base URL every spec navigates against. */
 export const BASE_URL = `http://127.0.0.1:${PORT}`;
 
-/** The compose project that owns the throwaway MariaDB. See docs/testing.md. */
+/** The compose project that owns the throwaway Postgres. See docs/testing.md. */
 const COMPOSE_FILE = path.join(repoRoot, "docker-compose.e2e.yml");
 
 /**
- * Port the E2E MariaDB publishes on.
+ * Port the E2E Postgres publishes on.
  *
- * Not 3306 (local dev's) and not 3307 either — `~/.ssh/config` forwards that one
- * to STAGING'S database for the `cantrip` host. See the comment on the `ports:`
- * key in docker-compose.e2e.yml, and `assertIsE2EDatabase` below.
+ * Not 5432 — another local project's development Postgres listens there — and
+ * no port an ssh tunnel forwards. See the comment on the `ports:` key in
+ * docker-compose.e2e.yml, and `assertIsE2EDatabase` below.
  */
-const DB_PORT = 3399;
+const DB_PORT = 5499;
 
 /**
  * Where a stale `public/hot` is parked for the duration of a run.
@@ -57,15 +57,15 @@ const HOT_BACKUP = path.join(repoRoot, "public", "hot.e2e-backup");
 /**
  * The environment the app server runs with.
  *
- * The database is the container from `docker-compose.e2e.yml` — a REAL MariaDB
+ * The database is the container from `docker-compose.e2e.yml` — a REAL Postgres
  * rather than a throwaway sqlite file, because the deck-building core filters
- * colour identity with `REGEXP`, which sqlite cannot run at all. That is the
- * same engine split the PHPUnit `Local` / `Staging` suites already encode.
+ * colour identity with regular expressions, which sqlite cannot run at all. That
+ * is the same engine split the PHPUnit `Local` / `Staging` suites already encode.
  *
  * Sessions, cache and queue all go to that database, which is safe here for a
  * reason worth stating: on sqlite this arrangement is what produces "database is
  * locked" under parallel workers, and it is exactly why the mixtape suite pushes
- * sessions to files. InnoDB takes row locks, so several workers logging in at
+ * sessions to files. Postgres takes row locks, so several workers logging in at
  * once is unremarkable.
  *
  * Sending the cache there too has a second, useful effect: `migrate:fresh` drops
@@ -85,7 +85,7 @@ export const serverEnv: Record<string, string> = {
      */
     APP_LOCALE: "de",
     APP_FALLBACK_LOCALE: "en",
-    DB_CONNECTION: "mariadb",
+    DB_CONNECTION: "pgsql",
     DB_HOST: "127.0.0.1",
     DB_PORT: String(DB_PORT),
     DB_DATABASE: "cantrip_e2e",
@@ -159,15 +159,17 @@ const runningContainerId = (): string =>
  * WHY A LIVENESS CHECK IS NOT ENOUGH, and it is not a hypothetical: the next
  * thing that happens after this returns is `migrate:fresh`, which drops every
  * table it can reach. "Something is listening" is not a safe precondition for
- * that — this suite originally used port 3307, and `~/.ssh/config` forwards 3307
- * to staging's MariaDB for the `cantrip` host, so an open ssh session was enough
+ * that — this suite once used port 3307, and `~/.ssh/config` forwards 3307 to
+ * staging's database for the `cantrip` host, so an open ssh session was enough
  * to make a test run point `migrate:fresh` at staging. The only thing that would
  * have stopped it was the credentials happening not to match.
  *
- * So the identity is checked directly. MariaDB reports `@@hostname` as the
- * container's own id, which is the first twelve characters of what compose calls
- * the container — a value no tunnel, no local server and no second compose
- * project can accidentally produce.
+ * So the identity is checked directly. A container's hostname is its own short
+ * id, the first twelve characters of what compose calls the container — a value
+ * no tunnel, no local server and no second compose project can accidentally
+ * produce. Postgres reads it from `/etc/hostname`; `pg_read_file()` is allowed
+ * because the image makes `POSTGRES_USER` a superuser, which a real server's
+ * application role never is — so the probe fails there as well.
  */
 const assertIsE2EDatabase = (containerId: string): void => {
     /*
@@ -182,7 +184,7 @@ const assertIsE2EDatabase = (containerId: string): void => {
     const probe = artisan(
         "tinker",
         "--execute",
-        "echo json_encode(DB::selectOne('select database() as db, @@hostname as host'));"
+        "echo json_encode(DB::selectOne(\"select current_database() as db, btrim(pg_read_file('/etc/hostname'), chr(10)) as host\"));"
     );
 
     let server: { db?: string; host?: string };
@@ -193,7 +195,7 @@ const assertIsE2EDatabase = (containerId: string): void => {
     }
 
     /*
-     * A prefix match, because MariaDB reports the SHORT container id (twelve
+     * A prefix match, because the hostname is the SHORT container id (twelve
      * characters) where compose reports the full sixty-four. Written as an
      * explicit `undefined` check rather than a `??` fallback: the fallback would
      * be a sentinel string chosen never to match, which reads as a typo.
@@ -206,7 +208,7 @@ const assertIsE2EDatabase = (containerId: string): void => {
                 `  expected: database ${serverEnv.DB_DATABASE} on container ${containerId.slice(0, 12)}\n` +
                 `  found:    database ${server.db} on host ${server.host}\n` +
                 "Something else owns the port. The likely culprit is an ssh tunnel: the `cantrip`\n" +
-                "host in ~/.ssh/config forwards a local port to STAGING's MariaDB. Close it and retry."
+                "host in ~/.ssh/config forwards a local port to STAGING's database. Close it and retry."
         );
     }
 };
@@ -217,10 +219,9 @@ const assertIsE2EDatabase = (containerId: string): void => {
  *
  * Started for the developer rather than demanded of them, so `npm run e2e` is
  * one command. `--wait` blocks on the compose healthcheck, which is what makes
- * the migration that follows safe in the ordinary case: MariaDB accepts TCP
- * connections for a second or two before it will accept a login, and a
- * `migrate:fresh` fired into that window fails with an authentication error that
- * reads like a wrong password.
+ * the migration that follows safe in the ordinary case: on first boot Postgres
+ * runs a temporary server while it initialises, and a `migrate:fresh` fired into
+ * that window fails on a server that is about to restart.
  *
  * The container is deliberately NOT torn down afterwards — see globalTeardown.
  */

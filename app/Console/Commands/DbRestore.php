@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Services\FormatService;
+use App\Services\PostgresCredentials;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
@@ -14,18 +15,19 @@ use function Laravel\Prompts\confirm;
 use function Laravel\Prompts\select;
 
 /**
- * Restore the configured MySQL/MariaDB database from one of the dumps
- * written by `db:backup`. Strictly manual — there is no schedule entry
- * for this command (restoring without explicit human intent is exactly
- * the kind of thing you never want to automate).
+ * Restore the configured Postgres database from one of the dumps written
+ * by `db:backup`. Strictly manual — there is no schedule entry for this
+ * command (restoring without explicit human intent is exactly the kind of
+ * thing you never want to automate).
  *
- * Lists every dump in `config('cantrip.db_backup.path')`, lets the
- * user pick interactively, requires a typed confirmation before
- * destroying the current data, then pipes the .sql straight into
- * `mysql` (decompressing first if the dump is a .tar.gz).
+ * Lists every dump in `config('cantrip.db_backup.path')`, lets the user
+ * pick interactively, requires a confirmation before destroying the
+ * current data, then runs `pg_restore` in a single transaction: every
+ * table in the dump is dropped and recreated, and a failure anywhere
+ * leaves the database as it was.
  *
- * Credentials reach `mysql` via a 0600 temp file so the password is
- * never visible in `ps` — same pattern as DbBackup.
+ * Credentials reach `pg_restore` via a 0600 password file so the
+ * password is never visible in `ps` — same pattern as DbBackup.
  */
 class DbRestore extends Command
 {
@@ -53,10 +55,10 @@ class DbRestore extends Command
 
         $backupDir = config('cantrip.db_backup.path') ?? storage_path('app/db-backups');
 
-        $connection = config('database.connections.mysql');
-        if (! is_array($connection)) {
-            $this->error('No mysql connection configured.');
-            $log->error('DbRestore: no mysql connection configured — aborting');
+        $connection = PostgresCredentials::connection();
+        if ($connection === null) {
+            $this->error('The default database connection is not Postgres.');
+            $log->error('DbRestore: the default connection is not Postgres — aborting');
 
             return Command::FAILURE;
         }
@@ -79,19 +81,8 @@ class DbRestore extends Command
         $log->info('DbRestore: starting restore of '.$sourceFile.' into '.$connection['database']);
 
         try {
-            [$sqlFile, $tempDir] = $this->prepareSqlFile($sourceFile, $log);
-            if ($sqlFile === null) {
+            if (! $this->runPgRestore($connection, $sourceFile, $log)) {
                 return Command::FAILURE;
-            }
-
-            try {
-                if (! $this->runMysqlImport($connection, $sqlFile, $log)) {
-                    return Command::FAILURE;
-                }
-            } finally {
-                if ($tempDir !== null) {
-                    $this->cleanupTempDir($tempDir, $log);
-                }
             }
         } catch (Throwable $e) {
             $this->error('Restore failed: '.$e->getMessage());
@@ -157,15 +148,12 @@ class DbRestore extends Command
             return [];
         }
 
-        $files = array_merge(
-            glob("{$dir}/db-backup-*.sql") ?: [],
-            glob("{$dir}/db-backup-*.tar.gz") ?: [],
-        );
+        $files = glob("{$dir}/db-backup-*.dump") ?: [];
 
         $rows = [];
         $today = Carbon::today();
         foreach ($files as $path) {
-            if (! preg_match('/db-backup-(\d{4}-\d{2}-\d{2})\.(sql|tar\.gz)$/', basename($path), $m)) {
+            if (! preg_match('/db-backup-(\d{4}-\d{2}-\d{2})\.dump$/', basename($path), $m)) {
                 continue;
             }
             $date = Carbon::createFromFormat('Y-m-d', $m[1])->startOfDay();
@@ -175,10 +163,9 @@ class DbRestore extends Command
                 'path' => $path,
                 'date' => $date,
                 'label' => sprintf(
-                    '%s (%s) — %s — %s',
+                    '%s (%s) — %s',
                     basename($path),
                     $age,
-                    $m[2],
                     $this->formatService->formatBytes($size)
                 ),
             ];
@@ -191,137 +178,60 @@ class DbRestore extends Command
     }
 
     /**
-     * Given a candidate file, return [$sqlFile, $tempDir]. For a plain
-     * .sql, $tempDir is null and $sqlFile is the input as-is. For a
-     * .tar.gz, the archive is extracted to a fresh temp dir and the
-     * caller is expected to clean it up via cleanupTempDir().
+     * Run `pg_restore` on $dumpFile. Returns true on success.
      *
-     * @return array{0: string|null, 1: string|null}
-     */
-    private function prepareSqlFile(string $sourceFile, LoggerInterface $log): array
-    {
-        if (str_ends_with($sourceFile, '.sql')) {
-            return [$sourceFile, null];
-        }
-        if (! str_ends_with($sourceFile, '.tar.gz')) {
-            $this->error("Unrecognised backup format: {$sourceFile}");
-
-            return [null, null];
-        }
-
-        $tempDir = sys_get_temp_dir().'/cantrip-restore-'.bin2hex(random_bytes(6));
-        if (! mkdir($tempDir, 0700) && ! is_dir($tempDir)) {
-            $this->error("Could not create temp directory at {$tempDir}");
-
-            return [null, null];
-        }
-        $log->debug("DbRestore: extracting archive into {$tempDir}");
-
-        $result = Process::path($tempDir)->timeout(0)->run([
-            'tar', '-xzf', $sourceFile,
-        ]);
-
-        if (! $result->successful()) {
-            $this->error('tar extraction failed: '.trim($result->errorOutput() ?: $result->output()));
-            $log->error('DbRestore: tar extraction failed (exit '.$result->exitCode().') — '.trim($result->errorOutput()));
-            $this->cleanupTempDir($tempDir, $log);
-
-            return [null, null];
-        }
-
-        $extracted = glob("{$tempDir}/db-backup-*.sql") ?: [];
-        if (empty($extracted)) {
-            $this->error('Archive extracted but no db-backup-*.sql found inside.');
-            $this->cleanupTempDir($tempDir, $log);
-
-            return [null, null];
-        }
-
-        return [$extracted[0], $tempDir];
-    }
-
-    /**
-     * Pipe $sqlFile into `mysql` via stdin. Credentials are passed via
-     * a 0600 temp file so the password isn't visible in `ps`.
+     * `--clean --if-exists` drops each object of the dump before
+     * recreating it; `--single-transaction` makes the whole restore one
+     * transaction, so an error rolls it all back; `--no-owner --no-acl`
+     * leave ownership to the role running it, so a dump of one database
+     * restores into another (production's into staging).
      *
      * @param  array<string, mixed>  $connection
      */
-    private function runMysqlImport(array $connection, string $sqlFile, LoggerInterface $log): bool
+    private function runPgRestore(array $connection, string $dumpFile, LoggerInterface $log): bool
     {
-        $credentialsFile = tempnam(sys_get_temp_dir(), 'cantrip-mysql-restore-');
-        if ($credentialsFile === false) {
-            $this->error('Could not create temp credentials file.');
+        $passFile = PostgresCredentials::writePassFile($connection);
+        if ($passFile === null) {
+            $this->error('Could not create temp password file.');
 
             return false;
         }
-        chmod($credentialsFile, 0600);
-        $password = (string) ($connection['password'] ?? '');
-        $username = (string) ($connection['username'] ?? '');
-        file_put_contents(
-            $credentialsFile,
-            "[client]\nuser={$username}\npassword=\"{$password}\"\n"
-        );
 
-        $success = false;
         try {
             $cmd = [
-                'mysql',
-                '--defaults-extra-file='.$credentialsFile,
-                '--host='.(string) ($connection['host'] ?? '127.0.0.1'),
-                '--port='.(string) ($connection['port'] ?? '3306'),
-                '--default-character-set=utf8mb4',
-                (string) $connection['database'],
+                'pg_restore',
+                '--no-password',
+                ...PostgresCredentials::connectionArguments($connection),
+                '--clean',
+                '--if-exists',
+                '--no-owner',
+                '--no-acl',
+                '--single-transaction',
+                '--exit-on-error',
+                $dumpFile,
             ];
 
-            $handle = fopen($sqlFile, 'r');
-            if ($handle === false) {
-                $this->error("Could not open {$sqlFile} for reading.");
-            } else {
-                $log->debug('DbRestore: piping '.basename($sqlFile).' into mysql');
+            $log->debug('DbRestore: running pg_restore of '.basename($dumpFile));
+            $result = Process::env(['PGPASSFILE' => $passFile])->timeout(0)->run($cmd);
 
-                try {
-                    // Stream the file directly to mysql's stdin instead of
-                    // buffering it in PHP (dumps can be 100s of MB).
-                    $result = Process::input($handle)->timeout(0)->run($cmd);
-                } finally {
-                    fclose($handle);
-                }
+            if (! $result->successful()) {
+                $message = sprintf(
+                    'pg_restore failed (exit %d): %s',
+                    $result->exitCode(),
+                    trim($result->errorOutput() ?: $result->output())
+                );
+                $this->error($message);
+                $log->error('DbRestore: '.$message);
 
-                if (! $result->successful()) {
-                    $this->error(sprintf(
-                        'mysql import failed (exit %d): %s',
-                        $result->exitCode(),
-                        trim($result->errorOutput() ?: $result->output())
-                    ));
-                    $log->error(sprintf(
-                        'DbRestore: mysql import failed (exit %d) — %s',
-                        $result->exitCode(),
-                        trim($result->errorOutput() ?: $result->output())
-                    ));
-                } else {
-                    $log->info('DbRestore: imported '.basename($sqlFile).' into '.$connection['database']);
-                    $success = true;
-                }
+                return false;
             }
+
+            $log->info('DbRestore: restored '.basename($dumpFile).' into '.$connection['database']);
+
+            return true;
         } finally {
-            @unlink($credentialsFile);
+            @unlink($passFile);
         }
-
-        return $success;
-    }
-
-    /**
-     * Remove the extracted .sql file + its temp directory. Called from
-     * the finally block of handle() so we never leave a multi-hundred-
-     * megabyte dump sitting in /tmp on failure.
-     */
-    private function cleanupTempDir(string $dir, LoggerInterface $log): void
-    {
-        foreach (glob("{$dir}/*") ?: [] as $file) {
-            @unlink($file);
-        }
-        @rmdir($dir);
-        $log->debug("DbRestore: cleaned up temp dir {$dir}");
     }
 
     /**

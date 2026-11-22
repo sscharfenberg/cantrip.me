@@ -19,22 +19,22 @@ use Tests\Unit\Rulebreakers\RulebreakerProfilesTest;
  * Read-only integration tests for {@see DeckCardSearchService}.
  *
  * These tests run against the real application database so they can exercise
- * `REGEXP` color-identity filtering (unsupported on SQLite) and verify ranking
+ * regex color-identity filtering (unsupported on SQLite) and verify ranking
  * against real card data. They:
  *
  *  - Never write to the database — only non-persisted `Deck` instances are used.
- *  - Skip automatically on non-MariaDB connections (e.g. the default in-memory
+ *  - Skip automatically on non-Postgres connections (e.g. the default in-memory
  *    SQLite used by local `composer test`).
  *  - Assert on bedrock Magic cards (Sol Ring, Lightning Bolt, Counterspell,
  *    Black Lotus) that are guaranteed to exist in any Scryfall-synced dataset.
  *
- * To run on staging (where `.env` points at the real MariaDB):
+ * To run on staging (where `.env` points at the real Postgres):
  *
- *     composer test:mysql -- --filter=DeckCardSearchServiceTest
+ *     composer test:pgsql -- --filter=DeckCardSearchServiceTest
  *
- * The composer script injects `DB_CONNECTION=mysql` / `DB_DATABASE=mbos` via
- * `@putenv` so they beat PHPUnit's non-forced `<env>` tags and Laravel's
- * config picks them up.
+ * The composer script sets `DB_CONNECTION=pgsql` / `DB_DATABASE=cantrip_staging`
+ * as real environment variables, so they beat PHPUnit's non-forced `<env>`
+ * tags and Laravel's config picks them up.
  */
 class DeckCardSearchServiceTest extends TestCase
 {
@@ -42,10 +42,10 @@ class DeckCardSearchServiceTest extends TestCase
     {
         parent::setUp();
 
-        if (DB::connection()->getDriverName() !== 'mysql') {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
             $this->markTestSkipped(
-                'DeckCardSearchService requires MariaDB (REGEXP color-identity filter). '
-                .'Run against staging with DB_CONNECTION=mysql.'
+                'DeckCardSearchService requires Postgres (regex color-identity filter). '
+                .'Run on staging with composer test:pgsql.'
             );
         }
     }

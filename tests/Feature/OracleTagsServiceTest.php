@@ -25,10 +25,6 @@ use Tests\TestCase;
  * and the swap put that live. These tests build that situation: the
  * live table holds last night's values, the shadow table holds the same
  * cards with the columns cleared, and Scryfall's search is faked.
- *
- * The Local PHPUnit suite uses SQLite. The defensive `mysql` skip
- * keeps the test out of a misconfigured `composer test:mysql`
- * invocation (which would wipe live data via `RefreshDatabase`).
  */
 class OracleTagsServiceTest extends TestCase
 {
@@ -46,18 +42,9 @@ class OracleTagsServiceTest extends TestCase
 
     private const CULTIVATE_TEXT = 'Search your library for up to two basic land cards, reveal those cards, put one onto the battlefield tapped and the other into your hand, then shuffle.';
 
-    /**
-     * Hard-skip on real MariaDB connections. See
-     * {@see DeckBulkClaimControllerTest::setUp} for
-     * the rationale.
-     */
     protected function setUp(): void
     {
         parent::setUp();
-
-        if (DB::connection()->getDriverName() === 'mysql') {
-            $this->markTestSkipped('Skipped on MariaDB — RefreshDatabase would wipe live data. Run via the default `composer test` (SQLite).');
-        }
 
         Sleep::fake();
         Notification::fake();
