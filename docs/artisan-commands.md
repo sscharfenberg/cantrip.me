@@ -63,11 +63,11 @@ Schedule::command('scryfall:update')
     ->onFailure(/* logs an error to the scryfall channel */);
 ```
 
-Daily is the useful maximum: Scryfall regenerates its bulk files (and card prices) roughly every 24 h, so a faster cadence has nothing new to fetch. Bandwidth is a non-issue — ~3 GB/day ingress ≈ 90 GB/month against the 20 TB cap, and image downloads are incremental (only genuinely new printings are fetched; anything already cached is skipped). A full run usually takes 15–50 minutes, with zero user-facing downtime thanks to the shadow swap.
+Daily is the useful maximum: Scryfall regenerates its bulk files (and card prices) roughly every 24 h, so a faster cadence has nothing new to fetch. Bandwidth is a non-issue — ~3 GB/day ingress ≈ 90 GB/month, and image downloads are incremental (only genuinely new printings are fetched; anything already cached is skipped). A full run usually takes 15–50 minutes, with zero user-facing downtime thanks to the shadow swap.
 
 `withoutOverlapping(60)` is the overlap guard. The run *starts* by dropping any leftover `*__shadow` / `*__retired` tables (crash recovery), so a second run starting while one is still building would drop its shadow tables out from under it. The guard is a cache lock the app owns; its 60-minute TTL lets a hard-killed run, which never releases the lock, block nothing beyond that hour. A manual run does not take the lock, so don't start one shortly before 04:00. Console output is appended to `storage/logs/cron-scryfall.log`, so a failure before the command can log anything still leaves a trace.
 
-Manual runs on production use the scheduler's user, started from the app directory: `cd /var/www/mbop && sudo -u deploy php artisan scryfall:update`. Started from your home directory instead, `scryfall:cache` prints `find: Failed to restore initial working directory: … Permission denied` — `deploy` cannot read that directory; the counts come out right anyway. Staging does not run this job on a schedule — it shares most Scryfall assets with prod — and is synced by a manual run when needed.
+Manual runs on production use the scheduler's user, `cantrip`: `ct artisan scryfall:update --prod` from the workstation (it runs `sudo -u cantrip php …/artisan` on the server; keep the session open for the ~20 minutes). Staging does not run this job on a schedule — it shares most Scryfall assets with prod — and is synced by a manual run when needed: `ct artisan scryfall:update`.
 
 ### `php artisan scryfall:sets`
 
@@ -191,6 +191,8 @@ Both commands work in every environment, but the daily schedule only fires in `p
 
 Backups land in `config('cantrip.db_backup.path')` (default `storage/app/db-backups`). Retention is `config('cantrip.db_backup.retention_days')` (default 7), overridable per-env via the `DB_BACKUP_RETENTION_DAYS` env var.
 
+On production a nightly restic run copies these dumps to the server's USB disk and to Backblaze B2 — see [docs/deployment.md](deployment.md#backups).
+
 Credentials reach the client tools through a 0600 temp password file named in `PGPASSFILE` (`App\Services\PostgresCredentials`), so the DB password never appears in `ps` or `/proc/<pid>/cmdline`; the file is deleted when the tool exits.
 
 ### `php artisan db:backup`
@@ -238,14 +240,9 @@ Logs to the `schedule` channel: info on start/done, error + non-zero exit on fai
 
 ## Scheduled tasks
 
-Laravel's task scheduler handles recurring jobs. On the server, `/etc/cron.d/cantrip` runs it every minute as the `deploy` user, one line per environment:
+Laravel's task scheduler handles recurring jobs. On the server, `cantrip-prod-schedule.timer` runs `schedule:run` every minute as `cantrip`, for production only — staging runs no scheduler, so the tasks marked "all" below run on production alone (see [docs/deployment.md](deployment.md#scheduler)).
 
-```cron
-* * * * * deploy /usr/bin/php /var/www/mbop/artisan schedule:run >> /dev/null 2>&1
-* * * * * deploy /usr/bin/php /var/www/mbos/artisan schedule:run >> /dev/null 2>&1
-```
-
-Runs `schedule:run` every minute; Laravel determines internally which scheduled tasks are due. Scheduled tasks are defined in `routes/console.php`; times are in the app timezone (Europe/Berlin):
+Laravel determines internally which scheduled tasks are due. Scheduled tasks are defined in `routes/console.php`; times are in the app timezone (Europe/Berlin):
 
 | Schedule | When | Environments |
 |---|---|---|

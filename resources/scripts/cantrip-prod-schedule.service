@@ -1,0 +1,31 @@
+# /etc/systemd/system/cantrip-prod-schedule.service
+#
+# Committed in resources/scripts/ for review; the live copy is on debbie. Install a
+# change there, or it does nothing.
+#
+# cantrip.me production: one `artisan schedule:run`, started every minute by
+# cantrip-prod-schedule.timer. It carries scryfall:update (04:00 Berlin),
+# db:backup (00:15), session GC (03:00) and the temp-upload cleanup.
+#
+# While a run is still going (scryfall:update takes ~20 min in the
+# foreground), the timer's next triggers are skipped, not queued. Nothing else
+# is scheduled in that window; a future frequent task would need
+# ->runInBackground() on the long one.
+[Unit]
+Description=cantrip.me production: Laravel scheduler (schedule:run)
+After=postgresql.service
+
+[Service]
+Type=oneshot
+User=cantrip
+Group=cantrip
+WorkingDirectory=/var/www/cantrip.prod
+ExecStart=/usr/bin/php artisan schedule:run --no-interaction
+# Storage and the media folders carry default ACLs that decide the modes;
+# this only keeps anything else out of reach of "other".
+UMask=0007
+Nice=5
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=full
+ProtectHome=yes

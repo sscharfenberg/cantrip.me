@@ -123,13 +123,13 @@ Each deck-owner pair resolves to one of three modes that drive UI gating and dat
 **Versioning:**
 - Single source of truth: `package.json#version`. `config/app.php` reads it directly (`json_decode(file_get_contents(base_path('package.json')))->version`) — frozen into `bootstrap/cache/config.php` by `php artisan config:cache` at deploy time, so no per-request reads.
 - **No** `APP_VERSION` in `.env` — it isn't consumed anywhere.
-- Release flow: bump `package.json` version (when user-visible) → commit + push → manually dispatch **Deploy to production** in the Actions tab → approve at the reviewer gate. No tags involved. Workflows documented in `docs/github-actions.md`.
+- Release flow: bump `package.json` version (when user-visible) → merge or push to `main` → `ct deploy --prod` from the workstation once `main`'s CI is green (the server-side `cantrip-prod-deploy` refuses a commit whose required checks are not green). No tags involved. Deploys in `docs/deployment.md`, CI in `docs/github-actions.md`.
 
 **Forms and API calls:**
 - Form submission uses `fetch()` with JSON (not Inertia form helpers or traditional HTML forms) for flows that need fine-grained control (e.g. 2FA challenge)
 - Validation errors come back as 422 with `{ errors: { field: [messages] } }`; map to flat `Record<string, string>` in composables
 - Fortify password confirmation gate returns **423** when the session confirmation has expired
-- **WAF:** production runs ModSecurity with the OWASP Core Rule Set, which false-positives on free text (card names in every language, deck lists, descriptions, passwords). Every request field carrying user free text must be on the server's WAF exclusion list; a new one without it gets users 403s and fail2ban bans. A 403 on a route whose `authorize()` passes is the WAF, not the app.
+- **WAF:** production runs ModSecurity with the OWASP Core Rule Set, which false-positives on free text (card names in every language, deck lists, descriptions, passwords). Every request field carrying user free text must be on the server's WAF exclusion list; a new one without it gets users 403s. A 403 on a route whose `authorize()` passes is the WAF, not the app.
 
 **Composables:**
 - Shared reactive state is declared _outside_ the composable function (module-level `ref`s) so all consumers share the same instance — see `useTwoFactorAuth.ts`
@@ -254,37 +254,11 @@ The full update runs against `__shadow` build tables and atomically swaps them i
 - **Eloquent vs query builder:** every shadow-mode insert path uses `DB::table($shadowTable)->insert(...)` rather than `Model::create()` / `Model::insert()`, because Eloquent's hardcoded `$table` property can't be parameterized. Side effects: model `$casts` (e.g. `BulkData.updated_at = 'datetime'`) are NOT applied — `Carbon::parse()->toDateTimeString()` is needed before insert for any datetime-cast column. UUIDs that previously came from the `HasUuids` trait need explicit `Str::uuid()` (currently relevant in `ArtistsService`, `SymbolsService`, `RulingsService`).
 - **Foundation services** in `app/Services/Scryfall/Shadow/`: `ShadowTableRegistry` (single source of truth — table list + FK restorations + FK check definitions), `ShadowTableService` (cleanup / createLike / analyze / capture, drop and add FKs / transaction / swap), `ShadowSwapper` (the transactional swap sequence), `ShadowValidationService` (FK orphan, row-count and schema checks). `ShadowTableService` is Postgres-only — its feature tests in `tests/Feature/Services/Shadow/` self-skip elsewhere; run them against the e2e database (`npm run e2e:db:up`, then `DB_CONNECTION=pgsql DB_HOST=127.0.0.1 DB_PORT=5499 DB_DATABASE=cantrip_e2e DB_USERNAME=cantrip_e2e DB_PASSWORD=cantrip_e2e php artisan test --testsuite=Staging --filter=Shadow`) or on staging. `ShadowSwapper` (`tests/Unit/Services/Scryfall/Shadow/`) and the row-count check (`tests/Feature/ShadowValidationShrinkTest.php`) are covered on SQLite.
 
-## Staging Server as Dev Environment
+## Staging as Dev Environment
 
-Staging (`staging.cantrip.me`) is used as a remote dev server — same environment as prod, avoiding local Docker setup.
+Staging (`https://cantrip.local`, LAN only) is used as a remote dev server — the same stack as production, on the same home server (`debbie`), avoiding a local Docker setup. Code reaches it as an upload of the working tree (PhpStorm deployment or a tar), with `vendor/`, `public/build` and the icon sprite built locally; exclude `public/hot`, `.env` and `storage/`. No Vite dev server runs on staging. `ct artisan …` (`resources/scripts/ct`) runs artisan there; `--prod` targets production. Layout, deploys, scheduler and backups: `docs/deployment.md`.
 
-**The one exception is the end-to-end test database.** `docker-compose.e2e.yml` runs a throwaway Postgres 17 on port **5499** for the Playwright suite, because the deck-building core filters colour identity with regular expressions and SQLite cannot run them. It is not a development database and nothing in normal development touches it — dev still points at staging, as below. The port is 5499 rather than 5432, where another local project's development Postgres listens, and no port an ssh tunnel forwards (`~/.ssh/config` forwards 3307 to staging's database for the `cantrip` host). Before migrating, the harness also checks that the server answering is this container (`assertIsE2EDatabase`). See `docs/testing.md`.
-
-**How it works:**
-- Vite runs on staging at port 5173 (HTTP, internal only)
-- Apache proxies `https://staging.cantrip.me:5174` → `http://127.0.0.1:5173`, handling TLS termination
-- `VITE_SERVER_ORIGIN=https://staging.cantrip.me:5174` in staging `.env` tells Vite what URL to write to `public/hot`
-- `cors: true` in `vite.config.ts` is required — different port means different origin
-- Port 5174 is open in Hetzner firewall and added to `/etc/apache2/ports.conf`
-- Apache vhost config: `/etc/apache2/sites-enabled/cantrip-staging-vite.conf`
-
-**Running Vite on staging:**
-```bash
-ssh cantrip
-screen -r vite        # reattach existing session
-# or if not running:
-screen -S vite
-npm run dev
-# Ctrl+A, D to detach
-```
-
-**Stopping Vite on staging (do this when not actively developing):**
-```bash
-ssh cantrip 'screen -X -S vite quit'   # one-shot kill of the screen + Vite
-```
-Why: port 5174 is publicly reachable through the Apache TLS proxy, and Vite's dev server has had path-traversal CVEs in the past. With `cors: true` set in `vite.config.ts`, anyone on the internet who finds the port can probe it. Killing the screen session when you're done dev'ing closes the attack surface; the next `npm run dev` reopens it. Just `Ctrl+C` inside the screen leaves an empty session attached — use `screen -X -S vite quit` (or `exit` after `Ctrl+C`) to fully reap it.
-
-**PhpStorm deployment:** exclude `public/hot` — the staging server owns that file.
+**The one exception is the end-to-end test database.** `docker-compose.e2e.yml` runs a throwaway Postgres 17 on port **5499** for the Playwright suite, because the deck-building core filters colour identity with regular expressions and SQLite cannot run them. It is not a development database and nothing in normal development touches it — dev still points at staging, as above. The port is 5499 rather than 5432, where another local project's development Postgres listens, and no port an ssh tunnel forwards. Before migrating, the harness also checks that the server answering is this container (`assertIsE2EDatabase`). See `docs/testing.md`.
 
 ===
 

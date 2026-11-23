@@ -2,7 +2,7 @@
  * Standing the real app up for an end-to-end run.
  *
  * Everything in this file exists because the committed `.env` points somewhere
- * else entirely — at the `mbos` development database, at Mailtrap, at
+ * else entirely — at the staging development database, at Mailtrap, at
  * `https://cantrip.me`. A run must override all of that WITHOUT editing the
  * file, and Laravel's dotenv is immutable: a real environment variable always
  * wins over a `.env` line. That is the mechanism `serverEnv` below relies on,
@@ -279,11 +279,10 @@ export const restoreHotFile = (): void => {
  * as every selector timing out.
  *
  * This repo has a second, sharper version of the trap: development happens on
- * the staging box, whose `public/hot` names `https://staging.cantrip.me:5174`.
- * If that file ever lands locally, the assertions run against a page pulling its
- * bundle from a remote host that may not even be serving — and PhpStorm is
- * configured to exclude `public/hot` from deployment precisely because the two
- * sides disagree about who owns it.
+ * the staging server, and a `public/hot` written for a dev server there names a
+ * remote host. If such a file ever lands locally, the assertions run against a
+ * page pulling its bundle from a host that may not even be serving — which is
+ * why PhpStorm excludes `public/hot` from deployment.
  *
  * A LIVE dev server is left alone: it serves assets perfectly well, and stealing
  * the marker out from under a running `npm run dev` would be worse than the

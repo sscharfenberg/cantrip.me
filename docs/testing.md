@@ -39,7 +39,7 @@ composer test:pgsql -- --filter=DeckServiceTest       # filtered (note the `--`)
 
 ## The end-to-end database (`docker-compose.e2e.yml`)
 
-**This container is for the end-to-end suite only. It is not a development database, and local development does not use it** — that still happens against staging, as described in `CLAUDE.md` under "Staging Server as Dev Environment".
+**This container is for the end-to-end suite only. It is not a development database, and local development does not use it** — that still happens against staging, as described in `CLAUDE.md` under "Staging as Dev Environment".
 
 ```bash
 npm run e2e:db:up      # start it and wait until it answers
@@ -52,7 +52,7 @@ npm run e2e:db:down    # stop it and discard everything in it
 
 **Two design points worth knowing before you change them:**
 
-* **It listens on 5499 — not 5432, and on no port an ssh tunnel forwards.** Another local project's development Postgres listens on 5432, so a matching port would let a stray `DB_HOST` reach the test database or let a test run wipe a real one. Tunnels are the sharper trap: `~/.ssh/config` gives the `cantrip` host a `LocalForward 3307 localhost:3306`, so an open ssh session to staging owns that port and **what answers on it is staging's own database** — an earlier version of this suite listened there. A run that found something listening would believe the container was healthy and aim `migrate:fresh` down the tunnel, with only the credentials in the way. `assertIsE2EDatabase()` in `tests/e2e/support/environment.ts` is the second line of defence: it reads the server's `/etc/hostname` (the container's short id; allowed because the image makes `POSTGRES_USER` a superuser, which no real application role is) and aborts unless it matches the compose container. It is also bound to loopback, because an open Postgres on `cantrip_e2e`/`cantrip_e2e` is found by a subnet scan in seconds.
+* **It listens on 5499 — not 5432, and on no port an ssh tunnel forwards.** Another local project's development Postgres listens on 5432, so a matching port would let a stray `DB_HOST` reach the test database or let a test run wipe a real one. Tunnels are the sharper trap: an ssh session that forwards a local port to a server's database makes **that server's own database** answer on it — an earlier version of this suite listened on such a port. A run that found something listening would believe the container was healthy and aim `migrate:fresh` down the tunnel, with only the credentials in the way. `assertIsE2EDatabase()` in `tests/e2e/support/environment.ts` is the second line of defence: it reads the server's `/etc/hostname` (the container's short id; allowed because the image makes `POSTGRES_USER` a superuser, which no real application role is) and aborts unless it matches the compose container. It is also bound to loopback, because an open Postgres on `cantrip_e2e`/`cantrip_e2e` is found by a subnet scan in seconds.
 * **Its storage is `tmpfs`, with no volume.** Every run starts with `migrate:fresh`, so nothing in it is meant to outlive a run, and a persistent volume would let a half-finished run leave state the next one silently inherits. `npm run e2e:db:down` is a guaranteed reset — verified: 27 tables before, 0 after.
 
 **Connecting to it by hand**, for poking at a failure:

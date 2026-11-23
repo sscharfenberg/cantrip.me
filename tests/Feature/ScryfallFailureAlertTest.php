@@ -75,17 +75,17 @@ class ScryfallFailureAlertTest extends TestCase
     #[Test]
     public function the_alert_names_the_site_it_comes_from(): void
     {
-        config(['app.url' => 'https://staging.cantrip.me']);
+        config(['app.url' => 'https://cantrip.local']);
         $notification = new ScryfallUpdateFailedNotification('scryfall:rulings', new RuntimeException('boom'));
         $notifiable = new AnonymousNotifiable;
 
         $mail = $notification->toMail($notifiable);
         $discord = $notification->toDiscord($notifiable)['embeds'][0];
 
-        $this->assertStringStartsWith('[staging.cantrip.me] ', $mail->subject);
-        $this->assertStringContainsString('staging.cantrip.me', $mail->introLines[0]);
-        $this->assertStringContainsString('staging.cantrip.me', $discord['title']);
-        $this->assertContains(['name' => 'Site', 'value' => 'staging.cantrip.me', 'inline' => true], $discord['fields']);
+        $this->assertStringStartsWith('[cantrip.local] ', $mail->subject);
+        $this->assertStringContainsString('cantrip.local', $mail->introLines[0]);
+        $this->assertStringContainsString('cantrip.local', $discord['title']);
+        $this->assertContains(['name' => 'Site', 'value' => 'cantrip.local', 'inline' => true], $discord['fields']);
     }
 
     #[Test]

@@ -1,0 +1,127 @@
+#compdef ct
+#
+# zsh completion for `ct` (cantrip.me on debbie), modelled on MixTape's `_mt`.
+# Lives in $ZSH_CUSTOM/completions. After installing or editing it:
+#     rm -f ~/.zcompdump*  &&  exec zsh
+# (oh-my-zsh only rebuilds its completion cache when fpath changes, and adding a
+# file to a directory already on fpath does not change it.)
+
+_ct() {
+    local curcontext="$curcontext" state line
+    typeset -A opt_args
+
+    # A static list on purpose: asking the server on every <TAB> would mean an
+    # ssh round trip per keypress. Anything not listed still runs when typed.
+    # Every colon inside a command name must be written `\:` (_describe splits
+    # value:description on the first unescaped colon).
+    local -a artisan_commands
+    artisan_commands=(
+        'down:put the site into maintenance mode'
+        'up:bring the site out of maintenance mode'
+        'about:what the app believes about its config'
+        'route\:list:list registered routes'
+        'config\:show:show a resolved config value'
+        'tinker:open a REPL'
+        'schedule\:list:show scheduled tasks'
+
+        'migrate:run pending migrations'
+        'migrate\:status:show which migrations have run'
+        'migrate\:fresh:DESTRUCTIVE — drop all tables and re-migrate'
+        'migrate\:refresh:DESTRUCTIVE — rollback and re-run all migrations'
+        'migrate\:reset:DESTRUCTIVE — rollback all migrations'
+        'migrate\:rollback:DESTRUCTIVE — roll back the last batch'
+        'db\:wipe:DESTRUCTIVE — drop all tables'
+
+        'optimize:cache config, routes, views and events'
+        'optimize\:clear:clear all caches'
+        'config\:cache:cache the config (needed after editing .env on prod)'
+        'config\:clear:clear the config cache'
+        'route\:cache:cache the routes'
+        'view\:cache:precompile blade views'
+        'cache\:clear:flush the application cache'
+
+        'scryfall\:update:full Scryfall sync through shadow tables (~20 min)'
+        'scryfall\:cache:rebuild the welcome stats and B+R caches'
+        'scryfall\:gc-images:find orphaned images (--prune deletes, prod only)'
+        'db\:backup:pg_dump into storage/app/db-backups'
+        'db\:restore:DESTRUCTIVE — restore a backup over the database'
+        'db\:copy-from-mariadb:DESTRUCTIVE — one-off copy from the Hetzner MariaDB'
+        'notifications\:test-failure-alert:send a test Scryfall failure alert'
+    )
+
+    # Offered by hand in the nested state below, where a second _arguments
+    # would not offer them (see _mt for the long story).
+    _ct_target_flags() {
+        if [[ ${words[*]} == *--staging* || ${words[*]} == *--prod* ]]; then
+            return 1
+        fi
+        local expl
+        local -a flags descs
+        flags=(--staging --prod)
+        descs=(
+            '--staging  -- target staging, cantrip.local (default)'
+            '--prod     -- target PRODUCTION, cantrip.me'
+        )
+        _wanted options expl 'target' compadd -d descs -a flags
+    }
+
+    local -a target_flags
+    target_flags=(
+        '(--staging --prod --production)--staging[target staging (default)]'
+        '(--staging --prod --production)'{--prod,--production}'[target PRODUCTION]'
+    )
+
+    _arguments -C \
+        $target_flags \
+        '1: :->command' \
+        '*:: :->args' \
+        && return 0
+
+    case $state in
+        command)
+            local -a subcommands
+            subcommands=(
+                'artisan:run an artisan command on the target site'
+                'tinker:open a tinker REPL'
+                'logs:tail the newest app log'
+                'shell:interactive shell in the site directory'
+                'status:deployed commit, maintenance mode, scheduler'
+                'deploy:run cantrip-prod-deploy (--prod only)'
+                'help:show usage'
+            )
+            _describe -t commands 'ct command' subcommands
+            ;;
+        args)
+            case $words[1] in
+                artisan)
+                    if (( CURRENT == 2 )); then
+                        _describe -t artisan 'artisan command' artisan_commands
+                    else
+                        _ct_target_flags
+                    fi
+                    ;;
+                logs)
+                    _arguments \
+                        $target_flags \
+                        '(--schedule --cron)--scryfall[the scryfall channel log]' \
+                        '(--scryfall --cron)--schedule[db:backup and cleanup log]' \
+                        '(--scryfall --schedule)--cron[output of the scheduled Scryfall runs]' \
+                        '-f[follow the log]' \
+                        '-n[number of lines]:lines:(10 25 50 100 500)'
+                    ;;
+                deploy)
+                    _arguments \
+                        $target_flags \
+                        '(--skip-ci)--check[only ask the CI gate, deploy nothing]' \
+                        '(--check)--skip-ci[deploy without the CI gate]' \
+                        '1::commit SHA (default origin/main):'
+                    ;;
+                *)
+                    _ct_target_flags
+                    ;;
+            esac
+            ;;
+    esac
+}
+
+_ct "$@"

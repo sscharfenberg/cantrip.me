@@ -97,9 +97,7 @@ setBreadcrumbs([{ labelKey: "pages.privacy.link" }]);
     <headline :size="4">{{ $t("pages.privacy.hosting_notes") }}</headline>
     <ul class="list">
         <li>
-            <strong>{{ $t("pages.privacy.hosting_rented_title") }} </strong>{{
-                $t("pages.privacy.hosting_rented_text")
-            }}
+            <strong>{{ $t("pages.privacy.hosting_own_title") }} </strong>{{ $t("pages.privacy.hosting_own_text") }}
             <span
                 ><strong>{{ $t("pages.privacy.legal_basis_label") }}</strong>
                 {{ $t("pages.privacy.legal_basis_interest") }}</span
@@ -114,21 +112,39 @@ setBreadcrumbs([{ labelKey: "pages.privacy.link" }]);
             {{ $t("pages.privacy.hosting_logs_deletion_text") }}
         </li>
         <li>
-            <strong>{{ $t("pages.privacy.hetzner_title") }} </strong>{{ $t("pages.privacy.hetzner_text") }}
-            <strong>{{ $t("pages.privacy.service_provider") }}</strong> Hetzner Online GmbH, Industriestr. 25, 91710
-            Gunzenhausen, Deutschland;<br />
+            <strong>{{ $t("pages.privacy.backblaze_title") }} </strong>{{ $t("pages.privacy.backblaze_text") }}
+            <strong>{{ $t("pages.privacy.service_provider") }}</strong> Backblaze, Inc., 2261 Market Street STE 81006,
+            San Francisco, CA 94114, USA;<br />
             <strong>{{ $t("pages.privacy.legal_basis_label") }}</strong>
             {{ $t("pages.privacy.legal_basis_interest") }}
             <br />
             <strong>{{ $t("pages.privacy.website_label") }}</strong>
-            <labelled-link href="https://www.hetzner.com">https://www.hetzner.com</labelled-link><br />
+            <labelled-link href="https://www.backblaze.com">https://www.backblaze.com</labelled-link><br />
             <strong>{{ $t("pages.privacy.privacy_policy_label") }}</strong>
-            <labelled-link href="https://www.hetzner.com/de/rechtliches/datenschutz"
-                >https://www.hetzner.com/de/rechtliches/datenschutz</labelled-link
+            <labelled-link href="https://www.backblaze.com/company/policy/privacy"
+                >https://www.backblaze.com/company/policy/privacy</labelled-link
             ><br />
             <strong>{{ $t("pages.privacy.dpa_label") }}</strong>
-            <labelled-link href="https://docs.hetzner.com/de/general/general-terms-and-conditions/data-privacy-faq/"
-                >https://docs.hetzner.com/de/general/general-terms-and-conditions/data-privacy-faq/</labelled-link
+            <labelled-link href="https://www.backblaze.com/company/policy/dpa-module-2"
+                >https://www.backblaze.com/company/policy/dpa-module-2</labelled-link
+            >
+        </li>
+        <li>
+            <strong>{{ $t("pages.privacy.cloudflare_title") }} </strong>{{ $t("pages.privacy.cloudflare_text") }}
+            <strong>{{ $t("pages.privacy.service_provider") }}</strong> Cloudflare, Inc., 101 Townsend St, San
+            Francisco, CA 94107, USA;<br />
+            <strong>{{ $t("pages.privacy.legal_basis_label") }}</strong>
+            {{ $t("pages.privacy.legal_basis_interest") }}
+            <br />
+            <strong>{{ $t("pages.privacy.website_label") }}</strong>
+            <labelled-link href="https://www.cloudflare.com">https://www.cloudflare.com</labelled-link><br />
+            <strong>{{ $t("pages.privacy.privacy_policy_label") }}</strong>
+            <labelled-link href="https://www.cloudflare.com/privacypolicy/"
+                >https://www.cloudflare.com/privacypolicy/</labelled-link
+            ><br />
+            <strong>{{ $t("pages.privacy.dpa_label") }}</strong>
+            <labelled-link href="https://www.cloudflare.com/cloudflare-customer-dpa/"
+                >https://www.cloudflare.com/cloudflare-customer-dpa/</labelled-link
             >
         </li>
     </ul>
@@ -199,6 +215,20 @@ setBreadcrumbs([{ labelKey: "pages.privacy.link" }]);
             }}
             <strong>{{ $t("pages.privacy.legal_basis_label") }}</strong>
             {{ $t("pages.privacy.registration_2fa_legal") }}
+        </li>
+        <li>
+            <strong>{{ $t("pages.privacy.mailtrap_title") }} </strong>{{ $t("pages.privacy.mailtrap_text") }}
+            <strong>{{ $t("pages.privacy.service_provider") }}</strong> Railsware Products Studio LLC, 117 E Colorado
+            Blvd, Suite 600, Office 650, Pasadena, CA 91105, USA;<br />
+            <strong>{{ $t("pages.privacy.legal_basis_label") }}</strong>
+            {{ $t("pages.privacy.registration_legal") }}
+            <br />
+            <strong>{{ $t("pages.privacy.website_label") }}</strong>
+            <labelled-link href="https://mailtrap.io">https://mailtrap.io</labelled-link><br />
+            <strong>{{ $t("pages.privacy.privacy_policy_label") }}</strong>
+            <labelled-link href="https://mailtrap.io/privacy/">https://mailtrap.io/privacy/</labelled-link><br />
+            <strong>{{ $t("pages.privacy.dpa_label") }}</strong>
+            <labelled-link href="https://mailtrap.io/dpa/">https://mailtrap.io/dpa/</labelled-link>
         </li>
         <li>
             <strong>{{ $t("pages.privacy.registration_noretention_title") }} </strong>{{
