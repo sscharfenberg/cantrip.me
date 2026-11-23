@@ -45,7 +45,9 @@ class UpdateDeckCommanderPrintingRequest extends FormRequest
             $oracleCard = $this->route('oracleCard');
             $defaultCardId = $this->input('default_card_id');
 
-            if (! $oracleCard instanceof OracleCard || ! is_string($defaultCardId)) {
+            // A value that failed its rules must not reach a query: Postgres
+            // rejects a malformed uuid with an error (a 500), not an empty result.
+            if (! $oracleCard instanceof OracleCard || ! is_string($defaultCardId) || $validator->errors()->has('default_card_id')) {
                 return;
             }
 

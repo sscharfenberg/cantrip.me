@@ -57,6 +57,7 @@ class BulkClaimRequest extends FormRequest
             'buy_new.*' => ['boolean'],
             'container_id' => [
                 'nullable',
+                'uuid',
                 Rule::exists(Container::class, 'id')
                     ->where('user_id', $this->user()?->id),
             ],

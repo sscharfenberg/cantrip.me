@@ -41,12 +41,14 @@ final class DeckCreationRules
             'commander_id' => [
                 $requiresCommander ? 'required' : 'nullable',
                 'string',
+                'uuid',
                 Rule::exists(OracleCard::class, 'id'),
             ],
-            'companion_id' => ['nullable', 'string', Rule::exists(OracleCard::class, 'id')],
+            'companion_id' => ['nullable', 'string', 'uuid', Rule::exists(OracleCard::class, 'id')],
             'signature_spell_id' => [
                 $requiresSignatureSpell ? 'required' : 'nullable',
                 'string',
+                'uuid',
                 Rule::exists(OracleCard::class, 'id'),
             ],
         ];

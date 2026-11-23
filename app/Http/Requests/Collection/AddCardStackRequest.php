@@ -34,10 +34,10 @@ class AddCardStackRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'default_card_id' => ['required', Rule::exists(DefaultCard::class, 'id')],
+            'default_card_id' => ['required', 'uuid', Rule::exists(DefaultCard::class, 'id')],
             'amount' => ['required', 'integer', 'min:1', 'max:'.CardStack::MAX_AMOUNT],
             'language' => ['required', Rule::enum(CardLanguage::class)],
-            'container_id' => ['nullable', Rule::exists(Container::class, 'id')],
+            'container_id' => ['nullable', 'uuid', Rule::exists(Container::class, 'id')],
             'condition' => ['nullable', Rule::enum(CardCondition::class)],
             'finish' => ['required', Rule::in(Finish::labels())],
             'proxy' => ['nullable', 'boolean'],
@@ -50,13 +50,17 @@ class AddCardStackRequest extends FormRequest
      * exposes valid finishes in the radio group, but a malformed POST
      * could still slip through Rule::in() above (which only checks the
      * master label list, not per-card support).
+     *
+     * After-hooks run even when a rule already failed, so a card id that
+     * failed its own rules must not reach the query: Postgres rejects a
+     * malformed uuid with an error (a 500), not an empty result.
      */
     public function withValidator(Validator $validator): void
     {
         $validator->after(function (Validator $validator): void {
             $cardId = $this->input('default_card_id');
             $finish = $this->input('finish');
-            if (! is_string($cardId) || ! is_string($finish)) {
+            if (! is_string($cardId) || ! is_string($finish) || $validator->errors()->has('default_card_id')) {
                 return;
             }
 

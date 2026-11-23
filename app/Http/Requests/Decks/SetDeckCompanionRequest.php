@@ -47,7 +47,9 @@ class SetDeckCompanionRequest extends FormRequest
             $deck = $this->route('deck');
             $oracleCardId = $this->input('oracle_card_id');
 
-            if (! $deck instanceof Deck || ! is_string($oracleCardId)) {
+            // A value that failed its rules must not reach a query: Postgres
+            // rejects a malformed uuid with an error (a 500), not an empty result.
+            if (! $deck instanceof Deck || ! is_string($oracleCardId) || $validator->errors()->has('oracle_card_id')) {
                 return;
             }
 

@@ -46,7 +46,9 @@ class UpdateDeckCardPrintingRequest extends FormRequest
             $deckCard = $this->route('deckCard');
             $defaultCardId = $this->input('default_card_id');
 
-            if (! $deckCard instanceof DeckCard || ! is_string($defaultCardId)) {
+            // A value that failed its rules must not reach a query: Postgres
+            // rejects a malformed uuid with an error (a 500), not an empty result.
+            if (! $deckCard instanceof DeckCard || ! is_string($defaultCardId) || $validator->errors()->has('default_card_id')) {
                 return;
             }
 

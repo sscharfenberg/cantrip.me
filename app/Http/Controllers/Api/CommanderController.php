@@ -4,10 +4,10 @@ namespace App\Http\Controllers\Api;
 
 use App\Enums\CardFormat;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\CommandZoneSearchRequest;
 use App\Services\CardSearchParser;
 use App\Services\CommandZoneService;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 
 class CommanderController extends Controller
 {
@@ -36,7 +36,7 @@ class CommanderController extends Controller
      * or `partner_type`), the `q` parameter may be omitted to list all matching
      * cards — these pools are small enough to display without a search query.
      */
-    public function search(Request $request): JsonResponse
+    public function search(CommandZoneSearchRequest $request): JsonResponse
     {
         $format = CardFormat::tryFrom($request->query('format', ''));
 
@@ -88,7 +88,7 @@ class CommanderController extends Controller
      *  - `rule0=1`        — skip legality filters.
      *  - `exclude=<uuid>` — exclude a specific oracle card.
      */
-    public function searchOathbreaker(Request $request): JsonResponse
+    public function searchOathbreaker(CommandZoneSearchRequest $request): JsonResponse
     {
         $format = CardFormat::tryFrom($request->query('format', ''));
 

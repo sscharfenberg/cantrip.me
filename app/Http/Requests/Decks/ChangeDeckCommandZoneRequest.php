@@ -30,9 +30,9 @@ class ChangeDeckCommandZoneRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'commander_id' => ['required', 'string', Rule::exists(OracleCard::class, 'id')],
-            'companion_id' => ['nullable', 'string', Rule::exists(OracleCard::class, 'id')],
-            'signature_spell_id' => ['nullable', 'string', Rule::exists(OracleCard::class, 'id')],
+            'commander_id' => ['required', 'string', 'uuid', Rule::exists(OracleCard::class, 'id')],
+            'companion_id' => ['nullable', 'string', 'uuid', Rule::exists(OracleCard::class, 'id')],
+            'signature_spell_id' => ['nullable', 'string', 'uuid', Rule::exists(OracleCard::class, 'id')],
             ...$this->moveToRules(),
         ];
     }

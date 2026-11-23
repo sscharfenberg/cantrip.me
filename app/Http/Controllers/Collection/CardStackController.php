@@ -28,7 +28,6 @@ use App\Traits\ReturnsToPage;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -264,12 +263,6 @@ class CardStackController extends Controller
      */
     public function moveSelected(MoveSelectedCardStacksRequest $request): RedirectResponse
     {
-        $request->validate([
-            'card_stack_ids' => ['required', 'array', 'min:1'],
-            'card_stack_ids.*' => ['required', 'uuid'],
-            'container_id' => ['nullable', Rule::exists(Container::class, 'id')],
-        ]);
-
         $targetContainer = CardStackService::resolveOwnedContainer(
             $request->user(),
             $request->container_id,
@@ -312,10 +305,6 @@ class CardStackController extends Controller
      */
     public function massMove(MassMoveCardStacksRequest $request, Container $container): RedirectResponse
     {
-        $request->validate([
-            'container_id' => ['nullable', Rule::exists(Container::class, 'id')],
-        ]);
-
         $targetContainer = CardStackService::resolveOwnedContainer(
             $request->user(),
             $request->container_id,

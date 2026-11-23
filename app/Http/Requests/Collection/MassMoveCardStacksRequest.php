@@ -4,6 +4,7 @@ namespace App\Http\Requests\Collection;
 
 use App\Models\Container;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 /**
  * Authorises the mass-move endpoint (move every card stack from one
@@ -26,6 +27,8 @@ class MassMoveCardStacksRequest extends FormRequest
      */
     public function rules(): array
     {
-        return [];
+        return [
+            'container_id' => ['nullable', 'uuid', Rule::exists(Container::class, 'id')],
+        ];
     }
 }

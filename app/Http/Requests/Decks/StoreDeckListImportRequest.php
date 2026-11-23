@@ -51,14 +51,14 @@ class StoreDeckListImportRequest extends FormRequest
 
         return DeckCreationRules::for($format) + [
             'rows' => ['present', 'array', 'max:'.ParseDeckListRequest::MAX_LINES],
-            'rows.*.oracle_card_id' => ['required', 'string'],
-            'rows.*.default_card_id' => ['required', 'string'],
+            'rows.*.oracle_card_id' => ['required', 'string', 'uuid'],
+            'rows.*.default_card_id' => ['required', 'string', 'uuid'],
             'rows.*.quantity' => ['required', 'integer', 'between:1,999'],
             'rows.*.zone' => ['required', 'string', Rule::in($zones)],
             'rows.*.category' => ['nullable', 'string', 'max:'.DeckCategory::NAME_MAX],
             'rows.*.finish' => ['nullable', 'string', Rule::in(Finish::labels())],
             'command_zone_printings' => ['nullable', 'array', 'max:3'],
-            'command_zone_printings.*' => ['string'],
+            'command_zone_printings.*' => ['string', 'uuid'],
             'command_zone_finishes' => ['nullable', 'array', 'max:3'],
             'command_zone_finishes.*' => ['string', Rule::in(Finish::labels())],
         ];

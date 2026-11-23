@@ -56,7 +56,9 @@ class SplitDeckCardRequest extends FormRequest
             /** @var array<int, array{default_card_id?: string, quantity?: int}> $splits */
             $splits = $this->input('splits', []);
 
-            if (! $deckCard instanceof DeckCard || ! is_array($splits) || count($splits) < 2) {
+            // A value that failed its rules must not reach a query: Postgres
+            // rejects a malformed uuid with an error (a 500), not an empty result.
+            if (! $deckCard instanceof DeckCard || ! is_array($splits) || count($splits) < 2 || $validator->errors()->has('splits.*')) {
                 return;
             }
 

@@ -37,7 +37,7 @@ class UpdateCardStackRequest extends FormRequest
         return [
             'amount' => ['required', 'integer', 'min:1', 'max:'.CardStack::MAX_AMOUNT],
             'language' => ['required', Rule::enum(CardLanguage::class)],
-            'container_id' => ['nullable', Rule::exists(Container::class, 'id')],
+            'container_id' => ['nullable', 'uuid', Rule::exists(Container::class, 'id')],
             'condition' => ['nullable', Rule::enum(CardCondition::class)],
             'finish' => ['required', Rule::in(Finish::labels())],
             'proxy' => ['nullable', 'boolean'],

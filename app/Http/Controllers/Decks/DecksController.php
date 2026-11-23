@@ -1180,15 +1180,21 @@ class DecksController extends Controller
                 'bracket' => $usesGameChangerList
                     ? ['nullable', 'integer', 'between:1,5']
                     : ['prohibited'],
+                // Every id below is checked to be a uuid before a query sees
+                // it: Postgres rejects a malformed uuid with an error (a 500),
+                // not an empty result. `exists` is skipped once `uuid` has
+                // failed; the closures run regardless and check it themselves.
                 'commander_id' => [
                     $requiresCommander ? 'required' : 'nullable',
                     'string',
+                    'uuid',
                     Rule::exists(OracleCard::class, 'id'),
                 ],
-                'companion_id' => ['nullable', 'string', Rule::exists(OracleCard::class, 'id')],
+                'companion_id' => ['nullable', 'string', 'uuid', Rule::exists(OracleCard::class, 'id')],
                 'signature_spell_id' => [
                     $requiresSignatureSpell ? 'required' : 'nullable',
                     'string',
+                    'uuid',
                     Rule::exists(OracleCard::class, 'id'),
                 ],
                 // Hero image: must be a default_card_id attached to this
@@ -1200,7 +1206,7 @@ class DecksController extends Controller
                     'nullable',
                     'string',
                     function (string $attribute, mixed $value, \Closure $fail) use ($deck): void {
-                        if (! is_string($value) || ! $deck->carriesPrinting($value)) {
+                        if (! is_string($value) || ! Str::isUuid($value) || ! $deck->carriesPrinting($value)) {
                             $fail("The selected {$attribute} is invalid.");
                         }
                     },
@@ -1211,6 +1217,7 @@ class DecksController extends Controller
                 'container_id' => [
                     'nullable',
                     'string',
+                    'uuid',
                     Rule::exists('containers', 'id')->where('user_id', $request->user()->id),
                 ],
                 // Where the claimed copies of cards leaving the command
@@ -1220,7 +1227,8 @@ class DecksController extends Controller
                     'string',
                     function (string $attribute, mixed $value, \Closure $fail) use ($request): void {
                         if ($value !== ModifyDeckCardRequest::UNSORTED
-                            && ! Container::query()->whereKey($value)->where('user_id', $request->user()->id)->exists()) {
+                            && (! is_string($value) || ! Str::isUuid($value)
+                                || ! Container::query()->whereKey($value)->where('user_id', $request->user()->id)->exists())) {
                             $fail(__('collection.errors.container_not_found'));
                         }
                     },

@@ -29,6 +29,7 @@ class AddAllToCollectionRequest extends FormRequest
         return [
             'container_id' => [
                 'nullable',
+                'uuid',
                 Rule::exists(Container::class, 'id')
                     ->where('user_id', $this->user()?->id),
             ],

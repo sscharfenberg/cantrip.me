@@ -3,12 +3,15 @@
 namespace App\Http\Requests\Collection;
 
 use App\Models\CardStack;
+use App\Models\Container;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 
 /**
- * Authorises the bulk move endpoint: every requested card-stack ID must
- * belong to the current user.
+ * Validates and authorises the bulk move endpoint: every requested
+ * card-stack ID must belong to the current user.
  *
  * The "ID does not exist" case is intentionally left for the service's
  * 404 check ({@see CardStackService::moveToContainer}) — that's an
@@ -17,13 +20,17 @@ use Illuminate\Foundation\Http\FormRequest;
  *
  * Target container ownership is checked separately via
  * {@see CardStackService::resolveOwnedContainer}.
+ *
+ * Postgres rejects a malformed uuid with an error rather than an empty
+ * result, so no id reaches a query before it is known to be a uuid:
+ * `authorize()` runs before the rules and looks at well-formed ids only (a
+ * malformed one then fails `card_stack_ids.*`), and the after-hook skips
+ * ids that failed.
  */
 class MoveSelectedCardStacksRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        /** @var array<int, string> $ids */
-        $ids = (array) $this->input('card_stack_ids', []);
         $userId = $this->user()?->id;
         if ($userId === null) {
             return false;
@@ -33,7 +40,7 @@ class MoveSelectedCardStacksRequest extends FormRequest
         // belongs to another user, fail. Missing IDs return fewer rows
         // and pass this check — the service then rejects them with 404.
         $rows = CardStack::query()
-            ->whereIn('id', $ids)
+            ->whereIn('id', $this->wellFormedIds())
             ->get(['id', 'user_id']);
 
         return $rows->every(fn (CardStack $s): bool => $s->user_id === $userId);
@@ -44,7 +51,11 @@ class MoveSelectedCardStacksRequest extends FormRequest
      */
     public function rules(): array
     {
-        return [];
+        return [
+            'card_stack_ids' => ['required', 'array', 'min:1'],
+            'card_stack_ids.*' => ['required', 'uuid'],
+            'container_id' => ['nullable', 'uuid', Rule::exists(Container::class, 'id')],
+        ];
     }
 
     /**
@@ -55,14 +66,12 @@ class MoveSelectedCardStacksRequest extends FormRequest
     public function withValidator(Validator $validator): void
     {
         $validator->after(function (Validator $validator): void {
-            /** @var array<int, string> $ids */
-            $ids = (array) $this->input('card_stack_ids', []);
-            if ($ids === []) {
+            if ($validator->errors()->hasAny(['card_stack_ids', 'card_stack_ids.*'])) {
                 return;
             }
 
             $hasClaimed = CardStack::query()
-                ->whereIn('id', $ids)
+                ->whereIn('id', $this->wellFormedIds())
                 ->whereHas('deckCards')
                 ->exists();
 
@@ -73,5 +82,18 @@ class MoveSelectedCardStacksRequest extends FormRequest
                 );
             }
         });
+    }
+
+    /**
+     * The requested ids that are uuids — the only ones a query may see.
+     *
+     * @return list<string>
+     */
+    private function wellFormedIds(): array
+    {
+        return array_values(array_filter(
+            (array) $this->input('card_stack_ids', []),
+            fn (mixed $id): bool => is_string($id) && Str::isUuid($id),
+        ));
     }
 }

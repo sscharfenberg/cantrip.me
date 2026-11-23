@@ -4,6 +4,7 @@ namespace App\Traits;
 
 use App\Models\Container;
 use Closure;
+use Illuminate\Support\Str;
 
 /**
  * For the unclaim requests, collection- and deck-side, and for taking
@@ -52,10 +53,15 @@ trait MovesFreedStacks
         };
     }
 
-    /** The id of the user's container `$id` names, or null when it names none of theirs. */
+    /**
+     * The id of the user's container `$id` names, or null when it names none
+     * of theirs. A value that is no uuid names none and never reaches the
+     * query: Postgres rejects a malformed uuid with an error, not an empty
+     * result.
+     */
     private function ownedContainerId(mixed $id): ?string
     {
-        if (! is_string($id)) {
+        if (! is_string($id) || ! Str::isUuid($id)) {
             return null;
         }
 
