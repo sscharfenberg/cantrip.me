@@ -34,7 +34,7 @@ composer test:pgsql -- --filter=DeckServiceTest       # filtered (note the `--`)
 
 * `DB_CONNECTION=pgsql` and `DB_DATABASE=cantrip_staging` must point at a real Postgres instance. The composer script injects these as inline shell environment variables before `php artisan test` so they beat `phpunit.xml`'s non-forced `<env>` tags — do not override them on the CLI.
 * The database must contain a full Scryfall import. Run `php artisan scryfall:update` first — the Postgres-only tests assert on bedrock cards (Sol Ring, Lightning Bolt, Atraxa, Yoshimaru, etc.) that only exist after the sync.
-* `phpunit.xml` must exist on the target machine (it is not `.dist`-suffixed, so PhpStorm deployment must not exclude it).
+* `phpunit.xml` must exist on the target machine (it is not `.dist`-suffixed, so an upload to staging must not exclude it).
 * If you recently ran `php artisan config:cache`, clear it first with `php artisan config:clear` — the test scripts no longer do this implicitly (it conflicts with forwarding `--filter` through the script chain).
 
 ## The end-to-end database (`docker-compose.e2e.yml`)
@@ -138,7 +138,7 @@ The two commander decks are the reason a card-search assertion can mean somethin
 
 ### Three traps worth knowing before you touch the harness
 
-* **`public/hot` silently blanks every asset.** The file is written by `npm run dev` and is *not* removed when that server stops, and while it exists `@vite` ignores the built manifest entirely. This repo has a sharper version of it than most: development happens on staging, whose `public/hot` names `https://staging.cantrip.me:5174`. `stashStaleHotFile()` parks a *stale* marker for the duration of a run and puts it back afterwards — a live dev server is left alone, since it serves assets perfectly well. Symptom when it goes wrong: every selector times out.
+* **`public/hot` silently blanks every asset.** The file is written by `npm run dev` and is *not* removed when that server stops, and while it exists `@vite` ignores the built manifest entirely. This repo has a sharper version of it than most: development happens on staging, so the `public/hot` a dev session leaves behind names a Vite server on another host. `stashStaleHotFile()` parks a *stale* marker for the duration of a run and puts it back afterwards — a live dev server is left alone, since it serves assets perfectly well. Symptom when it goes wrong: every selector times out.
 * **The icon sprite is not part of the Vite build.** `npm run icons` writes `storage/app/public/sprite.svg` and `app.blade.php` inlines it; `<Icon>` renders `<use href="#name">` against it. Without it nothing errors and the markup still validates — the icons are just invisible, and every icon-only control becomes unclickable. `buildAssets()` runs both steps for this reason, and `guest/smoke.spec.ts` asserts the sprite is on the page.
 * **A cached config beats real environment variables.** The whole run is configured by overriding the environment rather than editing `.env`, so a stale `bootstrap/cache/config.php` would point `migrate:fresh` at the *development* database. `resetDatabase()` runs `config:clear` first, every time.
 
