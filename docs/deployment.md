@@ -27,6 +27,43 @@ The runtime user is `cantrip`, not `www-data`, so the other app on the box canno
 Because the image folders are shared, `scryfall:gc-images --prune` runs on production only: staging's dataset lags,
 and pruning against it would delete images production still points at.
 
+## Server configuration
+
+The server is shared with another app. Global settings — `/etc/php/8.4/fpm/conf.d/`, nginx's `http` block, the
+shared ModSecurity rule set — are that app's; cantrip sets what it needs in its own files, all named `cantrip*`
+(which is also how the nightly [backup](#backups) finds them).
+
+**Postgres.** Postgres listens on `localhost` only. Each environment has one database and one login role that owns
+only that database and connects with a password (`scram-sha-256`). The databases use the ICU root locale, so names
+sort the same whatever the language:
+
+```sql
+CREATE ROLE cantrip_prod LOGIN PASSWORD '…';
+CREATE DATABASE cantrip_prod OWNER cantrip_prod TEMPLATE template0 ENCODING 'UTF8'
+    LOCALE_PROVIDER icu ICU_LOCALE 'und' LOCALE 'en_GB.UTF-8';
+```
+
+The `citext` and `unaccent` extensions come from the `adapt_schema_to_postgres` migration; both are trusted
+extensions, so the owner may create them.
+
+**php-fpm.** Each environment has its own pool (`/etc/php/8.4/fpm/pool.d/cantrip-{prod,staging}.conf`) and socket.
+The other app's global ini turns file uploads off for every pool, so both cantrip pools turn them back on
+(`php_admin_flag[file_uploads] = on`); without that, every CSV upload answers 422 "The file field is required."
+The request body limit is 3 MB in three places that must agree: `client_max_body_size` in nginx,
+`post_max_size`/`upload_max_filesize` in the pool, and `SecRequestBodyLimit` in the WAF exclusions. The app itself
+accepts CSV files up to 2 MB (`config/cantrip.php`).
+
+**nginx.** `/etc/nginx/sites-available/cantrip.{prod,staging}`. Production redirects HTTP and `www.cantrip.me` to
+`https://cantrip.me`, speaks HTTP/2, serves `/build` (cached for a year) and the image folders (30 days) without
+PHP, and limits PHP requests per client IP (`conf.d/cantrip-limits.conf`: 30 per second, bursts of 60, then 429).
+Staging answers on the LAN only, under `cantrip.local` (published over mDNS), with a self-signed certificate.
+
+**DNS and TLS.** The zone is on Cloudflare, records DNS-only (no proxy). `ddclient` on the server keeps the A
+records of `cantrip.me` and `www.cantrip.me` on the home connection's changing IPv4 address; there are no AAAA
+records. The Let's Encrypt certificate is issued through the DNS-01 challenge against Cloudflare, so neither
+issuing nor renewing it (`certbot.timer`, which reloads nginx) depends on port 80. ddclient and certbot each use
+their own Cloudflare token, scoped to this zone.
+
 ## Deploying production
 
 From the workstation, with [`ct`](#the-workstation-tool-ct):
@@ -37,8 +74,10 @@ ct deploy --prod              # deploy origin/main
 ct deploy <sha> --prod        # deploy a specific commit — the rollback
 ```
 
-`ct deploy` only starts `/usr/local/bin/cantrip-prod-deploy` on the server as `cantrip-deploy`
-(`ssh -t debbie sudo -u cantrip-deploy cantrip-prod-deploy …`); every guard is in that script:
+`ct deploy` first refuses, on the workstation, while `HEAD` has commits `origin/main` lacks: the deploy would report
+success with older code. The check fails closed (no clone, no reachable `origin`: no deploy) and is skipped for a
+SHA, which is a deliberate choice. Then it starts `/usr/local/bin/cantrip-prod-deploy` on the server as
+`cantrip-deploy` (`ssh -t debbie sudo -u cantrip-deploy cantrip-prod-deploy …`); every other guard is in that script:
 
 1. **Lock.** A second deploy while one runs is refused.
 2. **Clean tree.** A hand-edited checkout is refused rather than silently reset.
@@ -137,8 +176,23 @@ ct deploy --prod
 Destructive artisan commands (`migrate:fresh`, `db:wipe`, `db:restore`, `db:copy-from-mariadb`, …) ask for the target's
 name to be typed first, on both targets: Laravel's own prompt never fires at the far end of ssh.
 
+`ct deploy --prod` looks for the local clone at `~/workbench/4.Private/cantrip.me`; set `CANTRIP_REPO` when it lives
+elsewhere.
+
 ## WAF
 
 ModSecurity with the OWASP Core Rule Set guards production and staging. cantrip's exclusions — the request fields that
 carry user free text — live on the server, not in this repository. **A new free-text field must be added there**, or
 its users get 403s.
+
+- The exclusions are `/etc/nginx/modsec/cantrip.conf`, loaded only by cantrip's two vhosts (`modsecurity on;` and
+  `modsecurity_rules_file` inside the PHP location); the other app's ModSecurity files stay untouched.
+- A field goes into the rule that lists the free-text fields **in both spellings**: `ARGS:<field>` for query strings
+  and form posts, and `ARGS:json.<field>` for JSON bodies, which is how libmodsecurity names JSON keys. An element of
+  a JSON array is `json.<field>.array_<n>.<key>`; `ctl` targets take no regular expression, so a route whose array
+  rows carry free text is excluded as a whole.
+- A rule in the vhost-loaded file runs **before** the shared rules of the same phase, so it cannot override a variable
+  a shared rule sets later; remove the offending rule for the case instead.
+- Test a change in a throwaway nginx on the server bound to `127.0.0.1` with the same rule set, never first on a
+  live vhost; then `nginx -t` and `systemctl reload nginx`.
+- A 403 on a route whose `authorize()` passes is the WAF: the ModSecurity audit log on the server names the rule.
