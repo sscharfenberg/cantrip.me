@@ -94,16 +94,19 @@ tasks: [docs/artisan-commands.md](artisan-commands.md#scheduled-tasks).
 
 - **00:15** `db:backup` writes a `pg_dump` to `storage/app/db-backups` (7 days), readable by the `cantrip` group only.
 - **01:30** `cantrip-backup.timer` runs restic as root and copies the dumps, `.env` (its `APP_KEY` decrypts the 2FA
-  secrets) and prod's set icons into two repositories: one on the server's USB disk, one in Backblaze B2 (region EU
-  Central). Both are encrypted by restic with one password, which also lives outside the server. Card images are not
-  backed up; Scryfall has them. Retention: 7 daily, 5 weekly, 12 monthly snapshots; on Sundays restic reads back a
-  tenth of the data.
+  secrets), prod's set icons and the server's cantrip configuration (nginx vhosts and WAF exclusions, php-fpm pools,
+  systemd units, sudoers, ddclient, certbot, the scripts in `/usr/local`, the credentials in `/root/cantrip`) into two
+  repositories: one on the server's USB disk, one in Backblaze B2 (region EU Central). The card images, art crops and
+  symbols (`/var/media/cantrip`) go to the USB disk only, as a snapshot of their own (tag `cantrip-media`): Scryfall
+  could serve them again, but not without a quarter of a million requests. Both repositories are encrypted by restic
+  with one password, which also lives outside the server. Retention: 7 daily, 5 weekly, 12 monthly snapshots per tag;
+  on Sundays restic reads back a tenth of the data.
 - The B2 key cannot delete. What restic removes is only hidden, and the bucket deletes hidden versions after 90 days:
   a break-in on the server can hide the off-site copy, not destroy it.
 - A failed run alerts through `cantrip-backup-failed.service` (Discord and a push notification).
 
 **Restore:** as root on the server (or any machine with restic, the B2 key and the password),
-`restic -r <repository> snapshots`, then `restic -r <repository> restore latest --target /tmp/restore`, then
+`restic -r <repository> snapshots`, then `restic -r <repository> restore latest --tag cantrip-prod --target /tmp/restore`, then
 `php artisan db:restore --file=<the restored dump>` — see [docs/artisan-commands.md](artisan-commands.md#php-artisan-dbrestore).
 
 ## Staging
