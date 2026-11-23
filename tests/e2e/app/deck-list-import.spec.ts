@@ -5,8 +5,8 @@ import { expect, test } from "@playwright/test";
  *
  * Vitest pins the review logic against a mocked parse response and PHPUnit pins
  * the resolver against SQLite. What only the real app can answer is the whole
- * path at once: a paste going through the real parser and resolver on MariaDB
- * (the name ranking the search shares is MariaDB-only SQL), the deck-less
+ * path at once: a paste going through the real parser and resolver on Postgres
+ * (the name ranking the search shares is Postgres-only SQL), the deck-less
  * replacement search, the existing commander picker working before any deck
  * exists, and the confirm creating a deck the deck page then shows.
  *

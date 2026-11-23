@@ -31,19 +31,6 @@ class DeckCardCopyAttributesMigrationTest extends TestCase
 {
     use RefreshDatabase;
 
-    /**
-     * Hard-skip on real MariaDB connections. See
-     * {@see DeckCardCardStackPivotTest::setUp} for the rationale.
-     */
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        if (DB::connection()->getDriverName() === 'mysql') {
-            $this->markTestSkipped('Skipped on MariaDB — RefreshDatabase would wipe live data. Run via the default `composer test` (SQLite).');
-        }
-    }
-
     #[Test]
     public function a_card_on_a_printing_without_nonfoil_gets_its_first_finish(): void
     {

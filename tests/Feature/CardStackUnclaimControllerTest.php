@@ -13,7 +13,6 @@ use App\Models\OracleCard;
 use App\Models\Set;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -32,20 +31,6 @@ use Tests\TestCase;
 class CardStackUnclaimControllerTest extends TestCase
 {
     use RefreshDatabase;
-
-    /**
-     * Hard-skip on real MariaDB connections. RefreshDatabase would
-     * `migrate:fresh` on staging and wipe live data — see
-     * {@see DeckCardCardStackPivotTest::setUp} for the rationale.
-     */
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        if (DB::connection()->getDriverName() === 'mysql') {
-            $this->markTestSkipped('Skipped on MariaDB — RefreshDatabase would wipe live data. Run via the default `composer test` (SQLite).');
-        }
-    }
 
     private function makeOracleCard(string $name = 'Test Card'): OracleCard
     {

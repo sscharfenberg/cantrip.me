@@ -32,25 +32,12 @@ use Tests\TestCase;
  * counts as free, and {@see DeckCardSearchService::preferredPrintingId}
  * decides which free printing wins. The search path that joins them
  * (`searchOracleCardsForDeck`) orders by `CHAR_LENGTH` and so is
- * MariaDB-only, while its write-heavy fixtures rule out the Staging
+ * Postgres-only, while its write-heavy fixtures rule out the Staging
  * suite — see the testsuite split in `CLAUDE.md`.
  */
 class QuickAddPrintingPreferenceTest extends TestCase
 {
     use RefreshDatabase;
-
-    /**
-     * Hard-skip on real MariaDB connections. See
-     * {@see DeckCardCardStackPivotTest::setUp} for the rationale.
-     */
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        if (DB::connection()->getDriverName() === 'mysql') {
-            $this->markTestSkipped('Skipped on MariaDB — RefreshDatabase would wipe live data. Run via the default `composer test` (SQLite).');
-        }
-    }
 
     private function makeSet(string $releasedAt): Set
     {

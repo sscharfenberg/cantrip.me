@@ -63,9 +63,7 @@ class RulingsService extends ScryfallService
         if ($this->shadow) {
             return;
         }
-        DB::statement('SET FOREIGN_KEY_CHECKS=0;');
         Ruling::truncate();
-        DB::statement('SET FOREIGN_KEY_CHECKS=1;');
         Log::channel('scryfall')->notice('truncated rulings table.');
     }
 

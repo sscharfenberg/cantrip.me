@@ -17,11 +17,7 @@ use Tests\TestCase;
  * therefore not only that a value is produced, but that every layout produces
  * one shape a `LIKE '%Instant%'` can match, which is what these pin down.
  *
- * No database: the method is a pure mapping from bulk JSON to one string. The
- * surrounding import cannot be exercised on SQLite at all, because
- * `preRunCleanup()` issues `SET FOREIGN_KEY_CHECKS` and only MariaDB
- * understands it — a pre-existing gap shared by four other Scryfall services,
- * not something this column introduced.
+ * No database: the method is a pure mapping from bulk JSON to one string.
  */
 class OracleCardsServiceTest extends TestCase
 {

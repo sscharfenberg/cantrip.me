@@ -10,8 +10,8 @@ use PHPUnit\Framework\TestCase;
  * Unit coverage for the pure mana-cost parser inside DeckCardService.
  *
  * The DB-touching `recalculateColors` entry point is exercised end-to-end
- * via the DeckCardController feature tests (which run on staging with
- * MariaDB); here we only pin the token-parsing logic that matters.
+ * via the DeckCardController feature tests; here we only pin the
+ * token-parsing logic that matters.
  */
 class DeckCardServiceTest extends TestCase
 {

@@ -6,15 +6,14 @@ Project-specific commands for Scryfall data sync and image management. Standard 
 
 ### `php artisan scryfall:update`
 
-Orchestrates the full Scryfall sync via the **shadow-table swap flow**: builds every truncate-rebuild table in `*__shadow` siblings, validates FK integrity and row counts, captures+drops FKs around an atomic multi-table RENAME, then re-adds FKs to the new live tables. The site stays fully usable throughout — DB churn is invisible to users, the swap itself is sub-second, and a mid-flight failure leaves the live tables byte-for-byte untouched. **No maintenance mode** (`down`/`up`).
+Orchestrates the full Scryfall sync via the **shadow-table swap flow**: builds every truncate-rebuild table in `*__shadow` siblings, validates FK integrity and row counts, then swaps the shadows in within one transaction that drops the FKs into them, renames the tables and re-adds the FKs. The site stays fully usable throughout — DB churn is invisible to users, the swap itself is sub-second, and a mid-flight failure leaves the live tables byte-for-byte untouched. **No maintenance mode** (`down`/`up`).
 
 Warning: streams ~475 MB of gzipped bulk data from Scryfall per run (~23 MB `oracle_cards` + ~73 MB `default_cards` + ~5 MB `rulings` + ~372 MB `all_cards`). Every run re-fetches from Scryfall — no on-disk caching of bulk data in any environment. Scryfall serves the bulks as gzipped JSON Lines (`.jsonl.gz`); `ScryfallService::streamJsonl()` inflates and decodes them one line at a time, so peak memory stays in the tens of MB regardless of bulk size. A download that ends early (a dropped connection on Scryfall's CDN) is resumed from the byte it reached, and a connection that fails to open or answers 429/5xx is tried again — five attempts in a row without data, then the step fails; the end-of-run summary counts the extra connections under "Bulk downloads".
 
 Execution order:
 
 ```
-restoreForeignKeys      → re-add FKs a crashed prior run dropped around its swap and never put back
-cleanup                 → (drop any leftover __shadow / __retired from a crashed prior run)
+cleanup                 → (drop any leftover __shadow / __retired from a failed prior run)
 createLike              → create all 12 shadow tables (empty)
 scryfall:bulk           → bulk_data__shadow (writes download URIs)
 scryfall:sets           → sets__shadow (HTTP fetch + set icon SVGs)
@@ -28,13 +27,16 @@ scryfall:images         → downloads art crops + card images to disk (no DB wri
 scryfall:resolve-paths  → UPDATEs default_cards__shadow.image columns to local paths
 validate orphans        → LEFT JOINs every FK relation against the shadow build
 validate row counts     → no shadow table empty while live has rows, none lost >10% of ≥1 000 rows
-captureForeignKeys      → snapshot every FK referencing the 12 swap tables, and write it to storage/app/private
-dropForeignKeys         → drop them so the RENAME doesn't auto-rotate references
+captureForeignKeys      → snapshot every FK referencing the 12 swap tables (pg_constraint)
+analyzeShadows          → planner statistics for the shadow tables
+── one transaction ──────────────────────────────────────────────────────────────────────────────
+dropForeignKeys         → drop them, since an FK follows its parent table through a rename
 validateSchema          → no live swap table changed columns or indexes since its shadow was created (a deploy migrating it
                           mid-run would be undone by the swap) — rerun the sync if this aborts
-swap                    → atomic multi-table RENAME (12 lives → __retired, 12 shadows → live)
-addForeignKeys          → re-add the captured FKs to the new live tables — runs even when the drop or swap failed
-dropRetired             → drop the 12 __retired tables
+swap                    → 12 lives → __retired, 12 shadows → live, drop the __retired tables, give the new tables the
+                          live index names back
+addForeignKeys          → re-add the captured FKs, validating every row against the new tables
+── commit; any failure above rolls all of it back ───────────────────────────────────────────────
 pruneSuperseded         → delete the image versions and set icons the swap superseded and .part leftovers on the SVG disks; scan
                           for orphans and warn with the --prune command if any (orphans are never deleted from this flow);
                           a failure here alerts but does not fail the run — the new data is already live
@@ -44,9 +46,9 @@ end-of-run summary      → row counts per table, oracle-tag classifications, FK
 
 **Pre-swap checks.** The swap only happens when both checks pass; otherwise the run fails with an alert and live stays as it was. The orphan check covers every FK, including user data pointing at Scryfall cards. The row-count check catches a step that wrote nothing or far too little: a shadow table may not be empty while its live table has rows, and a table with at least 1 000 live rows may not lose more than 10% of them. When a change to what is imported shrinks a table on purpose, run `php artisan scryfall:update --allow-shrink` once; it logs the shrink and swaps anyway.
 
-**FK constraints around the swap.** The captured list is written to `storage/app/private/scryfall-pending-foreign-keys.json` before the first drop and deleted once every constraint is back. The re-add runs whether or not the drop and swap succeeded; it skips constraints that still exist and re-points one that exists but references another table. If the run dies in between anyway (a failed re-add, an out-of-memory kill), the next run's `restoreForeignKeys` step re-adds the constraints from that file before it does anything else; the summary counts them under "FK preservation". A constraint that can no longer be re-added (a migration dropped its column since) or an unreadable file is alerted about, the file is cleared and the run carries on.
+**FK constraints around the swap.** Postgres DDL is transactional, so the drop, the renames and the re-add commit together or not at all: a failure anywhere — a schema change, a re-added constraint the new data violates, a killed process — leaves live and its constraints exactly as they were. Every statement in the swap waits at most 10 s for a lock (`lock_timeout`), so a long-running query cannot hold the site behind the swap's locks; the run fails with an alert instead and can be rerun. The failure alert is sent after the rollback, under the name of the step that failed.
 
-**Failure alerts.** Every step that fails sends `ScryfallUpdateFailedNotification` by mail and to Discord, each on its own, so a mail server that is down cannot swallow the Discord message. A scheduled run that exits non-zero without having alerted (a fatal error, a killed process) is alerted by the schedule's `onFailure` hook instead, and a 04:00 run that falls into maintenance mode (a deploy, a manual `php artisan down`) is skipped with an alert naming the command to run by hand once the site is up — Laravel would otherwise drop it without a trace. A step that cannot complete — a bulk type missing from Scryfall's catalog, for example — fails rather than logging and carrying on. Two problems the run survives alert too, without failing it: an oracle-tag column kept from the previous run, and FK constraints a crashed run left dropped that could not be restored.
+**Failure alerts.** Every step that fails sends `ScryfallUpdateFailedNotification` by mail and to Discord, each on its own, so a mail server that is down cannot swallow the Discord message. A scheduled run that exits non-zero without having alerted (a fatal error, a killed process) is alerted by the schedule's `onFailure` hook instead, and a 04:00 run that falls into maintenance mode (a deploy, a manual `php artisan down`) is skipped with an alert naming the command to run by hand once the site is up — Laravel would otherwise drop it without a trace. A step that cannot complete — a bulk type missing from Scryfall's catalog, for example — fails rather than logging and carrying on. One problem the run survives alerts too, without failing it: an oracle-tag column kept from the previous run.
 
 The summary block is emitted at the very end of the run as a single formatted block (dividers + grouped sections) so the totals are visible at a glance without scrolling back through 232k+ image-resolution log lines. It's written **both** to the console and to the `scryfall` daily logfile as one multi-line entry; the scheduled run appends its console output to `storage/logs/cron-scryfall.log` as well. The **Images** sections break down card faces and art crops separately into processed / downloaded / skipped / failed (sourced from `ScryfallRunStats`, populated by `ImageDownloadService`).
 
@@ -61,15 +63,15 @@ Schedule::command('scryfall:update')
     ->onFailure(/* logs an error to the scryfall channel */);
 ```
 
-Daily is the useful maximum: Scryfall regenerates its bulk files (and card prices) roughly every 24 h, so a faster cadence has nothing new to fetch. Bandwidth is a non-issue — ~3 GB/day ingress ≈ 90 GB/month against the 20 TB cap, and image downloads are incremental (only genuinely new printings are fetched; anything already cached is skipped). A full run usually takes 15–50 minutes, with zero user-facing downtime thanks to the shadow swap.
+Daily is the useful maximum: Scryfall regenerates its bulk files (and card prices) roughly every 24 h, so a faster cadence has nothing new to fetch. Bandwidth is a non-issue — ~3 GB/day ingress ≈ 90 GB/month, and image downloads are incremental (only genuinely new printings are fetched; anything already cached is skipped). A full run usually takes 15–50 minutes, with zero user-facing downtime thanks to the shadow swap.
 
 `withoutOverlapping(60)` is the overlap guard. The run *starts* by dropping any leftover `*__shadow` / `*__retired` tables (crash recovery), so a second run starting while one is still building would drop its shadow tables out from under it. The guard is a cache lock the app owns; its 60-minute TTL lets a hard-killed run, which never releases the lock, block nothing beyond that hour. A manual run does not take the lock, so don't start one shortly before 04:00. Console output is appended to `storage/logs/cron-scryfall.log`, so a failure before the command can log anything still leaves a trace.
 
-Manual runs on production use the scheduler's user, started from the app directory: `cd /var/www/mbop && sudo -u deploy php artisan scryfall:update`. Started from your home directory instead, `scryfall:cache` prints `find: Failed to restore initial working directory: … Permission denied` — `deploy` cannot read that directory; the counts come out right anyway. Staging does not run this job on a schedule — it shares most Scryfall assets with prod — and is synced by a manual run when needed.
+Manual runs on production use the scheduler's user, `cantrip`: `ct artisan scryfall:update --prod` from the workstation (it runs `sudo -u cantrip php …/artisan` on the server; keep the session open for the ~20 minutes). Staging does not run this job on a schedule — it shares most Scryfall assets with prod — and is synced by a manual run when needed: `ct artisan scryfall:update`.
 
 ### `php artisan scryfall:sets`
 
-Fetches all sets from `/sets` and inserts into `sets`. Downloads set icon SVGs to the `set` storage disk if not already cached. A set's icon file carries Scryfall's timestamp (`{code}--{timestamp}.svg`); a new one is downloaded next to the old one, which `scryfall:update` deletes after its swap. An icon that cannot be downloaded (timeout, error status) is logged and counted ("SVG downloads failed" in the run summary) and the set keeps its older icon; the step carries on. Supports `--target=live|shadow` (default `live`).
+Fetches all sets from `/sets` and inserts into `sets`. Downloads set icon SVGs to the `set` storage disk if not already cached. A set's icon file carries Scryfall's timestamp (`{code}--{timestamp}.svg`); a new one is downloaded next to the old one, which `scryfall:update` deletes after its swap. An icon that cannot be downloaded (timeout, error status) is logged and counted ("SVG downloads failed" in the run summary) and the set keeps its older icon; the step carries on. Shadow target only: `--target=live` (the default) is refused before Scryfall is contacted, because Postgres will not truncate a table user data references — run it through `scryfall:update`.
 
 ### `php artisan scryfall:symbols`
 
@@ -81,7 +83,7 @@ Fetches bulk-data metadata from Scryfall (download URLs, expected filesizes) and
 
 ### `php artisan scryfall:oracle`
 
-Streams the gzipped `oracle_cards` bulk (~23 MB) directly from Scryfall — no on-disk file. Truncates `oracle_cards` / `oracle_card_faces` / `legalities` (or skips truncate in shadow mode — orchestrator pre-created the empty shadows), and stream-parses every card. Card-level fields including `produced_mana` live on `oracle_cards`; per-face data on `oracle_card_faces`. Image columns are stored as Scryfall URLs; local path resolution happens later via `scryfall:resolve-paths`. Supports `--target=live|shadow`.
+Streams the gzipped `oracle_cards` bulk (~23 MB) directly from Scryfall — no on-disk file. Writes `oracle_cards__shadow` / `oracle_card_faces__shadow` / `legalities__shadow`, which the orchestrator created empty, and stream-parses every card. Card-level fields including `produced_mana` live on `oracle_cards`; per-face data on `oracle_card_faces`. Image columns are stored as Scryfall URLs; local path resolution happens later via `scryfall:resolve-paths`. Shadow target only: `--target=live` (the default) is refused before Scryfall is contacted, because Postgres will not truncate a table user data references — run it through `scryfall:update`.
 
 ### `php artisan scryfall:oracle-tags`
 
@@ -115,13 +117,13 @@ Supports `--target=live|shadow`. The orchestrator invokes this with `--target=sh
 
 ### `php artisan scryfall:default_cards`
 
-Streams the gzipped `default_cards` bulk (~73 MB) directly from Scryfall — no on-disk file. Truncates `default_cards` / `default_card_relations` / `artists` (or skips in shadow mode), and stream-parses every card. Image columns are stored as Scryfall URLs; resolution happens later via `scryfall:resolve-paths`.
+Streams the gzipped `default_cards` bulk (~73 MB) directly from Scryfall — no on-disk file. Writes `default_cards__shadow` / `default_card_relations__shadow` / `artists__shadow`, which the orchestrator created empty, and stream-parses every card. Image columns are stored as Scryfall URLs; resolution happens later via `scryfall:resolve-paths`.
 
-`all_parts` (Scryfall's printing-level edges to related cards — tokens, meld parts, meld results, combo pieces) is captured during the same file walk into `default_card_relations`. Edges are buffered in memory and bulk-inserted (in 5 000-row chunks to stay under MySQL's 65 535-placeholder per-statement cap) once at end-of-walk.
+`all_parts` (Scryfall's printing-level edges to related cards — tokens, meld parts, meld results, combo pieces) is captured during the same file walk into `default_card_relations`. Edges are buffered in memory and bulk-inserted (in 5 000-row chunks to stay under the 65 535-placeholder per-statement cap) once at end-of-walk.
 
 **Orphan re-targeting.** Scryfall emits ~1 979 edges per bulk where `all_parts.id` references a printing not in `default_cards` (foreign-language UUID, excluded layout, printing variant Scryfall didn't pick for the bulk, etc.). `flushRelationsBuffer` rewrites these orphan edges to point at a valid printing of the same card: one whose name and type line match the `all_parts` entry, or — where several cards share them, as tokens do — one printed in the source card's set or its token set. An edge with no single right target is dropped (3 of ~2 100 orphans on the 2026-11-12 bulk) rather than pointed at a token with the wrong power or colour. A re-targeted edge points at the card's printing in the source card's set or token set when there is one, so the deck view shows the matching token art. Surfaced in console output as `re-targeted N orphan default_card_relations edges to default printings of the same oracle.`
 
-Supports `--target=live|shadow`.
+Shadow target only: `--target=live` (the default) is refused before Scryfall is contacted, because Postgres will not truncate a table user data references — run it through `scryfall:update`.
 
 ### `php artisan scryfall:rulings`
 
@@ -183,71 +185,64 @@ Used to verify mail+Discord wiring without breaking a real `scryfall:update` run
 
 ## Database backups
 
-Self-managed MySQL/MariaDB backup pair. Independent of the host-level Hetzner backups — these are restorable in-place via `db:restore` so the round-trip is actually testable.
+Self-managed Postgres backup pair, restorable in place via `db:restore` so the round-trip is actually testable.
 
 Both commands work in every environment, but the daily schedule only fires in `production` so staging doesn't accumulate dumps from a DB it mostly mirrors anyway. Test on staging by running `php artisan db:backup` / `db:restore` manually.
 
 Backups land in `config('cantrip.db_backup.path')` (default `storage/app/db-backups`). Retention is `config('cantrip.db_backup.retention_days')` (default 7), overridable per-env via the `DB_BACKUP_RETENTION_DAYS` env var.
 
+On production a nightly restic run copies these dumps to the server's USB disk and to Backblaze B2 — see [docs/deployment.md](deployment.md#backups).
+
+Credentials reach the client tools through a 0600 temp password file named in `PGPASSFILE` (`App\Services\PostgresCredentials`), so the DB password never appears in `ps` or `/proc/<pid>/cmdline`; the file is deleted when the tool exits.
+
 ### `php artisan db:backup`
 
-Dumps the configured MySQL/MariaDB database via `mysqldump --single-transaction --quick --skip-lock-tables --default-character-set=utf8mb4`, then rotates older dumps to `.tar.gz` and prunes anything beyond the retention window.
+Dumps the configured Postgres database via `pg_dump --format=custom` — compressed, and restorable table by table — then prunes anything beyond the retention window.
 
 Directory layout after a few days:
 
 ```
-db-backup-2026-05-17.sql      ← today's dump (uncompressed, mode 0640)
-db-backup-2026-05-16.tar.gz   ← yesterday, compressed
-db-backup-2026-05-15.tar.gz
+db-backup-2026-05-17.dump   ← today's dump (mode 0640)
+db-backup-2026-05-16.dump
 …
-db-backup-2026-05-11.tar.gz   ← oldest still inside the 7-day window
+db-backup-2026-05-11.dump   ← oldest still inside the 7-day window
 ```
 
 Anything dated more than `retention_days` before today is unlinked on every run.
-
-Credentials reach `mysqldump` via a 0600 temp file with `--defaults-extra-file`, so the DB password never appears in `ps` or `/proc/<pid>/cmdline`.
 
 Options:
 
 * `--retention-days=<n>` — override the retention window for this run (does not change the persisted config).
 
-Scheduled daily at 00:15 in production via `routes/console.php`. Logs to the `schedule` channel (`storage/logs/schedule.log`, 14-day rotation): info on start/finish + bytes written, debug on individual compressions, error + non-zero exit on failure.
+Scheduled daily at 00:15 in production via `routes/console.php`. Logs to the `schedule` channel (`storage/logs/schedule.log`, 14-day rotation): info on start/finish + bytes written, error + non-zero exit on failure.
 
 ### `php artisan db:restore`
 
-Restore from a `db:backup` dump. **Strictly manual** — no schedule, no automation. Listed via Laravel Prompts with newest-first ordering; pick one, confirm at the destructive-operation prompt, and the dump is piped straight into `mysql`.
+Restore from a `db:backup` dump. **Strictly manual** — no schedule, no automation. Listed via Laravel Prompts with newest-first ordering; pick one, confirm at the destructive-operation prompt, and `pg_restore` replaces every table in the dump.
 
-Picker labels show filename + age + type + size:
+Picker labels show filename + age + size:
 
 ```
-db-backup-2026-05-17.sql (today) — sql — 148.14MB
-db-backup-2026-05-16.tar.gz (1 day ago) — tar.gz — 12.34MB
-db-backup-2026-05-10.tar.gz (7 days ago) — tar.gz — 12.30MB
+db-backup-2026-05-17.dump (today) — 12.41MB
+db-backup-2026-05-16.dump (1 day ago) — 12.34MB
 ```
 
-`.tar.gz` archives are extracted to a fresh `/tmp/cantrip-restore-<hex>` directory, imported, and cleaned up in a `finally` block (whether the import succeeded or not — no orphaned multi-hundred-megabyte dumps in `/tmp` after a failure).
-
-The SQL stream is piped to mysql's stdin via Symfony Process input — never buffered in PHP — so the memory footprint stays constant regardless of dump size.
+`pg_restore --clean --if-exists --single-transaction --exit-on-error --no-owner --no-acl`: each object in the dump is dropped and recreated, the whole restore is one transaction (an error rolls it back and the database stays as it was), and ownership goes to the role running it, so a production dump restores into the staging database too.
 
 Options:
 
 * `--file=<path>` — restore a specific file directly, skipping the picker. Useful for scripting or restoring from a path outside the backup directory.
 * `--force` — skip the destructive-operation confirmation prompt. Picker still applies unless `--file` is also passed.
 
-Logs to the `schedule` channel: info on start/done, debug on archive extraction + cleanup, error + non-zero exit on failure.
+Logs to the `schedule` channel: info on start/done, error + non-zero exit on failure.
 
-**Verifying a backup is actually restorable** — pick today's dump, hit "yes" at the prompt, and check the app still works. The mysqldump `DROP TABLE IF EXISTS` defaults make the restore idempotent for tables that exist in both the dump and the current DB; tables only in the current DB but not the dump are left untouched (rare in practice).
+**Verifying a backup is actually restorable** — pick today's dump, hit "yes" at the prompt, and check the app still works. Tables only in the current DB but not the dump are left untouched (rare in practice).
 
 ## Scheduled tasks
 
-Laravel's task scheduler handles recurring jobs. On the server, `/etc/cron.d/cantrip` runs it every minute as the `deploy` user, one line per environment:
+Laravel's task scheduler handles recurring jobs. On the server, `cantrip-prod-schedule.timer` runs `schedule:run` every minute as `cantrip`, for production only — staging runs no scheduler, so the tasks marked "all" below run on production alone (see [docs/deployment.md](deployment.md#scheduler)).
 
-```cron
-* * * * * deploy /usr/bin/php /var/www/mbop/artisan schedule:run >> /dev/null 2>&1
-* * * * * deploy /usr/bin/php /var/www/mbos/artisan schedule:run >> /dev/null 2>&1
-```
-
-Runs `schedule:run` every minute; Laravel determines internally which scheduled tasks are due. Scheduled tasks are defined in `routes/console.php`; times are in the app timezone (Europe/Berlin):
+Laravel determines internally which scheduled tasks are due. Scheduled tasks are defined in `routes/console.php`; times are in the app timezone (Europe/Berlin):
 
 | Schedule | When | Environments |
 |---|---|---|

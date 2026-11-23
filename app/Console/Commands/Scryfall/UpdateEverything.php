@@ -290,21 +290,18 @@ class UpdateEverything extends Command
      *      removing a card any user references aborts here.
      *   7. Validate row counts: no shadow table may come out empty or
      *      implausibly small (`--allow-shrink` overrides).
-     *   8. Swap ({@see ShadowSwapper}): capture and drop every FK into the
-     *      swap tables, check that no live table changed shape since its
-     *      shadow was created, atomic multi-table RENAME (old → __retired,
-     *      shadows → live), re-add the FKs, drop the __retired tables.
+     *   8. Swap ({@see ShadowSwapper}), in one transaction: drop every FK
+     *      into the swap tables, check that no live table changed shape
+     *      since its shadow was created, rename (old → __retired, shadows →
+     *      live), drop the __retired tables, re-add the FKs.
      *   9. Delete the image versions and set icons the swap superseded —
      *      kept until now because the old live rows pointed at them — and
      *      scan for orphaned image files (reported, never deleted here).
      *  10. Refresh welcome-page Scryfall stats cache from the new live data.
      *
-     * Before any of it, FK constraints a crashed earlier run dropped and
-     * never put back are re-added.
-     *
      * No maintenance mode. The DB churn is invisible to users — they
-     * read the previous-good live tables right up until the millisecond
-     * the RENAME swaps them, and immediately after read the new dataset.
+     * read the previous-good live tables right up until the swap commits,
+     * and immediately after read the new dataset.
      *
      * @throws Throwable
      */
@@ -320,21 +317,7 @@ class UpdateEverything extends Command
         Log::channel('scryfall')->info("artisan command 'scryfall:update' started.");
         Log::channel('scryfall')->info('=======================================================');
 
-        // 1. Repair what a crashed prior run left behind: FK constraints
-        //    it dropped around its swap and never re-added, then its
-        //    leftover tables.
-        $restoredFks = ['restored' => 0, 'failed' => []];
-        $this->runOrchestratorStep('restoreForeignKeys', function () use (&$restoredFks): void {
-            $restoredFks = $this->shadow->restorePendingForeignKeys();
-        });
-        if ($restoredFks['restored'] > 0) {
-            $this->warn("shadow cleanup: re-added {$restoredFks['restored']} FK constraints an earlier run dropped and never restored.");
-        }
-        if ($restoredFks['failed'] !== []) {
-            $message = 'an earlier run dropped FK constraints that could not be re-added — add them back by hand: '.implode('; ', $restoredFks['failed']);
-            $this->error("shadow cleanup: $message");
-            $this->alert->warn('orchestrator:restoreForeignKeys', $message);
-        }
+        // 1. Drop the tables a failed prior run left behind.
         $this->runOrchestratorStep('cleanup', fn () => $this->shadow->cleanup());
         $this->info('shadow cleanup: dropped any leftover __shadow / __retired tables.');
 
@@ -401,19 +384,19 @@ class UpdateEverything extends Command
         $this->runOrchestratorStep('validateRowCounts', fn () => $this->validateRowCountsOrAbort());
         $this->info('shadow validation: passed (no table emptied or implausibly shrunk).');
 
-        // 8. Swap the shadow build live. Every FK that references a swap
-        //    table (internal scryfall FKs AND user-data FKs from
-        //    deck_cards / card_stacks / etc.) is dropped first, because
-        //    MariaDB auto-rotates FK references when the parent table is
-        //    renamed, and re-added after — see ShadowSwapper for how none
-        //    of them can get lost in between. Right before the RENAME, no
-        //    live table may have changed shape since its shadow was created
-        //    LIKE it: a deploy migrating it mid-run would be undone.
+        // 8. Swap the shadow build live, in one transaction. Every FK that
+        //    references a swap table (internal scryfall FKs AND user-data
+        //    FKs from deck_cards / card_stacks / etc.) is dropped first,
+        //    because a Postgres FK follows its parent table through a
+        //    rename, and re-added after — see ShadowSwapper. Right before
+        //    the renames, no live table may have changed shape since its
+        //    shadow was created LIKE it: a deploy migrating it mid-run
+        //    would be undone.
         $capturedFks = $this->swapper->swapIntoLive(
             fn (string $name, callable $work) => $this->runOrchestratorStep($name, $work),
             fn () => $this->validateSchemaOrAbort(),
         );
-        $this->info('shadow swap: atomic RENAME completed (live = previous shadow); '
+        $this->info('shadow swap: committed (live = previous shadow); '
             .count(ShadowTableRegistry::TABLES).' __retired tables dropped, '
             ."$capturedFks FK constraints dropped around it and re-added.");
 
@@ -462,7 +445,7 @@ class UpdateEverything extends Command
         Log::channel('scryfall')->info('=======================================================');
         $this->info("artisan command 'scryfall:update' finished in ".$this->formatService->formatMs($ms).", including $waitTime seconds idle time.");
 
-        $this->buildAndEmitSummary($ms, $waitTime, $capturedFks, $restoredFks['restored'], $imageOrphans);
+        $this->buildAndEmitSummary($ms, $waitTime, $capturedFks, $imageOrphans);
     }
 
     /**
@@ -471,7 +454,7 @@ class UpdateEverything extends Command
      *
      * @param  array{art-crops: array{files: list<string>, orphans: int, bytes: int, superseded: list<string>, scanned: int}, card-images: array{files: list<string>, orphans: int, bytes: int, superseded: list<string>, scanned: int}, total: array{orphans: int, bytes: int, superseded: int, scanned: int}}  $imageOrphans
      */
-    private function buildAndEmitSummary(int $totalMs, int $waitTime, int $capturedFkCount, int $restoredFkCount, array $imageOrphans): void
+    private function buildAndEmitSummary(int $totalMs, int $waitTime, int $capturedFkCount, array $imageOrphans): void
     {
         // Row counts across the swap tables (now live post-swap).
         foreach (ShadowTableRegistry::TABLES as $table) {
@@ -523,7 +506,6 @@ class UpdateEverything extends Command
 
         // FK preservation around the swap.
         $this->pushSummary('FK preservation', 'captured + re-added', $this->fmtCount($capturedFkCount).' constraints');
-        $this->pushSummary('FK preservation', 'restored from a crashed run', $this->fmtCount($restoredFkCount).' constraints');
 
         // Image orphan scan.
         $this->pushSummary('Image orphans (disk)', 'art-crops', $this->fmtCount($imageOrphans['art-crops']['orphans']).' files');

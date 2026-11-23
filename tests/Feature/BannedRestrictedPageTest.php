@@ -28,19 +28,6 @@ class BannedRestrictedPageTest extends TestCase
 {
     use RefreshDatabase;
 
-    /**
-     * Hard-skip on real MariaDB connections. See
-     * {@see DeckCardCardStackPivotTest::setUp} for the rationale.
-     */
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        if (DB::connection()->getDriverName() === 'mysql') {
-            $this->markTestSkipped('Skipped on MariaDB — RefreshDatabase would wipe live data. Run via the default `composer test` (SQLite).');
-        }
-    }
-
     #[Test]
     public function guests_see_every_format_with_its_deck_count(): void
     {

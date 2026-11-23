@@ -5,7 +5,6 @@ namespace Tests\Feature;
 use App\Services\Scryfall\Shadow\ShadowValidationService;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -15,11 +14,7 @@ use Tests\TestCase;
  * deploy that migrates a swap table while `scryfall:update` is building
  * changes only the live table, and the swap would undo it. Schema
  * introspection is portable, so this runs on SQLite against a throwaway
- * live/shadow pair; the real swap tables were checked on MariaDB 11.8.
- *
- * The Local PHPUnit suite uses SQLite. The defensive `mysql` skip
- * keeps the test out of a misconfigured `composer test:mysql`
- * invocation (which would wipe live data via `RefreshDatabase`).
+ * live/shadow pair.
  */
 class ShadowSchemaDriftTest extends TestCase
 {
@@ -28,10 +23,6 @@ class ShadowSchemaDriftTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-
-        if (DB::connection()->getDriverName() === 'mysql') {
-            $this->markTestSkipped('Skipped on MariaDB — RefreshDatabase would wipe live data. Run via the default `composer test` (SQLite).');
-        }
 
         foreach (['_drift_test', '_drift_test__shadow'] as $table) {
             Schema::create($table, function (Blueprint $t): void {

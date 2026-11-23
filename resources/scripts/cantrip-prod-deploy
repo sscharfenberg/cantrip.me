@@ -1,0 +1,280 @@
+#!/usr/bin/env bash
+# /usr/local/bin/cantrip-prod-deploy   — 750 root:cantrip-deploy
+#
+# Committed in resources/scripts/ for review; the live copy is on debbie. Install a
+# change there, or it does nothing.
+#
+# Deploy cantrip.me production. Run as the deploy user:
+#   sudo -u cantrip-deploy cantrip-prod-deploy                   # origin/main
+#   sudo -u cantrip-deploy cantrip-prod-deploy <sha>             # a commit on origin (rollback)
+#   sudo -u cantrip-deploy cantrip-prod-deploy --check [<sha>]   # CI gate only, deploys nothing
+#   sudo -u cantrip-deploy cantrip-prod-deploy --skip-ci <sha>   # without the CI gate
+# From the Mac:
+#   ssh -t debbie sudo -u cantrip-deploy cantrip-prod-deploy
+#
+# Modelled on mixtape-prod-deploy and on Hetzner's deploy-prod.sh.
+#
+# WHY NOT ROOT: composer install and npm ci execute a large amount of
+# third-party install code. Here it runs as cantrip-deploy, which can write
+# nothing outside this site.
+#
+# WHY OUTSIDE THE CHECKOUT: the script resets the very tree it would otherwise
+# live in, and bash reads scripts incrementally.
+#
+# CI GATE: before anything is touched, GitHub's API (public repo, no token)
+# must report every check that the "main: required CI checks" ruleset requires
+# as successful for the exact commit. CI runs on every push to main and on PRs,
+# so every main commit has them. --skip-ci is for a commit CI never ran on; it
+# says so loudly. The check names below must match the ruleset; a renamed job
+# makes the gate refuse (fail closed).
+#
+# Ownership model:
+#   /var/www/cantrip.prod      cantrip-deploy:cantrip, dirs 2750, files 640:
+#                              the runtime user cantrip reads the app, never
+#                              rewrites it. Hence umask 027 below.
+#   storage/, bootstrap/cache  cantrip:cantrip 2770 with default ACL g::rwX, so
+#                              files are group-writable whoever creates them
+#                              (cantrip-deploy is in the cantrip group).
+#   public/                    + ACL u:www-data:rX, re-applied by every deploy:
+#                              nginx reads public/ and nothing else (not .env).
+#   storage, storage/app       + u:www-data:--x, storage/app/set r-X: the image
+#                              and set-icon links in public/ resolve through
+#                              them. storage/app/{card-images,art-crops,symbol}
+#                              link to /var/media/cantrip (shared with staging).
+#
+# Privileged operations (/etc/sudoers.d/cantrip-deploy): artisan as cantrip,
+# and reloading php8.4-fpm. Nothing else.
+
+set -Eeuo pipefail
+
+SITE=/var/www/cantrip.prod
+BRANCH=main
+REPO=sscharfenberg/cantrip.me
+REQUIRED_CHECKS=("PHP tests" "Pint" "Frontend build" "Frontend tests" "End-to-end tests")
+DEPLOY_USER=cantrip-deploy
+RUNTIME_USER=cantrip
+NVM_DIR=/home/cantrip-deploy/.nvm
+# package.json#engines names the Node major. Raising it: `nvm install <major>`
+# plus `npm install --global npm@<version>` as cantrip-deploy first, then here.
+NODE_MAJOR=26
+
+# Deterministic environment — do not inherit whatever the invoking shell had.
+export PATH=/usr/local/bin:/usr/bin:/bin
+export HOME=/home/cantrip-deploy
+umask 027
+
+log()  { printf '\n\033[1;36m==> %s\033[0m\n' "$*"; }
+warn() { printf '\033[1;33m%s\033[0m\n' "$*" >&2; }
+fail() { printf '\033[1;31mFATAL: %s\033[0m\n' "$*" >&2; exit 1; }
+usage() { sed -n 's/^#   \(sudo -u cantrip-deploy cantrip-prod-deploy.*\)/\1/p' "$0"; }
+
+# --- Arguments -----------------------------------------------------------
+SKIP_CI=0
+CHECK_ONLY=0
+TARGET_REF=""
+for arg in "$@"; do
+    case $arg in
+        --skip-ci) SKIP_CI=1 ;;
+        --check)   CHECK_ONLY=1 ;;
+        -h|--help) usage; exit 0 ;;
+        -*)        fail "unknown option '$arg'" ;;
+        *)         [[ -z $TARGET_REF ]] || fail "give at most one commit"
+                   TARGET_REF=$arg ;;
+    esac
+done
+if [[ -n $TARGET_REF && ! $TARGET_REF =~ ^[0-9a-f]{7,40}$ ]]; then
+    fail "not a commit SHA: '$TARGET_REF'"
+fi
+if (( SKIP_CI && CHECK_ONLY )); then
+    fail "--check and --skip-ci contradict each other"
+fi
+
+# Wrong user = files nobody can fix later. Refuse.
+[[ $(id -un) == "$DEPLOY_USER" ]] || fail "run as $DEPLOY_USER: sudo -u $DEPLOY_USER $0"
+[[ -d $SITE/.git ]] || fail "$SITE is not a git checkout"
+[[ -f $SITE/.env ]] || fail "$SITE/.env is missing"
+
+# --- Concurrency ---------------------------------------------------------
+# Two overlapping deploys would interleave resets, builds and migrations. The
+# lock is this script file itself: nothing to leave behind in /tmp. Not `exec
+# flock`: after an exec nothing could report a lock conflict, flock -n just
+# exits 1.
+if [[ -z ${_CANTRIP_DEPLOY_LOCKED:-} ]]; then
+    export _CANTRIP_DEPLOY_LOCKED=1
+    rc=0
+    flock -n -E 99 "$0" "$0" "$@" || rc=$?
+    if (( rc == 99 )); then
+        fail "another deploy is already running"
+    fi
+    exit "$rc"
+fi
+
+cd "$SITE"
+
+# --- What to deploy ------------------------------------------------------
+log "Fetching origin"
+git fetch --prune --quiet origin
+# Prod is deploy-only. A dirty tree means someone hand-patched it; the reset
+# below would silently destroy that, so stop instead.
+git diff --quiet && git diff --cached --quiet || fail "working tree is dirty; refusing to deploy"
+
+if [[ -n $TARGET_REF ]]; then
+    SHA=$(git rev-parse --verify --quiet "${TARGET_REF}^{commit}") \
+        || fail "commit $TARGET_REF not found on origin — push it first"
+else
+    SHA=$(git rev-parse --verify "origin/$BRANCH^{commit}")
+fi
+log "Target: ${SHA:0:12} — $(git log -1 --format=%s "$SHA")"
+
+# --- CI gate -------------------------------------------------------------
+ci_gate() {
+    python3 -I - "$REPO" "$1" "${REQUIRED_CHECKS[@]}" <<'PY'
+import json, sys, urllib.request
+repo, sha, *required = sys.argv[1:]
+url = f"https://api.github.com/repos/{repo}/commits/{sha}/check-runs?per_page=100&filter=latest"
+req = urllib.request.Request(url, headers={"Accept": "application/vnd.github+json",
+                                           "User-Agent": "cantrip-prod-deploy"})
+try:
+    with urllib.request.urlopen(req, timeout=20) as response:
+        runs = json.load(response)["check_runs"]
+except Exception as error:
+    print(f"    cannot ask GitHub: {error}")
+    sys.exit(2)
+state = {run["name"]: (run["status"], run["conclusion"]) for run in runs}
+ok = True
+for name in required:
+    status, conclusion = state.get(name, ("missing", None))
+    good = status == "completed" and conclusion == "success"
+    ok &= good
+    print(f"    {'ok  ' if good else 'FAIL'} {name}: {conclusion or status}")
+sys.exit(0 if ok else 1)
+PY
+}
+
+if (( SKIP_CI )); then
+    warn ""
+    warn "CI GATE SKIPPED (--skip-ci): ${SHA:0:12} is deployed whatever CI says about it."
+else
+    log "CI gate: required checks for ${SHA:0:12}"
+    ci_gate "$SHA" || fail "CI has not passed for ${SHA:0:12}; nothing was changed"
+fi
+if (( CHECK_ONLY )); then
+    log "Check only: ${SHA:0:12} would be deployed. Nothing was changed."
+    exit 0
+fi
+
+# --- Node ----------------------------------------------------------------
+[[ -s $NVM_DIR/nvm.sh ]] || fail "nvm not found at $NVM_DIR"
+export NVM_DIR
+# shellcheck disable=SC1091
+. "$NVM_DIR/nvm.sh"
+nvm use "$NODE_MAJOR" >/dev/null || fail "Node $NODE_MAJOR is not installed — run: nvm install $NODE_MAJOR"
+log "Node $(node -v) / npm $(npm -v)"
+
+ARTISAN=(sudo -n -u "$RUNTIME_USER" /usr/bin/php "$SITE/artisan")
+
+# --- Maintenance mode ----------------------------------------------------
+# Snapshot BEFORE touching it: a site put down by hand stays down.
+if [[ -f storage/framework/maintenance.php ]]; then
+    was_down=1
+    log "Site was ALREADY in maintenance — it stays down after this deploy"
+else
+    was_down=0
+fi
+
+# Pre-render the 503 page while the old release is intact: public/index.php
+# then serves it from storage/framework/down without booting Laravel, so it
+# survives the reset, composer swapping vendor/ and the cache rebuild.
+log "Maintenance mode on"
+"${ARTISAN[@]}" down --render="errors::503" || true
+
+# Lift maintenance ONLY on success, and only if this deploy put it down. A
+# failed deploy leaves the site in maintenance on purpose: new code against a
+# half-applied migration is worse than a maintenance page.
+finish() {
+    local rc=$?
+    if (( rc == 0 )); then
+        if (( was_down == 0 )); then
+            "${ARTISAN[@]}" up || true
+        else
+            warn "Leaving maintenance mode ON (the site was down before this deploy)."
+        fi
+    else
+        warn ""
+        warn "DEPLOY FAILED (exit $rc) — site left in MAINTENANCE MODE on purpose."
+        warn "Fix the cause and deploy again, or roll back:"
+        warn "    sudo -u $DEPLOY_USER $0 <last-good-sha>"
+        warn "To lift maintenance by hand without deploying:"
+        warn "    sudo -u $RUNTIME_USER /usr/bin/php $SITE/artisan up"
+    fi
+    return $rc
+}
+trap finish EXIT
+
+# --- Code ----------------------------------------------------------------
+if [[ -n $TARGET_REF ]]; then
+    log "Checking out ${SHA:0:12} (detached; the next plain deploy returns to $BRANCH)"
+    git checkout --quiet --detach "$SHA"
+else
+    log "Checking out $BRANCH at ${SHA:0:12}"
+    git checkout --quiet "$BRANCH"
+    git reset --hard --quiet "$SHA"
+fi
+
+log "Composer (no dev, optimized autoloader)"
+composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist --no-progress
+
+log "npm ci"
+npm ci --no-fund --no-audit
+
+# Not `npm run build`: that runs eslint/stylelint --fix, which rewrites tracked
+# files and would trip the dirty-tree check next time. Linting is CI's job (the
+# gate above); prod only type-checks and compiles.
+log "Type check, Vite build, icon sprite"
+npm run type-check
+npm run build-only
+# The sprite (storage/app/public/sprite.svg) is gitignored and not part of the
+# Vite build; without it every icon renders empty.
+npm run icons
+
+# The public/ links of config/filesystems.php. Not `artisan storage:link`: that
+# runs as cantrip, which cannot write into public/ — by design.
+log "public/ links and nginx's read access"
+for d in card-images art-crops symbol set; do
+    [[ -d storage/app/$d ]] || fail "storage/app/$d is missing (see the ownership model above)"
+done
+ln -sfn "$SITE/storage/app/public"      public/storage
+ln -sfn "$SITE/storage/app/set"         public/set
+ln -sfn "$SITE/storage/app/symbol"      public/symbol
+ln -sfn "$SITE/storage/app/art-crops"   public/art-crops
+ln -sfn "$SITE/storage/app/card-images" public/card-images
+setfacl -R -P -m u:www-data:rX public
+find public -type d -exec setfacl -d -m u:www-data:rX {} +
+
+log "Migrations"
+"${ARTISAN[@]}" migrate --force
+
+log "Caching config, routes, views, events"
+"${ARTISAN[@]}" optimize:clear
+"${ARTISAN[@]}" config:cache
+"${ARTISAN[@]}" route:cache
+"${ARTISAN[@]}" view:cache
+"${ARTISAN[@]}" event:cache
+
+log "Reloading php-fpm (clears opcache)"
+sudo -n /usr/bin/systemctl reload php8.4-fpm
+
+# --- Health check --------------------------------------------------------
+# Through nginx on this box, whatever DNS says. Maintenance is still on, so a
+# healthy app answers 503 from the pre-rendered page; 200 or 503 proves
+# nginx -> php-fpm -> Laravel works. Anything else: do not lift maintenance.
+log "Health check"
+code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 \
+    --resolve cantrip.me:443:127.0.0.1 https://cantrip.me/ || echo 000)
+case "$code" in
+    200|503) log "Health check OK (HTTP $code)" ;;
+    *)       fail "health check returned HTTP $code — refusing to lift maintenance" ;;
+esac
+
+log "Deployed ${SHA:0:12} — $(git log -1 --format=%s)"
+# finish (EXIT trap) lifts maintenance mode if this deploy put it down.

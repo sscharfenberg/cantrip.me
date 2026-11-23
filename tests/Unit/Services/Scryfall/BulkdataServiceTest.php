@@ -16,7 +16,6 @@ use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use RuntimeException;
-use Tests\Feature\DeckBulkClaimControllerTest;
 use Tests\TestCase;
 
 /**
@@ -28,31 +27,12 @@ use Tests\TestCase;
  * point: an unannounced `size` → `compressed_size` rename broke the
  * nightly `scryfall:update` with an `Undefined array key` fatal.
  *
- * Runs against shadow tables where a write is needed, because the live
- * path's `preRunCleanup()` issues MariaDB-only
- * `SET FOREIGN_KEY_CHECKS` statements that SQLite cannot parse.
- *
- * The Local PHPUnit suite uses SQLite. The defensive `mysql` skip
- * keeps the test out of a misconfigured `composer test:mysql`
- * invocation (which would wipe live data via `RefreshDatabase`).
+ * Runs against shadow tables where a write is needed, as the
+ * orchestrator does.
  */
 class BulkdataServiceTest extends TestCase
 {
     use RefreshDatabase;
-
-    /**
-     * Hard-skip on real MariaDB connections. See
-     * {@see DeckBulkClaimControllerTest::setUp} for
-     * the rationale.
-     */
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        if (DB::connection()->getDriverName() === 'mysql') {
-            $this->markTestSkipped('Skipped on MariaDB — RefreshDatabase would wipe live data. Run via the default `composer test` (SQLite).');
-        }
-    }
 
     /**
      * Stand in for the shadow table the orchestrator would have created
@@ -156,10 +136,8 @@ class BulkdataServiceTest extends TestCase
     }
 
     /**
-     * A standalone run truncated the live table before asking Scryfall,
-     * so a failed request left it empty. (On SQLite the truncation's
-     * MariaDB-only `SET FOREIGN_KEY_CHECKS` would throw instead — either
-     * way the request error must come first.)
+     * A standalone run must not truncate the live table before Scryfall
+     * has answered, or a failed request leaves it empty.
      */
     #[Test]
     public function a_failed_catalog_request_leaves_the_live_table_as_it_was(): void
@@ -272,15 +250,37 @@ class BulkdataServiceTest extends TestCase
     }
 
     /**
+     * The oracle and default-cards imports only build shadow tables (see
+     * {@see LiveImportRefusalTest}), so they run against shadows here.
+     *
      * @return array<string, array{string, Closure(): void}>
      */
     public static function bulkImporters(): array
     {
         return [
-            'oracle cards' => ['oracle_cards', fn () => (new OracleCardsService)->updateOracleCards()],
-            'default cards' => ['default_cards', fn () => (new DefaultCardsService)->updateAllCards()],
+            'oracle cards' => ['oracle_cards', function (): void {
+                self::createShadowsOf(['bulk_data', 'oracle_cards', 'oracle_card_faces', 'legalities']);
+                (new OracleCardsService)->updateOracleCards(shadow: true);
+            }],
+            'default cards' => ['default_cards', function (): void {
+                self::createShadowsOf(['bulk_data', 'default_cards', 'default_card_relations', 'artists']);
+                (new DefaultCardsService)->updateAllCards(shadow: true);
+            }],
             'rulings' => ['rulings', fn () => (new RulingsService)->updateRulings()],
             'translations' => ['all_cards', fn () => (new TranslationsService)->updateTranslations()],
         ];
+    }
+
+    /**
+     * Empty copies of the given tables, as the orchestrator's
+     * `CREATE TABLE LIKE` would leave them.
+     *
+     * @param  list<string>  $tables
+     */
+    private static function createShadowsOf(array $tables): void
+    {
+        foreach ($tables as $table) {
+            DB::statement("CREATE TABLE {$table}__shadow AS SELECT * FROM $table WHERE 0");
+        }
     }
 }

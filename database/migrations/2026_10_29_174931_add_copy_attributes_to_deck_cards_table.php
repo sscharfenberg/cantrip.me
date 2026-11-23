@@ -96,7 +96,8 @@ return new class extends Migration
             ->selectRaw('COUNT(DISTINCT card_stacks.proxy) AS proxies')
             ->selectRaw('MIN(card_stacks.finish) AS finish')
             ->selectRaw('MIN(card_stacks.language) AS language')
-            ->selectRaw('MIN(card_stacks.proxy) AS proxy')
+            // Postgres has no MIN() over booleans; every proxy agrees here anyway.
+            ->selectRaw('MAX(CASE WHEN card_stacks.proxy THEN 1 ELSE 0 END) AS proxy')
             ->get();
 
         foreach ($claims as $claim) {

@@ -15,7 +15,6 @@ use App\Models\OracleCard;
 use App\Models\Set;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Inertia\Testing\AssertableInertia;
 use PHPUnit\Framework\Attributes\Test;
@@ -34,19 +33,6 @@ use Tests\TestCase;
 class DeckShowAvailabilityTest extends TestCase
 {
     use RefreshDatabase;
-
-    /**
-     * Hard-skip on real MariaDB connections. See
-     * {@see DeckCardCardStackPivotTest::setUp} for the rationale.
-     */
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        if (DB::connection()->getDriverName() === 'mysql') {
-            $this->markTestSkipped('Skipped on MariaDB — RefreshDatabase would wipe live data. Run via the default `composer test` (SQLite).');
-        }
-    }
 
     private function makeSet(): Set
     {

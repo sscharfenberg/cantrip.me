@@ -7,14 +7,17 @@ use App\Services\Scryfall\Shadow\ShadowTableService;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
+use Throwable;
 
 /**
  * The order of operations in {@see ShadowSwapper}, against a recording
- * stand-in for {@see ShadowTableService} — the real one is MariaDB-only.
+ * stand-in for {@see ShadowTableService} — the real one needs Postgres.
  *
- * What is pinned is the guarantee the class exists for: once FK
- * constraints have been dropped, they are put back whatever fails, and
- * the on-disk record of them is only cleared once they are.
+ * What is pinned is the guarantee the class exists for: the FK drop, the
+ * schema check, the swap and the re-add run in one transaction, so any
+ * failure among them rolls the drop back with it — and the alerting
+ * wrapper only ever runs outside that transaction, where Postgres still
+ * accepts the alert's own writes.
  */
 class ShadowSwapperTest extends TestCase
 {
@@ -32,78 +35,78 @@ class ShadowSwapperTest extends TestCase
     }
 
     #[Test]
-    public function the_constraints_are_re_added_before_the_retired_tables_go(): void
+    public function the_drop_the_swap_and_the_re_add_commit_together(): void
     {
         $count = $this->swap();
 
         $this->assertSame(2, $count);
         $this->assertSame(
-            ['capture', 'remember', 'drop', 'swap', 'add', 'forget', 'dropRetired'],
+            ['capture', 'analyze', 'begin', 'drop', 'swap', 'add', 'commit'],
             $this->tables->calls,
         );
-        $this->assertSame(
-            ['captureForeignKeys', 'dropForeignKeys', 'validateSchema', 'swap', 'addForeignKeys', 'dropRetired'],
-            $this->steps,
-            'each step runs through the alerting wrapper under its own name',
-        );
+        $this->assertSame(['captureForeignKeys', 'analyzeShadows'], $this->steps);
     }
 
     #[Test]
-    public function a_failed_check_before_the_rename_stops_the_swap_and_re_adds_the_constraints(): void
+    public function a_failed_check_before_the_rename_rolls_the_drop_back(): void
     {
         $this->failBeforeRename = true;
 
         $this->expectSwapToFail('schema drifted');
 
-        $this->assertSame(['capture', 'remember', 'drop', 'add', 'forget'], $this->tables->calls);
-        $this->assertSame(['captureForeignKeys', 'dropForeignKeys', 'validateSchema', 'addForeignKeys'], $this->steps);
+        $this->assertSame(['capture', 'analyze', 'begin', 'drop', 'rollback'], $this->tables->calls);
+        $this->assertSame(['captureForeignKeys', 'analyzeShadows', 'validateSchema'], $this->steps);
     }
 
     #[Test]
-    public function a_failed_swap_still_re_adds_the_constraints_to_the_old_tables(): void
+    public function a_failed_swap_rolls_the_drop_back(): void
     {
         $this->tables->failOn = 'swap';
 
         $this->expectSwapToFail('swap failed');
 
-        $this->assertSame(['capture', 'remember', 'drop', 'swap', 'add', 'forget'], $this->tables->calls);
+        $this->assertSame(['capture', 'analyze', 'begin', 'drop', 'swap', 'rollback'], $this->tables->calls);
+        $this->assertSame('swap', end($this->steps));
     }
 
     #[Test]
-    public function a_drop_that_breaks_off_halfway_still_re_adds_the_constraints(): void
+    public function a_drop_that_breaks_off_halfway_is_rolled_back(): void
     {
         $this->tables->failOn = 'drop';
 
         $this->expectSwapToFail('drop failed');
 
-        $this->assertSame(['capture', 'remember', 'drop', 'add', 'forget'], $this->tables->calls);
+        $this->assertSame(['capture', 'analyze', 'begin', 'drop', 'rollback'], $this->tables->calls);
+        $this->assertSame('dropForeignKeys', end($this->steps));
     }
 
+    /** A constraint the new dataset violates undoes the whole swap. */
     #[Test]
-    public function a_failed_re_add_keeps_the_record_for_the_next_run(): void
+    public function a_failed_re_add_rolls_the_swap_back(): void
     {
         $this->tables->failOn = 'add';
 
         $this->expectSwapToFail('add failed');
 
-        $this->assertSame(['capture', 'remember', 'drop', 'swap', 'add'], $this->tables->calls);
-        $this->assertNotContains('forget', $this->tables->calls);
+        $this->assertSame(['capture', 'analyze', 'begin', 'drop', 'swap', 'add', 'rollback'], $this->tables->calls);
+        $this->assertSame('addForeignKeys', end($this->steps));
     }
 
     #[Test]
-    public function nothing_is_dropped_when_the_record_cannot_be_written(): void
+    public function nothing_is_dropped_when_the_capture_fails(): void
     {
-        $this->tables->failOn = 'remember';
+        $this->tables->failOn = 'capture';
 
-        $this->expectSwapToFail('remember failed');
+        $this->expectSwapToFail('capture failed');
 
-        $this->assertSame(['capture', 'remember'], $this->tables->calls);
+        $this->assertSame(['capture'], $this->tables->calls);
     }
 
     private function swap(): int
     {
         return (new ShadowSwapper($this->tables))->swapIntoLive(
             function (string $name, callable $work): void {
+                $this->assertFalse($this->tables->inTransaction, "the alerting step '$name' ran inside the transaction");
                 $this->steps[] = $name;
                 $work();
             },
@@ -128,7 +131,8 @@ class ShadowSwapperTest extends TestCase
 
 /**
  * Records which {@see ShadowTableService} operations ran, in order, and
- * fails the one named in `$failOn`.
+ * fails the one named in `$failOn`. Its transaction records `begin`, then
+ * `commit` or — when the work throws — `rollback`.
  */
 class RecordingShadowTables extends ShadowTableService
 {
@@ -137,16 +141,36 @@ class RecordingShadowTables extends ShadowTableService
 
     public ?string $failOn = null;
 
+    public bool $inTransaction = false;
+
     public function captureForeignKeys(array $tables = []): array
     {
         $this->record('capture');
 
-        return [(object) ['CONSTRAINT_NAME' => 'a'], (object) ['CONSTRAINT_NAME' => 'b']];
+        return [(object) ['name' => 'a'], (object) ['name' => 'b']];
     }
 
-    public function rememberForeignKeys(array $fks): void
+    public function analyzeShadows(array $tables = []): void
     {
-        $this->record('remember');
+        $this->record('analyze');
+    }
+
+    public function transaction(callable $work): mixed
+    {
+        $this->calls[] = 'begin';
+        $this->inTransaction = true;
+        try {
+            $result = $work();
+        } catch (Throwable $e) {
+            $this->calls[] = 'rollback';
+
+            throw $e;
+        } finally {
+            $this->inTransaction = false;
+        }
+        $this->calls[] = 'commit';
+
+        return $result;
     }
 
     public function dropForeignKeys(array $fks): void
@@ -164,16 +188,6 @@ class RecordingShadowTables extends ShadowTableService
         $this->record('add');
 
         return count($fks);
-    }
-
-    public function forgetForeignKeys(): void
-    {
-        $this->record('forget');
-    }
-
-    public function dropRetired(array $tables = []): void
-    {
-        $this->record('dropRetired');
     }
 
     private function record(string $call): void

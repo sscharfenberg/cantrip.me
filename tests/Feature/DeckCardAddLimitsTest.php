@@ -14,7 +14,6 @@ use App\Models\Set;
 use App\Models\User;
 use App\Services\DeckValidator;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
 use PHPUnit\Framework\Attributes\Test;
@@ -32,27 +31,10 @@ use Tests\TestCase;
  * is reported by DeckValidator's `deck_size_max` violation instead. Copy
  * limits and singleton still refuse, oversized deck or not.
  * A refusal ships the AddCopyFailure as `reason` so the UI can explain it.
- *
- * The Local PHPUnit suite uses SQLite. The defensive `mysql` skip keeps
- * the test out of a misconfigured `composer test:mysql` invocation
- * (which would wipe live data via `RefreshDatabase`).
  */
 class DeckCardAddLimitsTest extends TestCase
 {
     use RefreshDatabase;
-
-    /**
-     * Hard-skip on real MariaDB connections. See
-     * {@see DeckBulkClaimControllerTest::setUp} for the rationale.
-     */
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        if (DB::connection()->getDriverName() === 'mysql') {
-            $this->markTestSkipped('Skipped on MariaDB — RefreshDatabase would wipe live data. Run via the default `composer test` (SQLite).');
-        }
-    }
 
     private function makeOracleCard(string $name): OracleCard
     {

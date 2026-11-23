@@ -7,7 +7,6 @@ use App\Models\OracleCard;
 use App\Models\Set;
 use App\Services\Scryfall\ImageOrphanScanner;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\Test;
@@ -32,9 +31,6 @@ class ImageOrphanScannerTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        if (DB::connection()->getDriverName() === 'mysql') {
-            $this->markTestSkipped('Uses RefreshDatabase; never run against MariaDB.');
-        }
         Storage::fake('card-images');
         Storage::fake('art-crops');
     }

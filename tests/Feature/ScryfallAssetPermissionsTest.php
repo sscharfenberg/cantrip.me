@@ -7,7 +7,6 @@ use App\Models\OracleCard;
 use App\Models\Set;
 use App\Services\Scryfall\ImageDownloadService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -39,9 +38,6 @@ class ScryfallAssetPermissionsTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        if (DB::connection()->getDriverName() === 'mysql') {
-            $this->markTestSkipped('Uses RefreshDatabase; never run against MariaDB.');
-        }
         $this->umask = umask(0022);
         foreach (self::DISKS as $disk) {
             Storage::fake($disk, config("filesystems.disks.$disk"));

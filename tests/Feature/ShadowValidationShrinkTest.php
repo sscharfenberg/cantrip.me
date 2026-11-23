@@ -14,27 +14,14 @@ use Tests\TestCase;
  * Coverage for {@see ShadowValidationService::findShrunkTables()}, the
  * pre-swap row-count check. Plain counts, so unlike the orphan check it
  * runs on SQLite, against a throwaway live/shadow table pair.
- *
- * The Local PHPUnit suite uses SQLite. The defensive `mysql` skip
- * keeps the test out of a misconfigured `composer test:mysql`
- * invocation (which would wipe live data via `RefreshDatabase`).
  */
 class ShadowValidationShrinkTest extends TestCase
 {
     use RefreshDatabase;
 
-    /**
-     * Hard-skip on real MariaDB connections. See
-     * {@see DeckBulkClaimControllerTest::setUp} for
-     * the rationale.
-     */
     protected function setUp(): void
     {
         parent::setUp();
-
-        if (DB::connection()->getDriverName() === 'mysql') {
-            $this->markTestSkipped('Skipped on MariaDB — RefreshDatabase would wipe live data. Run via the default `composer test` (SQLite).');
-        }
 
         foreach (['_shrink_test', '_shrink_test__shadow'] as $table) {
             Schema::create($table, fn ($t) => $t->id());

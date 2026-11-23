@@ -5,13 +5,14 @@
 | Scryfall asset permissions
 |--------------------------------------------------------------------------
 |
-| The Scryfall asset folders are shared by deploy (the nightly sync) and
-| www-data (Apache), and art-crops, card-images and symbol also by prod and
-| staging. Their convention is group-writable: files 664, folders 2775
-| (setgid keeps the www-data group). Flysystem's defaults are 644 / 755 and
-| win over umask and the folders' default ACLs — it chmods every file it
-| writes and passes 0755 to mkdir — so without these the nightly sync left
-| every file it wrote writable for deploy alone.
+| The Scryfall asset folders are written by more than one user: art-crops,
+| card-images and symbol are shared by prod (the nightly sync, as `cantrip`)
+| and staging through the `cantrip-media` group, and nginx reads them. Their
+| convention is group-writable: files 664, folders 2775 (setgid keeps the
+| group). Flysystem's defaults are 644 / 755 and win over umask and the
+| folders' default ACLs — it chmods every file it writes and passes 0755 to
+| mkdir — so without these every file a sync writes would be writable for its
+| writer alone.
 |
 */
 

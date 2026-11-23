@@ -8,7 +8,7 @@
         <!--
             Local suite — runs against in-memory SQLite (the <env> defaults
             below). Covers everything *except* tests/Feature/Services, which
-            need real Scryfall data and a live MariaDB connection. Triggered
+            need real Scryfall data and a live Postgres connection. Triggered
             by `composer test`.
         -->
         <testsuite name="Local">
@@ -18,11 +18,11 @@
         </testsuite>
         <!--
             Staging suite — runs only the tests that read real Scryfall data
-            against MariaDB. Triggered by `composer test:mysql` on a host
-            with DB_CONNECTION=mysql + a populated dataset. These tests
-            never write to the DB, so they're safe to run on staging; the
-            Local suite is excluded here so any test using RefreshDatabase
-            cannot reach a live connection.
+            against Postgres. Triggered by `composer test:pgsql` on a host
+            with a populated dataset. These tests never write to the DB, so
+            they're safe to run on staging; the Local suite is excluded here
+            so any test using RefreshDatabase cannot reach a live connection
+            (and tests/TestCase.php skips any that still would).
         -->
         <testsuite name="Staging">
             <directory>tests/Feature/Services</directory>

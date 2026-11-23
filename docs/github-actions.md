@@ -1,6 +1,7 @@
 # GitHub Actions workflows
 
-Three workflows live in `.github/workflows/`. Each is keyed off a different trigger so they don't step on one another.
+One workflow lives in `.github/workflows/`: `ci.yml`. Nothing on GitHub touches a server — deploys are started from
+the workstation, see [docs/deployment.md](deployment.md).
 
 ## Versioning
 
@@ -9,10 +10,10 @@ Single source of truth: **`package.json`** (`version` field). `config/app.php` r
 To cut a release:
 
 1. Bump `"version"` in `package.json` (e.g. `1.0.2` → `1.0.3`)
-2. Commit and push to `main`
-3. Trigger **Deploy to production** from the Actions tab and approve when prompted
+2. Commit and push to `main`, or merge the pull request
+3. Deploy with `ct deploy --prod` once `main`'s CI is green
 
-On the next deploy `php artisan config:cache` re-reads `package.json` and the new value is reflected in `config('app.version')`. Version bumps are decoupled from deploys — you can deploy without bumping (e.g. urgent bugfix that's user-invisible) and you can bump without deploying (until the next manual dispatch).
+On the next deploy `php artisan config:cache` re-reads `package.json` and the new value is reflected in `config('app.version')`. Version bumps are decoupled from deploys — you can deploy without bumping (e.g. urgent bugfix that's user-invisible) and you can bump without deploying (until the next deploy).
 
 ## `ci.yml` — Continuous Integration
 
@@ -24,10 +25,10 @@ On the next deploy `php artisan config:cache` re-reads `package.json` and the ne
 - **Pint** — `composer pint` for PHP code style.
 - **Frontend build** — ESLint, Stylelint, the translation-key check, `vue-tsc`, and a production Vite build to catch type errors and broken imports before merge.
 - **Frontend tests** — the Vitest suite.
-- **End-to-end tests** — the Playwright suite (`npm run e2e`), with its own MariaDB, build and server.
+- **End-to-end tests** — the Playwright suite (`npm run e2e`), with its own Postgres, build and server.
 - **Publish test badges** — refreshes the README badges; runs on `main` only and is skipped on pull requests.
 
-CI must pass before deploying. Nothing in this workflow touches any server.
+CI must pass before deploying: the deploy script refuses a commit whose five required checks are not green on GitHub (see [docs/deployment.md](deployment.md#deploying-production)). Nothing in this workflow touches any server.
 
 ## Branch rules on `main`
 
@@ -40,58 +41,6 @@ Two repository rulesets apply to `main` (Settings → Rules → Rulesets):
 
 The admin bypass lives on its own ruleset on purpose: bypass is granted per ruleset, not per rule, so adding it to `main` would have let admins skip signatures and force-push protection too.
 
+The deploy script's CI gate names the same five checks. Renaming a CI job means changing both the ruleset and `REQUIRED_CHECKS` in `resources/scripts/cantrip-prod-deploy` (and its live copy); until then the gate refuses every deploy.
+
 Changes that touch shared code are best done on a branch with a pull request: CI then runs *before* anything reaches `main`, so a failure never leaves `main` (and therefore the next deploy) broken.
-
-## `deploy-staging.yml` — Deploy to staging
-
-**Trigger:** `workflow_dispatch` only — manual button in the **Actions** tab.
-
-**Why manual?** The staging server is also used as a remote dev environment. Auto-deploying on every push to `main` would clobber in-progress work uploaded via Rsync. Triggering manually lets you decide when to snap staging to whatever's currently on `main` — typically before deploying to production.
-
-**What it does:** pulls the current `main` branch on the staging environment, installs PHP and Node dependencies, builds frontend assets, runs migrations, and warms the framework caches.
-
-**Environment:** `staging` (configured under repo Settings → Environments). No protection rules — runs immediately on dispatch.
-
-## `deploy-production.yml` — Deploy to production
-
-**Trigger:** `workflow_dispatch` only — manual button in the **Actions** tab. Pick the branch you want to deploy from (typically `main`); the workflow captures that branch's HEAD commit SHA at dispatch time.
-
-**Approval gate:** the `production` environment has a **Required reviewers** protection rule. After dispatch, the workflow queues and pauses with a "Review pending deployment" notification. A reviewer must approve in the Actions UI before any server-side step runs. The reviewer gate is the actual security control — anyone with `actions: write` can queue a deploy, but only an approved reviewer can land it.
-
-**What it does:** the same pipeline as staging, but pinned to the commit SHA captured at dispatch time (`git reset --hard <sha>`) rather than `main`. This means a reviewer-approval delay doesn't get poisoned by a subsequent push to `main` — what was reviewed is what deploys. The SHA is passed through to the production environment, validated as 40 hex chars on the server side, and used as the deploy target.
-
-**Environment:** `production`.
-
-**Audit trail:** every run records a GitHub Deployment under the repo's **Deployments** tab — timestamp, commit SHA, actor, status. No tags are created; the Deployments view is the source of truth for "what's in prod right now".
-
-## End-to-end release flow
-
-1. (Optional) Bump `package.json` `version` if the release is user-visible (see [Versioning](#versioning) above).
-2. Commit + push to `main` (admin bypass), or merge a pull request once its CI is green — see [Branch rules on `main`](#branch-rules-on-main). CI runs.
-3. (Optional) Trigger **Deploy to staging** manually to verify `main` works on a real environment before deploying to prod.
-4. Trigger **Deploy to production** manually. Approve in the Actions tab when prompted.
-
-## Raising Node or npm in `engines`
-
-`package.json#engines` is a requirement, not a hint: the `preinstall` hook (`resources/build/checkVersions.ts`) exits 1 when the running Node or npm is outside its range, and npm 12 runs that hook before `npm ci` installs anything. The deploy scripts source the `deploy` user's nvm and never call `nvm use`, so they run whatever nvm's `default` alias points at — one install, shared by staging and production.
-
-**A commit that raises `engines` needs the new versions on the server before it is deployed.** The checkout only receives the new `package.json` during the deploy, and the deploy is what then fails: `npm ci` stops at the hook, by which point the site is already in maintenance mode — which a failed deploy deliberately leaves on. So install them first, as the deploy user:
-
-```bash
-ssh cantrip
-sudo -u deploy -H bash -c 'cd && export NVM_DIR=/home/deploy/.nvm; . "$NVM_DIR/nvm.sh" \
-  && nvm install 26.13.0 \
-  && nvm alias default 26.13.0 \
-  && npm install --global "npm@^12.2.1" \
-  && node -v && npm -v'
-```
-
-The leading `cd` moves into the deploy user's home: `sudo` keeps your working directory, which the deploy user cannot read, and nvm's internal `find` then prints `Failed to restore initial working directory` (harmless, but noise). `nvm install` switches the shell to the new Node, so the `npm install --global` lands in that Node's own tree. **Every Node nvm installs brings its own npm** — Node 26 bundles npm 11 — so the npm upgrade follows every `nvm install`. The alias is pinned to an exact version rather than `26` for the same reason: with `26`, the next `nvm install` of a 26.x would move the deploys onto a Node whose npm is still 11.
-
-Your own nvm on the box needs the same versions too: `npm run dev` for the staging Vite server runs the same check. Once both deploys have passed, the old Node can go, the same way: `sudo -u deploy -H bash -c 'cd && export NVM_DIR=/home/deploy/.nvm; . "$NVM_DIR/nvm.sh"; nvm uninstall <old version>; nvm ls'`.
-
-## Configuration
-
-Server addresses, ports, deploy users, and SSH keys are stored as **environment-scoped** secrets and variables under repo Settings → Environments → `staging` / `production`. They are not committed to the repo. Splitting them per environment means staging and production can move independently (different host, different port, different key) without touching workflow YAML.
-
-The actual deploy scripts that run on the server are *not* part of this repo. The workflows here only authenticate, hand control to a server-side script via SSH, and stream its output back to the Actions log. The server-side script is responsible for the actual `git`/`composer`/`npm`/`artisan` work.

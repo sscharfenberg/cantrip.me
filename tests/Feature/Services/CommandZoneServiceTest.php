@@ -21,7 +21,7 @@ use Tests\TestCase;
  * Skips automatically on the in-memory SQLite default — see
  * {@see DeckCardSearchServiceTest} for the wider rationale.
  *
- *     composer test:mysql -- --filter=CommandZoneServiceTest
+ *     composer test:pgsql -- --filter=CommandZoneServiceTest
  */
 class CommandZoneServiceTest extends TestCase
 {
@@ -29,9 +29,9 @@ class CommandZoneServiceTest extends TestCase
     {
         parent::setUp();
 
-        if (DB::connection()->getDriverName() !== 'mysql') {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
             $this->markTestSkipped(
-                'CommandZoneService tests require MariaDB + a Scryfall-populated dataset.'
+                'CommandZoneService tests require Postgres + a Scryfall-populated dataset.'
             );
         }
     }

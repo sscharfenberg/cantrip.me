@@ -19,7 +19,6 @@ use App\Models\Set;
 use App\Models\User;
 use App\Services\DeckCsvImportService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -42,10 +41,6 @@ class DeckCsvImportTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-
-        if (DB::connection()->getDriverName() === 'mysql') {
-            $this->markTestSkipped('Skipped on MariaDB — RefreshDatabase would wipe live data. Run via the default `composer test` (SQLite).');
-        }
 
         Storage::fake('tmp');
     }

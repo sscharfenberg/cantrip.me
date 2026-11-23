@@ -14,7 +14,11 @@ class CardStack extends Model
 {
     use HasUuids;
 
-    /** The most cards one stack holds — `amount` is an unsigned smallint. */
+    /**
+     * The most cards one stack holds: the range of an unsigned 16-bit
+     * integer. `amount` is an `integer` column on Postgres, which has no
+     * unsigned types — see the `adapt_schema_to_postgres` migration.
+     */
     public const MAX_AMOUNT = 65535;
 
     protected $keyType = 'string';

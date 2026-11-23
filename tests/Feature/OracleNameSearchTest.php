@@ -15,26 +15,12 @@ use Tests\TestCase;
  *
  * The helper drives the "matched by translated name" badge on
  * card-search results. Search-side wiring is exercised by the
- * Services-suite (mysql + real Scryfall data); these tests pin the
+ * Services-suite (Postgres + real Scryfall data); these tests pin the
  * pure helper logic in SQLite where seeding is cheap.
  */
 class OracleNameSearchTest extends TestCase
 {
     use RefreshDatabase;
-
-    /**
-     * Hard-skip on real MariaDB connections. RefreshDatabase would
-     * wipe the live Scryfall dataset; see DeckCardCardStackPivotTest
-     * for the long-form rationale.
-     */
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        if (DB::connection()->getDriverName() === 'mysql') {
-            $this->markTestSkipped('Skipped on MariaDB — RefreshDatabase would wipe live data. Run via the default `composer test` (SQLite).');
-        }
-    }
 
     private function makeOracle(string $name, string $searchable): OracleCard
     {

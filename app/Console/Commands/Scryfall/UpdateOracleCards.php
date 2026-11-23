@@ -15,7 +15,7 @@ class UpdateOracleCards extends Command
      *
      * @var string
      */
-    protected $signature = 'scryfall:oracle {--target=live : Write target — `live` (default) or `shadow` (writes to oracle_cards/oracle_card_faces/legalities __shadow built by the orchestrator)}';
+    protected $signature = 'scryfall:oracle {--target=live : Write target — `shadow` (writes to oracle_cards/oracle_card_faces/legalities __shadow built by the orchestrator); `live` is refused, because Postgres will not truncate a table user data references}';
 
     /**
      * The console command description.

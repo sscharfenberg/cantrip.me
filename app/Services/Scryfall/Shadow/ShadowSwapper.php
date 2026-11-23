@@ -2,38 +2,36 @@
 
 namespace App\Services\Scryfall\Shadow;
 
+use Throwable;
+
 /**
  * The swap at the end of `scryfall:update`: put the shadow build live
  * without losing a single FK constraint on the way.
  *
- * MariaDB rotates FK references when a parent table is renamed, so every
- * FK pointing at a swap table — the internal Scryfall ones and the
- * user-data ones from `deck_cards`, `card_stacks` and the rest — is
- * dropped before the RENAME and re-added after it (see
- * {@see ShadowTableService::captureForeignKeys()}). The window between
- * the two is the one place a failure can do lasting damage, so:
+ * Postgres FK constraints follow a renamed parent table, so every FK
+ * pointing at a swap table — the internal Scryfall ones and the user-data
+ * ones from `deck_cards`, `card_stacks` and the rest — is dropped before
+ * the renames and re-added after them (see
+ * {@see ShadowTableService::captureForeignKeys()}). All of it runs in ONE
+ * transaction: Postgres DDL is transactional, so a failure anywhere — the
+ * schema check, a rename, a re-added constraint the new data violates, a
+ * killed process — rolls the drop back with it, and live stays exactly
+ * as it was. There is no window in which constraints can get lost.
  *
- *   - the captured list is written to disk before the first drop, and a
- *     run that dies anyway has its constraints restored by the next one
- *     ({@see ShadowTableService::restorePendingForeignKeys()});
- *   - the re-add runs whether or not the drop and the swap succeeded,
- *     and it skips constraints that still exist;
- *   - the last check before the RENAME runs inside that window, so no
- *     failure there can leave the constraints dropped;
- *   - it runs before the `__retired` tables are dropped, which is only
- *     housekeeping and must not stand between the live tables and their
- *     constraints.
+ * The orchestrator's alerting wrapper is only called outside the
+ * transaction. After a failed statement Postgres refuses every further
+ * one until the rollback, and the alert writes its "already sent" marker
+ * to the cache, which lives in the database.
  */
 class ShadowSwapper
 {
     public function __construct(private readonly ShadowTableService $tables) {}
 
     /**
-     * $beforeRename runs as the step `validateSchema` directly before the
-     * RENAME, once the constraints are dropped: the last moment a check
+     * $beforeRename runs as the step `validateSchema` inside the
+     * transaction, directly before the renames: the last moment a check
      * can still stop the swap, so a deploy migrating a swap table has the
-     * smallest possible window to slip in unseen. When it throws, the
-     * constraints are re-added like after any other failure.
+     * smallest possible window to slip in unseen.
      *
      * @param  callable(string, callable(): void): void  $step  Runs one named step and rethrows its failure — the orchestrator's alerting wrapper.
      * @param  callable(): void  $beforeRename  Throws to stop the swap.
@@ -44,21 +42,26 @@ class ShadowSwapper
         $fks = [];
         $step('captureForeignKeys', function () use (&$fks): void {
             $fks = $this->tables->captureForeignKeys();
-            $this->tables->rememberForeignKeys($fks);
         });
+        $step('analyzeShadows', fn () => $this->tables->analyzeShadows());
 
+        $current = 'dropForeignKeys';
         try {
-            $step('dropForeignKeys', fn () => $this->tables->dropForeignKeys($fks));
-            $step('validateSchema', $beforeRename);
-            $step('swap', fn () => $this->tables->swap());
-        } finally {
-            $step('addForeignKeys', function () use ($fks): void {
+            $this->tables->transaction(function () use ($fks, $beforeRename, &$current): void {
+                $this->tables->dropForeignKeys($fks);
+                $current = 'validateSchema';
+                $beforeRename();
+                $current = 'swap';
+                $this->tables->swap();
+                $current = 'addForeignKeys';
                 $this->tables->addForeignKeys($fks);
-                $this->tables->forgetForeignKeys();
             });
-        }
+        } catch (Throwable $e) {
+            // Rolled back by now; report it under the step that failed.
+            $step($current, fn () => throw $e);
 
-        $step('dropRetired', fn () => $this->tables->dropRetired());
+            throw $e;
+        }
 
         return count($fks);
     }

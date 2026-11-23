@@ -1,6 +1,6 @@
 # Makefile shortcuts
 
-Commands for your local dev machine. Both rely on the `cantrip` SSH alias being configured in `~/.ssh/config` — adjust `STAGING_HOST` / `PROD_HOST` in the `Makefile` if your alias differs.
+Commands for your local dev machine. Both rely on the `debbie` SSH alias being configured in `~/.ssh/config` — adjust `HOST` in the `Makefile` if your alias differs. `logs-prod` also needs sudo on the server: production's logs belong to the runtime user `cantrip`.
 
 The two destinations are kept separate so a `logs-prod` pull never overwrites the staging logs you just pulled, and vice versa. Both `storage/logs-s/` and `storage/logs-p/` are tracked in git (so the directories exist on a fresh clone), but their contents are gitignored — anything you `scp` in stays local.
 

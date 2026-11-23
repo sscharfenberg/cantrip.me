@@ -206,7 +206,7 @@ class E2ESeeder extends Seeder
         $fixture = json_decode((string) file_get_contents($path), true, flags: JSON_THROW_ON_ERROR);
 
         foreach (self::SCRYFALL_TABLES as $table) {
-            /* Chunked, because `legalities` alone is 500-odd rows and MariaDB's
+            /* Chunked, because `legalities` alone is 500-odd rows and the
              * placeholder limit is a real ceiling rather than a distant one. */
             foreach (array_chunk($fixture[$table], 200) as $chunk) {
                 DB::table($table)->insert($chunk);

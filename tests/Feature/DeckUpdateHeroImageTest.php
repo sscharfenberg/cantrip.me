@@ -33,27 +33,10 @@ use Tests\TestCase;
  * from `deck_cards`, which threw `SQLSTATE[42S02] 1146` (table gone) and
  * surfaced as a 500 instead of a 422. `||` short-circuits, so only the
  * invalid path ever reached it — exactly the path a validation test hits.
- *
- * The Local PHPUnit suite uses SQLite. The defensive `mysql` skip keeps
- * the test out of a misconfigured `composer test:mysql` invocation
- * (which would wipe live data via `RefreshDatabase`).
  */
 class DeckUpdateHeroImageTest extends TestCase
 {
     use RefreshDatabase;
-
-    /**
-     * Hard-skip on real MariaDB connections. See
-     * {@see DeckBulkClaimControllerTest::setUp} for the rationale.
-     */
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        if (DB::connection()->getDriverName() === 'mysql') {
-            $this->markTestSkipped('Skipped on MariaDB — RefreshDatabase would wipe live data. Run via the default `composer test` (SQLite).');
-        }
-    }
 
     private function makeOracleCard(string $name = 'Test Card'): OracleCard
     {

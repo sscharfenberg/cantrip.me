@@ -41,7 +41,7 @@ class ScryfallUpdateFailedNotification extends Notification
     }
 
     /**
-     * The site the alert comes from — `staging.cantrip.me` or `cantrip.me`,
+     * The site the alert comes from — `cantrip.local` or `cantrip.me`,
      * from APP_URL. Staging and production run on the same server, so the
      * hostname cannot tell them apart, and staging runs with APP_ENV=local.
      */

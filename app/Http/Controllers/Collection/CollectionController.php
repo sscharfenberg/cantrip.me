@@ -10,6 +10,7 @@ use App\Services\CardStackClaimService;
 use App\Services\CardStackFilterService;
 use App\Services\ContainerService;
 use App\Services\DataTableService;
+use App\Services\FoldedSearch;
 use App\Services\StatsService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -96,14 +97,14 @@ class CollectionController extends Controller
 
                 // DataTable search keeps raw-segment / raw-column matching so
                 // the compound "card OR set OR container name" semantics stay
-                // intact. The utf8mb4_unicode_ci collation already folds
-                // accents and case for LIKE comparisons, and the table has
-                // user-driven column sort, so relevance ranking isn't needed.
+                // intact. FoldedSearch ignores accents and case, and the table
+                // has user-driven column sort, so relevance ranking isn't
+                // needed.
                 foreach ($parsed['name_segments'] as $segment) {
                     $q->where(function ($q) use ($segment) {
-                        $q->where('default_cards.name', 'like', "%{$segment}%")
-                            ->orWhere('sets.name', 'like', "%{$segment}%")
-                            ->orWhere('containers.name', 'like', "%{$segment}%");
+                        FoldedSearch::whereContains($q, 'default_cards.name', $segment);
+                        FoldedSearch::orWhereContains($q, 'sets.name', $segment);
+                        FoldedSearch::orWhereContains($q, 'containers.name', $segment);
                     });
                 }
             },

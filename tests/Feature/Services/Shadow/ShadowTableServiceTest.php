@@ -4,22 +4,26 @@
 
 namespace Tests\Feature\Services\Shadow;
 
+use App\Services\Scryfall\Shadow\ShadowSwapper;
 use App\Services\Scryfall\Shadow\ShadowTableRegistry;
 use App\Services\Scryfall\Shadow\ShadowTableService;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 /**
- * Integration tests for {@see ShadowTableService}. MariaDB-only —
- * `CREATE TABLE LIKE`, multi-table `RENAME`, and `SET FOREIGN_KEY_CHECKS`
- * are all MySQL/MariaDB syntax and have no SQLite equivalent.
+ * Integration tests for {@see ShadowTableService}. Postgres-only —
+ * `CREATE TABLE … (LIKE …)`, the catalog queries and transactional DDL have
+ * no SQLite equivalent.
  *
  * Tests use throwaway tables (prefix `_shadow_test_*`) instead of touching
  * the real scryfall tables. The one exception is {@see cleanup_drops_only_known_scryfall_shadows}
  * which exercises the registry-driven cleanup against real table names —
  * idempotent and safe even when no shadows exist.
+ *
+ * Locally: `npm run e2e:db:up`, then
+ * `DB_CONNECTION=pgsql DB_HOST=127.0.0.1 DB_PORT=5499 DB_DATABASE=cantrip_e2e DB_USERNAME=cantrip_e2e DB_PASSWORD=cantrip_e2e php artisan test --testsuite=Staging --filter=Shadow`.
  */
 class ShadowTableServiceTest extends TestCase
 {
@@ -29,10 +33,10 @@ class ShadowTableServiceTest extends TestCase
     {
         parent::setUp();
 
-        if (DB::connection()->getDriverName() !== 'mysql') {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
             $this->markTestSkipped(
-                'ShadowTableService requires MariaDB (CREATE TABLE LIKE, multi-table RENAME). '
-                .'Run on staging with composer test:mysql.'
+                'ShadowTableService requires Postgres (CREATE TABLE … LIKE, transactional renames). '
+                .'Run on staging with composer test:pgsql.'
             );
         }
 
@@ -42,7 +46,7 @@ class ShadowTableServiceTest extends TestCase
 
     protected function tearDown(): void
     {
-        if (DB::connection()->getDriverName() === 'mysql') {
+        if (DB::connection()->getDriverName() !== 'sqlite') {
             $this->dropThrowawayTables();
         }
         parent::tearDown();
@@ -51,7 +55,7 @@ class ShadowTableServiceTest extends TestCase
     #[Test]
     public function create_like_copies_schema_without_data(): void
     {
-        DB::statement('CREATE TABLE _shadow_test_a (id INT UNSIGNED PRIMARY KEY, label VARCHAR(32))');
+        DB::statement('CREATE TABLE _shadow_test_a (id INT PRIMARY KEY, label VARCHAR(32))');
         DB::table('_shadow_test_a')->insert([
             ['id' => 1, 'label' => 'live'],
             ['id' => 2, 'label' => 'live'],
@@ -68,8 +72,8 @@ class ShadowTableServiceTest extends TestCase
     #[Test]
     public function create_like_drops_pre_existing_shadow(): void
     {
-        DB::statement('CREATE TABLE _shadow_test_a (id INT UNSIGNED PRIMARY KEY)');
-        DB::statement('CREATE TABLE _shadow_test_a__shadow (id INT UNSIGNED PRIMARY KEY)');
+        DB::statement('CREATE TABLE _shadow_test_a (id INT PRIMARY KEY)');
+        DB::statement('CREATE TABLE _shadow_test_a__shadow (id INT PRIMARY KEY)');
         DB::table('_shadow_test_a__shadow')->insert(['id' => 42]);
 
         $this->service->createLike('_shadow_test_a');
@@ -79,10 +83,10 @@ class ShadowTableServiceTest extends TestCase
     }
 
     #[Test]
-    public function swap_rotates_live_to_retired_and_shadow_to_live_atomically(): void
+    public function swap_puts_every_shadow_live_and_drops_the_old_tables(): void
     {
-        DB::statement('CREATE TABLE _shadow_test_a (id INT UNSIGNED PRIMARY KEY, label VARCHAR(32))');
-        DB::statement('CREATE TABLE _shadow_test_b (id INT UNSIGNED PRIMARY KEY, label VARCHAR(32))');
+        DB::statement('CREATE TABLE _shadow_test_a (id INT PRIMARY KEY, label VARCHAR(32))');
+        DB::statement('CREATE TABLE _shadow_test_b (id INT PRIMARY KEY, label VARCHAR(32))');
         DB::table('_shadow_test_a')->insert(['id' => 1, 'label' => 'old-a']);
         DB::table('_shadow_test_b')->insert(['id' => 1, 'label' => 'old-b']);
 
@@ -91,148 +95,114 @@ class ShadowTableServiceTest extends TestCase
         DB::table('_shadow_test_a__shadow')->insert(['id' => 2, 'label' => 'new-a']);
         DB::table('_shadow_test_b__shadow')->insert(['id' => 2, 'label' => 'new-b']);
 
-        $this->service->swap(['_shadow_test_a', '_shadow_test_b']);
+        $this->service->transaction(fn () => $this->service->swap(['_shadow_test_a', '_shadow_test_b']));
 
-        $this->assertSame('new-a', DB::table('_shadow_test_a')->value('label'));
-        $this->assertSame('new-b', DB::table('_shadow_test_b')->value('label'));
-        $this->assertSame('old-a', DB::table('_shadow_test_a__retired')->value('label'));
-        $this->assertSame('old-b', DB::table('_shadow_test_b__retired')->value('label'));
+        $this->assertSame(['new-a'], DB::table('_shadow_test_a')->pluck('label')->all());
+        $this->assertSame(['new-b'], DB::table('_shadow_test_b')->pluck('label')->all());
+        foreach (['_shadow_test_a__shadow', '_shadow_test_a__retired', '_shadow_test_b__shadow', '_shadow_test_b__retired'] as $gone) {
+            $this->assertFalse($this->tableExists($gone), "$gone must not survive the swap.");
+        }
     }
 
+    /**
+     * Index names are unique per schema, so the shadow's copies are created
+     * under names of their own; the swap must hand the live names back, or
+     * a migration that drops an index by its Laravel name fails later.
+     */
     #[Test]
-    public function drop_retired_removes_only_retired_tables(): void
+    public function swap_gives_the_new_table_the_live_index_names_back(): void
     {
-        DB::statement('CREATE TABLE _shadow_test_a (id INT UNSIGNED PRIMARY KEY)');
-        DB::statement('CREATE TABLE _shadow_test_a__retired (id INT UNSIGNED PRIMARY KEY)');
+        DB::statement('CREATE TABLE _shadow_test_a (id INT, code VARCHAR(8), label VARCHAR(32))');
+        DB::statement('ALTER TABLE _shadow_test_a ADD CONSTRAINT _shadow_test_a_primary PRIMARY KEY (id)');
+        DB::statement('ALTER TABLE _shadow_test_a ADD CONSTRAINT _shadow_test_a_code_unique UNIQUE (code)');
+        DB::statement('CREATE INDEX _shadow_test_a_label_index ON _shadow_test_a (label)');
+        $before = $this->indexNames('_shadow_test_a');
 
-        $this->service->dropRetired(['_shadow_test_a']);
+        foreach ([1, 2] as $run) {
+            $this->service->createLike('_shadow_test_a');
 
-        $this->assertTrue($this->tableExists('_shadow_test_a'), 'live table must remain.');
-        $this->assertFalse($this->tableExists('_shadow_test_a__retired'), 'retired table must be dropped.');
+            $this->service->transaction(fn () => $this->service->swap(['_shadow_test_a']));
+
+            $this->assertSame($before, $this->indexNames('_shadow_test_a'), "run $run must restore the index names.");
+        }
+        $this->assertSame(
+            ['_shadow_test_a_code_unique', '_shadow_test_a_primary'],
+            DB::table('pg_constraint')->where('conrelid', DB::raw("'_shadow_test_a'::regclass"))->orderBy('conname')->pluck('conname')->all(),
+            'the constraints behind the unique and primary indexes are renamed with them.',
+        );
     }
 
     #[Test]
     public function capture_drop_and_readd_foreign_keys_round_trip(): void
     {
-        // Throwaway parent + child with an FK between them. Pass the
-        // parent name explicitly to captureForeignKeys() so we don't
-        // touch the real registered scryfall tables on staging.
-        DB::statement('CREATE TABLE _shadow_test_a (id INT UNSIGNED PRIMARY KEY)');
-        DB::statement('CREATE TABLE _shadow_test_b (id INT UNSIGNED PRIMARY KEY, parent_id INT UNSIGNED, '
-            .'CONSTRAINT _shadow_test_b_fk FOREIGN KEY (parent_id) REFERENCES _shadow_test_a (id) ON DELETE CASCADE)');
+        $captured = $this->createThrowawayForeignKey();
 
-        $captured = $this->service->captureForeignKeys(['_shadow_test_a']);
         $this->assertCount(1, $captured, 'capture must find the throwaway FK.');
-        $this->assertSame('_shadow_test_b', $captured[0]->TABLE_NAME);
-        $this->assertSame('_shadow_test_b_fk', $captured[0]->CONSTRAINT_NAME);
-        $this->assertSame('_shadow_test_a', $captured[0]->REFERENCED_TABLE_NAME);
-        $this->assertSame('CASCADE', $captured[0]->DELETE_RULE);
+        $this->assertSame('_shadow_test_b', $captured[0]->table_name);
+        $this->assertSame('_shadow_test_b_fk', $captured[0]->name);
+        $this->assertSame('_shadow_test_a', $captured[0]->referenced_table);
+        $this->assertSame('FOREIGN KEY (parent_id) REFERENCES _shadow_test_a(id) ON DELETE CASCADE', $captured[0]->definition);
 
         $this->service->dropForeignKeys($captured);
-        $afterDrop = DB::table('information_schema.KEY_COLUMN_USAGE')
-            ->where('TABLE_SCHEMA', DB::connection()->getDatabaseName())
-            ->where('TABLE_NAME', '_shadow_test_b')
-            ->where('CONSTRAINT_NAME', '_shadow_test_b_fk')
-            ->count();
-        $this->assertSame(0, $afterDrop, 'drop must remove the FK.');
-
-        $this->service->addForeignKeys($captured);
-        $afterAdd = DB::table('information_schema.KEY_COLUMN_USAGE')
-            ->where('TABLE_SCHEMA', DB::connection()->getDatabaseName())
-            ->where('TABLE_NAME', '_shadow_test_b')
-            ->where('CONSTRAINT_NAME', '_shadow_test_b_fk')
-            ->where('REFERENCED_TABLE_NAME', '_shadow_test_a')
-            ->count();
-        $this->assertSame(1, $afterAdd, 'addForeignKeys must restore the FK with original references.');
-    }
-
-    #[Test]
-    public function add_foreign_keys_skips_constraints_that_still_exist(): void
-    {
-        $captured = $this->createThrowawayForeignKey();
-
-        $this->assertSame(0, $this->service->addForeignKeys($captured), 'an existing FK must be skipped, not re-added (which would throw).');
-
-        $this->service->dropForeignKeys($captured);
-        $this->assertSame(1, $this->service->addForeignKeys($captured));
-        $this->assertSame(1, $this->foreignKeyCount());
-    }
-
-    #[Test]
-    public function a_crashed_runs_dropped_foreign_keys_are_restored_by_the_next_run(): void
-    {
-        Storage::fake('local');
-        $captured = $this->createThrowawayForeignKey();
-
-        $this->service->rememberForeignKeys($captured);
-        $this->service->dropForeignKeys($captured);
-        // The run dies here. The next one starts with:
-        $restored = $this->service->restorePendingForeignKeys();
-
-        $this->assertSame(['restored' => 1, 'failed' => []], $restored);
-        $this->assertSame(1, $this->foreignKeyCount());
-        Storage::disk('local')->assertMissing(ShadowTableService::PENDING_FOREIGN_KEYS);
-        $this->assertSame(['restored' => 0, 'failed' => []], $this->service->restorePendingForeignKeys(), 'nothing is pending any more.');
-    }
-
-    #[Test]
-    public function a_constraint_the_rename_rotated_onto_another_table_is_re_pointed(): void
-    {
-        $captured = $this->createThrowawayForeignKey();
-        // A survivor of the drop: the RENAME rotated it onto the retired parent.
-        DB::statement('RENAME TABLE _shadow_test_a TO _shadow_test_a__retired');
-        DB::statement('CREATE TABLE _shadow_test_a (id INT UNSIGNED PRIMARY KEY)');
-        $this->assertSame(0, $this->foreignKeyCount(), 'precondition: the FK now points at the retired table.');
+        $this->assertSame(0, $this->foreignKeyCount(), 'drop must remove the FK.');
 
         $this->assertSame(1, $this->service->addForeignKeys($captured));
-
-        $this->assertSame(1, $this->foreignKeyCount(), 'the FK must point at the live parent again.');
+        $this->assertSame(1, $this->foreignKeyCount(), 'addForeignKeys must restore the FK with its original reference.');
     }
 
+    /**
+     * The sequence {@see ShadowSwapper} runs:
+     * afterwards the FK points at the new live parent, not at the dropped
+     * old one.
+     */
     #[Test]
-    public function a_pending_constraint_that_cannot_come_back_is_reported_and_cleared(): void
+    public function after_the_swap_the_foreign_key_points_at_the_new_table(): void
     {
-        Storage::fake('local');
         $captured = $this->createThrowawayForeignKey();
-        $this->service->rememberForeignKeys($captured);
-        $this->service->dropForeignKeys($captured);
-        // A migration since then dropped the column.
-        DB::statement('ALTER TABLE _shadow_test_b DROP COLUMN parent_id');
+        DB::table('_shadow_test_a')->insert(['id' => 1]);
+        DB::table('_shadow_test_b')->insert(['id' => 1, 'parent_id' => 1]);
+        $this->service->createLike('_shadow_test_a');
+        DB::table('_shadow_test_a__shadow')->insert([['id' => 1], ['id' => 2]]);
 
-        $result = $this->service->restorePendingForeignKeys();
+        $this->service->transaction(function () use ($captured): void {
+            $this->service->dropForeignKeys($captured);
+            $this->service->swap(['_shadow_test_a']);
+            $this->service->addForeignKeys($captured);
+        });
 
-        $this->assertSame(0, $result['restored']);
-        $this->assertCount(1, $result['failed']);
-        $this->assertStringStartsWith('_shadow_test_b._shadow_test_b_fk', $result['failed'][0]);
-        Storage::disk('local')->assertMissing(ShadowTableService::PENDING_FOREIGN_KEYS);
+        DB::table('_shadow_test_b')->insert(['id' => 2, 'parent_id' => 2]);
+        $this->assertSame(2, DB::table('_shadow_test_b')->count(), 'a child of a parent only the new table has is accepted.');
+        $this->expectException(QueryException::class);
+        DB::table('_shadow_test_b')->insert(['id' => 3, 'parent_id' => 3]);
     }
 
+    /**
+     * The guarantee the transaction exists for: a constraint the new data
+     * cannot satisfy undoes the whole swap, the dropped constraint included.
+     */
     #[Test]
-    public function an_unreadable_pending_record_is_reported_and_cleared(): void
+    public function a_failed_re_add_rolls_the_whole_swap_back(): void
     {
-        Storage::fake('local');
-        Storage::disk('local')->put(ShadowTableService::PENDING_FOREIGN_KEYS, '[{"TABLE_NAME":');
-
-        $result = $this->service->restorePendingForeignKeys();
-
-        $this->assertSame(0, $result['restored']);
-        $this->assertCount(1, $result['failed']);
-        Storage::disk('local')->assertMissing(ShadowTableService::PENDING_FOREIGN_KEYS);
-    }
-
-    #[Test]
-    public function a_finished_run_leaves_nothing_to_restore(): void
-    {
-        Storage::fake('local');
         $captured = $this->createThrowawayForeignKey();
+        DB::table('_shadow_test_a')->insert(['id' => 1]);
+        DB::table('_shadow_test_b')->insert(['id' => 1, 'parent_id' => 1]);
+        $this->service->createLike('_shadow_test_a');
+        DB::table('_shadow_test_a__shadow')->insert(['id' => 2]);
 
-        $this->service->rememberForeignKeys($captured);
-        $this->service->dropForeignKeys($captured);
-        $this->service->addForeignKeys($captured);
-        $this->service->forgetForeignKeys();
+        try {
+            $this->service->transaction(function () use ($captured): void {
+                $this->service->dropForeignKeys($captured);
+                $this->service->swap(['_shadow_test_a']);
+                $this->service->addForeignKeys($captured);
+            });
+            $this->fail('re-adding the FK over an orphaned child was expected to fail.');
+        } catch (QueryException $e) {
+            $this->assertSame('23503', $e->getCode(), 'foreign_key_violation');
+        }
 
-        $this->assertSame(['restored' => 0, 'failed' => []], $this->service->restorePendingForeignKeys());
-        $this->assertSame(1, $this->foreignKeyCount());
+        $this->assertSame([1], DB::table('_shadow_test_a')->pluck('id')->all(), 'live keeps its old rows.');
+        $this->assertSame([2], DB::table('_shadow_test_a__shadow')->pluck('id')->all(), 'the shadow is still there.');
+        $this->assertSame(1, $this->foreignKeyCount(), 'the dropped FK is back.');
     }
 
     #[Test]
@@ -242,9 +212,9 @@ class ShadowTableServiceTest extends TestCase
         $shadow = ShadowTableRegistry::shadow($sample);
         $retired = ShadowTableRegistry::retired($sample);
 
-        DB::statement("CREATE TABLE `$shadow` (id INT UNSIGNED PRIMARY KEY)");
-        DB::statement("CREATE TABLE `$retired` (id INT UNSIGNED PRIMARY KEY)");
-        DB::statement('CREATE TABLE _shadow_test_a__shadow (id INT UNSIGNED PRIMARY KEY)');
+        DB::statement("CREATE TABLE \"$shadow\" (id INT PRIMARY KEY)");
+        DB::statement("CREATE TABLE \"$retired\" (id INT PRIMARY KEY)");
+        DB::statement('CREATE TABLE _shadow_test_a__shadow (id INT PRIMARY KEY)');
 
         $this->service->cleanup();
 
@@ -258,23 +228,18 @@ class ShadowTableServiceTest extends TestCase
 
     private function dropThrowawayTables(): void
     {
-        DB::statement('SET FOREIGN_KEY_CHECKS=0');
-        try {
-            $names = [
-                '_shadow_test_b__shadow', '_shadow_test_b__retired', '_shadow_test_b',
-                '_shadow_test_a', '_shadow_test_a__shadow', '_shadow_test_a__retired',
-            ];
-            foreach ($names as $name) {
-                DB::statement("DROP TABLE IF EXISTS `$name`");
-            }
-            // Also clean up registered shadows in case a prior run aborted
-            // mid-test and left them on disk.
-            $sample = ShadowTableRegistry::TABLES[0];
-            DB::statement('DROP TABLE IF EXISTS `'.ShadowTableRegistry::shadow($sample).'`');
-            DB::statement('DROP TABLE IF EXISTS `'.ShadowTableRegistry::retired($sample).'`');
-        } finally {
-            DB::statement('SET FOREIGN_KEY_CHECKS=1');
+        $names = [
+            '_shadow_test_b__shadow', '_shadow_test_b__retired', '_shadow_test_b',
+            '_shadow_test_a', '_shadow_test_a__shadow', '_shadow_test_a__retired',
+        ];
+        foreach ($names as $name) {
+            DB::statement("DROP TABLE IF EXISTS \"$name\"");
         }
+        // Also clean up registered shadows in case a prior run aborted
+        // mid-test and left them on disk.
+        $sample = ShadowTableRegistry::TABLES[0];
+        DB::statement('DROP TABLE IF EXISTS "'.ShadowTableRegistry::shadow($sample).'"');
+        DB::statement('DROP TABLE IF EXISTS "'.ShadowTableRegistry::retired($sample).'"');
     }
 
     /**
@@ -285,21 +250,27 @@ class ShadowTableServiceTest extends TestCase
      */
     private function createThrowawayForeignKey(): array
     {
-        DB::statement('CREATE TABLE _shadow_test_a (id INT UNSIGNED PRIMARY KEY)');
-        DB::statement('CREATE TABLE _shadow_test_b (id INT UNSIGNED PRIMARY KEY, parent_id INT UNSIGNED, '
+        DB::statement('CREATE TABLE _shadow_test_a (id INT PRIMARY KEY)');
+        DB::statement('CREATE TABLE _shadow_test_b (id INT PRIMARY KEY, parent_id INT, '
             .'CONSTRAINT _shadow_test_b_fk FOREIGN KEY (parent_id) REFERENCES _shadow_test_a (id) ON DELETE CASCADE)');
 
         return $this->service->captureForeignKeys(['_shadow_test_a']);
     }
 
+    /** FKs named `_shadow_test_b_fk` on `_shadow_test_b` that reference the table now named `_shadow_test_a`. */
     private function foreignKeyCount(): int
     {
-        return DB::table('information_schema.REFERENTIAL_CONSTRAINTS')
-            ->where('CONSTRAINT_SCHEMA', DB::connection()->getDatabaseName())
-            ->where('TABLE_NAME', '_shadow_test_b')
-            ->where('CONSTRAINT_NAME', '_shadow_test_b_fk')
-            ->where('REFERENCED_TABLE_NAME', '_shadow_test_a')
+        return DB::table('pg_constraint')
+            ->where('conname', '_shadow_test_b_fk')
+            ->where('conrelid', DB::raw("'_shadow_test_b'::regclass"))
+            ->where('confrelid', DB::raw("'_shadow_test_a'::regclass"))
             ->count();
+    }
+
+    /** @return list<string> */
+    private function indexNames(string $table): array
+    {
+        return DB::table('pg_indexes')->where('tablename', $table)->orderBy('indexname')->pluck('indexname')->all();
     }
 
     private function tableExists(string $name): bool

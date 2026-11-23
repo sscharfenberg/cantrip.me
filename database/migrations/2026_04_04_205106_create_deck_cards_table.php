@@ -46,7 +46,7 @@ return new class extends Migration
             $table->index(['default_card_id']);
             // `(deck_id, role)` is unique at the schema level so a deck
             // can never have two commanders / two partners / two
-            // signature spells / two companions. MySQL UNIQUE allows
+            // signature spells / two companions. UNIQUE allows
             // multiple NULLs, so mainboard rows are unaffected.
             $table->unique(['deck_id', 'role']);
         });

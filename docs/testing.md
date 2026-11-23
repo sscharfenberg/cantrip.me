@@ -5,63 +5,63 @@
 | Suite               | What it covers                                              | Runs against              | Command                |
 |---------------------|-------------------------------------------------------------|---------------------------|------------------------|
 | PHPUnit `Local`     | `tests/Unit` + `tests/Feature` *(excl. `Feature/Services`)* | SQLite in-memory          | `composer test`        |
-| PHPUnit `Staging`   | `tests/Feature/Services` only                                | MariaDB (`mbos`)          | `composer test:mysql`  |
+| PHPUnit `Staging`   | `tests/Feature/Services` only                                | Postgres (`cantrip_staging`) | `composer test:pgsql`  |
 | Vitest              | `resources/{app,build}/**/__tests__/*.spec.ts`               | jsdom, no server          | `npm run test`         |
 | Playwright          | `tests/e2e/**/*.spec.ts`                                     | Chromium + the real app   | `npm run e2e`          |
 
-The two PHPUnit testsuites in `phpunit.xml` are physically separate and split along DB-engine lines. Each composer script targets exactly one suite, so running the wrong command on the wrong host can't ever drop a `RefreshDatabase` test onto the live MariaDB.
+The two PHPUnit testsuites in `phpunit.xml` are physically separate and split along DB-engine lines. Each composer script targets exactly one suite, so running the wrong command on the wrong host can't ever drop a `RefreshDatabase` test onto a live database.
 
 ## `composer test`
 
-Runs the **`Local`** suite against the default SQLite in-memory driver. Fast, local, no DB setup required. Covers all unit tests and the write-heavy feature tests that use `RefreshDatabase` — those need a fresh schema each run, which is cheap on `:memory:` SQLite and catastrophic on a real MariaDB.
+Runs the **`Local`** suite against the default SQLite in-memory driver. Fast, local, no DB setup required. Covers all unit tests and the write-heavy feature tests that use `RefreshDatabase` — those need a fresh schema each run, which is cheap on `:memory:` SQLite and catastrophic on a real database.
 
 ```bash
 composer test                                         # Local suite
 composer test -- --filter=DeckFinalizeServiceTest     # filtered (note the `--`)
 ```
 
-## `composer test:mysql`
+## `composer test:pgsql`
 
-Runs the **`Staging`** suite against MariaDB. Use this on staging (or any server with a populated `mbos` database) to exercise the read-only feature tests that require real Scryfall data and MariaDB-only SQL (`REGEXP` color-identity filters, accent-folding collations). The `--testsuite=Staging` filter is built into the composer script, so PHPUnit never even discovers the `Local` suite — `RefreshDatabase` cannot reach a live connection by accident.
+Runs the **`Staging`** suite against Postgres. Use this on staging (or any server with a populated `cantrip_staging` database) to exercise the read-only feature tests that require real Scryfall data and Postgres-only SQL (regex color-identity filters, `split_part`, `CHAR_LENGTH` ranking), plus the shadow-table tests, which work on throwaway tables. The `--testsuite=Staging` filter is built into the composer script, so PHPUnit never even discovers the `Local` suite — `RefreshDatabase` cannot reach a live connection by accident.
 
 ```bash
 # On staging
-composer test:mysql                                   # Staging suite
-composer test:mysql -- --filter=DeckServiceTest       # filtered (note the `--`)
+composer test:pgsql                                   # Staging suite
+composer test:pgsql -- --filter=DeckServiceTest       # filtered (note the `--`)
 ```
 
 **Prerequisites:**
 
-* `DB_CONNECTION=mysql` and `DB_DATABASE=mbos` must point at a real MariaDB instance. The composer script injects these as inline shell environment variables before `php artisan test` so they beat `phpunit.xml`'s non-forced `<env>` tags — do not override them on the CLI.
-* The database must contain a full Scryfall import. Run `php artisan scryfall:update` first — the MariaDB-only tests assert on bedrock cards (Sol Ring, Lightning Bolt, Atraxa, Yoshimaru, etc.) that only exist after the sync.
+* `DB_CONNECTION=pgsql` and `DB_DATABASE=cantrip_staging` must point at a real Postgres instance. The composer script injects these as inline shell environment variables before `php artisan test` so they beat `phpunit.xml`'s non-forced `<env>` tags — do not override them on the CLI.
+* The database must contain a full Scryfall import. Run `php artisan scryfall:update` first — the Postgres-only tests assert on bedrock cards (Sol Ring, Lightning Bolt, Atraxa, Yoshimaru, etc.) that only exist after the sync.
 * `phpunit.xml` must exist on the target machine (it is not `.dist`-suffixed, so PhpStorm deployment must not exclude it).
 * If you recently ran `php artisan config:cache`, clear it first with `php artisan config:clear` — the test scripts no longer do this implicitly (it conflicts with forwarding `--filter` through the script chain).
 
 ## The end-to-end database (`docker-compose.e2e.yml`)
 
-**This container is for the end-to-end suite only. It is not a development database, and local development does not use it** — that still happens against staging, as described in `CLAUDE.md` under "Staging Server as Dev Environment".
+**This container is for the end-to-end suite only. It is not a development database, and local development does not use it** — that still happens against staging, as described in `CLAUDE.md` under "Staging as Dev Environment".
 
 ```bash
 npm run e2e:db:up      # start it and wait until it answers
 npm run e2e:db:down    # stop it and discard everything in it
 ```
 
-**Why a real MariaDB and not SQLite.** The end-to-end suite drives the real app, and the app's deck-building core is MariaDB-only: `DeckCardSearchService` and `CommandZoneService` filter colour identity with `REGEXP`, which SQLite cannot run at all. That is the same engine split the `Local` / `Staging` suites above already encode. An end-to-end run on SQLite could only cover the flows that avoid card search — which is most of the reason to have one.
+**Why a real Postgres and not SQLite.** The end-to-end suite drives the real app, and the app's deck-building core is Postgres-only: `DeckCardSearchService` and `CommandZoneService` filter colour identity with regular expressions, which SQLite cannot run at all. That is the same engine split the `Local` / `Staging` suites above already encode. An end-to-end run on SQLite could only cover the flows that avoid card search — which is most of the reason to have one.
 
-**What the container is.** MariaDB 11.8, matching staging and production (11.8.6), with `utf8mb4` / `utf8mb4_unicode_ci` as the server default so the schema it creates matches theirs rather than "matches except the tables nobody thought to pin".
+**What the container is.** Postgres 17, matching staging and production, initialised with the ICU root locale (`--locale-provider=icu --icu-locale=und`) as their databases are, so names sort the same way.
 
 **Two design points worth knowing before you change them:**
 
-* **It listens on 3399 — not 3306, and pointedly not 3307.** `.env` points local dev at `127.0.0.1:3306`/`mbos`, so a matching port would let a stray `DB_HOST` reach the test database or let a test run wipe a real one. 3307 looks like the obvious alternative and is the worse trap: `~/.ssh/config` gives the `cantrip` host a `LocalForward 3307 localhost:3306`, so an open ssh session to staging owns that port and **what answers on it is staging's own database**. A run started while that tunnel was up would find something listening, believe the container was healthy, and aim `migrate:fresh` down the tunnel — with only the credentials in the way. `assertIsE2EDatabase()` in `tests/e2e/support/environment.ts` is the second line of defence: it compares MariaDB's `@@hostname` against the compose container id and aborts if they differ. It is also bound to loopback, because an open MariaDB on `cantrip_e2e`/`cantrip_e2e` is found by a subnet scan in seconds.
+* **It listens on 5499 — not 5432, and on no port an ssh tunnel forwards.** Another local project's development Postgres listens on 5432, so a matching port would let a stray `DB_HOST` reach the test database or let a test run wipe a real one. Tunnels are the sharper trap: an ssh session that forwards a local port to a server's database makes **that server's own database** answer on it — an earlier version of this suite listened on such a port. A run that found something listening would believe the container was healthy and aim `migrate:fresh` down the tunnel, with only the credentials in the way. `assertIsE2EDatabase()` in `tests/e2e/support/environment.ts` is the second line of defence: it reads the server's `/etc/hostname` (the container's short id; allowed because the image makes `POSTGRES_USER` a superuser, which no real application role is) and aborts unless it matches the compose container. It is also bound to loopback, because an open Postgres on `cantrip_e2e`/`cantrip_e2e` is found by a subnet scan in seconds.
 * **Its storage is `tmpfs`, with no volume.** Every run starts with `migrate:fresh`, so nothing in it is meant to outlive a run, and a persistent volume would let a half-finished run leave state the next one silently inherits. `npm run e2e:db:down` is a guaranteed reset — verified: 27 tables before, 0 after.
 
 **Connecting to it by hand**, for poking at a failure:
 
 ```bash
-docker exec -it cantrip-e2e-db-1 mariadb -ucantrip_e2e -pcantrip_e2e cantrip_e2e
+docker exec -it cantrip-e2e-db-1 psql -U cantrip_e2e cantrip_e2e
 
 # or run an artisan command against it
-env DB_CONNECTION=mariadb DB_HOST=127.0.0.1 DB_PORT=3399 \
+env DB_CONNECTION=pgsql DB_HOST=127.0.0.1 DB_PORT=5499 \
     DB_DATABASE=cantrip_e2e DB_USERNAME=cantrip_e2e DB_PASSWORD=cantrip_e2e \
     php artisan migrate --force
 ```
@@ -70,7 +70,7 @@ If an artisan command against it fails with a connection error that names the *w
 
 ## `npm run e2e` — the Playwright suite
 
-Drives the **real app** in a real Chromium: Laravel over the throwaway MariaDB above, migrated and seeded fresh at the start of every run.
+Drives the **real app** in a real Chromium: Laravel over the throwaway Postgres above, migrated and seeded fresh at the start of every run.
 
 ```bash
 npm run e2e                       # the whole suite
@@ -82,7 +82,7 @@ npm run e2e:report                # last run's HTML report, with traces and scre
 
 Nothing needs to be running first. `globalSetup` starts the database container if it is down, rebuilds the bundle and the icon sprite, migrates fresh and seeds — then Playwright starts the app server itself on **port 8101**.
 
-**It exists for the questions Vitest structurally cannot answer.** jsdom has no layout, no navigation, no Inertia server and no database, so "a page really boots with its assets", "auth genuinely gates this route" and "the deck query comes back from a real `REGEXP`" all live here rather than there. Anything that can be proven with a mounted component and a mocked `fetch` belongs in Vitest, which is roughly forty times faster per assertion.
+**It exists for the questions Vitest structurally cannot answer.** jsdom has no layout, no navigation, no Inertia server and no database, so "a page really boots with its assets", "auth genuinely gates this route" and "the deck query comes back from a real regex" all live here rather than there. Anything that can be proven with a mounted component and a mocked `fetch` belongs in Vitest, which is roughly forty times faster per assertion.
 
 **It runs in CI too, and the CI job runs `npm run e2e` and nothing else.** That is the point of the harness starting its own database, build and server: the pipeline has no setup of its own to drift out of step, and a red CI run is reproducible with one command on your machine. When it does go red, download the `playwright-report` artifact and open the trace with `npx playwright show-trace` — a CI log alone tells you very little about a browser.
 
@@ -144,10 +144,10 @@ The two commander decks are the reason a card-search assertion can mean somethin
 
 ## Adding new tests
 
-* If the test reads real Scryfall data and never writes to the DB → put it in `tests/Feature/Services/` and self-skip on `getDriverName() !== 'mysql'`. It will run via `composer test:mysql` only.
-* If the test uses `RefreshDatabase` (or any other write-heavy fixture) → put it elsewhere under `tests/Feature/` and self-skip on `getDriverName() === 'mysql'`. It will run via `composer test` only.
+* If the test reads real Scryfall data and never writes to the DB → put it in `tests/Feature/Services/` and self-skip on `getDriverName() !== 'pgsql'`. It will run via `composer test:pgsql` only.
+* If the test uses `RefreshDatabase` (or any other write-heavy fixture) → put it elsewhere under `tests/Feature/`. It will run via `composer test` only.
 
-The skip-guards inside individual tests are belt-and-suspenders on top of the testsuite split — they protect against running raw `php artisan test` (no `--testsuite` flag) on a host with the mysql connection configured.
+On top of the testsuite split, `tests/TestCase.php::setUpTraits()` skips every test that uses `RefreshDatabase`, `DatabaseMigrations` or `DatabaseTruncation` unless the connection is in-memory SQLite — before the trait resets anything. That protects against running raw `php artisan test` (no `--testsuite` flag) on a host with a real connection configured. A skip inside a test's own `setUp()` cannot do that: it runs after `parent::setUp()`, which has already reset the database.
 
 For the browser suite:
 

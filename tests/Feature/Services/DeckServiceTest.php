@@ -22,15 +22,14 @@ use Tests\TestCase;
  * Like {@see DeckCardSearchServiceTest} these tests:
  *
  *  - Never write to the database — they only `find()` real oracle cards.
- *  - Skip automatically on non-MariaDB connections (REGEXP-based filtering
+ *  - Skip automatically on non-Postgres connections (regex-based filtering
  *    is unsupported on SQLite).
  *  - Assert on bedrock Magic cards guaranteed to exist in any Scryfall-synced
  *    dataset (Atraxa, Yoshimaru, Rograkh, Teferi, Counterspell, etc.).
  *
  * To run on staging:
  *
- *     DB_CONNECTION=mysql DB_DATABASE=mbos \
- *         php artisan test --filter=DeckServiceTest
+ *     composer test:pgsql -- --filter=DeckServiceTest
  */
 class DeckServiceTest extends TestCase
 {
@@ -38,10 +37,10 @@ class DeckServiceTest extends TestCase
     {
         parent::setUp();
 
-        if (DB::connection()->getDriverName() !== 'mysql') {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
             $this->markTestSkipped(
-                'DeckService validation requires MariaDB (REGEXP color-identity filter). '
-                .'Run against staging with DB_CONNECTION=mysql.'
+                'DeckService validation requires Postgres (regex color-identity filter). '
+                .'Run on staging with composer test:pgsql.'
             );
         }
     }

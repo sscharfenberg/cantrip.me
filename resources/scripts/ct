@@ -1,0 +1,280 @@
+#!/usr/bin/env bash
+# ct — run commands against the cantrip.me sites on debbie, from the Mac.
+#      Installed as ~/.local/bin/ct; zsh completion: $ZSH_CUSTOM/completions/_ct.
+#
+# Committed in resources/scripts/; install on the workstation with
+#   install -m 755 resources/scripts/ct ~/.local/bin/ct
+#   install -m 644 resources/scripts/_ct ~/.oh-my-zsh/custom/completions/_ct
+#
+#   ct artisan about                    # staging (the default)
+#   ct artisan migrate:status --prod
+#   ct tinker --prod
+#   ct logs -f                          # app.log; --scryfall, --schedule, --cron
+#   ct status --prod                    # live commit, maintenance, scheduler
+#   ct deploy --prod                    # cantrip-prod-deploy: origin/main
+#   ct deploy --check --prod            # only ask the CI gate
+#   ct deploy <sha> --prod              # a specific commit (rollback)
+#
+# The target flag may appear ANYWHERE in the line; it is stripped before the
+# rest is forwarded. DEFAULT IS STAGING, ON PURPOSE: production is only touched
+# when you type --prod, so a forgotten flag can only hit staging.
+#
+# Modelled on MixTape's `mt`. The two targets run as different users, mirroring
+# the ownership on debbie:
+#
+#   staging  /var/www/cantrip.staging   yours; its php-fpm pool runs as you
+#            -> artisan runs as you, directly.
+#   prod     /var/www/cantrip.prod      cantrip-deploy:cantrip, dirs 2750
+#            -> artisan runs as the runtime user (sudo -u cantrip), exactly as
+#               the deploy script does, so what it writes (logs, caches,
+#               compiled views) stays cantrip's. Prod artisan as anyone else
+#               leaves files behind that the site may not be able to rewrite.
+#
+# Your sudo on debbie needs no password, so there is no prompt on --prod: the
+# flag and the typed confirmations for destructive commands are the friction.
+#
+# `deploy` only starts /usr/local/bin/cantrip-prod-deploy on debbie, which has
+# all the guards (CI gate, lock, dirty tree, maintenance, health check); this
+# wrapper adds none and bypasses none. Staging has no deploy: it is uploaded
+# from the Mac.
+#
+# macOS ships bash 3.2: an EMPTY array under `set -u` is an "unbound variable"
+# abort there, hence every ${ARR[@]+"${ARR[@]}"}.
+
+set -Eeuo pipefail
+
+HOST=debbie
+
+STAGING_SITE=/var/www/cantrip.staging
+PROD_SITE=/var/www/cantrip.prod
+PHP=/usr/bin/php
+RUNTIME_USER=cantrip
+DEPLOY_USER=cantrip-deploy
+DEPLOY_SCRIPT=/usr/local/bin/cantrip-prod-deploy
+SCHEDULER_TIMER=cantrip-prod-schedule.timer
+
+warn() { printf '\033[1;33m%s\033[0m\n' "$*" >&2; }
+fail() { printf '\033[1;31mct: %s\033[0m\n' "$*" >&2; exit 1; }
+
+usage() {
+    cat <<EOF
+ct — drive the cantrip.me sites on debbie
+
+USAGE
+  ct <command> [args...] [--staging|--prod]
+
+COMMANDS
+  artisan <args...>      run artisan on the target site
+  tinker                 open a tinker REPL
+  logs [-f] [-n N]       tail the newest app log; or --scryfall, --schedule
+                         (db:backup, cleanup), --cron (scheduled Scryfall runs)
+  shell                  interactive shell in the site directory
+  status                 deployed commit, maintenance mode, scheduler (prod)
+  deploy [--check|--skip-ci] [<sha>]
+                         run cantrip-prod-deploy (--prod only)
+  help
+
+TARGET
+  --staging  (default)  https://cantrip.local
+  --prod                https://cantrip.me — always explicit
+
+EXAMPLES
+  ct artisan migrate:status
+  ct artisan down --prod
+  ct artisan route:list | grep deck
+  ct logs -f --scryfall --prod
+  ct deploy --check --prod
+EOF
+}
+
+# --- Parse: pull the target flag out of anywhere in the line ---------------
+TARGET=staging
+TARGET_SET=0
+ARGS=()
+for arg in "$@"; do
+    case "$arg" in
+        --staging)
+            if [[ $TARGET_SET == 1 && $TARGET != staging ]]; then
+                fail "both --staging and --prod given"
+            fi
+            TARGET=staging; TARGET_SET=1 ;;
+        --prod|--production)
+            if [[ $TARGET_SET == 1 && $TARGET != prod ]]; then
+                fail "both --staging and --prod given"
+            fi
+            TARGET=prod; TARGET_SET=1 ;;
+        *)
+            ARGS+=("$arg") ;;
+    esac
+done
+
+if [[ ${#ARGS[@]} -eq 0 ]]; then
+    usage
+    exit 1
+fi
+CMD="${ARGS[0]}"
+ARGS=(${ARGS[@]+"${ARGS[@]:1}"})
+
+if [[ $TARGET == prod ]]; then
+    SITE=$PROD_SITE
+    # Absolute paths, as in the deploy script and its sudoers rule. HOME=/tmp:
+    # cantrip's home is /nonexistent, and tinker (psysh) wants to write there.
+    AS_SITE_USER=(sudo -u "$RUNTIME_USER" env HOME=/tmp)
+else
+    SITE=$STAGING_SITE
+    AS_SITE_USER=()
+fi
+RUN_ARTISAN=(${AS_SITE_USER[@]+"${AS_SITE_USER[@]}"} "$PHP" "$SITE/artisan")
+
+# --- Quoting for the remote shell -------------------------------------------
+# ssh joins its arguments and the remote shell splits them again, so anything
+# with a space or a glob would arrive wrong. %q quotes each one for that shell.
+remote_cmd() {
+    local out="" a
+    for a in "$@"; do
+        out+=" $(printf '%q' "$a")"
+    done
+    printf '%s' "${out# }"
+}
+
+# `cd /` first: on prod the sudo'd process would otherwise start in your home
+# directory, which cantrip cannot enter. artisan finds the app from its own
+# path, not from the working directory.
+run_remote() {
+    local cmdline="cd / && $1"
+    # A TTY only when stdout is a terminal, so `| grep` stays clean (a TTY
+    # makes ssh turn LF into CRLF).
+    if [[ -t 1 ]]; then
+        exec ssh -t "$HOST" "$cmdline"
+    else
+        exec ssh -T "$HOST" "$cmdline"
+    fi
+}
+
+has_arg() {
+    local wanted=$1 a
+    shift
+    for a in "$@"; do
+        [[ $a == "$wanted" ]] && return 0
+    done
+    return 1
+}
+
+# --- Destructive-command guard --------------------------------------------
+# Laravel's own confirmation never fires here: artisan runs non-interactively
+# at the far end of ssh. So the question is asked on this side, before anything
+# is sent — on staging too, which holds the full Scryfall dataset (a 20-minute
+# sync to rebuild) and copied user data.
+confirm() {
+    local word=$1 reply line
+    shift
+    warn ""
+    for line in "$@"; do
+        warn "  $line"
+    done
+    warn ""
+    printf 'Type %s to continue: ' "$word" >/dev/tty
+    read -r reply </dev/tty || fail "no terminal to confirm on; aborted"
+    [[ $reply == "$word" ]] || fail "aborted"
+}
+
+guard_artisan() {
+    local sub=$1
+    shift
+    case "$sub" in
+        migrate:fresh|migrate:refresh|migrate:reset|migrate:rollback|db:wipe|db:restore|db:copy-from-mariadb)
+            if [[ $TARGET == prod ]]; then
+                confirm PRODUCTION "You are about to run '$sub' against PRODUCTION." \
+                    "It replaces or rewinds live data: accounts, collections, decks."
+            else
+                confirm STAGING "You are about to run '$sub' against staging." \
+                    "It replaces or rewinds the copied data and the Scryfall dataset."
+            fi
+            ;;
+        scryfall:gc-images)
+            # Staging shares the image folders with prod but its dataset lags:
+            # --prune there deletes images prod still points at.
+            if [[ $TARGET == staging ]] && has_arg --prune ${@+"$@"}; then
+                fail "scryfall:gc-images --prune runs on prod only (staging shares the image folders, its data lags)"
+            fi
+            ;;
+    esac
+}
+
+case "$CMD" in
+    artisan)
+        [[ ${#ARGS[@]} -gt 0 ]] || fail "artisan needs a command, e.g. ct artisan about"
+        guard_artisan ${ARGS[@]+"${ARGS[@]}"}
+        run_remote "$(remote_cmd "${RUN_ARTISAN[@]}" "${ARGS[@]}")"
+        ;;
+
+    tinker)
+        exec ssh -tt "$HOST" "cd / && $(remote_cmd "${RUN_ARTISAN[@]}" tinker ${ARGS[@]+"${ARGS[@]}"})"
+        ;;
+
+    logs)
+        # Which log: the newest match on the server, so a channel switching
+        # between single (app.log) and daily (app-YYYY-MM-DD.log) still works.
+        pattern='app*.log'
+        TAIL_ARGS=()
+        for a in ${ARGS[@]+"${ARGS[@]}"}; do
+            case "$a" in
+                --scryfall) pattern='scryfall*.log' ;;
+                --schedule) pattern='schedule*.log' ;;
+                --cron)     pattern='cron-scryfall.log' ;;
+                *)          TAIL_ARGS+=("$a") ;;
+            esac
+        done
+        logs_dir=$(printf '%q' "$SITE/storage/logs")
+        tail_args=$(remote_cmd ${TAIL_ARGS[@]+"${TAIL_ARGS[@]}"})
+        # The glob stays unquoted so the REMOTE shell expands it.
+        snippet="f=\$(ls -t ${logs_dir}/${pattern} 2>/dev/null | head -1); \
+if [ -z \"\$f\" ]; then \
+echo 'ct: no log matching ${pattern} in ${SITE}/storage/logs; there is:' >&2; \
+ls -1 ${logs_dir} >&2 || true; exit 1; fi; \
+echo \"==> \$f\" >&2; exec tail ${tail_args} \"\$f\""
+        # On prod the whole snippet runs as cantrip: the glob itself needs to
+        # enter the 2770 storage tree.
+        run_remote "$(remote_cmd ${AS_SITE_USER[@]+"${AS_SITE_USER[@]}"} bash -c "$snippet")"
+        ;;
+
+    shell)
+        if [[ $TARGET == prod ]]; then
+            # cantrip's login shell is nologin, so name bash explicitly.
+            exec ssh -tt "$HOST" "cd / && $(remote_cmd "${AS_SITE_USER[@]}" bash -c "cd $SITE && exec bash -i")"
+        else
+            exec ssh -tt "$HOST" "cd $(printf '%q' "$SITE") && exec \$SHELL -l"
+        fi
+        ;;
+
+    status)
+        site=$(printf '%q' "$SITE")
+        if [[ $TARGET == prod ]]; then
+            snippet="cd /; \
+echo \"site:        $SITE (https://cantrip.me)\"; \
+if sudo -u $RUNTIME_USER test -f $site/storage/framework/maintenance.php; then echo 'maintenance: ON'; else echo 'maintenance: off'; fi; \
+echo \"commit:      \$(sudo -u $DEPLOY_USER git -C $site log -1 --format='%h %s (%cr)')\"; \
+echo \"checkout:    \$(sudo -u $DEPLOY_USER git -C $site rev-parse --abbrev-ref HEAD | sed 's/^HEAD\$/detached (pinned commit)/')\"; \
+echo \"scheduler:   \$(systemctl is-enabled $SCHEDULER_TIMER 2>/dev/null), last run \$(systemctl show -p ExecMainExitTimestamp --value ${SCHEDULER_TIMER%.timer}.service | sed 's/^\$/never/')\""
+        else
+            snippet="echo \"site:        $SITE (https://cantrip.local)\"; \
+if test -f $site/storage/framework/maintenance.php; then echo 'maintenance: ON'; else echo 'maintenance: off'; fi; \
+echo 'code:        uploaded from the Mac (no git checkout)'; \
+echo 'scheduler:   none on staging (Scryfall sync by hand)'"
+        fi
+        run_remote "bash -c $(printf '%q' "$snippet")"
+        ;;
+
+    deploy)
+        [[ $TARGET == prod ]] || fail "deploy needs --prod (staging is uploaded from the Mac, it has no deploy)"
+        # -tt: the deploy runs for minutes and prints colour; Ctrl-C should
+        # reach it on debbie, not just this end.
+        exec ssh -tt "$HOST" "cd / && $(remote_cmd sudo -u "$DEPLOY_USER" "$DEPLOY_SCRIPT" ${ARGS[@]+"${ARGS[@]}"})"
+        ;;
+
+    help|-h|--help)
+        usage ;;
+
+    *)
+        fail "unknown command '$CMD' (try: ct help)" ;;
+esac

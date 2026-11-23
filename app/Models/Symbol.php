@@ -76,6 +76,6 @@ class Symbol extends Model
         'hybrid' => 'boolean',
         'phyrexian' => 'boolean',
         'funny' => 'boolean',
-        'cmc' => 'integer',
+        'cmc' => 'float',
     ];
 }

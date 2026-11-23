@@ -135,7 +135,7 @@ jobs:
   e2e:
     name: End-to-end tests
     runs-on: ubuntu-24.04
-    # Generous: a cold run pays for the MariaDB image pull, a Chromium download and a Vite
+    # Generous: a cold run pays for the Postgres image pull, a Chromium download and a Vite
     # build before the first assertion. The suite itself is about a minute.
     timeout-minutes: 20
     steps:
@@ -145,9 +145,9 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: "8.4"
-          # pdo_mysql, NOT sqlite: this suite is the one that needs a real MariaDB,
-          # because the deck search filters colour identity with REGEXP.
-          extensions: intl, pdo_mysql
+          # pdo_pgsql, NOT sqlite: this suite is the one that needs a real Postgres,
+          # because the deck search filters colour identity with regular expressions.
+          extensions: intl, pdo_pgsql
           coverage: none
           tools: composer:v2
 

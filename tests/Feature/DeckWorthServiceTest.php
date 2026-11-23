@@ -15,7 +15,6 @@ use App\Models\User;
 use App\Services\DeckCardCopiesService;
 use App\Services\DeckWorthService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Inertia\Testing\AssertableInertia;
 use PHPUnit\Framework\Attributes\Test;
@@ -38,19 +37,6 @@ use Tests\TestCase;
 class DeckWorthServiceTest extends TestCase
 {
     use RefreshDatabase;
-
-    /**
-     * Hard-skip on real MariaDB connections. See
-     * {@see DeckCardCardStackPivotTest::setUp} for the rationale.
-     */
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        if (DB::connection()->getDriverName() === 'mysql') {
-            $this->markTestSkipped('Skipped on MariaDB — RefreshDatabase would wipe live data. Run via the default `composer test` (SQLite).');
-        }
-    }
 
     private function makeCard(string $name, float $priceEur, ?float $foilEur = null, int $finishes = 1): DefaultCard
     {

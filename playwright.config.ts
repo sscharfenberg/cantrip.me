@@ -8,9 +8,9 @@ import { BASE_URL, PORT, STORAGE_STATE, serverEnv } from "./tests/e2e/support/en
  * layout, no real navigation, no Inertia server and no database, so anything that depends
  * on the browser actually being a browser — and on the app actually being the app — lands
  * here: that a page really boots with its assets, that auth genuinely gates a route, that
- * a deck's cards come back from a real `REGEXP` colour-identity query.
+ * a deck's cards come back from a real regex colour-identity query.
  *
- * IT DRIVES THE REAL APP: Laravel over the throwaway MariaDB from
+ * IT DRIVES THE REAL APP: Laravel over the throwaway Postgres from
  * `docker-compose.e2e.yml`, migrated and seeded fresh at the start of every run. See
  * tests/e2e/support/environment.ts for why the environment is overridden rather than
  * configured, and for the `public/hot` trap that silently blanks every asset.

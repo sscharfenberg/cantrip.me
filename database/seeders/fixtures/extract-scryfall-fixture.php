@@ -8,8 +8,8 @@
  * this fixture. It reads the live tables and prints one JSON document on stdout:
  *
  * ```bash
- * ssh cantrip
- * cd /var/www/mbos
+ * ssh debbie
+ * cd /var/www/cantrip.staging
  * php database/seeders/fixtures/extract-scryfall-fixture.php > /tmp/scryfall.json
  * # then copy it back over database/seeders/fixtures/scryfall.json and re-run `npm run e2e`
  * ```

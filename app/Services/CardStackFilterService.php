@@ -204,7 +204,7 @@ class CardStackFilterService
                 $oracle->select('oracle_cards.id')->from('oracle_cards');
 
                 if (isset($filters['type'])) {
-                    $oracle->where('oracle_cards.type_line', 'like', "%{$filters['type']}%");
+                    FoldedSearch::whereContains($oracle, 'oracle_cards.type_line', $filters['type']);
                 }
 
                 if (isset($filters['colors'])) {

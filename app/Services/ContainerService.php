@@ -168,7 +168,7 @@ class ContainerService
         $etched = Finish::Etched->value;
 
         return "CASE
-            WHEN {$copies}.proxy = 1 THEN 0
+            WHEN {$copies}.proxy = true THEN 0
             WHEN {$copies}.finish = {$nonfoil} THEN default_cards.price_{$c}
             WHEN {$copies}.finish = {$foil} THEN default_cards.price_{$c}_foil
             WHEN {$copies}.finish = {$etched} THEN default_cards.price_{$c}_etched

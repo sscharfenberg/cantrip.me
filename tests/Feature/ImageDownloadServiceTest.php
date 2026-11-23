@@ -9,7 +9,6 @@ use App\Services\Scryfall\ImageDownloadService;
 use App\Services\Scryfall\ImageOrphanScanner;
 use App\Services\Scryfall\ScryfallRunStats;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -43,9 +42,6 @@ class ImageDownloadServiceTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        if (DB::connection()->getDriverName() === 'mysql') {
-            $this->markTestSkipped('Uses RefreshDatabase; never run against MariaDB.');
-        }
         ScryfallRunStats::reset();
         Storage::fake('card-images');
         Storage::fake('art-crops');

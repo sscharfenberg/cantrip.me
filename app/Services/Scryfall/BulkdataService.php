@@ -52,10 +52,8 @@ class BulkdataService extends ScryfallService
         if ($this->shadow) {
             return;
         }
-        DB::statement('SET FOREIGN_KEY_CHECKS=0;');
         BulkData::truncate();
         Log::channel('scryfall')->debug("table 'bulk_data' truncated.");
-        DB::statement('SET FOREIGN_KEY_CHECKS=1;');
     }
 
     /**
@@ -96,7 +94,7 @@ class BulkdataService extends ScryfallService
             // Scryfall sends ISO 8601 with timezone offset (e.g.
             // "2026-05-10T12:34:56.789+00:00"). DB::table()->insert() bypasses
             // the BulkData model's `'updated_at' => 'datetime'` cast, so we
-            // must hand MySQL a DATETIME-compatible string ourselves.
+            // must hand the database a timestamp string ourselves.
             'updated_at' => Carbon::parse($bulk['updated_at'])->toDateTimeString(),
             'uri' => $bulk['uri'],
             'name' => $bulk['name'],

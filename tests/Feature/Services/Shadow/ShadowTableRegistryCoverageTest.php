@@ -13,17 +13,17 @@ use Tests\TestCase;
  * Schema-driven completeness guard for {@see ShadowTableRegistry::FK_CHECKS}.
  *
  * Every FK that references a swap table from a non-swap (user-data) table is
- * captured and re-added around the atomic RENAME. If such an FK is NOT in the
- * pre-swap orphan check, an orphan slips past validation and instead makes
- * addForeignKeys() throw (errno 1452) AFTER the swap and dropRetired — a far
- * worse partial-state failure than a clean abort.
+ * dropped and re-added around the swap. If such an FK is NOT in the pre-swap
+ * orphan check, an orphan slips past validation and instead makes
+ * addForeignKeys() fail inside the swap's transaction: the swap rolls back
+ * and the alert names a constraint violation instead of the orphaned rows.
  *
- * This test derives the real user-data FK set from INFORMATION_SCHEMA and
+ * This test derives the real user-data FK set from the Postgres catalog and
  * asserts FK_CHECKS covers all of it, so a future migration that adds a new
- * user table referencing scryfall data fails here instead of at 02:00 in prod.
+ * user table referencing scryfall data fails here instead of at 04:00 in prod.
  *
- * MariaDB-only — needs real FK constraints from INFORMATION_SCHEMA, which the
- * SQLite Local suite does not expose. Read-only (INFORMATION_SCHEMA SELECT).
+ * Postgres-only — needs real FK constraints from the catalog, which the
+ * SQLite Local suite does not expose. Read-only.
  */
 class ShadowTableRegistryCoverageTest extends TestCase
 {
@@ -31,9 +31,9 @@ class ShadowTableRegistryCoverageTest extends TestCase
     {
         parent::setUp();
 
-        if (DB::connection()->getDriverName() !== 'mysql') {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
             $this->markTestSkipped(
-                'Needs real FK constraints from INFORMATION_SCHEMA. Run on staging with composer test:mysql.'
+                'Needs real FK constraints from the Postgres catalog. Run on staging with composer test:pgsql.'
             );
         }
     }
@@ -42,15 +42,19 @@ class ShadowTableRegistryCoverageTest extends TestCase
     public function fk_checks_cover_every_user_data_fk_referencing_swap_tables(): void
     {
         $swap = ShadowTableRegistry::TABLES;
-        $database = DB::getDatabaseName();
         $placeholders = implode(',', array_fill(0, count($swap), '?'));
 
         $fks = DB::select(
-            "SELECT TABLE_NAME AS source, COLUMN_NAME AS fk, REFERENCED_TABLE_NAME AS target
-             FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE
-             WHERE TABLE_SCHEMA = ?
-               AND REFERENCED_TABLE_NAME IN ($placeholders)",
-            [$database, ...$swap]
+            "SELECT child.relname AS source, att.attname AS fk, parent.relname AS target
+             FROM pg_constraint con
+             JOIN pg_class child ON child.oid = con.conrelid
+             JOIN pg_class parent ON parent.oid = con.confrelid
+             JOIN pg_namespace ns ON ns.oid = parent.relnamespace
+             JOIN pg_attribute att ON att.attrelid = con.conrelid AND att.attnum = ANY (con.conkey)
+             WHERE con.contype = 'f'
+               AND ns.nspname = current_schema()
+               AND parent.relname IN ($placeholders)",
+            $swap
         );
 
         $liveChecks = [];

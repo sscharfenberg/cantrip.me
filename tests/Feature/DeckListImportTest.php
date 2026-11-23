@@ -46,12 +46,8 @@ class DeckListImportTest extends TestCase
     {
         parent::setUp();
 
-        if (DB::connection()->getDriverName() === 'mysql') {
-            $this->markTestSkipped('Skipped on MariaDB — RefreshDatabase would wipe live data. Run via the default `composer test` (SQLite).');
-        }
-
         // The name ranking every card search shares orders by CHAR_LENGTH,
-        // which MariaDB has and SQLite lacks. Registering it here lets the
+        // which Postgres has and SQLite lacks. Registering it here lets the
         // replacement search runs under the fast suite.
         DB::connection()->getPdo()->sqliteCreateFunction('CHAR_LENGTH', fn ($value): int => mb_strlen((string) $value), 1);
     }

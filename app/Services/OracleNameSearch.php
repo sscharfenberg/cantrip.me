@@ -79,8 +79,8 @@ final class OracleNameSearch
     /**
      * Languages eligible for foreign-language name search. Ordered by
      * row-count descending — the order doesn't affect query planning
-     * (MySQL/MariaDB sort the IN list internally for index seeks) but
-     * documents which languages drive the bulk of matches.
+     * (an IN list is a set to the planner) but documents which languages
+     * drive the bulk of matches.
      *
      * Excludes the seven micro-language cases — `ph`, `grc`, `qya`,
      * `he`, `ar`, `sa`, `la` — which collectively contribute ~42 rows

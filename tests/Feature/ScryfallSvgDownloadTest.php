@@ -20,8 +20,8 @@ use Tests\TestCase;
  * whole nightly run — and a new set icon arrives next to the old one,
  * which goes only once the live sets point at the new one.
  *
- * Runs the shadow target because the live path truncates with MariaDB-only
- * `SET FOREIGN_KEY_CHECKS`. Skipped on the staging suite — uses
+ * Runs the shadow target, as the orchestrator does. Skipped on the
+ * staging suite — uses
  * RefreshDatabase.
  */
 class ScryfallSvgDownloadTest extends TestCase
@@ -31,9 +31,6 @@ class ScryfallSvgDownloadTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        if (DB::connection()->getDriverName() === 'mysql') {
-            $this->markTestSkipped('Uses RefreshDatabase; never run against MariaDB.');
-        }
         Sleep::fake();
         ScryfallRunStats::reset();
         Storage::fake('set');
@@ -135,25 +132,21 @@ class ScryfallSvgDownloadTest extends TestCase
     }
 
     #[Test]
-    public function a_failed_catalog_request_leaves_the_live_sets_and_symbols_as_they_were(): void
+    public function a_failed_catalog_request_leaves_the_live_symbols_as_they_were(): void
     {
-        DB::table('sets')->insert(['id' => (string) Str::uuid(), 'code' => 'abc', 'name' => 'ABC', 'scryfall_uri' => 'x', 'set_type' => 'core', 'path' => '/set/abc--111.svg', 'card_count' => 1, 'digital' => false]);
         DB::table('symbols')->insert(array_merge(
             array_diff_key($this->symbol('{W}', 'W'), ['colors' => true]),
             ['id' => (string) Str::uuid(), 'colors' => 'W', 'path' => '/symbol/W.svg'],
         ));
         Http::fake(['api.scryfall.com/*' => Http::response(['object' => 'error'], 503)]);
 
-        foreach (['/sets request failed' => fn () => (new SetsService)->updateSets(), '/symbology request failed' => fn () => (new SymbolsService)->updateSymbols()] as $message => $run) {
-            try {
-                $run();
-                $this->fail('expected the run to fail');
-            } catch (\RuntimeException $e) {
-                $this->assertStringContainsString($message, $e->getMessage());
-            }
+        try {
+            (new SymbolsService)->updateSymbols();
+            $this->fail('expected the run to fail');
+        } catch (\RuntimeException $e) {
+            $this->assertStringContainsString('/symbology request failed', $e->getMessage());
         }
 
-        $this->assertSame(1, DB::table('sets')->count());
         $this->assertSame(1, DB::table('symbols')->count());
     }
 

@@ -23,29 +23,6 @@ class SetsService extends ScryfallService
     private ?array $cachedSetIcons = null;
 
     /**
-     * Prepare the live sets table for a fresh import by truncating it.
-     *
-     * Skipped in shadow mode — the orchestrator created an empty
-     * `sets__shadow` via {@see ShadowTableService::createLike()} before
-     * invoking this service.
-     *
-     * Icon SVGs are intentionally not purged here — getSetIcon() uses
-     * timestamp-suffixed filenames and only re-downloads when Scryfall
-     * publishes a new timestamp, so wiping cached icons on every run
-     * would cause unnecessary re-downloads.
-     */
-    private function setup(): void
-    {
-        if ($this->shadow) {
-            return;
-        }
-        DB::statement('SET FOREIGN_KEY_CHECKS=0;');
-        Set::truncate();
-        Log::channel('scryfall')->debug("table 'sets' truncated.");
-        DB::statement('SET FOREIGN_KEY_CHECKS=1;');
-    }
-
-    /**
      * Derive the local filename for a set icon SVG.
      *
      * Embeds the Scryfall timestamp from icon_svg_uri so a filesystem check
@@ -204,17 +181,19 @@ class SetsService extends ScryfallService
     }
 
     /**
-     * Fetch all sets from the Scryfall API and replace the local database
-     * (live mode) or build the shadow table (shadow mode).
+     * Fetch all sets from the Scryfall API into `sets__shadow`, which the
+     * orchestrator created empty via {@see ShadowTableService::createLike()}.
+     * Filters out sets with zero cards.
      *
-     * Filters out sets with zero cards. Runs setup() — which truncates the
-     * live table — only once the catalog has arrived, so a failed request
-     * leaves a standalone run's table as it was; in shadow mode setup() is
-     * a no-op because the orchestrator already created an empty
-     * `sets__shadow`.
+     * Icon SVGs are never purged here — getSetIcon() uses timestamp-suffixed
+     * filenames and only re-downloads when Scryfall publishes a new
+     * timestamp.
+     *
+     * @throws RuntimeException In live mode, see {@see refuseLiveImport()}.
      */
     public function updateSets(bool $shadow = false): void
     {
+        $this->refuseLiveImport($shadow, 'scryfall:sets');
         $this->shadow = $shadow;
         $this->setsTable = $this->tableName('sets', $shadow);
         $this->cachedSetIcons = null;
@@ -229,7 +208,6 @@ class SetsService extends ScryfallService
             Log::channel('scryfall')->error("Scryfall response successful, but json does not have a field 'data'.");
             throw new \RuntimeException("scryfall /sets response missing 'data' field");
         }
-        $this->setup();
         collect($sets['data'])
             ->filter(fn ($set) => $set['card_count'] > 0)
             ->each(fn ($set) => $this->insertSet($set));
