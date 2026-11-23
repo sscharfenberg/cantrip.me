@@ -103,6 +103,20 @@ class OracleCardLookupTest extends TestCase
     }
 
     #[Test]
+    public function a_collector_number_matches_whatever_case_it_is_typed_in(): void
+    {
+        // Postgres compares text exactly; collector numbers are stored as
+        // Scryfall writes them, some lowercase (138s), some uppercase (MH2-138).
+        $ragavan = $this->makeCard('Ragavan, Nimble Pilferer', 'R');
+        $this->print($ragavan, 'mh2', '2021-06-18', '138', 'draft_innovation');
+        $promo = $this->print($ragavan, 'pmh2', '2021-06-18', '138s', 'promo');
+        $listed = $this->print($ragavan, 'plst', '2023-01-01', 'MH2-138', 'masterpiece');
+
+        $this->assertSame($promo->id, $this->getJson('/api/cards/lookup?q=set:pmh2 number:138S')->json('cards.0.printing_id'));
+        $this->assertSame($listed->id, $this->getJson('/api/cards/lookup?q=set:plst number:mh2-138')->json('cards.0.printing_id'));
+    }
+
+    #[Test]
     public function tokens_emblems_and_art_cards_are_left_out_but_planes_stay(): void
     {
         $card = $this->makeCard('Fabled Passage', null, [[null, 'Land']]);

@@ -220,6 +220,52 @@ class DeckCsvImportTest extends TestCase
     }
 
     #[Test]
+    public function a_category_differing_only_in_case_or_accents_joins_the_one_the_deck_has(): void
+    {
+        $owner = $this->makeUser();
+        $deck = $this->makeDeck($owner, ContainerVisibility::Private);
+        $ramp = DeckCategory::create(['deck_id' => $deck->id, 'name' => 'Ramp']);
+        $spells = DeckCategory::create(['deck_id' => $deck->id, 'name' => 'Zaubersprüche']);
+        $sol = $this->makeDefaultCard($this->makeOracleCard('Sol Ring'), 'cmd', '263');
+        $signet = $this->makeDefaultCard($this->makeOracleCard('Arcane Signet'), 'cmd', '264');
+        $bolt = $this->makeDefaultCard($this->makeOracleCard('Lightning Bolt'), 'm10', '146');
+
+        $csv = "Quantity,Name,Edition Code,Collector Number,Category,Scryfall ID\n"
+            ."1,Sol Ring,cmd,263,ramp,{$sol->id}\n"
+            ."1,Arcane Signet,cmd,264,RAMP,{$signet->id}\n"
+            ."1,Lightning Bolt,m10,146,zauberspruche,{$bolt->id}\n";
+
+        DeckCsvImportService::import($deck, $this->stashCsv($csv), DeckImportSource::Archidekt);
+
+        $this->assertEqualsCanonicalizing(
+            [$ramp->id, $spells->id],
+            DeckCategory::query()->where('deck_id', $deck->id)->pluck('id')->all(),
+        );
+        $categoryOf = DeckCard::query()->where('deck_id', $deck->id)->pluck('category_id', 'default_card_id');
+        $this->assertSame($ramp->id, $categoryOf[$sol->id]);
+        $this->assertSame($ramp->id, $categoryOf[$signet->id]);
+        $this->assertSame($spells->id, $categoryOf[$bolt->id]);
+    }
+
+    #[Test]
+    public function two_spellings_of_a_category_in_one_file_become_one_category(): void
+    {
+        $owner = $this->makeUser();
+        $deck = $this->makeDeck($owner, ContainerVisibility::Private);
+        $sol = $this->makeDefaultCard($this->makeOracleCard('Sol Ring'), 'cmd', '263');
+        $signet = $this->makeDefaultCard($this->makeOracleCard('Arcane Signet'), 'cmd', '264');
+
+        $csv = "Quantity,Name,Edition Code,Collector Number,Category,Scryfall ID\n"
+            ."1,Sol Ring,cmd,263,Ramp,{$sol->id}\n"
+            ."1,Arcane Signet,cmd,264,ramp,{$signet->id}\n";
+
+        DeckCsvImportService::import($deck, $this->stashCsv($csv), DeckImportSource::Archidekt);
+
+        $this->assertSame(['Ramp'], DeckCategory::query()->where('deck_id', $deck->id)->pluck('name')->all());
+        $this->assertCount(1, DeckCard::query()->where('deck_id', $deck->id)->distinct()->pluck('category_id'));
+    }
+
+    #[Test]
     public function archidekt_routes_commander_category_to_command_zone(): void
     {
         $owner = $this->makeUser();

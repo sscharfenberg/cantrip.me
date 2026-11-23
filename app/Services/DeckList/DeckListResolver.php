@@ -12,6 +12,7 @@ use App\Services\CardNameNormalizer;
 use App\Services\CommandZoneService;
 use App\Services\DeckCardSearchService;
 use App\Services\DeckCollectionStatusService;
+use App\Services\FoldedSearch;
 use App\Services\OracleNameSearch;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -292,9 +293,12 @@ final class DeckListResolver
 
         $missing = array_diff_key($byNormalized, $found);
         if ($missing !== []) {
+            // A pasted name is compared as typed only after folding: Postgres
+            // compares text exactly, and a list typed by hand writes "delver
+            // of secrets" as often as "Delver of Secrets". The normalized
+            // match below decides; the fold only has to find the candidates.
             $rawNames = array_merge(...array_values($missing));
-            OracleCardFace::query()
-                ->whereIn('name', $rawNames)
+            FoldedSearch::whereInIgnoringCaseAndAccents(OracleCardFace::query(), 'name', $rawNames)
                 ->where('face_index', 0)
                 ->get(['oracle_card_id', 'name'])
                 ->each(function (OracleCardFace $face) use ($add, $missing): void {

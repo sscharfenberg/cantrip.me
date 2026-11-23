@@ -285,7 +285,7 @@ class ContainerController extends Controller
                 }
 
                 if ($parsed['collector_number']) {
-                    $q->where('default_cards.collector_number', $parsed['collector_number']);
+                    FoldedSearch::whereEqualsIgnoringCase($q, 'default_cards.collector_number', $parsed['collector_number']);
                 }
 
                 foreach ($parsed['name_segments'] as $segment) {

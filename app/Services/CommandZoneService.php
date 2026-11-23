@@ -54,7 +54,7 @@ class CommandZoneService
         if ($parsed['collector_number']) {
             $query->whereHas(
                 'defaults',
-                fn (Builder $q) => $q->where('collector_number', $parsed['collector_number'])
+                fn (Builder $q) => FoldedSearch::whereEqualsIgnoringCase($q, 'collector_number', $parsed['collector_number'])
             );
         }
 
@@ -317,7 +317,7 @@ class CommandZoneService
         if ($parsed['collector_number']) {
             $query->whereHas(
                 'defaults',
-                fn (Builder $q) => $q->where('collector_number', $parsed['collector_number'])
+                fn (Builder $q) => FoldedSearch::whereEqualsIgnoringCase($q, 'collector_number', $parsed['collector_number'])
             );
         }
 

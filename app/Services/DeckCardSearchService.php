@@ -253,7 +253,7 @@ final class DeckCardSearchService
         if ($parsed['collector_number']) {
             $query->whereHas(
                 'defaults',
-                fn (Builder $q) => $q->where('collector_number', $parsed['collector_number'])
+                fn (Builder $q) => FoldedSearch::whereEqualsIgnoringCase($q, 'collector_number', $parsed['collector_number'])
             );
         }
 
@@ -414,7 +414,7 @@ final class DeckCardSearchService
         if ($parsed['collector_number']) {
             $oracleQuery->whereHas(
                 'defaults',
-                fn (Builder $q) => $q->where('collector_number', $parsed['collector_number'])
+                fn (Builder $q) => FoldedSearch::whereEqualsIgnoringCase($q, 'collector_number', $parsed['collector_number'])
             );
         }
 
@@ -467,7 +467,7 @@ final class DeckCardSearchService
         }
 
         if ($parsed['collector_number']) {
-            $query->where('default_cards.collector_number', $parsed['collector_number']);
+            FoldedSearch::whereEqualsIgnoringCase($query, 'default_cards.collector_number', $parsed['collector_number']);
         }
 
         // "Only printings available in my collection" — applied here, before

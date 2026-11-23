@@ -89,7 +89,7 @@ final class DefaultCardSearchService
             if ($parsed['collector_number']) {
                 $oracleQuery->whereHas(
                     'defaults',
-                    fn (Builder $q) => $q->where('collector_number', $parsed['collector_number'])
+                    fn (Builder $q) => FoldedSearch::whereEqualsIgnoringCase($q, 'collector_number', $parsed['collector_number'])
                 );
             }
             // Rank phase 1 deterministically so the LIMIT slice surfaces the
@@ -130,7 +130,7 @@ final class DefaultCardSearchService
         }
 
         if ($parsed['collector_number']) {
-            $query->where('default_cards.collector_number', $parsed['collector_number']);
+            FoldedSearch::whereEqualsIgnoringCase($query, 'default_cards.collector_number', $parsed['collector_number']);
         }
 
         // For pure set:/cn: searches with no name segments, the parser still

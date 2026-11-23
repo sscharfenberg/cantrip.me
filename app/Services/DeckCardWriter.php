@@ -230,6 +230,11 @@ final class DeckCardWriter
      * rows exists on the deck and return a name → id map. Rows with
      * a null category contribute nothing.
      *
+     * Names match ignoring case and accents ({@see categoryKey}): "ramp" in
+     * a file joins the deck's "Ramp" instead of becoming a second category
+     * next to it, and "Ramp" and "ramp" in one file become one. The match is
+     * made here rather than in SQL, which compares text exactly on Postgres.
+     *
      * @param  list<array{role: string, category: string|null}>  $rows
      * @return array<string, string>
      */
@@ -249,23 +254,28 @@ final class DeckCardWriter
             return [];
         }
 
-        $existing = DeckCategory::query()
-            ->where('deck_id', $deck->id)
-            ->whereIn('name', array_keys($names))
-            ->pluck('id', 'name')
-            ->all();
+        $idByKey = [];
+        foreach (DeckCategory::query()->where('deck_id', $deck->id)->get(['id', 'name']) as $category) {
+            $idByKey[self::categoryKey((string) $category->name)] ??= $category->id;
+        }
 
-        $map = $existing;
+        $map = [];
         foreach (array_keys($names) as $name) {
-            if (! isset($map[$name])) {
-                $created = DeckCategory::create([
-                    'deck_id' => $deck->id,
-                    'name' => Str::limit($name, DeckCategory::NAME_MAX, ''),
-                ]);
-                $map[$name] = $created->id;
-            }
+            $stored = Str::limit((string) $name, DeckCategory::NAME_MAX, '');
+            $key = self::categoryKey($stored);
+            $idByKey[$key] ??= DeckCategory::create(['deck_id' => $deck->id, 'name' => $stored])->id;
+            $map[$name] = $idByKey[$key];
         }
 
         return $map;
+    }
+
+    /** A category name with case and accents folded: "Zaubersprüche" and "ZAUBERSPRUCHE" are one category. */
+    private static function categoryKey(string $name): string
+    {
+        $decomposed = \Normalizer::normalize($name, \Normalizer::FORM_D);
+        $unaccented = preg_replace('/\p{Mn}/u', '', $decomposed === false ? $name : $decomposed);
+
+        return mb_strtolower($unaccented ?? $name);
     }
 }

@@ -111,7 +111,7 @@ final class FirstPrintingService
             $query->whereHas('set', fn (Builder $set) => $set->where('code', $setCode));
         }
         if ($collectorNumber) {
-            $query->where('default_cards.collector_number', $collectorNumber);
+            FoldedSearch::whereEqualsIgnoringCase($query, 'default_cards.collector_number', $collectorNumber);
         }
     }
 

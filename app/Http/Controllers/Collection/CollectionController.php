@@ -92,7 +92,7 @@ class CollectionController extends Controller
                 }
 
                 if ($parsed['collector_number']) {
-                    $q->where('default_cards.collector_number', $parsed['collector_number']);
+                    FoldedSearch::whereEqualsIgnoringCase($q, 'default_cards.collector_number', $parsed['collector_number']);
                 }
 
                 // DataTable search keeps raw-segment / raw-column matching so

@@ -29,11 +29,9 @@ Use `OracleCard::legalIn($format)` to filter by pool. There is no
 only in their pool, and the pivot already answers that.
 
 ```php
-OracleCard::query()
-    ->legalIn(CardFormat::Pauper)
-    ->where('name', 'like', "%{$term}%")
-    ->limit(20)
-    ->get();
+$query = OracleCard::query()->legalIn(CardFormat::Pauper)->limit(20);
+FoldedSearch::whereContains($query, 'name', $term); // typed text: ignores case and accents
+$cards = $query->get();
 ```
 
 The `FormatProfile::isInPool()` method is an **overlay hook** for pool rules

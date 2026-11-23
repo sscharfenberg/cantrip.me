@@ -392,6 +392,22 @@ class DeckListImportTest extends TestCase
     }
 
     #[Test]
+    public function the_front_face_name_is_found_whatever_case_it_is_typed_in(): void
+    {
+        // A face name is matched as typed, and the database compares text
+        // exactly: a list typed by hand must not depend on its capitals.
+        $user = $this->user();
+        $delver = $this->oracle('Delver of Secrets // Insectile Aberration', 'U', [
+            ['name' => 'Delver of Secrets', 'type_line' => 'Creature — Human Wizard'],
+            ['name' => 'Insectile Aberration', 'type_line' => 'Creature — Human Insect'],
+        ]);
+        $this->printing($delver, $this->set('isd', '2011-09-30'), '51');
+
+        $this->assertSame($delver->id, $this->firstLine($user, '4 delver of secrets')['card']['oracle_card_id'] ?? null);
+        $this->assertSame($delver->id, $this->firstLine($user, '4 DELVER OF SECRETS')['card']['oracle_card_id'] ?? null);
+    }
+
+    #[Test]
     public function a_translated_name_finds_the_card(): void
     {
         $user = $this->user();

@@ -340,6 +340,16 @@ class CardStackFilterTest extends TestCase
             ->missing('filterOptions.decks'));
     }
 
+    #[Test]
+    public function a_collector_number_matches_whatever_case_it_is_typed_in(): void
+    {
+        // Stored as Scryfall writes it; the database compares text exactly.
+        DefaultCard::query()->where('name', 'Llanowar Elves')->update(['collector_number' => 'S3']);
+
+        $this->assertSame(['Llanowar Elves'], $this->rowNames($this->collection(['search' => 'number:s3'])));
+        $this->assertSame(['Llanowar Elves'], $this->rowNames($this->collection(['search' => 'cn:S3'])));
+    }
+
     /**
      * @param  array<string, string>  $query
      */
