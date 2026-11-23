@@ -53,6 +53,13 @@ The request body limit is 3 MB in three places that must agree: `client_max_body
 `post_max_size`/`upload_max_filesize` in the pool, and `SecRequestBodyLimit` in the WAF exclusions. The app itself
 accepts CSV files up to 2 MB (`config/cantrip.php`).
 
+Both pools restrict PHP's file access with `open_basedir` to the site tree, the shared image folders
+(`/var/media/cantrip/`, where the `storage/app/<disk>` links lead), `/tmp/` (uploads, dompdf, `tempnam`), the pool's
+session folder and, on production, `/var/log/php-cantrip/`. Each path ends in `/`, since `open_basedir` compares
+prefixes. Laravel turns the warning a refused path raises into an exception, so **a new place the app reads or
+writes outside these folders answers 500** until the pool's list includes it. Artisan on the command line (the
+scheduler, deploys) is not affected.
+
 **nginx.** `/etc/nginx/sites-available/cantrip.{prod,staging}`. Production redirects HTTP and `www.cantrip.me` to
 `https://cantrip.me`, speaks HTTP/2, serves `/build` (cached for a year) and the image folders (30 days) without
 PHP, and limits PHP requests per client IP (`conf.d/cantrip-limits.conf`: 30 per second, bursts of 60, then 429).
