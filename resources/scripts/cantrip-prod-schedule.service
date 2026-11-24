@@ -7,7 +7,7 @@
 # cantrip-prod-schedule.timer. It carries scryfall:update (04:00 Berlin),
 # db:backup (00:15), session GC (03:00) and the temp-upload cleanup.
 #
-# While a run is still going (scryfall:update takes ~20 min in the
+# While a run is still going (scryfall:update takes ~5 min in the
 # foreground), the timer's next triggers are skipped, not queued. Nothing else
 # is scheduled in that window; a future frequent task would need
 # ->runInBackground() on the long one.
