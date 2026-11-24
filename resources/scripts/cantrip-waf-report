@@ -1,0 +1,236 @@
+#!/usr/bin/env python3
+# /usr/local/sbin/cantrip-waf-report   — 750 root:root
+#
+# Committed in resources/scripts/ for review; the live copy is on debbie. Install a
+# change there, or it does nothing.
+#
+# The daily report of the requests the WAF refused on production, run by
+# cantrip-waf-report.timer. A WAF 403 never reaches Laravel, so a false positive
+# in cantrip's exclusions (/etc/nginx/modsec/cantrip.conf) would otherwise go
+# unnoticed: the visitor sees a 403 and nobody else learns of it. No fail2ban
+# jail acts on these refusals: every one of them is already refused, and a jail
+# would turn a false positive into a ban of a real user.
+#
+# A refusal counts as a visitor's when the request carried cantrip's session
+# cookie. Every page sets it, so the app's own requests (searches, saves) carry
+# it, and scanners and bots mostly do not. When the window holds at least one
+# visitor refusal, the report goes to Discord, cantrip's alert channel (the
+# webhook is DISCORD_WEBHOOK_URL in prod's .env). Refusals without the cookie
+# are only counted. The full list, with times and clients, goes to the journal:
+#   journalctl -u cantrip-waf-report
+#
+# The Discord text names the path (ids folded to {id}), the rules and the
+# request field each rule matched in. It never names the matched value, the
+# query string or the client address: those are the visitor's, and Discord is
+# a third party.
+#
+# The window runs from the end of the previous successful run's window to one
+# second ago; the first run looks back a day. A run that fails (unreadable log,
+# Discord unreachable) alerts if it can, exits non-zero and keeps the old
+# window start, so the next run reports the gap as well.
+#
+#   --dry-run     print the report instead of posting it; the window stays
+#   --since ISO   start the window here instead, e.g. 2026-11-23T00:00:00
+
+import argparse
+import collections
+import datetime
+import glob
+import gzip
+import json
+import os
+import re
+import sys
+import traceback
+import urllib.request
+
+AUDIT_LOGS = "/var/log/modsecurity/audit.log*"
+HOSTS = {"cantrip.me", "www.cantrip.me"}
+SESSION_COOKIE = "cantripme-session="
+ENV_FILE = "/var/www/cantrip.prod/.env"
+STATE_FILE = os.path.join(os.environ.get("STATE_DIRECTORY", "/var/lib/cantrip-waf-report"), "window-end")
+# A WAF denial answers 403 (rule matches), 400 (an unparsable body) or 413 (a
+# body over the limit). Matches under the anomaly threshold pass with the app's
+# own status and are only counted.
+REFUSED_STATUSES = {400, 403, 413}
+# The anomaly-score verdicts: they say that a request was refused, not why.
+VERDICT_RULES = {"949110", "980130"}
+MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+UUID = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", re.IGNORECASE)
+# "Matched Data: … found within ARGS:json.text: <value>" -> ARGS:json.text
+MATCHED_IN = re.compile(r"within ([A-Z_]+(?::[^\s:]+)?)")
+DISCORD_LIMIT = 4000
+
+
+def env_value(path, key):
+    try:
+        with open(path) as f:
+            for line in f:
+                m = re.match(rf"^\s*{key}\s*=\s*(.*?)\s*$", line)
+                if m:
+                    return m.group(1).strip("'\"")
+    except OSError:
+        pass
+    return ""
+
+
+def post_to_discord(title, description, color):
+    webhook = env_value(ENV_FILE, "DISCORD_WEBHOOK_URL")
+    if not webhook:
+        raise RuntimeError(f"no DISCORD_WEBHOOK_URL in {ENV_FILE}")
+    payload = {"embeds": [{"title": title, "description": description[:DISCORD_LIMIT], "color": color}]}
+    request = urllib.request.Request(
+        webhook,
+        data=json.dumps(payload).encode(),
+        headers={"Content-Type": "application/json", "User-Agent": "cantrip-waf-report"},
+    )
+    with urllib.request.urlopen(request, timeout=10):
+        pass
+
+
+def audit_timestamp(value):
+    """'Mon Nov 23 06:41:35 2026' (server time) -> datetime, independent of the locale."""
+    _, month, day, clock, year = value.split()
+    hour, minute, second = (int(part) for part in clock.split(":"))
+    return datetime.datetime(int(year), MONTHS.index(month) + 1, int(day), hour, minute, second)
+
+
+def audit_lines(since):
+    """Every line of every audit log written to after `since`, oldest file first."""
+    paths = [p for p in glob.glob(AUDIT_LOGS) if os.path.getmtime(p) > since.timestamp()]
+    for path in sorted(paths, key=os.path.getmtime):
+        opener = gzip.open if path.endswith(".gz") else open
+        with opener(path, "rt", encoding="utf-8", errors="replace") as f:
+            yield from f
+
+
+def collect(since, until):
+    refusals, passed, unreadable = [], 0, 0
+    for line in audit_lines(since):
+        try:
+            transaction = json.loads(line)["transaction"]
+            headers = {k.lower(): v for k, v in transaction["request"].get("headers", {}).items()}
+            if headers.get("host", "").split(":")[0].lower() not in HOSTS:
+                continue
+            when = audit_timestamp(transaction["time_stamp"])
+        except (ValueError, KeyError, TypeError):
+            unreadable += 1
+            continue
+        messages = transaction.get("messages") or []
+        # An entry without messages was logged for its 5xx status alone.
+        if not (since < when <= until) or not messages:
+            continue
+        if transaction.get("response", {}).get("http_code") not in REFUSED_STATUSES:
+            passed += 1
+            continue
+        findings = []
+        for message in messages:
+            details = message.get("details", {})
+            rule = details.get("ruleId", "")
+            if rule in VERDICT_RULES:
+                continue
+            matched_in = MATCHED_IN.search(details.get("data", ""))
+            findings.append((rule, message.get("message", ""), matched_in.group(1) if matched_in else ""))
+        request = transaction["request"]
+        refusals.append({
+            "when": when,
+            "client": transaction.get("client_ip", "?"),
+            "id": transaction.get("unique_id", "?"),
+            "status": transaction["response"]["http_code"],
+            "request": f"{request.get('method', '?')} {UUID.sub('{id}', request.get('uri', '').split('?')[0])}",
+            "findings": findings,
+            "visitor": SESSION_COOKIE in headers.get("cookie", ""),
+        })
+    return refusals, passed, unreadable
+
+
+def discord_text(since, until, visitors, others, zone):
+    groups = collections.OrderedDict()
+    rule_messages = {}
+    for refusal in visitors:
+        key = (refusal["request"], tuple(sorted({(rule, field) for rule, _, field in refusal["findings"]})))
+        group = groups.setdefault(key, {"count": 0, "clients": set()})
+        group["count"] += 1
+        group["clients"].add(refusal["client"])
+        for rule, text, _ in refusal["findings"]:
+            rule_messages.setdefault(rule, text)
+
+    lines = [
+        f"{since:%Y-%m-%d %H:%M} – {until:%Y-%m-%d %H:%M} {zone}. These requests carried cantrip's session "
+        "cookie, so they were most likely the app's own: a false positive in the WAF exclusions "
+        "(`/etc/nginx/modsec/cantrip.conf`) looks like this.",
+        "",
+    ]
+    for (request, findings), group in groups.items():
+        clients = len(group["clients"])
+        lines.append(f"**{group['count']}×** `{request}` ({clients} client{'s' if clients != 1 else ''})")
+        for rule, field in findings:
+            where = f" — in `{field}`" if field else ""
+            lines.append(f"  {rule or '(no rule id)'} {rule_messages.get(rule, '')}{where}")
+    lines += [
+        "",
+        f"Also refused without a session cookie (scanners, bots): {len(others)}.",
+        "Details: `journalctl -u cantrip-waf-report`",
+    ]
+    return "\n".join(lines)
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Report the requests the WAF refused on cantrip.me.")
+    parser.add_argument("--dry-run", action="store_true", help="print the report, post nothing, keep the window")
+    parser.add_argument("--since", type=datetime.datetime.fromisoformat, help="start of the window (server time)")
+    args = parser.parse_args()
+
+    until = datetime.datetime.now().replace(microsecond=0) - datetime.timedelta(seconds=1)
+    since = args.since
+    if since is None:
+        try:
+            with open(STATE_FILE) as f:
+                since = datetime.datetime.fromisoformat(f.read().strip())
+        except FileNotFoundError:
+            since = until - datetime.timedelta(days=1)
+    zone = datetime.datetime.now().astimezone().tzname()
+
+    refusals, passed, unreadable = collect(since, until)
+    visitors = [r for r in refusals if r["visitor"]]
+    others = [r for r in refusals if not r["visitor"]]
+
+    print(f"window {since} – {until} {zone}: {len(visitors)} visitor request(s) refused, "
+          f"{len(others)} without a session cookie, {passed} matched but passed, {unreadable} unreadable line(s)")
+    for refusal in refusals:
+        rules = ", ".join(f"{rule} {field}".strip() for rule, _, field in refusal["findings"]) or "-"
+        kind = "visitor" if refusal["visitor"] else "no-session"
+        print(f"  {refusal['when']}  {kind:<10} {refusal['client']:<39} {refusal['status']}  "
+              f"{refusal['request']}  [{rules}]  id={refusal['id']}")
+
+    if visitors:
+        title = f"cantrip.me WAF refused {len(visitors)} visitor request{'s' if len(visitors) != 1 else ''}"
+        text = discord_text(since, until, visitors, others, zone)
+        if args.dry_run:
+            print(f"\n--- would post to Discord ---\n{title}\n{text}")
+        else:
+            post_to_discord(title, text, 0xF57C00)
+            print("discord: sent")
+
+    if not args.dry_run and args.since is None:
+        temporary = f"{STATE_FILE}.tmp"
+        with open(temporary, "w") as f:
+            f.write(until.isoformat())
+        os.replace(temporary, STATE_FILE)
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except Exception as error:
+        traceback.print_exc()
+        if "--dry-run" not in sys.argv:
+            try:
+                post_to_discord(
+                    "cantrip.me WAF report FAILED",
+                    f"{type(error).__name__}: {str(error)[:300]}\nInspect with: journalctl -u cantrip-waf-report -n 40",
+                    0xD32F2F,
+                )
+            except Exception as alert_error:
+                print(f"discord: alert failed ({type(alert_error).__name__})", file=sys.stderr)
+        sys.exit(1)
