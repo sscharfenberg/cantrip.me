@@ -53,6 +53,23 @@ class ShadowTableServiceTest extends TestCase
     }
 
     #[Test]
+    public function wait_for_disk_on_commit_switches_this_session_off_and_back_to_the_server_default(): void
+    {
+        $serverDefault = DB::scalar('SHOW synchronous_commit');
+        $this->assertNotSame('off', $serverDefault, 'the fixture needs a server that waits for the disk by default');
+
+        try {
+            $this->service->waitForDiskOnCommit(false);
+            $this->assertSame('off', DB::scalar('SHOW synchronous_commit'));
+
+            $this->service->waitForDiskOnCommit(true);
+            $this->assertSame($serverDefault, DB::scalar('SHOW synchronous_commit'));
+        } finally {
+            DB::statement('RESET synchronous_commit');
+        }
+    }
+
+    #[Test]
     public function create_like_copies_schema_without_data(): void
     {
         DB::statement('CREATE TABLE _shadow_test_a (id INT PRIMARY KEY, label VARCHAR(32))');

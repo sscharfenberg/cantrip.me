@@ -63,11 +63,11 @@ Schedule::command('scryfall:update')
     ->onFailure(/* logs an error to the scryfall channel */);
 ```
 
-Daily is the useful maximum: Scryfall regenerates its bulk files (and card prices) roughly every 24 h, so a faster cadence has nothing new to fetch. Bandwidth is a non-issue — ~3 GB/day ingress ≈ 90 GB/month, and image downloads are incremental (only genuinely new printings are fetched; anything already cached is skipped). A full run usually takes 15–50 minutes, with zero user-facing downtime thanks to the shadow swap.
+Daily is the useful maximum: Scryfall regenerates its bulk files (and card prices) roughly every 24 h, so a faster cadence has nothing new to fetch. Bandwidth is a non-issue — ~3 GB/day ingress ≈ 90 GB/month, and image downloads are incremental (only genuinely new printings are fetched; anything already cached is skipped). A full run takes about 5 minutes, longer when a new set brings many images to download, with zero user-facing downtime thanks to the shadow swap.
 
 `withoutOverlapping(60)` is the overlap guard. The run *starts* by dropping any leftover `*__shadow` / `*__retired` tables (crash recovery), so a second run starting while one is still building would drop its shadow tables out from under it. The guard is a cache lock the app owns; its 60-minute TTL lets a hard-killed run, which never releases the lock, block nothing beyond that hour. A manual run does not take the lock, so don't start one shortly before 04:00. Console output is appended to `storage/logs/cron-scryfall.log`, so a failure before the command can log anything still leaves a trace.
 
-Manual runs on production use the scheduler's user, `cantrip`: `ct artisan scryfall:update --prod` from the workstation (it runs `sudo -u cantrip php …/artisan` on the server; keep the session open for the ~20 minutes). Staging does not run this job on a schedule — it shares most Scryfall assets with prod — and is synced by a manual run when needed: `ct artisan scryfall:update`.
+Manual runs on production use the scheduler's user, `cantrip`: `ct artisan scryfall:update --prod` from the workstation (it runs `sudo -u cantrip php …/artisan` on the server; keep the session open for the ~5 minutes). Staging does not run this job on a schedule — it shares most Scryfall assets with prod — and is synced by a manual run when needed: `ct artisan scryfall:update`.
 
 ### `php artisan scryfall:sets`
 

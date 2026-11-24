@@ -132,7 +132,7 @@ A new Node major also needs `NODE_MAJOR` changed in `cantrip-prod-deploy`. Old v
 ## Scheduler
 
 `cantrip-prod-schedule.timer` starts `cantrip-prod-schedule.service` every minute: one `artisan schedule:run` as
-`cantrip`. While a run is still going — `scryfall:update` takes about 20 minutes in the foreground — the next
+`cantrip`. While a run is still going — `scryfall:update` takes about 5 minutes in the foreground — the next
 triggers are skipped, not queued; nothing else is scheduled in that window. Staging runs no scheduler. Scheduled
 tasks: [docs/artisan-commands.md](artisan-commands.md#scheduled-tasks).
 

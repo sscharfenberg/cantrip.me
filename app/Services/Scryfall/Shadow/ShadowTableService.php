@@ -63,6 +63,22 @@ class ShadowTableService
     }
 
     /**
+     * Whether this session's commits wait until their WAL is on disk
+     * (`synchronous_commit`). The shadow build commits several hundred
+     * thousand single-row writes, and waiting for the disk on each one
+     * (~1.5 ms) cost about half of a sync's run time. Without the wait, a
+     * crash loses at most the last fraction of a second of commits and
+     * corrupts nothing — and a crashed build is thrown away by the next
+     * run's {@see cleanup()} anyway. Turned back on before the swap, whose
+     * commit must survive a crash.
+     */
+    public function waitForDiskOnCommit(bool $wait): void
+    {
+        DB::statement($wait ? 'RESET synchronous_commit' : 'SET synchronous_commit = off');
+        Log::channel('scryfall')->debug('ShadowTableService: synchronous_commit '.($wait ? 'reset' : 'off').'.');
+    }
+
+    /**
      * Collect planner statistics for the freshly built shadow tables, so
      * the first queries after the swap are not planned blind. Run before
      * the swap's transaction — it reads every table and has no business

@@ -271,7 +271,8 @@ class UpdateEverything extends Command
      * Sequence:
      *   1. Cleanup any leftover *__shadow / *__retired from a crashed prior run.
      *   2. createLike for every truncate-rebuild scryfall table — empty shadows.
-     *   3. Run each import step in shadow mode. Order:
+     *   3. Run each import step in shadow mode, with `synchronous_commit`
+     *      off until step 5 is done. Order:
      *        - bulk first (writes download URIs to bulk_data__shadow)
      *        - sets, symbols (no bulk_data dependency)
      *        - oracle (reads bulk_data__shadow)
@@ -329,7 +330,9 @@ class UpdateEverything extends Command
         });
         $this->info('shadow build: created '.count(ShadowTableRegistry::TABLES).' empty shadow tables.');
 
-        // 3. Run every import step in shadow mode.
+        // 3. Run every import step in shadow mode, committing without
+        //    waiting for the disk — see ShadowTableService::waitForDiskOnCommit().
+        $this->runOrchestratorStep('asyncCommit', fn () => $this->shadow->waitForDiskOnCommit(false));
         // bulk first — its rows are read by oracle/default_cards/rulings.
         $this->runStep('scryfall:bulk', shadow: true);
         $waitTime += $this->sleep();
@@ -373,6 +376,7 @@ class UpdateEverything extends Command
 
         // 5. Resolve image URLs → local paths on default_cards__shadow.
         $this->runStep('scryfall:resolve-paths', shadow: true);
+        $this->runOrchestratorStep('syncCommit', fn () => $this->shadow->waitForDiskOnCommit(true));
 
         // 6. Validate FK integrity against the shadow build (LEFT JOINs;
         //    no FK constraints on the shadow tables yet — that's intentional).
