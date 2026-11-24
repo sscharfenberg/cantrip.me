@@ -217,7 +217,8 @@ its users get 403s.
 - A 403 on a route whose `authorize()` passes is the WAF: the ModSecurity audit log on the server names the rule.
 - **A daily report, no bans.** At 07:00 Berlin time `cantrip-waf-report.timer` lists the requests the WAF refused on
   production since its last run. A refused request that carried cantrip's session cookie was almost certainly the
-  app's own, i.e. a false positive, and those go to Discord: path, rule, and the request field the rule matched in,
-  never the value or the client. Refusals without the cookie (scanners, bots) are only counted. The full list is in
-  `journalctl -u cantrip-waf-report`, with each entry's audit-log id. No fail2ban jail acts on WAF refusals: the
-  request is refused either way, and a jail would turn a false positive into a ban of a real user.
+  app's own, i.e. a false positive, and those are reported like the Scryfall alerts, by mail to `APP_CONTACT` and to
+  Discord: path, rule, and the request field the rule matched in, never the value or the client. Refusals without
+  the cookie (scanners, bots) are only counted. The full list is in `journalctl -u cantrip-waf-report`, with each
+  entry's audit-log id. No fail2ban jail acts on WAF refusals: the request is refused either way, and a jail would
+  turn a false positive into a ban of a real user.

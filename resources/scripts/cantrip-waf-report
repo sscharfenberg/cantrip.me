@@ -14,32 +14,42 @@
 # A refusal counts as a visitor's when the request carried cantrip's session
 # cookie. Every page sets it, so the app's own requests (searches, saves) carry
 # it, and scanners and bots mostly do not. When the window holds at least one
-# visitor refusal, the report goes to Discord, cantrip's alert channel (the
-# webhook is DISCORD_WEBHOOK_URL in prod's .env). Refusals without the cookie
-# are only counted. The full list, with times and clients, goes to the journal:
+# visitor refusal, the report goes out the way the Scryfall alerts do: by mail
+# to APP_CONTACT (through the app's SMTP settings) and to Discord (the webhook
+# is DISCORD_WEBHOOK_URL), all read from prod's .env. Each channel is sent on
+# its own, so one failing does not cost the other. Refusals without the
+# cookie are only counted. The full list, with times and clients, goes to the
+# journal:
 #   journalctl -u cantrip-waf-report
 #
-# The Discord text names the path (ids folded to {id}), the rules and the
-# request field each rule matched in. It never names the matched value, the
-# query string or the client address: those are the visitor's, and Discord is
-# a third party.
+# The report names the path (ids folded to {id}), the rules and the request
+# field each rule matched in. It never names the matched value, the query
+# string or the client address: those are the visitor's, and both channels
+# are third parties.
 #
 # The window runs from the end of the previous successful run's window to one
-# second ago; the first run looks back a day. A run that fails (unreadable log,
-# Discord unreachable) alerts if it can, exits non-zero and keeps the old
-# window start, so the next run reports the gap as well.
+# second ago; the first run looks back a day. A run that fails (unreadable
+# log, neither channel reachable) alerts if it can, exits non-zero and keeps
+# the old window start, so the next run reports the gap as well. A report that
+# reached one channel but not the other moves the window on, exits non-zero
+# and says so through the channel that works.
 #
-#   --dry-run     print the report instead of posting it; the window stays
-#   --since ISO   start the window here instead, e.g. 2026-11-23T00:00:00
+#   --dry-run     print the report instead of sending it; the window stays
+#   --since ISO   start the window here instead, e.g. 2026-11-23T00:00:00;
+#                 the saved window start stays (to test the delivery)
 
 import argparse
 import collections
 import datetime
+import email.message
+import email.utils
 import glob
 import gzip
 import json
 import os
 import re
+import smtplib
+import ssl
 import sys
 import traceback
 import urllib.request
@@ -88,6 +98,49 @@ def post_to_discord(title, description, color):
         pass
 
 
+def send_mail(subject, body):
+    env = {key: env_value(ENV_FILE, key) for key in (
+        "MAIL_HOST", "MAIL_PORT", "MAIL_SCHEME", "MAIL_USERNAME", "MAIL_PASSWORD",
+        "MAIL_FROM_ADDRESS", "MAIL_FROM_NAME", "APP_CONTACT",
+    )}
+    missing = [key for key in ("MAIL_HOST", "MAIL_FROM_ADDRESS", "APP_CONTACT") if not env[key]]
+    if missing:
+        raise RuntimeError(f"no {', '.join(missing)} in {ENV_FILE}")
+    message = email.message.EmailMessage()
+    message["Subject"] = subject
+    message["From"] = email.utils.formataddr((env["MAIL_FROM_NAME"], env["MAIL_FROM_ADDRESS"]))
+    message["To"] = env["APP_CONTACT"]
+    message.set_content(body)
+    port = int(env["MAIL_PORT"] or 587)
+    context = ssl.create_default_context()
+    if env["MAIL_SCHEME"] == "smtps" or port == 465:
+        server = smtplib.SMTP_SSL(env["MAIL_HOST"], port, timeout=20, context=context)
+    else:
+        server = smtplib.SMTP(env["MAIL_HOST"], port, timeout=20)
+        server.starttls(context=context)
+    with server:
+        if env["MAIL_USERNAME"]:
+            server.login(env["MAIL_USERNAME"], env["MAIL_PASSWORD"])
+        server.send_message(message)
+
+
+def deliver(title, text, color):
+    """Mail and Discord, each on its own. Returns the channels that failed."""
+    plain = text.replace("**", "").replace("`", "")
+    failures = []
+    for channel, send in (
+        ("mail", lambda: send_mail(title, plain)),
+        ("discord", lambda: post_to_discord(title, text, color)),
+    ):
+        try:
+            send()
+            print(f"{channel}: sent")
+        except Exception as error:
+            failures.append(f"{channel} ({type(error).__name__}: {str(error)[:200]})")
+            print(f"{channel}: failed ({type(error).__name__}: {str(error)[:200]})", file=sys.stderr)
+    return failures
+
+
 def audit_timestamp(value):
     """'Mon Nov 23 06:41:35 2026' (server time) -> datetime, independent of the locale."""
     _, month, day, clock, year = value.split()
@@ -110,7 +163,12 @@ def collect(since, until):
         try:
             transaction = json.loads(line)["transaction"]
             headers = {k.lower(): v for k, v in transaction["request"].get("headers", {}).items()}
-            if headers.get("host", "").split(":")[0].lower() not in HOSTS:
+            host = headers.get("host", "").split(":")[0].lower()
+            # nginx hands ModSecurity no Host header for HTTP/3 (it takes the
+            # name from :authority), and only cantrip listens on UDP 443.
+            if not host and transaction["request"].get("http_version") == 3.0:
+                host = "cantrip.me"
+            if host not in HOSTS:
                 continue
             when = audit_timestamp(transaction["time_stamp"])
         except (ValueError, KeyError, TypeError):
@@ -144,7 +202,8 @@ def collect(since, until):
     return refusals, passed, unreadable
 
 
-def discord_text(since, until, visitors, others, zone):
+def report_text(since, until, visitors, others, zone):
+    """The report in Discord's Markdown; the mail gets it with the markup stripped."""
     groups = collections.OrderedDict()
     rule_messages = {}
     for refusal in visitors:
@@ -203,20 +262,25 @@ def main():
         print(f"  {refusal['when']}  {kind:<10} {refusal['client']:<39} {refusal['status']}  "
               f"{refusal['request']}  [{rules}]  id={refusal['id']}")
 
+    failures = []
     if visitors:
         title = f"cantrip.me WAF refused {len(visitors)} visitor request{'s' if len(visitors) != 1 else ''}"
-        text = discord_text(since, until, visitors, others, zone)
+        text = report_text(since, until, visitors, others, zone)
         if args.dry_run:
-            print(f"\n--- would post to Discord ---\n{title}\n{text}")
+            print(f"\n--- would send ---\n{title}\n{text}")
         else:
-            post_to_discord(title, text, 0xF57C00)
-            print("discord: sent")
+            failures = deliver(title, text, 0xF57C00)
+            if len(failures) == 2:
+                raise RuntimeError("report not delivered: " + "; ".join(failures))
 
     if not args.dry_run and args.since is None:
         temporary = f"{STATE_FILE}.tmp"
         with open(temporary, "w") as f:
             f.write(until.isoformat())
         os.replace(temporary, STATE_FILE)
+
+    if failures:
+        raise RuntimeError("report delivered, but not by " + "; ".join(failures))
 
 
 if __name__ == "__main__":
@@ -225,12 +289,9 @@ if __name__ == "__main__":
     except Exception as error:
         traceback.print_exc()
         if "--dry-run" not in sys.argv:
-            try:
-                post_to_discord(
-                    "cantrip.me WAF report FAILED",
-                    f"{type(error).__name__}: {str(error)[:300]}\nInspect with: journalctl -u cantrip-waf-report -n 40",
-                    0xD32F2F,
-                )
-            except Exception as alert_error:
-                print(f"discord: alert failed ({type(alert_error).__name__})", file=sys.stderr)
+            deliver(
+                "cantrip.me WAF report FAILED",
+                f"{type(error).__name__}: {str(error)[:400]}\nInspect with: journalctl -u cantrip-waf-report -n 40",
+                0xD32F2F,
+            )
         sys.exit(1)

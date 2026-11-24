@@ -5,8 +5,8 @@
 #
 # cantrip.me production: the daily report of the requests the WAF refused
 # (/usr/local/sbin/cantrip-waf-report), started by cantrip-waf-report.timer.
-# Root, because the audit log is root:adm 640 and the Discord webhook is in
-# prod's .env. Its window start lives in /var/lib/cantrip-waf-report.
+# Root, because the audit log is root:adm 640 and the mail and Discord settings
+# are in prod's .env. Its window start lives in /var/lib/cantrip-waf-report.
 [Unit]
 Description=cantrip.me production: report the requests the WAF refused
 Wants=network-online.target
