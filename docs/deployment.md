@@ -230,10 +230,14 @@ its users get 403s.
 - Test a change in a throwaway nginx on the server bound to `127.0.0.1` with the same rule set, never first on a
   live vhost; then `nginx -t` and `systemctl reload nginx`.
 - A 403 on a route whose `authorize()` passes is the WAF: the ModSecurity audit log on the server names the rule.
-- **A daily report, no bans.** At 07:00 Berlin time `cantrip-waf-report.timer` lists the requests the WAF refused on
-  production since its last run. A refused request that carried cantrip's session cookie was almost certainly the
-  app's own, i.e. a false positive, and those are reported like the Scryfall alerts, by mail to `APP_CONTACT` and to
-  Discord: path, rule, and the request field the rule matched in, never the value or the client. Refusals without
-  the cookie (scanners, bots) are only counted. The full list is in `journalctl -u cantrip-waf-report`, with each
-  entry's audit-log id. No fail2ban jail acts on WAF refusals: the request is refused either way, and a jail would
-  turn a false positive into a ban of a real user.
+- **A daily report, no bans.** At 07:00 Berlin time the server-wide `waf-report.timer` lists the requests the WAF
+  refused on production since its last run — one script for every app on the box, maintained in MixTape's repository
+  (`docs/self-hosting/files/waf-report`), with cantrip's entry in `/etc/waf-report/apps.json`. A refusal counts as a
+  visitor's, almost certainly the app's own and so a false positive, when it carried cantrip's session cookie,
+  tripped more than the scanner file-name rules (920440, 930130, 920500), and came from a client that made no such
+  file-name probe in the window: a scanner keeps the cookie from its first response, so the cookie alone is not
+  enough. Those are reported like the Scryfall alerts, by mail to `APP_CONTACT` and to Discord: path, rule, and the
+  request field the rule matched in, never the value or the client. Everything else is only counted. The full list
+  is in `journalctl -u waf-report`, with each entry's audit-log id; the window's end is
+  `/var/lib/waf-report/cantrip.window-end`. No fail2ban jail acts on WAF refusals: the request is refused either way,
+  and a jail would turn a false positive into a ban of a real user.
