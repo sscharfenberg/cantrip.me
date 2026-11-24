@@ -46,6 +46,12 @@ CREATE DATABASE cantrip_prod OWNER cantrip_prod TEMPLATE template0 ENCODING 'UTF
 The `citext` and `unaccent` extensions come from the `adapt_schema_to_postgres` migration; both are trusted
 extensions, so the owner may create them.
 
+The cluster is shared with the other app, and its memory settings live in `/etc/postgresql/17/main/conf.d/cantrip.conf`:
+`shared_buffers` 2 GB, `effective_cache_size` 16 GB, `work_mem` 16 MB, `maintenance_work_mem` 512 MB. All databases
+together are well under 1 GB, so they fit in `shared_buffers` whole, including the nightly Scryfall sync's shadow
+tables. `shared_buffers` changes only on a restart (`systemctl restart postgresql@17-main`, a few seconds without a
+database for both apps), the others on a reload.
+
 **php-fpm.** Each environment has its own pool (`/etc/php/8.4/fpm/pool.d/cantrip-{prod,staging}.conf`) and socket.
 The other app's global ini turns file uploads off for every pool, so both cantrip pools turn them back on
 (`php_admin_flag[file_uploads] = on`); without that, every CSV upload answers 422 "The file field is required."
@@ -147,12 +153,12 @@ saving time starts or ends.
 - **01:30 UTC** plus a random delay of up to 15 minutes (systemd timer; 02:30 Berlin time in winter, 03:30 in summer):
   `cantrip-backup.timer` runs restic as root and copies the dumps, `.env` (its `APP_KEY` decrypts the 2FA
   secrets), prod's set icons and the server's cantrip configuration (nginx vhosts and WAF exclusions, php-fpm pools,
-  systemd units, sudoers, ddclient, certbot, the scripts in `/usr/local`, the credentials in `/root/cantrip`) into two
-  repositories: one on the server's USB disk, one in Backblaze B2 (region EU Central). The card images, art crops and
-  symbols (`/var/media/cantrip`) go to the USB disk only, as a snapshot of their own (tag `cantrip-media`): Scryfall
-  could serve them again, but not without a quarter of a million requests. Both repositories are encrypted by restic
-  with one password, which also lives outside the server. Retention: 7 daily, 5 weekly, 12 monthly snapshots per tag;
-  on Sundays restic reads back a tenth of the data.
+  Postgres settings, systemd units, sudoers, ddclient, certbot, the scripts in `/usr/local`, the credentials in
+  `/root/cantrip`) into two repositories: one on the server's USB disk, one in Backblaze B2 (region EU Central). The
+  card images, art crops and symbols (`/var/media/cantrip`) go to the USB disk only, as a snapshot of their own (tag
+  `cantrip-media`): Scryfall could serve them again, but not without a quarter of a million requests. Both
+  repositories are encrypted by restic with one password, which also lives outside the server. Retention: 7 daily,
+  5 weekly, 12 monthly snapshots per tag; on Sundays restic reads back a tenth of the data.
 - The B2 key cannot delete. What restic removes is only hidden, and the bucket deletes hidden versions after 90 days:
   a break-in on the server can hide the off-site copy, not destroy it.
 - A failed run alerts through `cantrip-backup-failed.service` (Discord and a push notification).
