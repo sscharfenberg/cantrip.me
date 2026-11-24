@@ -19,7 +19,7 @@ server, and a change only takes effect once it is installed there.
 | Database                      | Postgres `cantrip_prod`                                 | Postgres `cantrip_staging`                        |
 | Card images, art crops, symbols | `/var/media/cantrip/…`, shared, via `storage/app/<disk>` symlinks | the same folders                     |
 | Set icons                     | `storage/app/set`, its own                              | `storage/app/set`, its own                        |
-| Scheduler                     | `cantrip-prod-schedule.timer`                           | none                                              |
+| Scheduler                     | `cantrip-prod-schedule.service` (`schedule:work`)       | none                                              |
 
 The runtime user is `cantrip`, not `www-data`, so the other app on the box cannot read cantrip's `.env`. nginx
 (`www-data`) gets read access to `public/` and the media folders through ACLs — not to the rest of the tree.
@@ -152,10 +152,17 @@ A new Node major also needs `NODE_MAJOR` changed in `cantrip-prod-deploy`. Old v
 
 ## Scheduler
 
-`cantrip-prod-schedule.timer` starts `cantrip-prod-schedule.service` every minute: one `artisan schedule:run` as
-`cantrip`. While a run is still going — `scryfall:update` takes about 5 minutes in the foreground — the next
-triggers are skipped, not queued; nothing else is scheduled in that window. Staging runs no scheduler. Scheduled
-tasks: [docs/artisan-commands.md](artisan-commands.md#scheduled-tasks).
+`cantrip-prod-schedule.service` runs `artisan schedule:work` as `cantrip` for as long as the server is up. Every
+minute it starts a fresh `schedule:run`, whether or not the previous one has finished, so `scryfall:update` running
+for half an hour does not cost the minutes behind it. A deploy needs no restart: each run is a new process, so the
+next minute runs the new code. Staging runs no scheduler. Scheduled tasks:
+[docs/artisan-commands.md](artisan-commands.md#scheduled-tasks).
+
+Two set-ups that look simpler do not work under systemd. A timer starting a oneshot `schedule:run` every minute skips
+every minute a long task runs, because systemd does not start a unit that is still running. And `->runInBackground()`
+under such a oneshot is killed with it: when a oneshot's main process exits, systemd kills what is left in its control
+group, the run and its `onFailure` alert together. The unit stops with `KillMode=mixed`, so a stop lets the runs in
+flight finish for up to two minutes instead of signalling all of them at once.
 
 The server's clock runs on UTC, and a systemd timer (`OnCalendar=`) fires in UTC unless it names a zone. The Laravel
 scheduler fires in the app timezone, Europe/Berlin. So a scheduled task and a UTC timer move by an hour against each

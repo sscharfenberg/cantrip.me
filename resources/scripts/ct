@@ -53,7 +53,7 @@ PHP=/usr/bin/php
 RUNTIME_USER=cantrip
 DEPLOY_USER=cantrip-deploy
 DEPLOY_SCRIPT=/usr/local/bin/cantrip-prod-deploy
-SCHEDULER_TIMER=cantrip-prod-schedule.timer
+SCHEDULER_UNIT=cantrip-prod-schedule.service
 # The local clone, for the unpushed-commit check of `ct deploy --prod`.
 REPO="${CANTRIP_REPO:-$HOME/workbench/4.Private/cantrip.me}"
 
@@ -281,7 +281,7 @@ echo \"site:        $SITE (https://cantrip.me)\"; \
 if sudo -u $RUNTIME_USER test -f $site/storage/framework/maintenance.php; then echo 'maintenance: ON'; else echo 'maintenance: off'; fi; \
 echo \"commit:      \$(sudo -u $DEPLOY_USER git -C $site log -1 --format='%h %s (%cr)')\"; \
 echo \"checkout:    \$(sudo -u $DEPLOY_USER git -C $site rev-parse --abbrev-ref HEAD | sed 's/^HEAD\$/detached (pinned commit)/')\"; \
-echo \"scheduler:   \$(systemctl is-enabled $SCHEDULER_TIMER 2>/dev/null), last run \$(systemctl show -p ExecMainExitTimestamp --value ${SCHEDULER_TIMER%.timer}.service | sed 's/^\$/never/')\""
+echo \"scheduler:   \$(systemctl is-active $SCHEDULER_UNIT 2>/dev/null) since \$(systemctl show -p StateChangeTimestamp --value $SCHEDULER_UNIT | sed 's/^\$/boot/')\""
         else
             snippet="echo \"site:        $SITE (https://cantrip.local)\"; \
 if test -f $site/storage/framework/maintenance.php; then echo 'maintenance: ON'; else echo 'maintenance: off'; fi; \

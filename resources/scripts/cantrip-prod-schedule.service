@@ -1,26 +1,43 @@
 # /etc/systemd/system/cantrip-prod-schedule.service
 #
 # Committed in resources/scripts/ for review; the live copy is on debbie. Install a
-# change there, or it does nothing.
+# change there, or it does nothing. Enable with:
+#   systemctl enable --now cantrip-prod-schedule.service
 #
-# cantrip.me production: one `artisan schedule:run`, started every minute by
-# cantrip-prod-schedule.timer. It carries scryfall:update (04:00 Berlin),
-# db:backup (00:15), session GC (03:00) and the temp-upload cleanup.
+# cantrip.me production: the Laravel scheduler as one long-running
+# `artisan schedule:work`. Every minute it starts a fresh `schedule:run`, whether
+# or not the previous one has finished, so a long task never costs the minutes
+# after it. The tasks are in routes/console.php: the temp-upload cleanup,
+# db:backup (00:15 Berlin), session GC (03:00) and scryfall:update (04:00), which
+# runs for up to half an hour.
 #
-# While a run is still going (scryfall:update takes ~5 min in the
-# foreground), the timer's next triggers are skipped, not queued. Nothing else
-# is scheduled in that window; a future frequent task would need
-# ->runInBackground() on the long one.
+# Not a timer starting a oneshot `schedule:run` every minute: systemd does not
+# start a unit that is still running, so every minute of a long task would be
+# skipped, not queued. Nor ->runInBackground() on the long task under such a
+# oneshot: when a oneshot's main process exits, systemd kills what is left in
+# its control group — the backgrounded run, and its onFailure alert with it.
+#
+# Each run is a new process, so a deploy needs no restart here: the next minute
+# runs the new code.
+#
+# KillMode=mixed: a stop sends SIGTERM to schedule:work alone, which then starts
+# nothing new and waits for the runs in flight; whatever is still running after
+# TimeoutStopSec is killed. With the default, every run would get SIGTERM at once.
 [Unit]
-Description=cantrip.me production: Laravel scheduler (schedule:run)
+Description=cantrip.me production: Laravel scheduler (schedule:work)
 After=postgresql.service
 
 [Service]
-Type=oneshot
+Type=simple
 User=cantrip
 Group=cantrip
 WorkingDirectory=/var/www/cantrip.prod
-ExecStart=/usr/bin/php artisan schedule:run --no-interaction
+# --whisper: no "No scheduled commands are ready to run." in the journal every minute.
+ExecStart=/usr/bin/php artisan schedule:work --whisper --no-interaction
+Restart=always
+RestartSec=10
+KillMode=mixed
+TimeoutStopSec=2min
 # Storage and the media folders carry default ACLs that decide the modes;
 # this only keeps anything else out of reach of "other".
 UMask=0007
@@ -29,3 +46,6 @@ NoNewPrivileges=yes
 PrivateTmp=yes
 ProtectSystem=full
 ProtectHome=yes
+
+[Install]
+WantedBy=multi-user.target

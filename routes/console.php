@@ -50,7 +50,7 @@ Schedule::call(function () {
 // The lock TTL matters: withoutOverlapping() defaults to 24 hours, so a
 // hard-killed run (SIGKILL never gets to release the lock) would block
 // every following night for a full day — the same shape of failure as the
-// flock leftover. A full run takes ~7 minutes, so 60 tolerates a
+// flock leftover. A full run takes 5 to 25 minutes, so 60 tolerates a
 // pathologically slow one and still self-heals before the next attempt.
 //
 // Production-only, matching the cron line it replaces. 04:00 Europe/Berlin

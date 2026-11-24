@@ -240,7 +240,7 @@ Logs to the `schedule` channel: info on start/done, error + non-zero exit on fai
 
 ## Scheduled tasks
 
-Laravel's task scheduler handles recurring jobs. On the server, `cantrip-prod-schedule.timer` runs `schedule:run` every minute as `cantrip`, for production only — staging runs no scheduler, so the tasks marked "all" below run on production alone (see [docs/deployment.md](deployment.md#scheduler)).
+Laravel's task scheduler handles recurring jobs. On the server, `cantrip-prod-schedule.service` runs `schedule:work` as `cantrip`, which starts `schedule:run` every minute, for production only — staging runs no scheduler, so the tasks marked "all" below run on production alone (see [docs/deployment.md](deployment.md#scheduler)).
 
 Laravel determines internally which scheduled tasks are due. Scheduled tasks are defined in `routes/console.php`; times are in the app timezone (Europe/Berlin):
 
