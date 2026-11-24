@@ -1,6 +1,6 @@
-import { expect, test as setup } from "@playwright/test";
 import { signIn } from "./actions";
 import { COPIES_STORAGE_STATE, COPIES_USER, REFRESH_STORAGE_STATE, REFRESH_USER, STORAGE_STATE } from "./environment";
+import { expect, test as setup } from "./test";
 
 /**
  * Sign in once and save the session, so the authenticated specs do not each pay

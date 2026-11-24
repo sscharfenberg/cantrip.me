@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\ConfigureLocale;
+use App\Http\Middleware\ContentSecurityPolicy;
 use App\Http\Middleware\HandleInertiaRequests;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -19,6 +20,8 @@ return Application::configure(basePath: dirname(__DIR__))
         },
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // Global, so error pages (a 404 never reaches the web group) carry it too.
+        $middleware->append(ContentSecurityPolicy::class);
         $middleware->web(append: [
             ConfigureLocale::class, // determine the correct locale
             HandleInertiaRequests::class, // handle inertia requests

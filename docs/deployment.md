@@ -79,6 +79,11 @@ open in the server's firewall (`/etc/nftables.conf`, IPv4) and forwarded by the 
 those two protocol checks off for HTTP/3 requests; without that, every HTTP/3 request is refused. The access log
 names the protocol of each request (`HTTP/3.0`), and DevTools shows it in the Network panel's Protocol column.
 
+**Content-Security-Policy.** The app sends it (`App\Http\Middleware\ContentSecurityPolicy`), not nginx, so the
+end-to-end suite runs against it; nginx sets the other security headers. It is report-only — violations show in the
+browser console as `[Report Only]`, nothing is blocked — until `CSP_ENFORCE=true` is in the site's `.env`; the next
+deploy caches the config with it. The prerendered maintenance page never reaches the app and has no policy.
+
 **DNS and TLS.** The zone is on Cloudflare, records DNS-only (no proxy). `ddclient` on the server keeps the A
 records of `cantrip.me` and `www.cantrip.me` on the home connection's changing IPv4 address; there are no AAAA
 records. The Let's Encrypt certificate is issued through the DNS-01 challenge against Cloudflare, so neither

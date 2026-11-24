@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "../support/test";
 
 /******************************************************************************
  * The harness itself.
@@ -73,6 +73,26 @@ test.describe("harness", () => {
          * invisible, and every icon-only control in the app becomes unclickable.
          */
         await expect(page.locator("symbol#home")).toHaveCount(1);
+    });
+
+    test("enforces the Content-Security-Policy, and the bundle carries its nonce", async ({ page }) => {
+        const response = await page.goto("/");
+        const policy = response?.headers()["content-security-policy"] ?? "";
+
+        /*
+         * The guard in support/test.ts only proves nothing was blocked — which
+         * is also what a missing header looks like. This proves there is a
+         * policy to block with, enforced, and that Vite's script tag carries the
+         * request's nonce (read through the `nonce` property: browsers blank the
+         * attribute once the page has loaded).
+         */
+        const nonce = /script-src 'self' 'nonce-([A-Za-z0-9]+)'/u.exec(policy)?.[1];
+        expect(nonce, `script-src with a nonce in: ${policy}`).toBeTruthy();
+        const bundleNonce = await page
+            .locator('script[type="module"][src*="/build/"]')
+            .first()
+            .evaluate(script => (script as HTMLScriptElement).nonce);
+        expect(bundleNonce).toBe(nonce);
     });
 });
 

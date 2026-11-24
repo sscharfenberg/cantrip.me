@@ -118,7 +118,13 @@ export const serverEnv: Record<string, string> = {
      * which is exactly the dependency this whole block exists to remove.
      */
     MAIL_FROM_ADDRESS: "e2e@cantrip.test",
-    MAIL_FROM_NAME: "cantrip.me e2e"
+    MAIL_FROM_NAME: "cantrip.me e2e",
+    /*
+     * The Content-Security-Policy enforced, not report-only, whatever production
+     * runs: the suite then proves the app works under the policy, and the guard
+     * in test.ts fails any test that trips it.
+     */
+    CSP_ENFORCE: "true"
 };
 
 /** Run an artisan command with the E2E overrides applied, returning its stdout. */

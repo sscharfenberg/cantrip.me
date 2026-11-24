@@ -1,6 +1,6 @@
-import { expect, test } from "@playwright/test";
 import { signIn } from "../support/actions";
 import { LOGOUT_USER } from "../support/environment";
+import { expect, test } from "../support/test";
 
 /******************************************************************************
  * Signing out.

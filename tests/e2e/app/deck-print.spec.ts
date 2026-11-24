@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
-import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
+import { expect, test } from "../support/test";
 
 /******************************************************************************
  * The printable deck list (`/decks/{deck}/print`).

@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "../support/test";
 
 /******************************************************************************
  * The pages a visitor can reach without an account.

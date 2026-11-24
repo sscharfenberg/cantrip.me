@@ -1,6 +1,6 @@
-import { expect, test } from "@playwright/test";
 import { signIn } from "../support/actions";
 import { SEED_USER } from "../support/environment";
+import { expect, test } from "../support/test";
 
 /******************************************************************************
  * Signing in.

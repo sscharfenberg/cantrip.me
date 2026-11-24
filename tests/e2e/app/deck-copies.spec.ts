@@ -1,6 +1,6 @@
-import { expect, test } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
 import { COPIES_STORAGE_STATE } from "../support/environment";
+import { expect, test } from "../support/test";
 
 /******************************************************************************
  * Finish, language and proxy of a deck card's copies.

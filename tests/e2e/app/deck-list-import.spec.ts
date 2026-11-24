@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "../support/test";
 
 /******************************************************************************
  * The deck list import (`/decks/import-list`).

@@ -95,6 +95,7 @@ tests/e2e/
 │   ├── globalSetup.ts     container → assets → migrate → seed, in that order
 │   ├── globalTeardown.ts  puts a stashed public/hot back
 │   ├── auth.setup.ts      signs in once per account, parks the sessions for the `app` project
+│   ├── test.ts            the suite's `test`: Playwright's plus the Content-Security-Policy guard
 │   └── actions.ts         helpers shared across specs
 ├── guest/                 run with NO stored session
 │   ├── smoke.spec.ts         the harness itself: server, CSS, bundle, sprite, auth gate
@@ -113,6 +114,8 @@ tests/e2e/
 ```
 
 Guest and app specs are separated **by directory, not by clearing cookies per test**. It is the one arrangement in which a stray `storageState` cannot make an auth-gate test pass by accident — the failure mode that would leave the whole project green and worthless.
+
+**Every test fails on a Content-Security-Policy violation.** Specs import `test` and `expect` from `support/test.ts`, never from `@playwright/test` (type imports excepted): its auto fixture collects every violation in the test's browser context and fails the test with the directive and the blocked source. The server runs with the policy **enforced** (`CSP_ENFORCE` in `environment.ts`), whatever production does, so the suite proves the app works under it; `guest/smoke.spec.ts` pins that the header is there and that Vite's script tag carries its nonce. The dev environment (`APP_ENV=local`) also has Laravel Boost inject an inline script, which passes only because it takes the request's nonce — a dev tool that injects a script without one fails every test. A live Vite dev server (`public/hot`, left in place by the harness) switches the policy off, so the smoke check fails: stop the dev server before a run.
 
 **Writes need a lane of their own.** `fullyParallel` splits tests *within* a file as well as across files, and every worker shares one database, so a test that writes can land on a test that reads at any moment. The convention is: reads use the Atraxa deck, the one write uses the partner deck, and it adds a card **no reader searches for** — because `DeckCardSearchService` drops cards the deck already holds at the format's per-card maximum, so adding a searched-for card would make an unrelated test find nothing about half the time. If you add a mutating spec, say in a comment which readers you checked.
 

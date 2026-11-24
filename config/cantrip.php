@@ -4,12 +4,18 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | scryfall settings
+    | Content-Security-Policy
     |--------------------------------------------------------------------------
     |
-    | basic settings for scryfall imports.
+    | App\Http\Middleware\ContentSecurityPolicy sends the policy on every
+    | response: report-only (violations show in the browser console, nothing
+    | breaks) until `enforce` is set, then enforced.
     |
     */
+    'csp' => [
+        'enforce' => (bool) env('CSP_ENFORCE', false),
+    ],
+
     /*
     |--------------------------------------------------------------------------
     | CSV import settings

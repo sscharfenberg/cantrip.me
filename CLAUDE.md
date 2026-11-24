@@ -130,6 +130,7 @@ Each deck-owner pair resolves to one of three modes that drive UI gating and dat
 - Validation errors come back as 422 with `{ errors: { field: [messages] } }`; map to flat `Record<string, string>` in composables
 - Fortify password confirmation gate returns **423** when the session confirmation has expired
 - **WAF:** production runs ModSecurity with the OWASP Core Rule Set, which false-positives on free text (card names in every language, deck lists, descriptions, passwords). Every request field carrying user free text must be on the server's WAF exclusion list; a new one without it gets users 403s. A 403 on a route whose `authorize()` passes is the WAF, not the app. Refusals of requests carrying the session cookie are reported daily by mail and Discord (`cantrip-waf-report`, `docs/deployment.md` § WAF); no fail2ban jail bans on them.
+- **CSP:** `App\Http\Middleware\ContentSecurityPolicy` (global) sends the policy on every response: everything `'self'`, `script-src` plus a per-request nonce (`Vite::useCspNonce()`; no inline script ships), inline styles allowed (error pages, the 2FA code input — a nonce in `style-src` would void `'unsafe-inline'`), `img-src` plus `blob:` (the QR code PNG). Report-only until `CSP_ENFORCE` (`cantrip.csp.enforce`); none while Vite's dev server runs or on the debug exception page. **A new external source (script, style, image, font, request) or an inline `<script>` without `Vite::cspNonce()` is blocked** — extend the policy deliberately; card images are local, so no Scryfall host is allowed.
 
 **Composables:**
 - Shared reactive state is declared _outside_ the composable function (module-level `ref`s) so all consumers share the same instance — see `useTwoFactorAuth.ts`
@@ -205,6 +206,7 @@ Conventions worth keeping:
 **End-to-end testing (Playwright):**
 
 - Specs live under `tests/e2e/`, split `guest/` (no session) and `app/` (signed in). **By directory, not by clearing cookies per test** — it is the only arrangement in which a stray `storageState` cannot make an auth-gate test pass by accident.
+- **Import `test`/`expect` from `tests/e2e/support/test.ts`, never from `@playwright/test`** (type imports excepted): its auto fixture fails any test with a Content-Security-Policy violation, and the e2e server enforces the policy (`CSP_ENFORCE`).
 - `npm run e2e` needs nothing running first: global setup starts the `docker-compose.e2e.yml` Postgres if it is down, rebuilds the bundle **and the icon sprite**, migrates fresh and seeds; Playwright then starts `artisan serve` on port 8101.
 - The fixture is `database/seeders/E2ESeeder` — fixed ids, fixed names, fixed timestamps, no factories. `DatabaseSeeder` is unusable here: `DeckSeeder` pins printings by `(set code, collector number)` and so needs a full `scryfall:update`.
 - Specs that write share one database with every reader. `deck-refresh.spec.ts` (partial reloads after each deck-page action) therefore runs as its own account, seeded by `E2EDeckRefreshSeeder` with one deck per test; reuse that pattern rather than adding stacks or decks to the main account, whose collection the readers pin to exact numbers.

@@ -1,6 +1,6 @@
-import { expect, test } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
 import { REFRESH_STORAGE_STATE } from "../support/environment";
+import { expect, test } from "../support/test";
 
 /******************************************************************************
  * The deck page keeps up with its own actions.
