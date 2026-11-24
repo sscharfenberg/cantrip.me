@@ -71,11 +71,20 @@ scheduler, deploys) is not affected.
 PHP, and limits PHP requests per client IP (`conf.d/cantrip-limits.conf`: 30 per second, bursts of 60, then 429).
 Staging answers on the LAN only, under `cantrip.local` (published over mDNS), with a self-signed certificate.
 
+**HTTP/3.** Production also speaks HTTP/3 (QUIC on UDP 443) and offers it with an `Alt-Svc` header; a browser that
+cannot reach UDP 443 stays on HTTP/2. Only cantrip listens on UDP 443, so the vhost carries the default server for
+it, which refuses a handshake for any other name, and the one `reuseport` an address and port allows. UDP 443 is
+open in the server's firewall (`/etc/nftables.conf`, IPv4) and forwarded by the router. nginx hands ModSecurity no
+`Host` header for HTTP/3 and the Core Rule Set allows HTTP versions up to 2.0 only, so the WAF exclusions switch
+those two protocol checks off for HTTP/3 requests; without that, every HTTP/3 request is refused. The access log
+names the protocol of each request (`HTTP/3.0`), and DevTools shows it in the Network panel's Protocol column.
+
 **DNS and TLS.** The zone is on Cloudflare, records DNS-only (no proxy). `ddclient` on the server keeps the A
 records of `cantrip.me` and `www.cantrip.me` on the home connection's changing IPv4 address; there are no AAAA
 records. The Let's Encrypt certificate is issued through the DNS-01 challenge against Cloudflare, so neither
-issuing nor renewing it (`certbot.timer`, which reloads nginx) depends on port 80. ddclient and certbot each use
-their own Cloudflare token, scoped to this zone.
+issuing nor renewing it (`certbot.timer`, which reloads nginx) depends on port 80; cantrip uses port 80 only to
+redirect to HTTPS, but the other app's certificate renews over it. ddclient and certbot each use their own
+Cloudflare token, scoped to this zone.
 
 ## Deploying production
 
