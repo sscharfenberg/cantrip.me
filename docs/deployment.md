@@ -136,10 +136,16 @@ A new Node major also needs `NODE_MAJOR` changed in `cantrip-prod-deploy`. Old v
 triggers are skipped, not queued; nothing else is scheduled in that window. Staging runs no scheduler. Scheduled
 tasks: [docs/artisan-commands.md](artisan-commands.md#scheduled-tasks).
 
+The server's clock runs on UTC, and systemd timers (`OnCalendar=`) fire in UTC. The Laravel scheduler fires in the app
+timezone, Europe/Berlin. So a scheduled task and a systemd timer move by an hour against each other when daylight
+saving time starts or ends.
+
 ## Backups
 
-- **00:15** `db:backup` writes a `pg_dump` to `storage/app/db-backups` (7 days), readable by the `cantrip` group only.
-- **01:30** `cantrip-backup.timer` runs restic as root and copies the dumps, `.env` (its `APP_KEY` decrypts the 2FA
+- **00:15 Berlin time** (Laravel scheduler) `db:backup` writes a `pg_dump` to `storage/app/db-backups` (7 days),
+  readable by the `cantrip` group only.
+- **01:30 UTC** plus a random delay of up to 15 minutes (systemd timer; 02:30 Berlin time in winter, 03:30 in summer):
+  `cantrip-backup.timer` runs restic as root and copies the dumps, `.env` (its `APP_KEY` decrypts the 2FA
   secrets), prod's set icons and the server's cantrip configuration (nginx vhosts and WAF exclusions, php-fpm pools,
   systemd units, sudoers, ddclient, certbot, the scripts in `/usr/local`, the credentials in `/root/cantrip`) into two
   repositories: one on the server's USB disk, one in Backblaze B2 (region EU Central). The card images, art crops and
