@@ -80,9 +80,10 @@ those two protocol checks off for HTTP/3 requests; without that, every HTTP/3 re
 names the protocol of each request (`HTTP/3.0`), and DevTools shows it in the Network panel's Protocol column.
 
 **Content-Security-Policy.** The app sends it (`App\Http\Middleware\ContentSecurityPolicy`), not nginx, so the
-end-to-end suite runs against it; nginx sets the other security headers. It is report-only — violations show in the
-browser console as `[Report Only]`, nothing is blocked — until `CSP_ENFORCE=true` is in the site's `.env`; the next
-deploy caches the config with it. The prerendered maintenance page never reaches the app and has no policy.
+end-to-end suite runs against it; nginx sets the other security headers. Production enforces it (`CSP_ENFORCE=true`
+in its `.env`, cached by the deploy). Without that line the policy is report-only, as on staging: violations show in
+the browser console as `[Report Only]` and nothing is blocked. The prerendered maintenance page never reaches the app
+and has no policy.
 
 **DNS and TLS.** The zone is on Cloudflare, records DNS-only (no proxy). `ddclient` on the server keeps the A
 records of `cantrip.me` and `www.cantrip.me` on the home connection's changing IPv4 address; there are no AAAA
