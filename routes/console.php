@@ -19,10 +19,20 @@ Schedule::job(new CleanupTempUploads)->daily()->evenInMaintenanceMode();
 // running `php artisan db:backup` manually on staging still works for
 // ad-hoc testing. evenInMaintenanceMode() so a prod deploy that
 // catches midnight still gets its daily snapshot.
+//
+// The pings are a dead-man's switch on healthchecks.io: a dump that
+// failed marks the check failed at once, and a night with no ping at all
+// alerts when the check's grace time runs out. That second half is the
+// one nothing else here can do — it is how a scheduler that stopped
+// running (the service down, the box off) is noticed, since a task that
+// never starts cannot report anything itself.
+$dbBackupPing = config('services.healthchecks.db_backup');
 Schedule::command('db:backup')
     ->dailyAt('00:15')
     ->environments(['production'])
-    ->evenInMaintenanceMode();
+    ->evenInMaintenanceMode()
+    ->pingOnSuccessIf(filled($dbBackupPing), (string) $dbBackupPing)
+    ->pingOnFailureIf(filled($dbBackupPing), rtrim((string) $dbBackupPing, '/').'/fail');
 
 // Explicit nightly sweep of expired session rows. Laravel's lottery
 // (config/session.php) already triggers gc() on ~2% of requests, so

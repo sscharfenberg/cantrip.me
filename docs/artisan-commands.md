@@ -191,7 +191,7 @@ Both commands work in every environment, but the daily schedule only fires in `p
 
 Backups land in `config('cantrip.db_backup.path')` (default `storage/app/db-backups`). Retention is `config('cantrip.db_backup.retention_days')` (default 7), overridable per-env via the `DB_BACKUP_RETENTION_DAYS` env var.
 
-On production a nightly restic run copies these dumps to the server's USB disk and to Backblaze B2 — see [docs/deployment.md](deployment.md#backups).
+On production a nightly restic run copies these dumps to the server's USB disk and to Backblaze B2, and every scheduled run pings a healthchecks.io check (`HEALTHCHECKS_DB_BACKUP_URL`; `/fail` when the dump failed) — see [docs/deployment.md](deployment.md#backups).
 
 Credentials reach the client tools through a 0600 temp password file named in `PGPASSFILE` (`App\Services\PostgresCredentials`), so the DB password never appears in `ps` or `/proc/<pid>/cmdline`; the file is deleted when the tool exits.
 

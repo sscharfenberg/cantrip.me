@@ -23,9 +23,20 @@
 # KillMode=mixed: a stop sends SIGTERM to schedule:work alone, which then starts
 # nothing new and waits for the runs in flight; whatever is still running after
 # TimeoutStopSec is killed. With the default, every run would get SIGTERM at once.
+#
+# A crash restarts it quietly; a crash loop alerts. RestartMode=direct restarts
+# without passing through the failed state, which with the default mode starts
+# OnFailure= on every single crash — a push every ten seconds. Five starts within
+# five minutes is the start limit, and hitting it leaves the unit failed, which
+# is when OnFailure= runs notify-failure@ (/usr/local/sbin/notify, the server's
+# one alert path). A scheduler that never comes back is also what the db:backup
+# healthchecks.io check notices by itself, within a day.
 [Unit]
 Description=cantrip.me production: Laravel scheduler (schedule:work)
 After=postgresql.service
+OnFailure=notify-failure@%n.service
+StartLimitIntervalSec=5min
+StartLimitBurst=5
 
 [Service]
 Type=simple
@@ -36,6 +47,7 @@ WorkingDirectory=/var/www/cantrip.prod
 ExecStart=/usr/bin/php artisan schedule:work --whisper --no-interaction
 Restart=always
 RestartSec=10
+RestartMode=direct
 KillMode=mixed
 TimeoutStopSec=2min
 # Storage and the media folders carry default ACLs that decide the modes;

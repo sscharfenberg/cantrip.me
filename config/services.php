@@ -39,4 +39,9 @@ return [
         'webhook_url' => env('DISCORD_WEBHOOK_URL'),
     ],
 
+    // healthchecks.io ping URLs. Production only; unset means no ping.
+    'healthchecks' => [
+        'db_backup' => env('HEALTHCHECKS_DB_BACKUP_URL'),
+    ],
+
 ];

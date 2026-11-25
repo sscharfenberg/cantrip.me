@@ -158,6 +158,12 @@ for half an hour does not cost the minutes behind it. A deploy needs no restart:
 next minute runs the new code. Staging runs no scheduler. Scheduled tasks:
 [docs/artisan-commands.md](artisan-commands.md#scheduled-tasks).
 
+A crash restarts it quietly ten seconds later; a crash loop alerts. `RestartMode=direct` keeps the restarts from
+passing through the failed state, where `OnFailure=` would push on every single crash, and five starts within five
+minutes is the start limit: hitting it leaves the unit failed, and `OnFailure=notify-failure@%n.service` reports it
+(see [Alerts](#alerts)). A scheduler that is down without failing — stopped, or the server off — is what the
+`db:backup` healthchecks.io check notices: no ping that night, an alert when its grace time runs out.
+
 Two set-ups that look simpler do not work under systemd. A timer starting a oneshot `schedule:run` every minute skips
 every minute a long task runs, because systemd does not start a unit that is still running. And `->runInBackground()`
 under such a oneshot is killed with it: when a oneshot's main process exits, systemd kills what is left in its control
@@ -183,7 +189,21 @@ other when daylight saving time starts or ends.
   5 weekly, 12 monthly snapshots per tag; on Sundays restic reads back a tenth of the data.
 - The B2 key cannot delete. What restic removes is only hidden, and the bucket deletes hidden versions after 90 days:
   a break-in on the server can hide the off-site copy, not destroy it.
-- A failed run alerts through `cantrip-backup-failed.service` (Discord and a push notification).
+- A failed run alerts through `notify-failure@` (see [Alerts](#alerts)), and both backups ping a healthchecks.io
+  check of their own when they succeed: `db:backup` through the scheduler's `pingOnSuccessIf`
+  (`HEALTHCHECKS_DB_BACKUP_URL` in prod's `.env`), the restic run through `notify --ok` in its unit. A failure marks
+  the check failed at once; a night with no ping alerts when the grace time (2 hours) runs out.
+
+## Alerts
+
+Everything the server reports goes through one script, `/usr/local/sbin/notify`, maintained in MixTape's repository
+(`docs/self-hosting/files/notify`, with its configuration template and the `notify-failure@.service` unit). cantrip's
+channels are its entry in `/etc/notify/apps.json`: the ntfy topic in `/etc/notify/secrets.env`, Discord through
+`DISCORD_WEBHOOK_URL` and mail to `APP_CONTACT` through cantrip's own SMTP account, both read from prod's `.env`.
+A unit belongs to cantrip by its name (`cantrip-*`), so `OnFailure=notify-failure@%n.service` on a `cantrip-*`
+unit reaches these channels and no others, and its healthchecks.io check is `HC_<UNIT>` in the secrets file
+(`HC_CANTRIP_BACKUP`). The Scryfall alerts stay in the app (`ScryfallFailureAlert`, mail and Discord): they report
+steps inside a run, which no unit sees.
 
 **Restore:** as root on the server (or any machine with restic, the B2 key and the password),
 `restic -r <repository> snapshots`, then `restic -r <repository> restore latest --tag cantrip-prod --target /tmp/restore`, then
@@ -243,7 +263,7 @@ its users get 403s.
   visitor's, almost certainly the app's own and so a false positive, when it carried cantrip's session cookie,
   tripped more than the scanner file-name rules (920440, 930130, 920500), and came from a client that made no such
   file-name probe in the window: a scanner keeps the cookie from its first response, so the cookie alone is not
-  enough. Those are reported like the Scryfall alerts, by mail to `APP_CONTACT` and to Discord: path, rule, and the
+  enough. Those are reported through `notify` to cantrip's channels (see [Alerts](#alerts)): path, rule, and the
   request field the rule matched in, never the value or the client. Everything else is only counted. The full list
   is in `journalctl -u waf-report`, with each entry's audit-log id; the window's end is
   `/var/lib/waf-report/cantrip.window-end`. No fail2ban jail acts on WAF refusals: the request is refused either way,
