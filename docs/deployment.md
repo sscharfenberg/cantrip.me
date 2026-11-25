@@ -29,9 +29,10 @@ and pruning against it would delete images production still points at.
 
 ## Server configuration
 
-The server is shared with another app. Global settings — `/etc/php/8.4/fpm/conf.d/`, nginx's `http` block, the
-shared ModSecurity rule set — are that app's; cantrip sets what it needs in its own files, all named `cantrip*`
-(which is also how the nightly [backup](#backups) finds them).
+The server is shared with another app. Global settings — PHP's `conf.d/99-server.ini`, nginx's `http` block
+(`conf.d/hardening.conf`), the shared ModSecurity rule set — are server-wide defaults that belong to neither app;
+cantrip sets what it needs in its own files, all named `cantrip*` (which is also how the nightly
+[backup](#backups) finds them).
 
 **Postgres.** Postgres listens on `localhost` only. Each environment has one database and one login role that owns
 only that database and connects with a password (`scram-sha-256`). The databases use the ICU root locale, so names
@@ -46,15 +47,18 @@ CREATE DATABASE cantrip_prod OWNER cantrip_prod TEMPLATE template0 ENCODING 'UTF
 The `citext` and `unaccent` extensions come from the `adapt_schema_to_postgres` migration; both are trusted
 extensions, so the owner may create them.
 
-The cluster is shared with the other app, and its memory settings live in `/etc/postgresql/17/main/conf.d/cantrip.conf`:
+The cluster is shared with the other app, and its memory settings live in `/etc/postgresql/17/main/conf.d/memory.conf`:
 `shared_buffers` 2 GB, `effective_cache_size` 16 GB, `work_mem` 16 MB, `maintenance_work_mem` 512 MB. All databases
 together are well under 1 GB, so they fit in `shared_buffers` whole, including the nightly Scryfall sync's shadow
 tables. `shared_buffers` changes only on a restart (`systemctl restart postgresql@17-main`, a few seconds without a
 database for both apps), the others on a reload.
 
 **php-fpm.** Each environment has its own pool (`/etc/php/8.4/fpm/pool.d/cantrip-{prod,staging}.conf`) and socket.
-The other app's global ini turns file uploads off for every pool, so both cantrip pools turn them back on
-(`php_admin_flag[file_uploads] = on`); without that, every CSV upload answers 422 "The file field is required."
+The server's global ini (`conf.d/99-server.ini`) turns file uploads off for every pool, so both cantrip pools turn
+them back on (`php_admin_flag[file_uploads] = on`); without that, every CSV upload answers 422 "The file field is
+required." The global ini sets no limits, so each pool sets its own: `memory_limit` 256M and `max_execution_time`
+120 — PHP's default of 30 seconds is too short for PDF printing. The latter is a `php_value`, so `set_time_limit()`
+may still raise it.
 The request body limit is 3 MB in three places that must agree: `client_max_body_size` in nginx,
 `post_max_size`/`upload_max_filesize` in the pool, and `SecRequestBodyLimit` in the WAF exclusions. The app itself
 accepts CSV files up to 2 MB (`config/cantrip.php`).
@@ -76,7 +80,7 @@ cannot reach UDP 443 stays on HTTP/2. MixTape speaks it too, so what both sites 
 MixTape's repository (`docs/self-hosting/05-hardening.md` § HTTP/3):
 
 - The QUIC default server, which refuses a handshake for any other name and carries the one `reuseport` an address
-  and port allow, is in the catch-all vhost (`sites-available/mixtape-catchall`); cantrip's vhost only has
+  and port allow, is in the catch-all vhost (`sites-available/catchall`); cantrip's vhost only has
   `listen 443 quic`.
 - nginx hands ModSecurity no `Host` header for HTTP/3, and the Core Rule Set allows HTTP versions up to 2.0 only,
   so the shared `modsec/before-crs.conf` switches those two protocol checks off for HTTP/3 (rule 10200); without
