@@ -72,11 +72,22 @@ PHP, and limits PHP requests per client IP (`conf.d/cantrip-limits.conf`: 30 per
 Staging answers on the LAN only, under `cantrip.local` (published over mDNS), with a self-signed certificate.
 
 **HTTP/3.** Production also speaks HTTP/3 (QUIC on UDP 443) and offers it with an `Alt-Svc` header; a browser that
-cannot reach UDP 443 stays on HTTP/2. Only cantrip listens on UDP 443, so the vhost carries the default server for
-it, which refuses a handshake for any other name, and the one `reuseport` an address and port allows. UDP 443 is
-open in the server's firewall (`/etc/nftables.conf`, IPv4) and forwarded by the router. nginx hands ModSecurity no
-`Host` header for HTTP/3 and the Core Rule Set allows HTTP versions up to 2.0 only, so the WAF exclusions switch
-those two protocol checks off for HTTP/3 requests; without that, every HTTP/3 request is refused. The access log
+cannot reach UDP 443 stays on HTTP/2. MixTape speaks it too, so what both sites need is server-wide, maintained in
+MixTape's repository (`docs/self-hosting/05-hardening.md` § HTTP/3):
+
+- The QUIC default server, which refuses a handshake for any other name and carries the one `reuseport` an address
+  and port allow, is in the catch-all vhost (`sites-available/mixtape-catchall`); cantrip's vhost only has
+  `listen 443 quic`.
+- nginx hands ModSecurity no `Host` header for HTTP/3, and the Core Rule Set allows HTTP versions up to 2.0 only,
+  so the shared `modsec/before-crs.conf` switches those two protocol checks off for HTTP/3 (rule 10200); without
+  that, every HTTP/3 request is refused. Because the Host is missing, cantrip's vhost names itself in
+  `modsecurity_transaction_id "cantrip-$request_id"`, which is how the WAF report attributes an HTTP/3 refusal.
+- `/etc/sysctl.d/90-quic-pmtu.conf` keeps the kernel from acting on the router's ICMP "fragmentation needed" for
+  UDP. The DSL uplink carries 1492-byte packets; with the default, nginx's larger QUIC probes are refused with
+  `EMSGSIZE`, nginx drops the connection (`sendmsg() failed (90: Message too long)` in the error log) and the browser
+  falls back to HTTP/2 and marks HTTP/3 broken. A page load is too short to trigger it; a long transfer is not.
+
+UDP 443 is open in the server's firewall (`/etc/nftables.conf`, IPv4) and forwarded by the router. The access log
 names the protocol of each request (`HTTP/3.0`), and DevTools shows it in the Network panel's Protocol column.
 
 **Content-Security-Policy.** The app sends it (`App\Http\Middleware\ContentSecurityPolicy`), not nginx, so the
