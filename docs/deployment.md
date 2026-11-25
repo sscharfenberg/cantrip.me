@@ -99,8 +99,8 @@ and has no policy.
 **DNS and TLS.** The zone is on Cloudflare, records DNS-only (no proxy). `ddclient` on the server keeps the A
 records of `cantrip.me` and `www.cantrip.me` on the home connection's changing IPv4 address; there are no AAAA
 records. The Let's Encrypt certificate is issued through the DNS-01 challenge against Cloudflare, so neither
-issuing nor renewing it (`certbot.timer`, which reloads nginx) depends on port 80; cantrip uses port 80 only to
-redirect to HTTPS, but the other app's certificate renews over it. ddclient and certbot each use their own
+issuing nor renewing it (`certbot.timer`, which reloads nginx) depends on port 80. No certificate on the server
+does: port 80 carries only both apps' redirects to HTTPS. ddclient and certbot each use their own
 Cloudflare token, scoped to this zone.
 
 ## Deploying production

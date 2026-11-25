@@ -259,6 +259,8 @@ The full update runs against `__shadow` build tables and atomically swaps them i
 
 ## Staging as Dev Environment
 
+**The server itself is documented in the private repository `sscharfenberg/debbie`, checked out at `../debbie`** — network, disks, services, MixTape beside cantrip, secret locations, the live configuration (`snapshot/`, refreshed with `debbie-pull`) and the open work on the box (its issues). Read its `CLAUDE.md` and `infrastructure.md` before any work on debbie.
+
 Staging (`https://cantrip.local`, LAN only) is used as a remote dev server — the same stack as production, on the same home server (`debbie`), avoiding a local Docker setup. Code reaches it as a tar upload of the working tree, with `vendor/`, `public/build` and the icon sprite built locally; exclude `public/hot`, `.env` and `storage/`. No Vite dev server runs on staging. `ct artisan …` (`resources/scripts/ct`) runs artisan there; `--prod` targets production. Layout, deploys, scheduler and backups: `docs/deployment.md`.
 
 **The one exception is the end-to-end test database.** `docker-compose.e2e.yml` runs a throwaway Postgres 17 on port **5499** for the Playwright suite, because the deck-building core filters colour identity with regular expressions and SQLite cannot run them. It is not a development database and nothing in normal development touches it — dev still points at staging, as above. The port is 5499 rather than 5432, where another local project's development Postgres listens, and no port an ssh tunnel forwards. Before migrating, the harness also checks that the server answering is this container (`assertIsE2EDatabase`). See `docs/testing.md`.
