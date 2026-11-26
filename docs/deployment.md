@@ -249,7 +249,7 @@ ct status --prod                   # deployed commit, maintenance mode, schedule
 ct deploy --prod
 ```
 
-Destructive artisan commands (`migrate:fresh`, `db:wipe`, `db:restore`, `db:copy-from-mariadb`, …) ask for the target's
+Destructive artisan commands (`migrate:fresh`, `db:wipe`, `db:restore`, …) ask for the target's
 name to be typed first, on both targets: Laravel's own prompt never fires at the far end of ssh.
 
 `ct deploy --prod` looks for the local clone at `~/workbench/4.Private/cantrip.me`; set `CANTRIP_REPO` when it lives

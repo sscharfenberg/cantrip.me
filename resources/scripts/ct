@@ -208,7 +208,7 @@ guard_artisan() {
     local sub=$1
     shift
     case "$sub" in
-        migrate:fresh|migrate:refresh|migrate:reset|migrate:rollback|db:wipe|db:restore|db:copy-from-mariadb)
+        migrate:fresh|migrate:refresh|migrate:reset|migrate:rollback|db:wipe|db:restore)
             if [[ $TARGET == prod ]]; then
                 confirm PRODUCTION "You are about to run '$sub' against PRODUCTION." \
                     "It replaces or rewinds live data: accounts, collections, decks."

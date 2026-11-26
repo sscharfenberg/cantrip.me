@@ -45,7 +45,6 @@ _ct() {
         'scryfall\:gc-images:find orphaned images (--prune deletes, prod only)'
         'db\:backup:pg_dump into storage/app/db-backups'
         'db\:restore:DESTRUCTIVE — restore a backup over the database'
-        'db\:copy-from-mariadb:DESTRUCTIVE — one-off copy from the Hetzner MariaDB'
         'notifications\:test-failure-alert:send a test Scryfall failure alert'
     )
 
