@@ -203,8 +203,9 @@ other when daylight saving time starts or ends.
   `cantrip-media`): Scryfall could serve them again, but not without a quarter of a million requests. Both
   repositories are encrypted by restic with one password, which also lives outside the server. Retention: 7 daily,
   5 weekly, 12 monthly snapshots per tag; on Sundays restic reads back a tenth of the data.
-- The B2 key cannot delete. What restic removes is only hidden, and the bucket deletes hidden versions after 90 days:
-  a break-in on the server can hide the off-site copy, not destroy it.
+- The B2 key reaches cantrip's prefix in the bucket only, and cannot delete. What restic removes is only hidden, and
+  the bucket deletes hidden versions after 90 days: a break-in on the server can hide the off-site copy, not destroy
+  it.
 - A failed run alerts through `notify-failure@` (see [Alerts](#alerts)), and both backups ping a healthchecks.io
   check of their own when they succeed: `db:backup` through the scheduler's `pingOnSuccessIf`
   (`HEALTHCHECKS_DB_BACKUP_URL` in prod's `.env`), the restic run through `notify --ok` in its unit. A failure marks
