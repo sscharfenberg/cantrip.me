@@ -195,9 +195,10 @@ other when daylight saving time starts or ends.
   readable by the `cantrip` group only.
 - **01:30 UTC** plus a random delay of up to 15 minutes (systemd timer; 02:30 Berlin time in winter, 03:30 in summer):
   `cantrip-backup.timer` runs restic as root and copies the dumps, `.env` (its `APP_KEY` decrypts the 2FA
-  secrets), prod's set icons and the server's cantrip configuration (nginx vhosts and WAF exclusions, php-fpm pools,
-  Postgres settings, systemd units, sudoers, ddclient, certbot, the scripts in `/usr/local`, the credentials in
-  `/root/cantrip`) into two repositories: one on the server's USB disk, one in Backblaze B2 (region EU Central). The
+  secrets), prod's set icons and cantrip's secrets on the server (the credentials in `/root/cantrip`, certbot's
+  Cloudflare token file, the staging certificate's key) into two repositories: one on the server's USB disk, one in
+  Backblaze B2 (region EU Central). The server's configuration (vhosts, WAF exclusions, pools, units, scripts) is
+  not in restic: it is versioned in the server's private infrastructure repository. The
   card images, art crops and symbols (`/var/media/cantrip`) go to the USB disk only, as a snapshot of their own (tag
   `cantrip-media`): Scryfall could serve them again, but not without a quarter of a million requests. Both
   repositories are encrypted by restic with one password, which also lives outside the server. Retention: 7 daily,
